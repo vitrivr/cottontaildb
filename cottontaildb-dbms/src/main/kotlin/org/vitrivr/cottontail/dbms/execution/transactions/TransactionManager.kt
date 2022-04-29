@@ -17,6 +17,7 @@ import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.events.Event
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
 import org.vitrivr.cottontail.dbms.execution.locking.Lock
 import org.vitrivr.cottontail.dbms.execution.locking.LockHolder
@@ -117,7 +118,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          */
         private val localObservers: MutableMap<TransactionObserver, SoftReference<MutableList<Event>>> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
-        /** A [MutableMap] of all [Tx] that have been created as part of this [TransactionImpl]. */
+        /** Map of all [Tx] that have been created as part of this [TransactionImpl]. */
         private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
         /** A [Mutex] data structure used for synchronisation on the [TransactionImpl]. */
@@ -253,12 +254,15 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
                         try {
                             txn.beforeCommit()
                         } catch (e: Throwable) {
-                            LOGGER.error("An error occurred while committing Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId}. This is serious!", e)
+                            LOGGER.error("An error occurred while preparing Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId} for commit. This is serious!", e)
+                            throw e
                         }
                     }
                     commit = this@TransactionImpl.xodusTx.commit()
+                    if (!commit) throw TransactionException.InConflict(this@TransactionImpl.txId)
                 } catch (e: Throwable) {
                     this@TransactionImpl.xodusTx.abort()
+                    throw e
                 } finally {
                     this@TransactionImpl.finalize(commit)
                 }

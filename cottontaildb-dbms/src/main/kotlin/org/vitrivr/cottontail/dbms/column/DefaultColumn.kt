@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.events.ColumnEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
@@ -104,7 +104,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         init {
             /** Checks if DBO is still open. */
             if (this.dbo.closed) {
-                throw TxException.TxDBOClosedException(this.context.txId, this.dbo)
+                throw TransactionException.DBOClosed(this.context.txId, this.dbo)
             }
             this.closeStamp = this.dbo.catalogue.closeLock.readLock()
         }

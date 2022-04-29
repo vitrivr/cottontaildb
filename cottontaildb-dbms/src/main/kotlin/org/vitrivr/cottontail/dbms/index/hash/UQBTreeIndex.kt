@@ -24,7 +24,7 @@ import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
@@ -231,9 +231,9 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
             /* Iterate over entity and update index with entries. */
             val cursor = entityTx.cursor(this.columns)
             cursor.forEach { record ->
-                val value = record[this.columns[0]] ?: throw TxException.TxValidationException(this.context.txId, "Value cannot be null for UniqueHashIndex ${this@UQBTreeIndex.name} given value is (value = null, tupleId = ${record.tupleId}).")
+                val value = record[this.columns[0]] ?: throw TransactionException.Validation(this.context.txId, "Value cannot be null for UniqueHashIndex ${this@UQBTreeIndex.name} given value is (value = null, tupleId = ${record.tupleId}).")
                 if (!this.addMapping(value, record.tupleId)) {
-                    throw TxException.TxValidationException(this.context.txId, "Value must be unique for UniqueHashIndex ${this@UQBTreeIndex.name} but is not (value = $value, tupleId = ${record.tupleId}).")
+                    throw TransactionException.Validation(this.context.txId, "Value must be unique for UniqueHashIndex ${this@UQBTreeIndex.name} but is not (value = $value, tupleId = ${record.tupleId}).")
                 }
             }
 

@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.events.IndexEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
@@ -100,7 +100,7 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
 
         init {
             /** Checks if DBO is still open. */
-            if (this.dbo.closed) throw TxException.TxDBOClosedException(this.context.txId, this.dbo)
+            if (this.dbo.closed) throw TransactionException.DBOClosed(this.context.txId, this.dbo)
             this.closeStamp = this.dbo.catalogue.closeLock.readLock()
         }
 

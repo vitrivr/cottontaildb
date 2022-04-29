@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBO
@@ -124,7 +124,7 @@ class SchemaV2(val path: Path, override val parent: CatalogueV2) : Schema, AutoC
         init {
             if (this@SchemaV2.closed) {
                 this@SchemaV2.closeLock.unlockRead(this.closeStamp)
-                throw TxException.TxDBOClosedException(this.context.txId, this@SchemaV2)
+                throw TransactionException.DBOClosed(this.context.txId, this@SchemaV2)
             }
         }
 

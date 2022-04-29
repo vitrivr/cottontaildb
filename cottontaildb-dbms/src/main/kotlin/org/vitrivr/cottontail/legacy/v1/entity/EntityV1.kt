@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
@@ -154,7 +154,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
         init {
             if (this@EntityV1.closed) {
                 this@EntityV1.closeLock.unlockRead(this.closeStamp)
-                throw TxException.TxDBOClosedException(this.context.txId, this@EntityV1)
+                throw TransactionException.DBOClosed(this.context.txId, this@EntityV1)
             }
         }
 

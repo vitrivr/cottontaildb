@@ -14,6 +14,7 @@ import org.vitrivr.cottontail.core.queries.QueryHint
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.locking.DeadlockException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
@@ -150,13 +151,21 @@ internal interface TransactionalGrpcService {
             }.onCompletion {
                 if (it == null) {
                     if (results == 0 || responseBuilder.tuplesCount > 0) emit(responseBuilder.build()) /* Emit final response. */
-                    if (context.txn.type.autoCommit) context.txn.commit() /* Handle auto-commit. */
-                    LOGGER.info("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} completed successfully in ${m2.elapsedNow()}.")
+                    try {
+                        if (context.txn.type.autoCommit) {
+                            context.txn.commit() /* Handle auto-commit. */
+                        }
+                        LOGGER.info("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} completed successfully in ${m2.elapsedNow()}.")
+                    } catch (e: Throwable) {
+                        val wrapped = context.toStatusException(e, true)
+                        LOGGER.error("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} failed: ${wrapped.message}")
+                        throw wrapped
+                    }
                 } else {
-                    val e = context.toStatusException(it, true)
+                    val wrapped = context.toStatusException(it, true)
                     if (context.txn.type.autoRollback) context.txn.rollback() /* Handle auto-rollback. */
-                    LOGGER.error("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} failed: ${e.message}")
-                    throw e
+                    LOGGER.error("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} failed: ${wrapped.message}")
+                    throw wrapped
                 }
             }
         } catch (e: Throwable) {
@@ -189,7 +198,8 @@ internal interface TransactionalGrpcService {
             is DatabaseException.IndexAlreadyExistsException -> Status.ALREADY_EXISTS.withCause(e)
             is DatabaseException.NoColumnException,
             is DatabaseException.DuplicateColumnException -> Status.INVALID_ARGUMENT.withCause(e)
-            is DeadlockException -> Status.ABORTED.withCause(e)
+            is DeadlockException,
+            is TransactionException.InConflict -> Status.ABORTED.withCause(e)
             is ExecutionException,
             is DatabaseException -> Status.INTERNAL.withCause(e)
             is CancellationException -> Status.CANCELLED.withCause(e)

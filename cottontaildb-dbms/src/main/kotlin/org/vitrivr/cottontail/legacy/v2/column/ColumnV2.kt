@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
@@ -150,7 +150,7 @@ class ColumnV2<T : Value>(val path: Path, override val parent: Entity) : Column<
         init {
             if (this@ColumnV2.closed) {
                 this@ColumnV2.closeLock.unlockRead(this.closeStamp)
-                throw TxException.TxDBOClosedException(this.context.txId, this@ColumnV2)
+                throw TransactionException.DBOClosed(this.context.txId, this@ColumnV2)
             }
         }
 

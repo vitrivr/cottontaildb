@@ -20,7 +20,7 @@ import org.vitrivr.cottontail.dbms.column.DefaultColumn
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.events.IndexEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
@@ -92,7 +92,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         init {
             /** Checks if DBO is still open. */
             if (this.dbo.closed) {
-                throw TxException.TxDBOClosedException(this.context.txId, this.dbo)
+                throw TransactionException.DBOClosed(this.context.txId, this.dbo)
             }
             this.closeStamp = this.dbo.catalogue.closeLock.readLock()
 
@@ -349,7 +349,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @param record The [Record] that should be inserted.
          * @return The ID of the record or null, if nothing was inserted.
          *
-         * @throws TxException If some of the [Tx] on [Column] or [Index] level caused an error.
+         * @throws TransactionException If some of the [Tx] on [Column] or [Index] level caused an error.
          * @throws DatabaseException If a general database error occurs during the insert.
          */
         @Suppress("UNCHECKED_CAST")

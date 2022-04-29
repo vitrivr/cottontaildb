@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.column.ColumnEngine
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
@@ -134,7 +134,7 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
             /* Tries to acquire a global read-lock on the column. */
             if (this@ColumnV1.closed) {
                 this@ColumnV1.closeLock.unlockRead(this.closeStamp)
-                throw TxException.TxDBOClosedException(this.context.txId, this@ColumnV1)
+                throw TransactionException.DBOClosed(this.context.txId, this@ColumnV1)
             }
         }
 
