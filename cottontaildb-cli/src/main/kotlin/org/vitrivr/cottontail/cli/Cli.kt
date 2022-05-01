@@ -89,6 +89,8 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
         val lineReader = LineReaderBuilder.builder().terminal(terminal).completer(this.completer).appName("C(arrot)LI").build()
         println("Connected C(arrot)LI to Cottontail DB at ${this.host}:${this.port}. Happy searching...")
 
+        this.clikt.parse(splitLine("system simd"))
+
         while (!this.stopped) {
             /* Catch ^D end of file as exit method */
             val line = try {

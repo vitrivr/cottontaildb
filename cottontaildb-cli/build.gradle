@@ -16,7 +16,7 @@ dependencies {
 /* General application attributes. */
 application {
     applicationName = 'carrotli'
-    applicationDefaultJvmArgs = ["-Xms256M", "-Xmx1G"]
+    applicationDefaultJvmArgs = ["-Xmx2G", "--add-modules=jdk.incubator.vector"]
     mainClassName = 'org.vitrivr.cottontail.CarrotliKt'
 }
 
