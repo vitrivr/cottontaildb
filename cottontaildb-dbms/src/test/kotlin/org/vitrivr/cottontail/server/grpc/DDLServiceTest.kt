@@ -1,17 +1,12 @@
 package org.vitrivr.cottontail.server.grpc
 
-import io.grpc.ManagedChannel
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
-import io.grpc.netty.NettyChannelBuilder
 import org.junit.jupiter.api.*
-import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.client.language.ddl.*
-import org.vitrivr.cottontail.embedded
-import org.vitrivr.cottontail.server.CottontailServer
+import org.vitrivr.cottontail.test.AbstractClientTest
 import org.vitrivr.cottontail.test.GrpcTestUtils
-import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.test.TestConstants.DBO_CONSTANT
 import org.vitrivr.cottontail.test.TestConstants.TEST_SCHEMA
 import java.util.concurrent.TimeUnit
@@ -19,42 +14,16 @@ import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class DDLServiceTest {
-
-    private lateinit var client: SimpleClient
-    private lateinit var channel: ManagedChannel
-    private lateinit var embedded: CottontailServer
-
-    @BeforeAll
-    fun startCottontail() {
-        this.embedded = embedded(TestConstants.testConfig())
-        this.channel =  NettyChannelBuilder.forAddress("localhost", 1865).usePlaintext().build()
-        this.client = SimpleClient(this.channel)
-
-        /** Drop and (re-)create test schema. */
-        GrpcTestUtils.dropTestSchema(client)
-    }
-
-    @AfterAll
-    fun cleanup() {
-        /* Drop test schema. */
-        GrpcTestUtils.dropTestSchema(client)
-
-        /** Close SimpleClient. */
-        this.client.close()
-
-        /* Shutdown ManagedChannel. */
-        this.channel.shutdown()
-        this.channel.awaitTermination(25000, TimeUnit.MILLISECONDS)
-
-        /* Stop embedded server. */
-        this.embedded.shutdownAndWait()
-
-    }
+class DDLServiceTest : AbstractClientTest() {
 
     @BeforeEach
-    fun setup() {
-        assert(client.ping())
+    fun beforeEach() {
+        this.cleanAndConnect()
+    }
+
+    @AfterEach
+    fun afterEach() {
+        this.cleanup()
     }
 
     @Test

@@ -1,30 +1,31 @@
 package org.vitrivr.cottontail.server.grpc
 
-import io.grpc.ManagedChannel
-import io.grpc.netty.NettyChannelBuilder
 import org.apache.commons.lang3.RandomStringUtils
 import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.vitrivr.cottontail.client.SimpleClient
+import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.client.language.basics.predicate.Expression
+import org.vitrivr.cottontail.client.language.ddl.CreateEntity
+import org.vitrivr.cottontail.client.language.ddl.CreateIndex
+import org.vitrivr.cottontail.client.language.ddl.OptimizeEntity
+import org.vitrivr.cottontail.client.language.dml.BatchInsert
 import org.vitrivr.cottontail.client.language.dml.Insert
 import org.vitrivr.cottontail.client.language.dml.Update
 import org.vitrivr.cottontail.client.language.dql.Query
-import org.vitrivr.cottontail.embedded
-import org.vitrivr.cottontail.server.CottontailServer
-import org.vitrivr.cottontail.test.GrpcTestUtils
+import org.vitrivr.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.test.AbstractClientTest
 import org.vitrivr.cottontail.test.GrpcTestUtils.INT_COLUMN_NAME
 import org.vitrivr.cottontail.test.GrpcTestUtils.STRING_COLUMN_NAME
 import org.vitrivr.cottontail.test.GrpcTestUtils.TEST_ENTITY_FQN
 import org.vitrivr.cottontail.test.GrpcTestUtils.TEST_ENTITY_TUPLE_COUNT
 import org.vitrivr.cottontail.test.GrpcTestUtils.TEST_VECTOR_ENTITY_FQN_INPUT
 import org.vitrivr.cottontail.test.GrpcTestUtils.TWOD_COLUMN_NAME
+import org.vitrivr.cottontail.test.GrpcTestUtils.countElements
 import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.utilities.math.random.nextInt
-import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
 /**
@@ -34,39 +35,16 @@ import kotlin.time.ExperimentalTime
  * @version 1.1.0
  */
 @ExperimentalTime
-class DMLServiceTest {
-    private lateinit var client: SimpleClient
-    private lateinit var channel: ManagedChannel
-    private lateinit var embedded: CottontailServer
+class DMLServiceTest : AbstractClientTest() {
 
     @BeforeEach
-    fun startCottontail() {
-        this.embedded = embedded(TestConstants.testConfig())
-        val builder = NettyChannelBuilder.forAddress("localhost", 1865)
-        builder.usePlaintext()
-        this.channel = builder.build()
-        this.client = SimpleClient(this.channel)
-        assert(client.ping())
-        GrpcTestUtils.dropTestSchema(client)
-        GrpcTestUtils.createTestSchema(client)
-        GrpcTestUtils.createTestVectorEntity(client)
-        GrpcTestUtils.createTestEntity(client)
-        GrpcTestUtils.populateTestEntity(client)
-        GrpcTestUtils.populateVectorEntity(client)
-
-        assert(client.ping())
+    fun beforeEach() {
+        this.startAndPopulateCottontail()
     }
 
     @AfterEach
-    fun cleanup() {
-        GrpcTestUtils.dropTestSchema(this.client)
-
-        /* Shutdown ManagedChannel. */
-        this.channel.shutdown()
-        this.channel.awaitTermination(5000, TimeUnit.MILLISECONDS)
-
-        /* Stop embedded server. */
-        this.embedded.shutdownAndWait()
+    fun afterEach() {
+        this.cleanup()
     }
 
     /**
@@ -167,5 +145,40 @@ class DMLServiceTest {
         for (el2 in r2) {
             Assertions.assertNotEquals(-1, el2.asInt(INT_COLUMN_NAME))
         }
+    }
+
+    /**
+     * Does multiple inserts on a lucene entity in different configurations.
+     * This test runs for pretty long and is used to find checksum bugs which arise when files are split. (?)
+     */
+    @Test
+    fun testMultiInsertLucene() {
+        val en = "lucenetest"
+        val entityFqn = "${TestConstants.TEST_SCHEMA}.$en"
+        val batchCount = 10000
+        val repeatBatchInsert = 100
+        val stringLength = 200
+        var txId = client.begin()
+        val create = CreateEntity(entityFqn).column(STRING_COLUMN_NAME, Type.STRING)
+        client.create(create)
+        client.create(CreateIndex(entityFqn, STRING_COLUMN_NAME, CottontailGrpc.IndexType.LUCENE))
+        client.commit(txId)
+        // we have an outer loop to check if optimization is the problem.
+        // The first inserts are all made without optimization in between, and between the first and the second is an optimize
+        repeat(10) {
+            repeat(repeatBatchInsert / 10) {
+                txId = client.begin()
+                val batch = BatchInsert().into(entityFqn).columns(STRING_COLUMN_NAME)
+                repeat(batchCount) {
+                    batch.append(
+                        RandomStringUtils.randomAlphanumeric(stringLength),
+                    )
+                }
+                client.insert(batch)
+                client.commit(txId)
+            }
+            client.optimize(OptimizeEntity(entityFqn))
+        }
+        Assertions.assertEquals(repeatBatchInsert * batchCount, countElements(client, en)!!.toInt())
     }
 }

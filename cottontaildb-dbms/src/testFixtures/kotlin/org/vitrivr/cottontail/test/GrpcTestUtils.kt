@@ -123,6 +123,9 @@ object GrpcTestUtils {
         client.insert(batch)
     }
 
+    /**
+     * The entity name should be without schema
+     */
     fun countElements(client: SimpleClient, entityName: String): Long? {
         val query = Query(toEn(entityName).toString()).count()
         val res = client.query(query)
