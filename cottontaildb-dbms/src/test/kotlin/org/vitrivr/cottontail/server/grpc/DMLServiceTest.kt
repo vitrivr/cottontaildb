@@ -33,6 +33,7 @@ import kotlin.time.ExperimentalTime
  * @version 1.1.0
  */
 @ExperimentalTime
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DMLServiceTest : AbstractClientTest() {
 
     @BeforeEach
