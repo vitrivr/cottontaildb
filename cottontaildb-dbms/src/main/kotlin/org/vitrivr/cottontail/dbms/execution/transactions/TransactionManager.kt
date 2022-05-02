@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
 import org.vitrivr.cottontail.dbms.execution.locking.Lock
 import org.vitrivr.cottontail.dbms.execution.locking.LockHolder
@@ -211,12 +212,15 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
                         try {
                             txn.beforeCommit()
                         } catch (e: Throwable) {
-                            LOGGER.error("An error occurred while committing Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId}. This is serious!", e)
+                            LOGGER.error("An error occurred while preparing Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId} for commit. This is serious!", e)
+                            throw e
                         }
                     }
                     commit = this@TransactionImpl.xodusTx.commit()
+                    if (!commit) throw TransactionException.InConflict(this@TransactionImpl.txId)
                 } catch (e: Throwable) {
                     this@TransactionImpl.xodusTx.abort()
+                    throw e
                 } finally {
                     this@TransactionImpl.finalize(commit)
                 }

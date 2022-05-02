@@ -4,6 +4,7 @@ import com.google.protobuf.Empty
 import io.grpc.Status
 import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.queries.operators.physical.system.ListLocksPhysicalOperatorNode
@@ -41,8 +42,10 @@ class TXNService constructor(override val catalogue: Catalogue, override val man
         try {
             ctx.txn.commit()
             return Empty.getDefaultInstance()
+        } catch (e: TransactionException.InConflict) {
+            throw Status.ABORTED.withCause(e).withDescription("[${ctx.txn.txId}, ${ctx.queryId}] Failed to execute COMMIT because transaction is in conflict.").asException()
         } catch (e: Throwable) {
-            throw Status.INTERNAL.withDescription("Failed to execute COMMIT due to unexpected error: ${e.message}").asException()
+            throw Status.INTERNAL.withDescription("[${ctx.txn.txId}, ${ctx.queryId}] Failed to execute COMMIT due to unexpected error: ${e.message}").asException()
         }
     }
 
