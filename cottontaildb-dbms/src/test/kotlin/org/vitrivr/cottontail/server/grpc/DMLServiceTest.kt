@@ -2,10 +2,7 @@ package org.vitrivr.cottontail.server.grpc
 
 import org.apache.commons.lang3.RandomStringUtils
 import org.apache.commons.math3.random.JDKRandomGenerator
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.*
 import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.client.language.basics.predicate.Expression
 import org.vitrivr.cottontail.client.language.ddl.CreateEntity
@@ -17,6 +14,7 @@ import org.vitrivr.cottontail.client.language.dml.Update
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.test.AbstractClientTest
+import org.vitrivr.cottontail.test.GrpcTestUtils
 import org.vitrivr.cottontail.test.GrpcTestUtils.INT_COLUMN_NAME
 import org.vitrivr.cottontail.test.GrpcTestUtils.STRING_COLUMN_NAME
 import org.vitrivr.cottontail.test.GrpcTestUtils.TEST_ENTITY_FQN
@@ -42,9 +40,14 @@ class DMLServiceTest : AbstractClientTest() {
         this.startAndPopulateCottontail()
     }
 
+    @AfterAll
+    fun afterAll() {
+        this.cleanup()
+    }
+
     @AfterEach
     fun afterEach() {
-        this.cleanup()
+        GrpcTestUtils.dropTestSchema(this.client)
     }
 
     /**

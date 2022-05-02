@@ -9,7 +9,6 @@ import org.vitrivr.cottontail.test.AbstractClientTest
 import org.vitrivr.cottontail.test.GrpcTestUtils
 import org.vitrivr.cottontail.test.TestConstants.DBO_CONSTANT
 import org.vitrivr.cottontail.test.TestConstants.TEST_SCHEMA
-import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
@@ -21,9 +20,14 @@ class DDLServiceTest : AbstractClientTest() {
         this.cleanAndConnect()
     }
 
+    @AfterAll
+    fun afterAll() {
+        this.cleanup()
+    }
+
     @AfterEach
     fun afterEach() {
-        this.cleanup()
+        GrpcTestUtils.dropTestSchema(this.client)
     }
 
     @Test
