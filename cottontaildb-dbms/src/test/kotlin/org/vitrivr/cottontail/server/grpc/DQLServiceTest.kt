@@ -9,16 +9,16 @@ import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.basics.Distances
 import org.vitrivr.cottontail.client.language.basics.predicate.Expression
-import org.vitrivr.cottontail.client.language.ddl.TruncateEntity
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.embedded
 import org.vitrivr.cottontail.server.CottontailServer
 import org.vitrivr.cottontail.test.GrpcTestUtils
-import org.vitrivr.cottontail.test.GrpcTestUtils.STRING_COLUMN_NAME
-import org.vitrivr.cottontail.test.GrpcTestUtils.TEST_ENTITY_FQN
-import org.vitrivr.cottontail.test.GrpcTestUtils.TEST_VECTOR_ENTITY_FQN_INPUT
-import org.vitrivr.cottontail.test.GrpcTestUtils.TWOD_COLUMN_NAME
 import org.vitrivr.cottontail.test.TestConstants
+import org.vitrivr.cottontail.test.TestConstants.STRING_COLUMN_NAME
+import org.vitrivr.cottontail.test.TestConstants.TEST_ENTITY_NAME
+import org.vitrivr.cottontail.test.TestConstants.TEST_VECTOR_ENTITY_NAME
+import org.vitrivr.cottontail.test.TestConstants.TWOD_COLUMN_NAME
+import org.vitrivr.cottontail.test.TestConstants.testConfig
 import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
@@ -26,7 +26,7 @@ import kotlin.time.ExperimentalTime
  * Integration tests that test the DQL endpoint of Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.2.0
  */
 @ExperimentalTime
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -36,10 +36,9 @@ class DQLServiceTest {
     private lateinit var channel: ManagedChannel
     private lateinit var embedded: CottontailServer
 
-
     @BeforeAll
     fun startCottontail() {
-        this.embedded = embedded(TestConstants.testConfig())
+        this.embedded = embedded(testConfig())
         val builder = NettyChannelBuilder.forAddress("localhost", 1865)
         builder.usePlaintext() /* */
         this.channel = builder.build()
@@ -82,53 +81,41 @@ class DQLServiceTest {
 
     @Test
     fun count() {
-        assertEquals(0, GrpcTestUtils.countElements(client, TEST_ENTITY_FQN))
+        val count = GrpcTestUtils.countElements(this.client, TEST_ENTITY_NAME)
+        assertEquals(TestConstants.TEST_COLLECTION_SIZE.toLong(), count)
 
         /* Now scan the same entity; count should be the same. */
-        val scanQuery = Query(TEST_ENTITY_FQN).select("*")
+        val scanQuery = Query(TEST_ENTITY_NAME.fqn).select("*")
         var bruteForceCount = 0L
         this.client.query(scanQuery).forEachRemaining {
             bruteForceCount += 1L
         }
-        assertEquals(bruteForceCount, GrpcTestUtils.TEST_ENTITY_TUPLE_COUNT)
-    }
-
-    @Test
-    fun truncateEntity() {
-        this.client.truncate(TruncateEntity(TEST_ENTITY_FQN))
-        assertEquals(0, GrpcTestUtils.countElements(client, TEST_ENTITY_FQN))
-    }
-
-    @Test
-    fun truncateEntityWithLucene() {
-        GrpcTestUtils.createLuceneIndexOnTestEntity(this.client)
-        this.client.truncate(TruncateEntity(TEST_ENTITY_FQN))
-        assertEquals(0, GrpcTestUtils.countElements(client, TEST_ENTITY_FQN))
+        assertEquals(bruteForceCount, count)
     }
 
     @Test
     fun queryColumn() {
-        val query = Query().from(TEST_ENTITY_FQN).select(STRING_COLUMN_NAME)
+        val query = Query().from(TEST_ENTITY_NAME.fqn).select(STRING_COLUMN_NAME)
         val result = client.query(query)
         assert(result.numberOfColumns == 1)
         val el = result.next()
-        assert(!el.asString(STRING_COLUMN_NAME).equals(""))
+        assert(!el.asString( STRING_COLUMN_NAME).equals(""))
     }
 
     @Test
     fun queryColumnWithVector() {
-        val query = Query().from(TEST_VECTOR_ENTITY_FQN_INPUT).select(STRING_COLUMN_NAME)
+        val query = Query().from(TEST_VECTOR_ENTITY_NAME.fqn).select(STRING_COLUMN_NAME)
         val result = client.query(query)
         assert(result.numberOfColumns == 1)
         val el = result.next()
-        assert(!el.asString(STRING_COLUMN_NAME).equals(""))
+        assert(!el.asString( STRING_COLUMN_NAME).equals(""))
     }
 
     @Test
     fun haversineDistance() {
         val query = Query()
             .select("*")
-            .from(TEST_VECTOR_ENTITY_FQN_INPUT)
+            .from(TEST_VECTOR_ENTITY_NAME.fqn)
             .distance(TWOD_COLUMN_NAME, arrayOf(5f, 10f), Distances.HAVERSINE, "distance")
             .order("distance", Direction.ASC)
             .limit(500)
@@ -142,7 +129,7 @@ class DQLServiceTest {
     fun queryNNSWithLikeStart() {
         val query = Query()
             .select("*")
-            .from(TEST_VECTOR_ENTITY_FQN_INPUT)
+            .from(TEST_VECTOR_ENTITY_NAME.fqn)
             .distance(TWOD_COLUMN_NAME, arrayOf(5f, 10f), Distances.L2, "distance")
             .where(Expression(STRING_COLUMN_NAME, "LIKE", "a%"))
             .order("distance", Direction.ASC)
@@ -159,7 +146,7 @@ class DQLServiceTest {
 
     @Test
     fun queryNNSWithLikeEnd() {
-        val query = Query().from(TEST_VECTOR_ENTITY_FQN_INPUT)
+        val query = Query().from(TEST_VECTOR_ENTITY_NAME.fqn)
             .select("*")
             .distance(TWOD_COLUMN_NAME, arrayOf(5f, 10f), Distances.L2, "distance")
             .where(Expression(STRING_COLUMN_NAME, "LIKE", "%z"))

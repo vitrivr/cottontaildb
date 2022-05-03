@@ -7,10 +7,16 @@ import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.test.AbstractClientTest
 import org.vitrivr.cottontail.test.GrpcTestUtils
+import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.test.TestConstants.DBO_CONSTANT
-import org.vitrivr.cottontail.test.TestConstants.TEST_SCHEMA
 import kotlin.time.ExperimentalTime
 
+/**
+ * Integration tests that test the DDL endpoint of Cottontail DB.
+ *
+ * @author Ralph Gasser
+ * @version 1.2.0
+ */
 @ExperimentalTime
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DDLServiceTest : AbstractClientTest() {
@@ -20,14 +26,14 @@ class DDLServiceTest : AbstractClientTest() {
         this.cleanAndConnect()
     }
 
-    @AfterAll
-    fun afterAll() {
-        this.cleanup()
-    }
-
     @AfterEach
     fun afterEach() {
         GrpcTestUtils.dropTestSchema(this.client)
+    }
+
+    @AfterAll
+    fun afterAll() {
+        this.cleanup()
     }
 
     @Test
@@ -40,9 +46,44 @@ class DDLServiceTest : AbstractClientTest() {
      * Therefore, trying to drop it should lead to a NOT_FOUND StatusRuntimeException
      */
     @Test
+    fun truncateEntity() {
+        /* Prepare and populate test entity. */
+        GrpcTestUtils.createTestSchema(client)
+        GrpcTestUtils.createTestEntity(client)
+        GrpcTestUtils.populateTestEntity(client)
+
+        /* Check count before TRUNCATE. */
+        Assertions.assertEquals(TestConstants.TEST_COLLECTION_SIZE.toLong(), GrpcTestUtils.countElements(client, TestConstants.TEST_ENTITY_NAME))
+
+        /* Execute TRUNCATE. */
+        this.client.truncate(TruncateEntity(TestConstants.TEST_ENTITY_NAME.fqn))
+
+        /* Check count after TRUNCATE. */
+        Assertions.assertEquals(0, GrpcTestUtils.countElements(client, TestConstants.TEST_ENTITY_NAME))
+    }
+
+    @Test
+    fun truncateEntityWithLucene() {
+        /* Prepare and populate test entity. */
+        GrpcTestUtils.createTestSchema(client)
+        GrpcTestUtils.createTestEntity(client)
+        GrpcTestUtils.populateTestEntity(client)
+
+        /* Check count before TRUNCATE. */
+        Assertions.assertEquals(TestConstants.TEST_COLLECTION_SIZE.toLong(), GrpcTestUtils.countElements(client, TestConstants.TEST_ENTITY_NAME))
+        GrpcTestUtils.createLuceneIndexOnTestEntity(this.client)
+
+        /* Execute TRUNCATE. */
+        this.client.truncate(TruncateEntity(TestConstants.TEST_ENTITY_NAME.fqn))
+
+        /* Check count after TRUNCATE. */
+        Assertions.assertEquals(0, GrpcTestUtils.countElements(client, TestConstants.TEST_ENTITY_NAME))
+    }
+
+    @Test
     fun dropNotFoundSchema() {
         try {
-            client.drop(DropSchema(TEST_SCHEMA))
+            client.drop(DropSchema(TestConstants.TEST_SCHEMA.fqn))
         } catch (e: StatusRuntimeException) {
             if (e.status.code != Status.NOT_FOUND.code) {
                 fail("Status was " + e.status + " instead of NOT_FOUND")
@@ -58,11 +99,11 @@ class DDLServiceTest : AbstractClientTest() {
     @Test
     fun createAndListSchema() {
         try {
-            client.create(CreateSchema(TEST_SCHEMA))
+            client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
             val names = schemaNames()
-            assert(names.contains("warren.$TEST_SCHEMA")) { "returned schema names were $names instead of expected $TEST_SCHEMA" }
+            assert(names.contains(TestConstants.TEST_SCHEMA.fqn)) { "returned schema names were $names instead of expected ${TestConstants.TEST_SCHEMA}" }
         } finally {
-            client.drop(DropSchema(TEST_SCHEMA))
+            client.drop(DropSchema(TestConstants.TEST_SCHEMA.fqn))
 
             /* Make sure, that no transaction or locks are dangling. */
             val locks = this.client.locks()
@@ -73,10 +114,10 @@ class DDLServiceTest : AbstractClientTest() {
 
     @Test
     fun createAndDropSchema() {
-        this.client.create(CreateSchema(TEST_SCHEMA))
-        this.client.drop(DropSchema(TEST_SCHEMA))
+        this.client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
+        this.client.drop(DropSchema(TestConstants.TEST_SCHEMA.fqn))
         val names = schemaNames()
-        assert(!names.contains("warren.$TEST_SCHEMA")) { "Schema $TEST_SCHEMA was not dropped" }
+        assert(!names.contains("${TestConstants.TEST_SCHEMA}")) { "Schema ${TestConstants.TEST_SCHEMA} was not dropped" }
 
         /* Make sure, that no transaction or locks are dangling. */
         val locks = this.client.locks()
@@ -87,14 +128,14 @@ class DDLServiceTest : AbstractClientTest() {
     @Test
     fun dropNonExistingEntity() {
         try {
-            client.create(CreateSchema(TEST_SCHEMA))
-            client.drop(DropEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
+            client.drop(DropEntity(TestConstants.TEST_ENTITY_NAME.fqn))
         } catch (e: StatusRuntimeException) {
             if (e.status.code != Status.NOT_FOUND.code) {
                 fail("status was " + e.status + " instead of NOT_FOUND")
             }
         } finally {
-            client.drop(DropSchema(TEST_SCHEMA))
+            client.drop(DropSchema(TestConstants.TEST_SCHEMA.fqn))
 
             /* Make sure, that no transaction or locks are dangling. */
             val locks = this.client.locks()
@@ -106,14 +147,14 @@ class DDLServiceTest : AbstractClientTest() {
     @Test
     fun createAndListEntity() {
         try {
-            client.create(CreateSchema(TEST_SCHEMA))
-            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN).column("id", Type.STRING))
+            client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
+            client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", Type.STRING))
             val names = entityNames()
-            assert(names.contains(GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN)) { "Returned entity names do not contain ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN}." }
+            assert(names.contains(TestConstants.TEST_ENTITY_NAME.fqn)) { "Returned entity names do not contain ${TestConstants.TEST_ENTITY_NAME.fqn}." }
         } catch (e: StatusRuntimeException) {
-            fail("Creating entity ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN} failed with status " + e.status)
+            fail("Creating entity ${TestConstants.TEST_ENTITY_NAME.fqn} failed with status " + e.status)
         } finally {
-            client.drop(DropSchema(TEST_SCHEMA))
+            client.drop(DropSchema(TestConstants.TEST_SCHEMA.fqn))
 
             /* Make sure, that no transaction or locks are dangling. */
             val locks = this.client.locks()
@@ -125,14 +166,14 @@ class DDLServiceTest : AbstractClientTest() {
     @Test
     fun createAndVerifyAboutEntity() {
         try {
-            this.client.create(CreateSchema(TEST_SCHEMA))
-            this.client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN).column("id", Type.STRING))
-            val about = this.client.about(AboutEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            this.client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
+            this.client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", Type.STRING))
+            val about = this.client.about(AboutEntity(TestConstants.TEST_ENTITY_NAME.fqn))
             assert(about.hasNext()) { "could not verify existence with about message" }
         } catch (e: StatusRuntimeException) {
-            fail("Creating entity ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN} failed with status " + e.status)
+            fail("Creating entity ${TestConstants.TEST_ENTITY_NAME.fqn} failed with status " + e.status)
         } finally {
-            client.drop(DropSchema(TEST_SCHEMA))
+            client.drop(DropSchema(TestConstants.TEST_SCHEMA.fqn))
 
             /* Make sure, that no transaction or locks are dangling. */
             val locks = this.client.locks()
@@ -147,15 +188,15 @@ class DDLServiceTest : AbstractClientTest() {
     @Test
     fun createAndDropEntity() {
         try {
-            client.create(CreateSchema(TEST_SCHEMA))
-            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN).column("id", Type.STRING))
-            client.drop(DropEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
+            client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", Type.STRING))
+            client.drop(DropEntity(TestConstants.TEST_ENTITY_NAME.fqn))
             val names = entityNames()
-            assert(!names.contains(GrpcTestUtils.TEST_ENTITY_FQN)) { "Returned entity names do not contain ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN}." }
+            assert(!names.contains(TestConstants.TEST_ENTITY_NAME.fqn)) { "Returned entity names do not contain ${TestConstants.TEST_ENTITY_NAME}." }
         } catch (e: StatusRuntimeException) {
-            fail("Creating entity ${GrpcTestUtils.TEST_ENTITY_FQN} failed with status " + e.status)
+            fail("Creating entity ${TestConstants.TEST_ENTITY_NAME} failed with status " + e.status)
         } finally {
-            client.drop(DropSchema(TEST_SCHEMA))
+            client.drop(DropSchema(TestConstants.TEST_SCHEMA.fqn))
 
             /* Make sure, that no transaction or locks are dangling. */
             val locks = this.client.locks()
@@ -170,15 +211,15 @@ class DDLServiceTest : AbstractClientTest() {
     @Test
     fun createAndDropEntityWithWarren() {
         try {
-            client.create(CreateSchema(TEST_SCHEMA))
-            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN).column("id", Type.STRING))
-            client.drop(DropEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
+            client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", Type.STRING))
+            client.drop(DropEntity(TestConstants.TEST_ENTITY_NAME.fqn))
             val names = entityNames()
-            assert(!names.contains(GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN)) { "Returned entity names do not contain ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN}." }
+            assert(!names.contains(TestConstants.TEST_ENTITY_NAME.fqn)) { "Returned entity names do not contain ${TestConstants.TEST_ENTITY_NAME}." }
         } catch (e: StatusRuntimeException) {
-            fail("Creating entity ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN} failed with status " + e.status)
+            fail("Creating entity ${TestConstants.TEST_ENTITY_NAME} failed with status " + e.status)
         } finally {
-            client.drop(DropSchema(TEST_SCHEMA))
+            client.drop(DropSchema(TestConstants.TEST_SCHEMA.fqn))
 
             /* Make sure, that no transaction or locks are dangling. */
             val locks = this.client.locks()
@@ -190,7 +231,7 @@ class DDLServiceTest : AbstractClientTest() {
     @Test
     fun aboutNonExistingEntity() {
         Assertions.assertThrows(StatusRuntimeException::class.java) {
-            this.client.about(AboutEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            this.client.about(AboutEntity(TestConstants.TEST_ENTITY_NAME.fqn))
         }
 
         /* Make sure, that no transaction or locks are dangling. */
@@ -209,7 +250,7 @@ class DDLServiceTest : AbstractClientTest() {
 
     private fun entityNames(): List<String> {
         val names = mutableListOf<String>()
-        client.list(ListEntities(TEST_SCHEMA)).forEach { t -> names.add(t.asString(DBO_CONSTANT)!!) }
+        client.list(ListEntities(TestConstants.TEST_SCHEMA.fqn)).forEach { t -> names.add(t.asString(DBO_CONSTANT)!!) }
         return names
     }
 }
