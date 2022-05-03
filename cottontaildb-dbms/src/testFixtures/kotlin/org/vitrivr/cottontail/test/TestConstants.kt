@@ -15,7 +15,7 @@ import java.util.*
  */
 object TestConstants {
     /** General size of collections used for testing. */
-    const val TEST_COLLECTION_SIZE: Int = 5_000
+    const val TEST_COLLECTION_SIZE: Int = 50_000
 
     /** Maximum dimension used for vector generation. */
     const val smallVectorMaxDimension: Int = 128
