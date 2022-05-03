@@ -16,6 +16,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.test.AbstractClientTest
 import org.vitrivr.cottontail.test.GrpcTestUtils
 import org.vitrivr.cottontail.test.GrpcTestUtils.countElements
+import org.vitrivr.cottontail.test.TestConstants.DOUBLE_COLUMN_NAME
 import org.vitrivr.cottontail.test.TestConstants.INT_COLUMN_NAME
 import org.vitrivr.cottontail.test.TestConstants.STRING_COLUMN_NAME
 import org.vitrivr.cottontail.test.TestConstants.TEST_COLLECTION_SIZE
@@ -49,6 +50,54 @@ class DMLServiceTest : AbstractClientTest() {
     @AfterEach
     fun afterEach() {
         GrpcTestUtils.dropTestSchema(this.client)
+    }
+
+    /**
+     * Performs a large number of INSERTs in a single transaction and checks the count before and afterwards.
+     */
+    @Test
+    fun testVeryLargeInsertInSingleTx() {
+        val entries = TEST_COLLECTION_SIZE * 100
+        val batchSize = 1000
+        val stringLength = 200
+
+        /* Start large insert. */
+        val txId = this.client.begin()
+        repeat(entries / batchSize) { i ->
+            val batch = BatchInsert().into(TEST_ENTITY_NAME.fqn).columns(INT_COLUMN_NAME, STRING_COLUMN_NAME, DOUBLE_COLUMN_NAME)
+            repeat(batchSize) { j -> batch.append(i*j, RandomStringUtils.randomAlphanumeric(stringLength), 1.0) }
+            this.client.insert(batch)
+        }
+
+        Assertions.assertEquals(TEST_COLLECTION_SIZE.toLong(), countElements(this.client, TEST_ENTITY_NAME)) /* Check before commit. */
+        this.client.commit(txId)
+        Assertions.assertEquals((entries + TEST_COLLECTION_SIZE).toLong(), countElements(this.client, TEST_ENTITY_NAME))  /* Check after commit. */
+    }
+
+    /**
+     * Does multiple inserts on a lucene entity in different configurations.
+     * This test runs for pretty long and is used to find checksum bugs which arise when files are split. (?)
+     */
+    @Test
+    fun testVeryLargeInsertWithLuceneIndexInSingleTx() {
+        val entries = TEST_COLLECTION_SIZE * 100
+        val batchSize = 1000
+        val stringLength = 200
+
+        /* Create Lucene Index. */
+        GrpcTestUtils.createLuceneIndexOnTestEntity(this.client)
+
+        /* Start large insert. */
+        val txId = this.client.begin()
+        repeat(entries / batchSize) { i ->
+            val batch = BatchInsert().into(TEST_ENTITY_NAME.fqn).columns(INT_COLUMN_NAME, STRING_COLUMN_NAME, DOUBLE_COLUMN_NAME)
+            repeat(batchSize) { j -> batch.append(i*j, RandomStringUtils.randomAlphanumeric(stringLength), 1.0) }
+            this.client.insert(batch)
+        }
+
+        Assertions.assertEquals(TEST_COLLECTION_SIZE.toLong(), countElements(this.client, TEST_ENTITY_NAME)) /* Check before commit. */
+        this.client.commit(txId)
+        Assertions.assertEquals((entries + TEST_COLLECTION_SIZE).toLong(), countElements(this.client, TEST_ENTITY_NAME))  /* Check after commit. */
     }
 
     /**
@@ -162,26 +211,26 @@ class DMLServiceTest : AbstractClientTest() {
         val repeatBatchInsert = 100
         val stringLength = 200
         var txId = client.begin()
-        val create = CreateEntity(entityName.fqn).column(STRING_COLUMN_NAME, Type.STRING)
-        this.client.create(create)
-        this.client.create(CreateIndex(entityName.fqn, STRING_COLUMN_NAME, CottontailGrpc.IndexType.LUCENE))
+        this.client.create( CreateEntity(entityName.fqn).column(STRING_COLUMN_NAME, Type.STRING).txId(txId))
+        this.client.create(CreateIndex(entityName.fqn, STRING_COLUMN_NAME, CottontailGrpc.IndexType.LUCENE).txId(txId))
         this.client.commit(txId)
+
         // we have an outer loop to check if optimization is the problem.
         // The first inserts are all made without optimization in between, and between the first and the second is an optimize
         repeat(10) {
             repeat(repeatBatchInsert / 10) {
                 txId = client.begin()
-                val batch = BatchInsert().into(entityName.fqn).columns(STRING_COLUMN_NAME)
+                val batch = BatchInsert().into(entityName.fqn).columns(STRING_COLUMN_NAME).txId(txId)
                 repeat(batchCount) {
                     batch.append(
                         RandomStringUtils.randomAlphanumeric(stringLength),
                     )
                 }
-                client.insert(batch)
-                client.commit(txId)
+                this.client.insert(batch)
+                this.client.commit(txId)
             }
-            client.optimize(OptimizeEntity(entityName.fqn))
+            this.client.optimize(OptimizeEntity(entityName.fqn))
         }
-        Assertions.assertEquals(repeatBatchInsert * batchCount, countElements(client, entityName)!!.toInt())
+        Assertions.assertEquals(repeatBatchInsert * batchCount, countElements(this.client, entityName)!!.toInt())
     }
 }
