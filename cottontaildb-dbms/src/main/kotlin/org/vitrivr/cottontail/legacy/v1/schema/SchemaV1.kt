@@ -156,6 +156,10 @@ class SchemaV1(override val name: Name.SchemaName, override val parent: Catalogu
         override fun dropEntity(name: Name.EntityName) {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
+        
+        override fun truncateEntity(name: Name.EntityName) {
+            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
 
         /**
          * Releases the [closeLock] on the [Schema].
