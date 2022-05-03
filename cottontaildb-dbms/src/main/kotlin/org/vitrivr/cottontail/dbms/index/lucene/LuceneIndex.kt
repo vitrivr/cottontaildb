@@ -30,6 +30,7 @@ import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
+import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
@@ -45,7 +46,7 @@ import kotlin.concurrent.withLock
  * An Apache Lucene based [AbstractIndex]. The [LuceneIndex] allows for fast search on text using the EQUAL or LIKE operator.
  *
  * @author Luca Rossetto & Ralph Gasser
- * @version 3.0.0
+ * @version 3.1.0
  */
 class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
@@ -78,9 +79,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
         override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean {
             return try {
                 val directory = XodusDirectory(entity.dbo.catalogue.vfs, name.toString(), entity.context.xodusTx)
-                val config = IndexWriterConfig()
-                    .setOpenMode(IndexWriterConfig.OpenMode.CREATE)
-                    .setCommitOnClose(true)
+                val config = IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE).setMergeScheduler(SerialMergeScheduler())
                 val writer = IndexWriter(directory, config)
                 writer.close()
                 directory.close()
@@ -163,15 +162,6 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
         /** The [Directory] containing the data for this [LuceneIndex]. */
         private val directory: Directory = XodusDirectory(this@LuceneIndex.catalogue.vfs, this@LuceneIndex.name.toString(), this.context.xodusTx)
 
-        /** The [IndexReader] instance used for accessing the [LuceneIndex]. */
-        private val indexReader = DirectoryReader.open(this.directory)
-
-        /** The [IndexWriter] instance used for accessing the [LuceneIndex]. */
-        private val indexWriter: IndexWriter by lazy {
-            val config = IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND).setCommitOnClose(true)
-            IndexWriter(this.directory, config)
-        }
-
         /** The [LuceneIndexConfig] used by this [LuceneIndex] instance. */
         override val config: LuceneIndexConfig
             get() {
@@ -179,20 +169,25 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                 return entry.config as LuceneIndexConfig
             }
 
+        /** Flag indicating, that [IndexReader] was initialized. */
+        @Volatile
+        private var readerInitialized = false
 
-        /**
-         * Converts a [Record] to a [Document] that can be processed by Lucene.
-         *
-         * @param record The [Record]
-         * @return The resulting [Document]
-         */
-        private fun documentFromRecord(record: Record): Document {
-            val value = record[this.columns[0]]
-            if (value is StringValue) {
-                return documentFromValue(value, record.tupleId)
-            } else {
-                throw IllegalArgumentException("Given record does not contain a StringValue column named ${this.columns[0].name}.")
-            }
+        /** Flag indicating, that [IndexWriter] was initialized. */
+        @Volatile
+        private var writerInitialized = false
+
+        /** The [IndexWriter] instance used for accessing the [LuceneIndex]. */
+        private val indexWriter: IndexWriter by lazy {
+            val config = IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND).setMergeScheduler(SerialMergeScheduler())
+            this.writerInitialized = true
+            IndexWriter(this.directory, config)
+        }
+
+        /** The [IndexReader] instance used for accessing the [LuceneIndex]. */
+        private val indexReader: IndexReader by lazy {
+            this.readerInitialized = true
+            DirectoryReader.open(this.directory)
         }
 
         /**
@@ -370,18 +365,24 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
 
             /* Obtain Tx for parent entity. */
             val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
+            val columnTx = this.context.getTx(entityTx.columnForName(this.columns[0].name)) as ColumnTx<StringValue>
 
             /* Recreate entries. */
             this.indexWriter.deleteAll()
+            this.indexWriter.flush()
 
             /* Iterate over entity and update index with entries. */
-            val cursor = entityTx.cursor(this.columns)
-            cursor.forEach { record ->
-                this.indexWriter.addDocument(documentFromRecord(record))
+            columnTx.cursor().use { cursor ->
+                while (cursor.moveNext()) {
+                    val value = cursor.value()
+                    if (value is StringValue) {
+                        this.indexWriter.addDocument(documentFromValue(value, cursor.key()))
+                        if (this.indexWriter.pendingNumDocs % 10000L == 0L) {
+                            this.indexWriter.flush()
+                        }
+                    }
+                }
             }
-
-            /* Close cursor. */
-            cursor.close()
 
             /* Update index state for index. */
             this.updateState(IndexState.CLEAN)
@@ -393,10 +394,15 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          *
          * @param operation [Operation.DataManagementOperation.InsertOperation] to apply.
          */
-        override fun insert(operation: Operation.DataManagementOperation.InsertOperation) = this.txLatch.withLock {
-            val new = operation.inserts[this.columns[0]]
-            if (new is StringValue) {
-                this.indexWriter.addDocument(this@Tx.documentFromValue(new, operation.tupleId))
+        override fun insert(operation: Operation.DataManagementOperation.InsertOperation) {
+            this.txLatch.withLock {
+                val new = operation.inserts[this.columns[0]]
+                if (new is StringValue) {
+                    this.indexWriter.addDocument(this@Tx.documentFromValue(new, operation.tupleId))
+                    if (this.indexWriter.pendingNumDocs % 10000L == 0L) {
+                        this.indexWriter.flush()
+                    }
+                }
             }
         }
 
@@ -405,11 +411,15 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          *
          * @param operation [Operation.DataManagementOperation.UpdateOperation] to apply.
          */
-        override fun update(operation: Operation.DataManagementOperation.UpdateOperation) = this.txLatch.withLock {
-            this.indexWriter.deleteDocuments(Term(TID_COLUMN, operation.tupleId.toString()))
-            val new = operation.updates[this.columns[0]]?.second
-            if (new is StringValue) {
-                this.indexWriter.addDocument(this@Tx.documentFromValue(new, operation.tupleId))
+        override fun update(operation: Operation.DataManagementOperation.UpdateOperation) {
+            this.txLatch.withLock {
+                val new = operation.updates[this.columns[0]]?.second
+                if (new is StringValue) {
+                    this.indexWriter.updateDocument(Term(TID_COLUMN, operation.tupleId.toString()), this@Tx.documentFromValue(new, operation.tupleId))
+                    if (this.indexWriter.pendingNumDocs % 10000L == 0L) {
+                        this.indexWriter.flush()
+                    }
+                }
             }
         }
 
@@ -418,9 +428,13 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          *
          * @param operation [Operation.DataManagementOperation.DeleteOperation] to apply.
          */
-        override fun delete(operation: Operation.DataManagementOperation.DeleteOperation) = this.txLatch.withLock {
-            this.indexWriter.deleteDocuments(Term(TID_COLUMN, operation.tupleId.toString()))
-            Unit
+        override fun delete(operation: Operation.DataManagementOperation.DeleteOperation) {
+            this.txLatch.withLock {
+                this.indexWriter.deleteDocuments(Term(TID_COLUMN, operation.tupleId.toString()))
+                if (this.indexWriter.pendingNumDocs % 10000L == 0L) {
+                    this.indexWriter.flush()
+                }
+            }
         }
 
         /**
@@ -505,13 +519,19 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
             super.beforeCommit()
 
             /* Commit and close writer. */
-            if (this.indexWriter.hasUncommittedChanges()) {
-                this.indexWriter.commit()
+            if (this.writerInitialized) {
+                if (this.indexWriter.hasUncommittedChanges()) {
+                    this.indexWriter.commit()
+                }
+                this.indexWriter.close()
             }
 
-            /* Close reader, writer and directory. */
-            this.indexReader.close()
-            this.indexWriter.close()
+            /* Close reader. */
+            if (this.readerInitialized) {
+                this.indexReader.close()
+            }
+
+            /* Close directory. */
             this.directory.close()
         }
 
@@ -522,15 +542,20 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
             /* Call super. */
             super.beforeCommit()
 
-
-            /* Rollback and close writer. */
-            if (this.indexWriter.hasUncommittedChanges()) {
-                this.indexWriter.rollback()
+            /* Commit and close writer. */
+            if (this.writerInitialized) {
+                if (this.indexWriter.hasUncommittedChanges()) {
+                    this.indexWriter.rollback()
+                }
+                this.indexWriter.close()
             }
 
-            /* Close reader and writer. */
-            this.indexReader.close()
-            this.indexWriter.close()
+            /* Close reader. */
+            if (this.readerInitialized) {
+                this.indexReader.close()
+            }
+
+            /* Close directory. */
             this.directory.close()
         }
     }
