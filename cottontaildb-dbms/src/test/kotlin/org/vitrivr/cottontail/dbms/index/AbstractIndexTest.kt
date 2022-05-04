@@ -132,7 +132,7 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
      * Populates the test database with data.
      */
     protected fun populateDatabase() {
-        log("Inserting data (${TestConstants.collectionSize} items).")
+        log("Inserting data (${TestConstants.TEST_COLLECTION_SIZE} items).")
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
         val schema = catalogueTx.schemaForName(this.schemaName)
@@ -141,7 +141,7 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
         val entityTx = txn.getTx(entity) as EntityTx
 
         /* Insert data and track how many entries have been stored for the test later. */
-        for (i in 0..TestConstants.collectionSize) {
+        for (i in 0..TestConstants.TEST_COLLECTION_SIZE) {
             entityTx.insert(nextRecord())
         }
         txn.commit()

@@ -30,7 +30,7 @@ class LongVectorDistanceTest : AbstractDistanceTest() {
     @MethodSource("dimensions")
     fun testL1Distance(dimensions: Int) {
         val query = LongVectorValueGenerator.random(dimensions, RANDOM)
-        val collection = VectorUtility.randomLongVectorSequence(dimensions, TestConstants.collectionSize, RANDOM)
+        val collection = VectorUtility.randomLongVectorSequence(dimensions, TestConstants.TEST_COLLECTION_SIZE, RANDOM)
 
         var sum1 = 0.0
         var sum2 = 0.0
@@ -50,7 +50,7 @@ class LongVectorDistanceTest : AbstractDistanceTest() {
             sum3 += l1(it.data, query.data)
         }
 
-        println("Calculating L1 distance for collection (s=${TestConstants.collectionSize}, d=$dimensions) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize} per vector on average.")
+        println("Calculating L1 distance for collection (s=${TestConstants.TEST_COLLECTION_SIZE}, d=$dimensions) took ${time1 / TestConstants.TEST_COLLECTION_SIZE} (optimized) resp. ${time2 / TestConstants.TEST_COLLECTION_SIZE} per vector on average.")
 
         if (time1 > time2) {
             LOGGER.warn("Optimized version of L2^2 is slower than default version!")
@@ -64,7 +64,7 @@ class LongVectorDistanceTest : AbstractDistanceTest() {
     @MethodSource("dimensions")
     fun testL2SquaredDistance(dimensions: Int) {
         val query = LongVectorValueGenerator.random(dimensions, RANDOM)
-        val collection = VectorUtility.randomLongVectorSequence(dimensions, TestConstants.collectionSize, RANDOM)
+        val collection = VectorUtility.randomLongVectorSequence(dimensions, TestConstants.TEST_COLLECTION_SIZE, RANDOM)
 
         var sum1 = 0.0
         var sum2 = 0.0
@@ -84,7 +84,7 @@ class LongVectorDistanceTest : AbstractDistanceTest() {
             sum3 += l2squared(it.data, query.data)
         }
 
-        println("Calculating L2^2 distance for collection (s=${TestConstants.collectionSize}, d=$dimensions) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize} per vector on average.")
+        println("Calculating L2^2 distance for collection (s=${TestConstants.TEST_COLLECTION_SIZE}, d=$dimensions) took ${time1 / TestConstants.TEST_COLLECTION_SIZE} (optimized) resp. ${time2 / TestConstants.TEST_COLLECTION_SIZE} per vector on average.")
 
         if (time1 > time2) {
             LOGGER.warn("Optimized version of L2^2 is slower than default version!")
@@ -98,7 +98,7 @@ class LongVectorDistanceTest : AbstractDistanceTest() {
     @MethodSource("dimensions")
     fun testL2Distance(dimensions: Int) {
         val query = LongVectorValueGenerator.random(dimensions, RANDOM)
-        val collection = VectorUtility.randomLongVectorSequence(dimensions, TestConstants.collectionSize, RANDOM)
+        val collection = VectorUtility.randomLongVectorSequence(dimensions, TestConstants.TEST_COLLECTION_SIZE, RANDOM)
 
         var sum1 = 0.0
         var sum2 = 0.0
@@ -118,7 +118,7 @@ class LongVectorDistanceTest : AbstractDistanceTest() {
             sum3 += l2(it.data, query.data)
         }
 
-        println("Calculating L2 distance for collection (s=${TestConstants.collectionSize}, d=$dimensions) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize} per vector on average.")
+        println("Calculating L2 distance for collection (s=${TestConstants.TEST_COLLECTION_SIZE}, d=$dimensions) took ${time1 / TestConstants.TEST_COLLECTION_SIZE} (optimized) resp. ${time2 / TestConstants.TEST_COLLECTION_SIZE} per vector on average.")
 
         if (time1 > time2) {
             LOGGER.warn("Optimized version of L2^2 is slower than default version!")

@@ -223,6 +223,9 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
         override fun delete(tupleId: Long): T? {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
+        override fun clear() {
+            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
 
         override fun analyse() {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")

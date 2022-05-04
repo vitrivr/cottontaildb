@@ -272,6 +272,19 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         }
 
         /**
+         * Clears the [Column] underlying this [ColumnTx] and removes all entries it contains.
+         */
+        override fun clear() = this.txLatch.withLock {
+            /* Truncates and re-opens the data store. */
+            this.dataStore.environment.truncateStore(this.dataStore.name, this.context.xodusTx)
+            this.dataStore = this.dataStore.environment.openStore(this.dataStore.name, StoreConfig.USE_EXISTING, this.context.xodusTx)
+
+            /* Resets statistics and updates the dirty flag. */
+            this.statistics.reset()
+            this.dirty = true
+        }
+
+        /**
          * Opens a new [Cursor] for this [DefaultColumn.Tx].
          *
          * @return [Cursor]

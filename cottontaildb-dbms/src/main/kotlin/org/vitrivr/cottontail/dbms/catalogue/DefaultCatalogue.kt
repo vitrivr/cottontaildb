@@ -148,6 +148,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
      * Closes the [DefaultCatalogue] and all objects contained within.
      */
     override fun close() = this.closeLock.write {
+        this.vfs.shutdown()
         this.environment.close()
     }
 
