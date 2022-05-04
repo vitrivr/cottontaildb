@@ -12,30 +12,16 @@ import org.xerial.snappy.Snappy
  * @version 1.1.0
  */
 @JvmInline
-value class VAFSignature(val cells: ByteArray): Comparable<VAFSignature> {
+value class VAFSignature(val cells: ByteArray) {
 
     companion object {
-        val INVALID = VAFSignature(ByteArray(1) { -1 })
-    }
-
-    /**
-     * A Xodus binding to serialize and deserialize [VAFSignature].
-     */
-    object Binding {
-        fun entryToValue(entry: ByteIterable): VAFSignature = VAFSignature(Snappy.uncompress(entry.bytesUnsafe))
-        fun valueToEntry(value: VAFSignature): ByteIterable {
-            val compressed = Snappy.compress(value.cells)
-            return ArrayByteIterable(compressed, compressed.size)
-        }
-    }
-
-    override fun compareTo(other: VAFSignature): Int {
-        for ((i,b) in this.cells.withIndex()) {
-            if (i >= other.cells.size) return Int.MIN_VALUE
-            val comp = b.compareTo(other.cells[i])
-            if (comp != 0) return comp
-        }
-        return 0
+        /**
+         * De-serializes a [VAFSignature] from a [ByteIterable].
+         *
+         * @param entry The [ByteIterable] to deserialize from.
+         * @return Resulting [VAFSignature]
+         */
+        fun fromEntry(entry: ByteIterable): VAFSignature = VAFSignature(Snappy.uncompress(entry.bytesUnsafe))
     }
 
     /**
@@ -44,13 +30,18 @@ value class VAFSignature(val cells: ByteArray): Comparable<VAFSignature> {
      * @param index The [index] to access.
      * @return [Int] value at the given [index].
      */
-    operator fun get(index: Int): Byte = this.cells[index]
+    operator fun get(index: Int): Int = this.cells[index].toInt()
 
     /**
-     * Checks if this [VAFSignature] is an invalid signature, which is used as a placeholder in cases no
-     * valid [VAFSignature] could be obtained,
-     *
-     * @return True if [VAFSignature] is invalid, false otherwise.
+     * The size of this [VAFSignature]
      */
-    fun invalid(): Boolean = this.cells[0] == INVALID[0]
+    fun size(): Int = this.cells.size
+
+    /**
+     *
+     */
+    fun toEntry(): ByteIterable {
+        val compressed = Snappy.compress(this.cells)
+        return ArrayByteIterable(compressed, compressed.size)
+    }
 }

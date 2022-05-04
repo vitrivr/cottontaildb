@@ -5,7 +5,7 @@ import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.dbms.index.IndexConfig
-import org.vitrivr.cottontail.dbms.index.va.signature.VAFMarks
+import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import java.io.ByteArrayInputStream
 
 /**
@@ -14,7 +14,7 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-data class VAFIndexConfig(val marksPerDimension: Int, val marks: VAFMarks? = null): IndexConfig<VAFIndex> {
+data class VAFIndexConfig(val marksPerDimension: Int, val marks: EquidistantVAFMarks? = null): IndexConfig<VAFIndex> {
     companion object {
         const val KEY_MARKS_PER_DIMENSION = "marks_per_dimension"
     }
@@ -26,7 +26,7 @@ data class VAFIndexConfig(val marksPerDimension: Int, val marks: VAFMarks? = nul
         override fun readObject(stream: ByteArrayInputStream): Comparable<VAFIndexConfig> = VAFIndexConfig(
             IntegerBinding.readCompressed(stream),
             if (BooleanBinding.BINDING.readObject(stream)) {
-                VAFMarks.Binding.readObject(stream)
+                EquidistantVAFMarks.Binding.readObject(stream)
             } else {
                 null
             }
@@ -37,7 +37,7 @@ data class VAFIndexConfig(val marksPerDimension: Int, val marks: VAFMarks? = nul
             IntegerBinding.writeCompressed(output, `object`.marksPerDimension)
             if (`object`.marks != null) {
                 BooleanBinding.BINDING.writeObject(output, true)
-                VAFMarks.Binding.writeObject(output, `object`.marks)
+                EquidistantVAFMarks.Binding.writeObject(output, `object`.marks)
             } else {
                 BooleanBinding.BINDING.writeObject(output, false)
             }
