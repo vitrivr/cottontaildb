@@ -231,7 +231,7 @@ class DMLServiceTest : AbstractClientTest() {
     @Test
     fun testMultiInsertLucene() {
         val entityName = TEST_SCHEMA.entity("lucenetest")
-        val batchCount = 10000
+        val batchCount = 1000
         val repeatBatchInsert = 100
         val stringLength = 200
         var txId = client.begin()
@@ -243,7 +243,7 @@ class DMLServiceTest : AbstractClientTest() {
         // The first inserts are all made without optimization in between, and between the first and the second is an optimize
         repeat(10) {
             repeat(repeatBatchInsert / 10) {
-                txId = client.begin()
+                txId = this.client.begin()
                 val batch = BatchInsert().into(entityName.fqn).columns(STRING_COLUMN_NAME).txId(txId)
                 repeat(batchCount) {
                     batch.append(
