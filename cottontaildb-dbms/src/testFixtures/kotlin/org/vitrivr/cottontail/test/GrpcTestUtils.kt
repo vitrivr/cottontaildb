@@ -72,9 +72,9 @@ object GrpcTestUtils {
         val random = Random.Default
         repeat(TestConstants.TEST_COLLECTION_SIZE) {
             batch.append(
-                    RandomStringUtils.randomAlphabetic(5),
-                    random.nextInt(0, 100),
-                    random.nextDouble(1.0)
+                RandomStringUtils.randomAlphabetic(5),
+                random.nextInt(0, 100),
+                random.nextDouble(1.0)
             )
         }
         client.insert(batch)

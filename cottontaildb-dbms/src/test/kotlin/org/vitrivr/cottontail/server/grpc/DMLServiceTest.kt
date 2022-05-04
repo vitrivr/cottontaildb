@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.server.grpc
 import org.apache.commons.lang3.RandomStringUtils
 import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.*
+import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.client.language.basics.predicate.Expression
 import org.vitrivr.cottontail.client.language.ddl.CreateEntity
@@ -56,8 +57,8 @@ class DMLServiceTest : AbstractClientTest() {
      * Performs a large number of INSERTs in a single transaction and checks the count before and afterwards.
      */
     @Test
-    fun testVeryLargeInsertInSingleTx() {
-        val entries = TEST_COLLECTION_SIZE * 100
+    fun testSingleTxBatchInsert() {
+        val entries = TEST_COLLECTION_SIZE * 5
         val batchSize = 1000
         val stringLength = 200
 
@@ -65,10 +66,11 @@ class DMLServiceTest : AbstractClientTest() {
         val txId = this.client.begin()
         repeat(entries / batchSize) { i ->
             val batch = BatchInsert().into(TEST_ENTITY_NAME.fqn).columns(INT_COLUMN_NAME, STRING_COLUMN_NAME, DOUBLE_COLUMN_NAME)
-            repeat(batchSize) { j -> batch.append(i*j, RandomStringUtils.randomAlphanumeric(stringLength), 1.0) }
-            this.client.insert(batch)
+            repeat(batchSize) {
+                j -> batch.append(i*j, RandomStringUtils.randomAlphanumeric(stringLength), 1.0)
+            }
+            this.client.insert(batch.txId(txId))
         }
-
         Assertions.assertEquals(TEST_COLLECTION_SIZE.toLong(), countElements(this.client, TEST_ENTITY_NAME)) /* Check before commit. */
         this.client.commit(txId)
         Assertions.assertEquals((entries + TEST_COLLECTION_SIZE).toLong(), countElements(this.client, TEST_ENTITY_NAME))  /* Check after commit. */
@@ -79,9 +81,9 @@ class DMLServiceTest : AbstractClientTest() {
      * This test runs for pretty long and is used to find checksum bugs which arise when files are split. (?)
      */
     @Test
-    fun testVeryLargeInsertWithLuceneIndexInSingleTx() {
-        val entries = TEST_COLLECTION_SIZE * 100
-        val batchSize = 1000
+    fun testSingleTxBatchInsertWithLuceneIndex() {
+        val entries = TEST_COLLECTION_SIZE * 5
+        val batchSize = 10000
         val stringLength = 200
 
         /* Create Lucene Index. */
@@ -90,7 +92,7 @@ class DMLServiceTest : AbstractClientTest() {
         /* Start large insert. */
         val txId = this.client.begin()
         repeat(entries / batchSize) { i ->
-            val batch = BatchInsert().into(TEST_ENTITY_NAME.fqn).columns(INT_COLUMN_NAME, STRING_COLUMN_NAME, DOUBLE_COLUMN_NAME)
+            val batch = BatchInsert().into(TEST_ENTITY_NAME.fqn).columns(INT_COLUMN_NAME, STRING_COLUMN_NAME, DOUBLE_COLUMN_NAME).txId(txId)
             repeat(batchSize) { j -> batch.append(i*j, RandomStringUtils.randomAlphanumeric(stringLength), 1.0) }
             this.client.insert(batch)
         }
@@ -128,8 +130,11 @@ class DMLServiceTest : AbstractClientTest() {
         Assertions.assertEquals(1L, result2.next().asLong(0))
     }
 
+    /**
+     * Executes an UPDATE and checks if all values were changed.
+     */
     @Test
-    fun testUpdateAllColumns() {
+    fun testSingleTxUpdateColumns() {
         val newValue = RandomStringUtils.randomAlphabetic(4)
 
         /* Perform update and sanity checks. */
@@ -147,40 +152,23 @@ class DMLServiceTest : AbstractClientTest() {
         }
     }
 
+    /**
+     * Executes a series of UPDATES in a single transaction and checks, if those UPDATES were materialized.
+     */
     @Test
-    fun testUpdateAllColumnsWithCommitAndQuery() {
+    fun testSingleTxUpdateWithCommitAndQuery() {
         /* Query and update values. */
         val txId = this.client.begin()
-        val s1 = Query().select("*").from(TEST_ENTITY_NAME.fqn).txId(txId)
+        val s1 = Query().from(TEST_ENTITY_NAME.fqn).order(STRING_COLUMN_NAME, Direction.ASC).limit(100).txId(txId)
         val r1 = this.client.query(s1)
         for (el1 in r1) {
-            val update = Update()
-                .from(TEST_ENTITY_NAME.fqn)
-                .values(Pair(INT_COLUMN_NAME, -1))
+            /* Determine how many rows will be affected. */
+            val count = Query().from(TEST_ENTITY_NAME.fqn)
                 .where(Expression(STRING_COLUMN_NAME, "=", el1.asString(STRING_COLUMN_NAME)!!))
-                .txId(txId)
-            val r2 = this.client.update(update)
-            Assertions.assertTrue(r2.hasNext())
-            val el2 = r2.next()
-            Assertions.assertEquals(1, el2.asLong(0))
-        }
-        this.client.commit(txId)
+                .count()
+            val c = this.client.query(count).next().asLong(0)
 
-        /* Query and check values. */
-        val select = Query().select("*").from(TEST_ENTITY_NAME.fqn)
-        val r2 = this.client.query(select)
-        for (el2 in r2) {
-            Assertions.assertEquals(-1, el2.asInt(INT_COLUMN_NAME))
-        }
-    }
-
-    @Test
-    fun testUpdateAllColumnsWithRollbackAndQuery() {
-        /* Query and update values. */
-        val txId = this.client.begin()
-        val s1 = Query().select("*").from(TEST_ENTITY_NAME.fqn).txId(txId)
-        val r1 = this.client.query(s1)
-        for (el1 in r1) {
+            /* Execute the update. */
             val update = Update().from(TEST_ENTITY_NAME.fqn)
                 .values(Pair(INT_COLUMN_NAME, -1))
                 .where(Expression(STRING_COLUMN_NAME, "=", el1.asString(STRING_COLUMN_NAME)!!))
@@ -188,12 +176,48 @@ class DMLServiceTest : AbstractClientTest() {
             val r2 = this.client.update(update)
             Assertions.assertTrue(r2.hasNext())
             val el2 = r2.next()
-            Assertions.assertEquals(1, el2.asLong(0))
+            Assertions.assertEquals(c, el2.asLong(0))
+        }
+        this.client.commit(txId)
+
+        /* Query and check values. */
+        val select = Query().select("*").from(TEST_ENTITY_NAME.fqn).order(STRING_COLUMN_NAME, Direction.ASC).limit(100)
+        val r2 = this.client.query(select)
+        for (el2 in r2) {
+            Assertions.assertEquals(-1, el2.asInt(INT_COLUMN_NAME))
+        }
+    }
+
+    /**
+     * Executes a series of UPDATES in a single transaction followed by a ROLLBACK and checks, that those UPDATES were not materialized.
+     */
+    @Test
+    fun testSingleTxUpdateWithRollbackAndQuery() {
+        /* Query and update values. */
+        val txId = this.client.begin()
+        val s1 = Query().select("*").from(TEST_ENTITY_NAME.fqn).order(STRING_COLUMN_NAME, Direction.ASC).limit(100).txId(txId)
+        val r1 = this.client.query(s1)
+        for (el1 in r1) {
+            /* Determine how many rows will be affected. */
+            val count = Query().from(TEST_ENTITY_NAME.fqn)
+                .where(Expression(STRING_COLUMN_NAME, "=", el1.asString(STRING_COLUMN_NAME)!!))
+                .count()
+            val c = this.client.query(count).next().asLong(0)
+
+            /* Execute the update. */
+            val update = Update().from(TEST_ENTITY_NAME.fqn)
+                .values(Pair(INT_COLUMN_NAME, -1))
+                .where(Expression(STRING_COLUMN_NAME, "=", el1.asString(STRING_COLUMN_NAME)!!))
+                .txId(txId)
+            val r2 = this.client.update(update)
+            Assertions.assertTrue(r2.hasNext())
+            val el2 = r2.next()
+            Assertions.assertEquals(c, el2.asLong(0))
         }
         this.client.rollback(txId)
 
         /* Query and check values. */
-        val select = Query().select("*").from(TEST_ENTITY_NAME.fqn)
+        val select = Query().select("*").from(TEST_ENTITY_NAME.fqn).order(STRING_COLUMN_NAME, Direction.ASC).limit(100)
         val r2 = this.client.query(select)
         for (el2 in r2) {
             Assertions.assertNotEquals(-1, el2.asInt(INT_COLUMN_NAME))
