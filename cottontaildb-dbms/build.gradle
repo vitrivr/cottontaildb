@@ -26,11 +26,6 @@ dependencies {
     ///// Google Guava
     implementation group: 'com.google.guava', name: 'guava', version: version_guava
 
-    ////// Log4j2 & SLF4j
-    implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: version_log4j2
-    implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: version_log4j2
-    implementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: version_log4j2
-
     ////// Lucene
     implementation group: 'org.apache.lucene', name: 'lucene-core', version: version_lucene
     implementation group: 'org.apache.lucene', name: 'lucene-analysis-common', version: version_lucene

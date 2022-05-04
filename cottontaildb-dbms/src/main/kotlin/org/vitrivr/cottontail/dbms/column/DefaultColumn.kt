@@ -151,9 +151,6 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             ret
         }
 
-
-
-
         /**
          * Returns the number of entries in this [DefaultColumn].
          *
@@ -251,6 +248,19 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
 
             /* Return existing value. */
             return existing
+        }
+
+        /**
+         * Clears the [Column] underlying this [ColumnTx] and removes all entries it contains.
+         */
+        override fun clear() = this.txLatch.withLock {
+            /* Truncates and re-opens the data store. */
+            this.dataStore.environment.truncateStore(this.dataStore.name, this.context.xodusTx)
+            this.dataStore = this.dataStore.environment.openStore(this.dataStore.name, StoreConfig.USE_EXISTING, this.context.xodusTx)
+
+            /* Resets statistics and updates the dirty flag. */
+            this.statistics.reset()
+            this.dirty = true
         }
 
         /**

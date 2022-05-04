@@ -13,6 +13,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
@@ -82,7 +83,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         override val xodusTx: jetbrains.exodus.env.Transaction = this@TransactionManager.catalogue.environment.beginTransaction()
 
         /** Map of all [Tx] that have been created as part of this [TransactionImpl]. */
-        private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
+        private val txns: MutableMap<Name, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
         /** A [Mutex] data structure used for synchronisation on the [TransactionImpl]. */
         private val mutex = Mutex()
@@ -143,7 +144,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          * @param dbo [DBO] to return the [Tx] for.
          * @return entity [Tx]
          */
-        override fun getTx(dbo: DBO): Tx = this.txns.computeIfAbsent(dbo) {
+        override fun getTx(dbo: DBO): Tx = this.txns.computeIfAbsent(dbo.name) {
             dbo.newTx(this)
         }
 

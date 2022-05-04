@@ -244,5 +244,9 @@ class ColumnV2<T : Value>(val path: Path, override val parent: Entity) : Column<
         override fun cursor(partition: LongRange): Cursor<T?> {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
+
+        override fun clear() {
+            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
     }
 }

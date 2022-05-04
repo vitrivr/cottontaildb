@@ -27,18 +27,18 @@ class TruncateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.En
          *
          * @param entityName The [Name.EntityName] of the entity to truncate.
          * @param client The [SimpleClient] to use.
-         * @param confirm Flag indicating whether confirmation is required (CLI only, not testable).
+         * @param confirm Flag indicating whether confirmation is already given (CLI only, not testable).
          */
         fun truncate(entityName: Name.EntityName, client: SimpleClient, confirm: Boolean) {
-            if (confirm || TermUi.confirm("Do you really want to truncate the entity ${entityName} [y/N]?", default = false, showDefault = false) == true) {
+            if (confirm || TermUi.confirm("Do you really want to truncate the entity $entityName [y/N]?", default = false, showDefault = false) == true) {
                 try {
                     val timedTable = measureTimedValue {
                         TabulationUtilities.tabulate(client.truncate(TruncateEntity(entityName.toString())))
                     }
-                    println("Successfully truncated entity ${entityName} (took ${timedTable.duration}).")
+                    println("Successfully truncated entity $entityName (took ${timedTable.duration}).")
                     print(timedTable.value)
                 } catch (e: StatusException) {
-                    println("Failed to truncate entity ${entityName} due to error: ${e.message}.")
+                    println("Failed to truncate entity $entityName due to error: ${e.message}.")
                 }
             } else {
                 println("Truncate entity aborted.")
