@@ -281,7 +281,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
 
             /* Resets statistics and updates the dirty flag. */
             this.statistics.reset()
-            this.dirty = true
+            this.updateStatistics = true
         }
 
         /**
