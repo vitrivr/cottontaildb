@@ -4,7 +4,7 @@ import org.vitrivr.cottontail.cli.Cli
 import kotlin.time.ExperimentalTime
 
 /**
- * Entry point for C(arrot)CLI.
+ * Entry point for C(arrot)LI.
  *
  * @param args Program arguments.
  */

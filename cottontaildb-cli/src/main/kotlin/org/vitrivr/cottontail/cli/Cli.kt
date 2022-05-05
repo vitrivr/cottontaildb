@@ -21,7 +21,7 @@ import org.jline.terminal.TerminalBuilder
 import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.cli.basics.AbstractQueryCommand
 import org.vitrivr.cottontail.cli.basics.AbstractSchemaCommand
-import org.vitrivr.cottontail.cli.benchmarks.HDIndexBenchmark
+import org.vitrivr.cottontail.cli.benchmarks.HighDimensionalIndexBenchmark
 import org.vitrivr.cottontail.cli.entity.*
 import org.vitrivr.cottontail.cli.query.CountEntityCommand
 import org.vitrivr.cottontail.cli.query.ExecuteQueryCommand
@@ -330,7 +330,7 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                     invokeWithoutSubcommand = true,
                     printHelpOnEmptyArgs = true
                 ){}.subcommands(
-                    HDIndexBenchmark(this@Cli.client)
+                    HighDimensionalIndexBenchmark(this@Cli.client)
                 ),
 
                 /* Transaction related commands. */
