@@ -301,9 +301,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
                 return StandaloneRecord(tupleId, columns, this.values)
             }
             override fun key(): TupleId = this.wrapped.next()
-            override fun moveNext(): Boolean {
-                return this.wrapped.hasNext()
-            }
+            override fun moveNext(): Boolean = this.wrapped.hasNext()
             override fun close() { /* No op. */ }
         }
 

@@ -250,9 +250,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
                 return StandaloneRecord(tupleId, columns, values)
             }
             override fun key(): TupleId = this.wrapped.next()
-            override fun moveNext(): Boolean {
-                return this.wrapped.hasNext()
-            }
+            override fun moveNext(): Boolean = this.wrapped.hasNext()
             override fun close() { /* No op. */ }
         }
 
