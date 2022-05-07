@@ -40,7 +40,7 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
     protected abstract val indexType: IndexType
 
     /** [IndexType] of the test [Index]. */
-    protected val indexParams: Map<String, String> = emptyMap()
+    protected open val indexParams: Map<String, String> = emptyMap()
 
     /** The [JDKRandomGenerator] random number generator. */
     protected val random = JDKRandomGenerator()

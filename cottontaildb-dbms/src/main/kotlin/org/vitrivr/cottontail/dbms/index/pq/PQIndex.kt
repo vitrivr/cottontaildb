@@ -115,9 +115,8 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          */
         override fun buildConfig(parameters: Map<String, String>): IndexConfig<PQIndex> = PQIndexConfig(
             parameters[PQIndexConfig.KEY_DISTANCE]?.let { Name.FunctionName(it) } ?: EuclideanDistance.FUNCTION_NAME,
-            parameters[PQIndexConfig.KEY_SAMPLE_SIZE]?.toInt() ?: 1500,
-            parameters[PQIndexConfig.KEY_NUM_CENTROIDS]?.toInt() ?: 100,
-            parameters[PQIndexConfig.KEY_NUM_SUBSPACES]?.toInt()
+            parameters[PQIndexConfig.KEY_SAMPLE_SIZE]?.toInt() ?: 3000,
+            parameters[PQIndexConfig.KEY_NUM_CENTROIDS]?.toInt() ?: PQIndexConfig.DEFAULT_CENTROIDS
         )
 
         /**
@@ -187,7 +186,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
             if (predicate.column != this.columns[0]) return Cost.INVALID
             if (predicate.distance.name != this.config.distance) return Cost.INVALID
             val count = this.count()
-            val subspaces = this.config.numSubspaces ?: ProductQuantizer.defaultNumberOfSubspaces(predicate.column.type.logicalSize)
+            val subspaces = ProductQuantizer.numberOfSubspaces(predicate.column.type.logicalSize)
             return Cost(
                 count * subspaces * Cost.DISK_ACCESS_READ.io + predicate.k * predicate.column.type.logicalSize * Cost.DISK_ACCESS_READ.io,
                 count * (4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu) + predicate.cost.cpu * predicate.k,
@@ -353,41 +352,38 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                  */
                 private fun prepare() {
                     /* Prepare data structures for NNS. */
-                    val preNNSSize = (this.predicate.k * 1.15).toLong() /* Pre-kNN size is 15% larger than k. */
                     val comparator = when (this.predicate) {
-                        is ProximityPredicate.NNS -> Comparator<Pair<LongArray, Double>> { o1, o2 -> o1.second.compareTo(o2.second) }
-                        is ProximityPredicate.FNS -> Comparator<Pair<LongArray, Double>> { o1, o2 -> -o1.second.compareTo(o2.second) }
+                        is ProximityPredicate.NNS -> Comparator<Pair<PQSignature, Double>> { o1, o2 -> o1.second.compareTo(o2.second) }
+                        is ProximityPredicate.FNS -> Comparator<Pair<PQSignature, Double>> { o1, o2 -> -o1.second.compareTo(o2.second) }
                     }
-                    val preNNSSelection = HeapSelection(preNNSSize, comparator)
-                    val produces = this@Tx.columnsFor(predicate).toTypedArray()
 
                     /* Phase 1: Perform pre-NNS based on signatures. */
-                    val subTx = this@Tx.context.xodusTx.readonlySnapshot
-                    val cursor = this@Tx.dataStore.openCursor(subTx)
-                    while (cursor.next) {
-                        val signature = PQSignature.Binding.entryToValue(cursor.key)
-                        val approximation = this.lookupTable.approximateDistance(signature)
-                        if (preNNSSelection.added < preNNSSize || preNNSSelection.peek()!!.second > approximation) {
-                            val tupleIds = mutableListOf<TupleId>()
-                            do {
-                                tupleIds.add(LongBinding.compressedEntryToLong(cursor.value))
-                            } while (cursor.nextDup) /* Collect all duplicates. */
-                            preNNSSelection.offer(tupleIds.toLongArray() to approximation)
+                    val preSelection = HeapSelection(this.predicate.k, comparator)
+                    val produces = this@Tx.columnsFor(predicate).toTypedArray()
+                    this@Tx.dataStore.openCursor(this@Tx.context.xodusTx).use { cursor ->
+                        var scan = 0L
+                        while (cursor.nextNoDup) {
+                            val signature = PQSignature.Binding.entryToValue(cursor.key)
+                            val approximation = this.lookupTable.approximateDistance(signature)
+                            preSelection.offer(signature to approximation)
+                            scan++
                         }
+                        LOGGER.debug("PQ scan: Read $scan signatures and considered ${preSelection.k} of them.")
                     }
 
-                    /* Closes the cursor. */
-                    cursor.close()
-                    subTx.abort()
-
-                    /* Phase 2: Perform exact kNN based on pre-kNN results. */
-                    val query = this.predicate.query.value as VectorValue<*>
-                    for (j in 0 until preNNSSelection.size) {
-                        val tupleIds = preNNSSelection[j].first
-                        for (tupleId in tupleIds) {
-                            val value = this.entityTx.read(tupleId, this@Tx.columns)[0] as VectorValue<*>
-                            val distance = this.predicate.distance(query, value)
-                            this.selection.offer(StandaloneRecord(tupleId, produces, arrayOf(distance)))
+                    /* Phase 2: Perform exact NNS based on pre-NNS results. */
+                    this@Tx.dataStore.openCursor(this@Tx.context.xodusTx).use { cursor ->
+                        val query = this.predicate.query.value as VectorValue<*>
+                        for (j in 0 until preSelection.size) {
+                            val signature = preSelection[j].first
+                            if (cursor.getSearchKey(PQSignature.Binding.valueToEntry(signature)) != null) {
+                                do {
+                                    val tupleId = LongBinding.compressedEntryToLong(cursor.value)
+                                    val value = this.entityTx.read(tupleId, this@Tx.columns)[0] as VectorValue<*>
+                                    val distance = this.predicate.distance(query, value)
+                                    this.selection.offer(StandaloneRecord(tupleId, produces, arrayOf(distance)))
+                                } while (cursor.nextDup)
+                            }
                         }
                     }
                 }
@@ -413,7 +409,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          */
         private fun acquireLearningData(txn: ColumnTx<*>, random: RandomGenerator): List<VectorValue<*>> {
             val learningData = LinkedList<VectorValue<*>>()
-            val learningDataFraction = this@Tx.config.sampleSize.toDouble() / txn.count()
+            val learningDataFraction = this@Tx.config.samples.toDouble() / txn.count()
             val cursor = txn.cursor()
             while (cursor.hasNext()) {
                 if (random.nextDouble() <= learningDataFraction) {
