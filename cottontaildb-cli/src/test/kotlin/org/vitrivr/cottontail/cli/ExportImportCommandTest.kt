@@ -9,8 +9,10 @@ import org.vitrivr.cottontail.cli.entity.TruncateEntityCommand
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.data.Format
 import org.vitrivr.cottontail.test.AbstractClientTest
+import org.vitrivr.cottontail.test.GrpcTestUtils
 import org.vitrivr.cottontail.test.GrpcTestUtils.countElements
 import org.vitrivr.cottontail.test.TestConstants
+import org.vitrivr.cottontail.test.TestConstants.TEST_ENTITY_NAME
 import java.nio.file.Path
 import kotlin.io.path.Path
 import kotlin.io.path.deleteIfExists
@@ -39,13 +41,7 @@ class ExportImportCommandTest : AbstractClientTest() {
     fun exportCreatesFile() {
         formats.forEach { format ->
             TestConstants.ALL_ENTITY_NAMES.forEach { name ->
-                val path = exportFolder()
-                path.toFile().mkdirs()
-                val exported = exportFile(format, name)
-                exported.deleteIfExists()
-                DumpEntityCommand.dumpEntity(name, path, format, this.client)
-                assert(exported.toFile().exists())
-                assert(exported.toFile().totalSpace > 1)
+                exportEntity(format, name)
             }
         }
     }
@@ -66,5 +62,29 @@ class ExportImportCommandTest : AbstractClientTest() {
                 assert(count == countElements(this.client, entityName))
             }
         }
+    }
+
+    @Test
+    fun exportNan() {
+        GrpcTestUtils.insertIntoTestEntity(client, double = Double.NaN)
+        GrpcTestUtils.insertIntoTestEntity(client)
+        formats.forEach { format ->
+            exportEntity(format, TEST_ENTITY_NAME)
+            val exportFile = exportFile(format, TEST_ENTITY_NAME)
+            val count = countElements(this.client, TEST_ENTITY_NAME)
+            TruncateEntityCommand.truncate(TEST_ENTITY_NAME, this.client, true)
+            ImportDataCommand.importData(TEST_ENTITY_NAME, exportFile, format, this.client, true)
+            assert(count == countElements(this.client, TEST_ENTITY_NAME))
+        }
+    }
+
+    private fun exportEntity(format: Format, fqn: Name.EntityName) {
+        val path = exportFolder()
+        path.toFile().mkdirs()
+        val exported = exportFile(format, fqn)
+        exported.deleteIfExists()
+        DumpEntityCommand.dumpEntity(fqn, path, format, this.client)
+        assert(exported.toFile().exists())
+        assert(exported.toFile().totalSpace > 1)
     }
 }
