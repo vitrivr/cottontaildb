@@ -71,7 +71,7 @@ sealed class CosineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vector
                 normq += query.data[i].pow(2)
                 normv += probing.data[i].pow(2)
             }
-            return DoubleValue(dotp / (sqrt(normq) * sqrt(normv)))
+            return DoubleValue(1d - (dotp / (sqrt(normq) * sqrt(normv))))
         }
         override fun copy(d: Int) = DoubleVector(Types.DoubleVector(d))
     }
@@ -92,7 +92,7 @@ sealed class CosineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vector
                 normq += query.data[i].pow(2)
                 normv += probing.data[i].pow(2)
             }
-            return DoubleValue(dotp / (sqrt(normq) * sqrt(normv)))
+            return DoubleValue(1d - (dotp / (sqrt(normq) * sqrt(normv))))
         }
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
     }
@@ -113,7 +113,7 @@ sealed class CosineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vector
                 normq += query.data[i].toDouble().pow(2)
                 normv += probing.data[i].toDouble().pow(2)
             }
-            return DoubleValue(dotp / (sqrt(normq) * sqrt(normv)))
+            return DoubleValue(1L - (dotp / (sqrt(normq) * sqrt(normv))))
         }
         override fun copy(d: Int) = LongVector(Types.LongVector(d))
     }
@@ -134,7 +134,7 @@ sealed class CosineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vector
                 normq += query.data[i].toDouble().pow(2)
                 normv += probing.data[i].toDouble().pow(2)
             }
-            return DoubleValue(dotp / (sqrt(normq) * sqrt(normv)))
+            return DoubleValue(1 - (dotp / (sqrt(normq) * sqrt(normv))))
         }
         override fun copy(d: Int) = IntVector(Types.IntVector(d))
     }
