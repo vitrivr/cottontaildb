@@ -3,7 +3,8 @@ package org.vitrivr.cottontail.cli.basics
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import org.vitrivr.cottontail.cli.benchmarks.BenchmarkResult
+import org.vitrivr.cottontail.cli.benchmarks.model.Benchmark
+import org.vitrivr.cottontail.cli.benchmarks.model.BenchmarkResult
 import org.vitrivr.cottontail.client.SimpleClient
 import java.io.BufferedWriter
 import java.nio.file.Files
@@ -27,6 +28,7 @@ abstract class AbstractBenchmarkCommand(protected val client: SimpleClient, name
         val path = Paths.get(it)
         val out = Files.newBufferedWriter(path.resolve("results-${System.currentTimeMillis()}.csv"), StandardOpenOption.CREATE_NEW, StandardOpenOption.APPEND)
         out.write(BenchmarkResult.CSV_HEADER)
+        out.newLine()
         out
     }
 
@@ -42,84 +44,61 @@ abstract class AbstractBenchmarkCommand(protected val client: SimpleClient, name
         "-r",
         "--repeat",
         help = "Number of repetitions to perform while benchmarking."
-    ).convert { it.toInt() }.default(1)
-
-    /** The name of this [AbstractBenchmarkCommand]. */
-    abstract val name: String
-
-    /** The number of phases that this [AbstractBenchmarkCommand] exhibits. Defaults to 1. */
-    protected open val phases: Int = 1
-
-    /** Performs preparation operations before running this [AbstractBenchmarkCommand]. */
-    abstract fun prepare(phase: Int)
-
-
-    /** Performs preparation operations after running this [AbstractBenchmarkCommand]. */
-    abstract fun cleanup(phase: Int)
-
-    /** Performs warmup phase for this [AbstractBenchmarkCommand]. */
-    abstract fun warmup(phase: Int, repetition: Int)
+    ).convert { it.toInt() }.default(3)
 
     /**
-     * Performs the actual benchmark phase for this [AbstractBenchmarkCommand].
+     * Generates a new [Benchmark] object for this [AbstractBenchmarkCommand].
      *
-     * @return [BenchmarkResult]
+     * @return [Benchmark]
      */
-    abstract fun workload(phase: Int, repetition: Int): BenchmarkResult
+    abstract fun initialize(): Benchmark
 
     /**
      * Makes sure that the output stream is always closed.
      */
     override fun exec() {
+        /* Create new benchmark. */
         try {
-            repeat(this.phases) {
+            val benchmark = this.initialize()
+            repeat(benchmark.phases) {
                 val phase = it + 1
                 var cleanup = false
                 try {
-                    println("Starting ${this.name} phase $phase out of ${this.phases}.")
-                    println("${this.name} ($phase/${this.phases}): Preparing benchmark...")
-                    this.prepare(phase)
+                    println("Starting ${benchmark.name} phase $phase out of ${benchmark.phases}.")
+                    println("${benchmark.name} ($phase/${benchmark.phases}): Preparing benchmark...")
+                    benchmark.prepare(phase)
                     cleanup = true
 
                     /* Performs benchmark warmup. */
                     repeat(this.warmup) { w ->
                         val warmup = w + 1
-                        println("${this.name} ($phase/${this.phases}): Executing warmup workload (${warmup}/${this.warmup})...")
-                        this.warmup(phase, warmup)
+                        println("${benchmark.name} ($phase/${benchmark.phases}): Executing warmup workload (${warmup}/${this.warmup})...")
+                        benchmark.warmup(phase, warmup)
                     }
 
                     /* Performs actual benchmark. */
                     repeat(this.repeat) { r ->
                         val repeat = r + 1
-                        print("${this.name} ($phase/${this.phases}): Executing benchmark workload (${repeat}/${this.repeat})...")
-                        val result = this.workload(phase, repeat)
+                        print("${benchmark.name} ($phase/${benchmark.phases}): Executing benchmark workload (${repeat}/${this.repeat})...")
+                        val result = benchmark.workload(phase, repeat)
                         println(", took: ${result.durationMs}ms")
                         this.out?.write(result.toCSVLine())
+                        this.out?.newLine()
                     }
 
                     /* Performs the cleanup for the current phase. */
-                    println("${this.name} ($phase/${this.phases}): Cleaning-up benchmark...")
-                    this.cleanup(phase)
+                    println("${benchmark.name} ($phase/${benchmark.phases}): Cleaning-up benchmark...")
+                    benchmark.cleanup(phase)
                     cleanup = false
-                    println("${this.name} $phase completed.")
+                    println("${benchmark.name} $phase completed.")
                 } catch (e: Throwable) {
                     System.err.println("Benchmark phase $phase failed: ${e.message}")
-                    if (cleanup) this.cleanup(phase)
+                    if (cleanup) benchmark.cleanup(phase)
                     return
                 }
             }
         } finally {
             this.out?.close()
         }
-    }
-
-    /**
-     * Prints the result depending on how the command was initialized to the console AND/OR the output file.
-     *
-     * @param result The [BenchmarkResult] to obtain.
-     */
-    protected fun out(result: BenchmarkResult) {
-
-        println(result.toString())
     }
 }

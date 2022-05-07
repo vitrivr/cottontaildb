@@ -6,17 +6,16 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.enum
-import org.apache.commons.math3.distribution.MultivariateNormalDistribution
-import org.apache.commons.math3.stat.correlation.StorelessCovariance
-import org.apache.commons.math3.stat.descriptive.moment.VectorialMean
 import org.vitrivr.cottontail.cli.basics.AbstractBenchmarkCommand
+import org.vitrivr.cottontail.cli.benchmarks.model.Benchmark
+import org.vitrivr.cottontail.cli.benchmarks.model.BenchmarkResult
+import org.vitrivr.cottontail.cli.benchmarks.model.PRMeasure
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.basics.Distances
 import org.vitrivr.cottontail.client.language.ddl.CreateIndex
 import org.vitrivr.cottontail.client.language.ddl.DropIndex
 import org.vitrivr.cottontail.client.language.dql.Query
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.grpc.CottontailGrpc.IndexType
@@ -54,105 +53,101 @@ class HighDimensionalIndexBenchmark(client: SimpleClient): AbstractBenchmarkComm
     private val index by argument(name = "index", help = "The type of index to create.").enum<IndexType>()
 
     /** The number of repetitions to perform when executing the benchmark. */
-    private val k: Long by option("-k", help = "Number of repetitions to perform while benchmarking.").convert { it.toLong() }.default(5000L)
+    private val k: Long by option("-k", help = "Number of repetitions to perform while benchmarking.").convert { it.toLong() }.default(500L)
 
-    /** The query vector to use for this [HighDimensionalIndexBenchmark]. */
-    private var query: Query? = null
 
-    /** The query vector to use for this [HighDimensionalIndexBenchmark]. */
-    private val baseline = LinkedList<Any>()
+    override fun initialize(): Benchmark = object: Benchmark("HighDimensionalIndexBenchmark", 2){
+        /** The query vector to use for this [Benchmark]. */
+        private val baseline = LinkedList<Any>()
 
-    /** The name of this [HighDimensionalIndexBenchmark]. */
-    override val name: String = "HighDimensionalIndexBenchmark"
+        /** The query vector to use for this [Benchmark]. */
+        private var query: Query? = null
 
-    /** The number of phases for this [HighDimensionalIndexBenchmark] is always two. */
-    override val phases: Int = 2
+        /**
+         * Prepares the baseline during phase 1 and creates the high-dimensional index before the start of phase 2
+         *
+         * @param phase The index of the phase to prepare.
+         */
+        override fun prepare(phase: Int) {
+            when (phase) {
+                1 -> {
+                    /* Make sanity checks. */
+                    val schema = client.readSchema(this@HighDimensionalIndexBenchmark.entity)
+                    val featureColumn = schema.find { it.name == this@HighDimensionalIndexBenchmark.entity.column(this@HighDimensionalIndexBenchmark.featureColumn) }
+                        ?: throw IllegalArgumentException("The feature column ${this@HighDimensionalIndexBenchmark.featureColumn} is not known for given entity.")
 
-    /**
-     * Prepares the baseline during phase 1 and creates the high-dimensional index before the start of phase 2
-     *
-     * @param phase The index of the phase to prepare.
-     */
-    override fun prepare(phase: Int) {
-        when (phase) {
-            1 -> {
-                /* Make sanity checks. */
-                val schema = client.readSchema(this.entity)
-                val featureColumn = schema.find { it.name == this.entity.column(this.featureColumn) } ?: throw IllegalArgumentException("The feature column ${this.featureColumn} is not known for given entity.")
+                    /* Obtain a distribution and a query vector. */
+                    val vector = when (featureColumn.type) {
+                        is Types.DoubleVector -> DoubleArray(featureColumn.type.logicalSize)
+                        is Types.FloatVector ->  FloatArray(featureColumn.type.logicalSize)
+                        else -> throw IllegalArgumentException("The selected column ${this@HighDimensionalIndexBenchmark.featureColumn} does not have a vector type.")
+                    }
 
-                /* Obtain a distribution and a query vector. */
-                val vector = when (featureColumn.type) {
-                    is Types.DoubleVector -> DoubleArray(featureColumn.type.logicalSize)
-                    is Types.FloatVector ->  FloatArray(featureColumn.type.logicalSize)
-                    else -> throw IllegalArgumentException("The selected column ${this.featureColumn} does not have a vector type.")
+                    /* Create baseline result set. */
+                    this.query = Query(this@HighDimensionalIndexBenchmark.entity.fqn)
+                        .select(this@HighDimensionalIndexBenchmark.idColumn)
+                        .distance(this@HighDimensionalIndexBenchmark.featureColumn, vector, Distances.L2, "distance")
+                        .order("distance", Direction.ASC)
+                        .limit(this@HighDimensionalIndexBenchmark.k)
+
+                    this.query!!.withoutParallelism()
+
+                    /* Generate baseline result-set + warmup */
+                    for (t in this@HighDimensionalIndexBenchmark.client.query(this.query!!)) {
+                        this.baseline.add(t[0]!!)
+                    }
+                    require(this.baseline.size == this@HighDimensionalIndexBenchmark.k.toInt()) { "Mismatch" }
                 }
-
-                /* Create baseline result set. */
-                this.query = Query(this.entity.fqn)
-                    .select(this.idColumn)
-                    .distance(this.featureColumn, vector, Distances.L1, "distance")
-                    .order("distance", Direction.ASC)
-                    .limit(this@HighDimensionalIndexBenchmark.k)
-
-                this.query!!.withoutParallelism()
-
-                /* Generate baseline result-set + warmup */
-                for (t in this.client.query(this.query!!)) {
-                    this.baseline.add(t[0]!!)
+                2 -> {
+                    val testIndex = "idx_test_${this@HighDimensionalIndexBenchmark.index.toString().lowercase()}"
+                    this@HighDimensionalIndexBenchmark.client.create(CreateIndex(
+                        this@HighDimensionalIndexBenchmark.entity.fqn,
+                        this@HighDimensionalIndexBenchmark.featureColumn,
+                        this@HighDimensionalIndexBenchmark.index
+                    ).name(testIndex).rebuild())
                 }
+                else -> throw IllegalStateException("Phase index $phase is out of bounds for this benchmark instance.")
             }
-            2 -> {
-                val testIndex = "idx_test_${this.index.toString().lowercase()}"
-                this.client.create(CreateIndex(this.entity.fqn, this.featureColumn, this.index).name(testIndex).rebuild())
+        }
+
+        /**
+         * Drops the high-dimensional index after the end of phase 2
+         *
+         * @param phase The index of the phase to clean-up.
+         */
+        override fun cleanup(phase: Int) {
+            if (phase == 2) {
+                val testIndex = "idx_test_${this@HighDimensionalIndexBenchmark.index.toString().lowercase()}"
+                this@HighDimensionalIndexBenchmark.client.drop(DropIndex(this@HighDimensionalIndexBenchmark.entity.index(testIndex).fqn))
             }
-            else -> throw IllegalStateException("Phase index $phase is out of bounds for this benchmark instance.")
         }
-    }
 
-    /**
-     * Drops the high-dimensional index after the end of phase 2
-     *
-     * @param phase The index of the phase to cleanup.
-     */
-    override fun cleanup(phase: Int) {
-        if (phase == 2) {
-            val testIndex = "idx_test_${this.index.toString().lowercase()}"
-            this.client.drop(DropIndex(this.entity.index(testIndex).fqn))
-        }
-    }
-
-    override fun warmup(phase: Int, repetition: Int) {
-       /* */
-    }
-
-    /**
-     * Executes the actual workload for this [HighDimensionalIndexBenchmark].
-     */
-    override fun workload(phase: Int, repetition: Int): BenchmarkResult {
-        val start = System.currentTimeMillis()
-        val result = this@HighDimensionalIndexBenchmark.client.query(this.query!!)
-        val end = System.currentTimeMillis()
-        val (rankAccuracy, overlapAccuracy) = ResultsetComparison.compare(baseline, result)
-        return BenchmarkResult(this.name, "${this.entity},${this.index}", phase, repetition, start, end, end-start, rankAccuracy, overlapAccuracy)
-    }
-
-    /**
-     * Obtains a [MultivariateNormalDistribution] for the given
-     */
-    private fun obtainDistribution(column: ColumnDef<*>): MultivariateNormalDistribution {
-        val covariance = StorelessCovariance(column.type.logicalSize)
-        val mean = VectorialMean(column.type.logicalSize)
-        val results = this.client.query(Query().sample(column.name.entity()!!.fqn, 0.05f).limit(1000))
-        val vector = DoubleArray(column.type.logicalSize)
-        for (t in results) {
-            when (column.type) {
-                is Types.DoubleVector -> t.asDoubleVector(1)!!.forEachIndexed { i, d -> vector[i] = d }
-                is Types.FloatVector -> t.asFloatVector(1)!!.forEachIndexed { i, d -> vector[i] = d.toDouble() }
-                else -> throw IllegalArgumentException("The selected column ${this.featureColumn} does not have a vector type.")
+        /**
+         * Performs a single warmup query per phase.
+         *
+         * @param phase The phase index to perform the warmup  for.
+         * @param repetition The repetition.
+         */
+        override fun warmup(phase: Int, repetition: Int) {
+            for (t in this@HighDimensionalIndexBenchmark.client.query(this.query!!)) {
+                /* No op. */
             }
-            covariance.increment(vector)
-            mean.increment(vector)
         }
-        return MultivariateNormalDistribution(mean.result, covariance.data)
+
+        /**
+         * Executes the actual workload for this [HighDimensionalIndexBenchmark].
+         */
+        override fun workload(phase: Int, repetition: Int): BenchmarkResult {
+            val start = System.currentTimeMillis()
+            val result = this@HighDimensionalIndexBenchmark.client.query(this.query!!)
+            val end = System.currentTimeMillis()
+            val prgraph = PRMeasure.generate(this.baseline, result)
+            return if (phase == 1) {
+                BenchmarkResult("Brute-force", "${this@HighDimensionalIndexBenchmark.entity}", phase, repetition, start, end, end-start, prgraph)
+            } else {
+                BenchmarkResult("Index", "${this@HighDimensionalIndexBenchmark.entity},${this@HighDimensionalIndexBenchmark.index}", phase, repetition, start, end, end-start, prgraph)
+            }
+        }
+
     }
 }
