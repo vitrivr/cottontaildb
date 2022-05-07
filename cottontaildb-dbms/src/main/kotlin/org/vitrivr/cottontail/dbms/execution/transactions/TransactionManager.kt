@@ -259,8 +259,13 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
                             throw e
                         }
                     }
-                    commit = this@TransactionImpl.xodusTx.commit()
-                    if (!commit) throw TransactionException.InConflict(this@TransactionImpl.txId)
+                    if (this@TransactionImpl.xodusTx.isReadonly) {
+                        commit = true /* Xodus read-only transaction cannot be committed. */
+                        this@TransactionImpl.xodusTx.abort()
+                    } else {
+                        commit = this@TransactionImpl.xodusTx.commit()
+                        if (!commit) throw TransactionException.InConflict(this@TransactionImpl.txId)
+                    }
                 } catch (e: Throwable) {
                     this@TransactionImpl.xodusTx.abort()
                     throw e
