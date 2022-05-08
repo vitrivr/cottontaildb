@@ -8,12 +8,9 @@ import com.github.ajalt.clikt.parameters.types.enum
 import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.basics.Constants
+import org.vitrivr.cottontail.client.language.dml.BatchInsert
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.data.Format
-import org.vitrivr.cottontail.grpc.CottontailGrpc.BatchInsertMessage
-import org.vitrivr.cottontail.utilities.extensions.proto
-import org.vitrivr.cottontail.utilities.extensions.protoFrom
-import org.vitrivr.cottontail.utilities.extensions.toLiteral
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.time.ExperimentalTime
@@ -52,37 +49,26 @@ class ImportDataCommand(client: SimpleClient) : AbstractEntityCommand(client, na
 
             try {
                 /* Prepare batch insert message. */
-                val batchedInsert = BatchInsertMessage.newBuilder()
+                val batchedInsert = BatchInsert(entityName.fqn)
                 if (txId != null) {
-                    batchedInsert.metadataBuilder.transactionId = txId
+                    batchedInsert.txId(txId)
                 }
-                batchedInsert.from = entityName.protoFrom()
-                for (c in schema) {
-                    batchedInsert.addColumns(c.name.proto())
-                }
+                batchedInsert.columns(*schema.map { it.name.simple }.toTypedArray())
+
                 var count = 0L
-                val headerSize = batchedInsert.build().serializedSize
-                var cummulativeSize = headerSize
                 val duration = measureTime {
-                    iterator.forEach {
-                        val element = BatchInsertMessage.Insert.newBuilder()
-                        for (c in schema) {
-                            element.addValues(it[c]?.toLiteral())
+                    iterator.forEach { next ->
+                        batchedInsert.append(*schema.map { next[it] }.toTypedArray())
+                        if (batchedInsert.builder.build().serializedSize >= Constants.MAX_PAGE_SIZE_BYTES) {
+                            client.insert(batchedInsert)
+                            batchedInsert.builder.clearInserts()
                         }
-                        val built = element.build()
-                        if ((cummulativeSize + built.serializedSize) >= Constants.MAX_PAGE_SIZE_BYTES) {
-                            client.insert(batchedInsert.build())
-                            batchedInsert.clearInserts()
-                            cummulativeSize = headerSize
-                        }
-                        cummulativeSize += built.serializedSize
-                        batchedInsert.addInserts(built)
                         count += 1
                     }
 
                     /** Insert remainder. */
-                    if (batchedInsert.insertsCount > 0) {
-                        client.insert(batchedInsert.build())
+                    if (batchedInsert.builder.insertsCount > 0) {
+                        client.insert(batchedInsert)
                     }
 
                     /** Commit transaction, if single transaction option has been set. */
@@ -114,7 +100,7 @@ class ImportDataCommand(client: SimpleClient) : AbstractEntityCommand(client, na
     private val input: Path by option(
         "-i",
         "--input",
-        help = "Limits the amount of printed results"
+        help = "The path to the file that contains the data to import."
     ).convert { Paths.get(it) }.required()
 
     /** Flag indicating, whether the import should be executed in a single transaction or not. */
