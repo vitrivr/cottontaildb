@@ -22,6 +22,7 @@ import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
@@ -61,7 +62,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         private val LOGGER: Logger = LoggerFactory.getLogger(PQIndex::class.java)
 
         /** False since [PQIndex] currently doesn't support incremental updates. */
-        override val supportsIncrementalUpdate: Boolean = false
+        override val supportsIncrementalUpdate: Boolean = true
 
         /** False since [PQIndex] doesn't support asynchronous rebuilds. */
         override val supportsAsyncRebuild: Boolean = false
@@ -156,10 +157,18 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         /** The set of supported [VectorDistance]s. */
         override val supportedDistances: Set<Signature.Closed<*>>
 
+        /** */
+        private val distanceFunction: VectorDistance<*>
+
         init {
             val config = this.config
+            val signature = Signature.Closed(config.distance, arrayOf(this.column.type, this.column.type), Types.Double)
             this.supportedDistances = setOf(Signature.Closed(config.distance, arrayOf(this.column.type, this.column.type), Types.Double))
+            this.distanceFunction = this@PQIndex.catalogue.functions.obtain(signature) as VectorDistance<*>
         }
+
+        /** */
+        private val quantizer by lazy {  ProductQuantizer.loadFromConfig(this.distanceFunction, this.config) }
 
         /** The Xodus [Store] used to store [PQSignature]s. */
         private var dataStore: Store = this@PQIndex.catalogue.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
@@ -260,24 +269,67 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         }
 
         /**
+         * Tries to apply the change applied by this [DataEvent.Insert] to the [PQIndex] underlying this [PQIndex.Tx]. This method implements the
+         * [PQIndex]'es write model: INSERTs are always applied with the existing quantizer.
          *
+         * @param event The [DataEvent.Insert] to apply.
+         * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Insert): Boolean {
-            return false
+            /* Extract value and perform sanity check. */
+            val value = event.data[this@Tx.column]
+            require(value is RealVectorValue<*>) { "Only real vector values can be stored in a VAFIndex. This is a programmer's error!" }
+
+            /* Generate signature and store it. */
+            val sig = this.quantizer.quantize(value)
+            return this.dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(sig), event.tupleId.toKey())
         }
 
         /**
+         * Tries to apply the change applied by this [DataEvent.Update] to the [PQIndex] underlying this [PQIndex.Tx]. This method implements the
+         * [PQIndex]'es write model: UPDATEs are always applied using the existing quantizer.
          *
+         * @param event The [DataEvent.Update] to apply.
+         * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Update): Boolean {
-            return false
+            /* Extract value and perform sanity check. */
+            val oldValue = event.data[this@Tx.column]?.first
+            val newValue = event.data[this@Tx.column]?.second
+
+            /* Remove signature to tuple ID mapping. */
+            if (oldValue is VectorValue<*>) {
+                val oldSig = this.quantizer.quantize(oldValue)
+                val cursor = this.dataStore.openCursor(this.context.xodusTx)
+                if (cursor.getSearchBoth(PQSignature.Binding.valueToEntry(oldSig), event.tupleId.toKey())) {
+                    cursor.deleteCurrent()
+                }
+                cursor.close()
+            }
+
+            /* Generate signature and store it. */
+            if (newValue is VectorValue<*>) {
+                val newSig = this.quantizer.quantize(newValue)
+                return this.dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(newSig), event.tupleId.toKey())
+            }
+            return true
         }
 
         /**
+         * Tries to apply the change applied by this [DataEvent.Delete] to the [PQIndex] underlying this [PQIndex.Tx]. This method implements the
+         * [PQIndex]'es write model: DELETEs are always applied using the existing quantizer.
          *
+         * @param event The [DataEvent.Delete] to apply.
+         * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Delete): Boolean {
-            return false
+            val sig = this.quantizer.quantize(event.data[this@Tx.column]!! as VectorValue<*>)
+            val cursor = this.dataStore.openCursor(this.context.xodusTx)
+            if (cursor.getSearchBoth(PQSignature.Binding.valueToEntry(sig), event.tupleId.toKey())) {
+                cursor.deleteCurrent()
+            }
+            cursor.close()
+            return true
         }
 
         /**
@@ -305,8 +357,8 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                 /** The [ProductQuantizer] instance used for this [Cursor]. */
                 private val pq = ProductQuantizer.loadFromConfig(this.predicate.distance, this.config)
 
-                /** Internal [EntityTx] used to access actual values. */
-                private val entityTx = this@Tx.context.getTx(this@PQIndex.parent) as EntityTx
+                /** Internal [ColumnTx] used to access actual values. */
+                private val columnTx: ColumnTx<RealVectorValue<*>>
 
                 /** Prepares [PQLookupTable]s for the given query vector(s). */
                 private val lookupTable: PQLookupTable = this.pq.createLookupTable(this.predicate.query.value as VectorValue<*>)
@@ -319,6 +371,12 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
 
                 /** The current [Cursor] position. */
                 private var position = -1L
+
+                init {
+                    /* Obtain Tx object for column. */
+                    val entityTx: EntityTx = this@Tx.context.getTx(this@PQIndex.parent) as EntityTx
+                    this.columnTx = this@Tx.context.getTx(entityTx.columnForName(this@Tx.columns[0].name)) as ColumnTx<RealVectorValue<*>>
+                }
 
                 /**
                  * Moves the internal cursor and return true, as long as new candidates appear.
@@ -379,7 +437,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                             if (cursor.getSearchKey(PQSignature.Binding.valueToEntry(signature)) != null) {
                                 do {
                                     val tupleId = LongBinding.compressedEntryToLong(cursor.value)
-                                    val value = this.entityTx.read(tupleId, this@Tx.columns)[0] as VectorValue<*>
+                                    val value = this.columnTx.get(tupleId) as VectorValue<*>
                                     val distance = this.predicate.distance(query, value)
                                     this.selection.offer(StandaloneRecord(tupleId, produces, arrayOf(distance)))
                                 } while (cursor.nextDup)
