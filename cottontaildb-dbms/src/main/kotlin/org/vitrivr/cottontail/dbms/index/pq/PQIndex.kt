@@ -157,22 +157,19 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         /** The set of supported [VectorDistance]s. */
         override val supportedDistances: Set<Signature.Closed<*>>
 
-        /** */
-        private val distanceFunction: VectorDistance<*>
-
-        init {
-            val config = this.config
+        /** The [VectorDistance] function employed by this [PQIndex]. */
+        private val distanceFunction: VectorDistance<*> = this.config.let {
             val signature = Signature.Closed(config.distance, arrayOf(this.column.type, this.column.type), Types.Double)
             this.supportedDistances = setOf(Signature.Closed(config.distance, arrayOf(this.column.type, this.column.type), Types.Double))
-            this.distanceFunction = this@PQIndex.catalogue.functions.obtain(signature) as VectorDistance<*>
+            this@PQIndex.catalogue.functions.obtain(signature) as VectorDistance<*>
         }
-
-        /** */
-        private val quantizer by lazy {  ProductQuantizer.loadFromConfig(this.distanceFunction, this.config) }
 
         /** The Xodus [Store] used to store [PQSignature]s. */
         private var dataStore: Store = this@PQIndex.catalogue.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@PQIndex.name} is missing.")
+
+        /** The [ProductQuantizer] used by this [PQIndex.Tx] instance. */
+        private var quantizer = ProductQuantizer.loadFromConfig(this.distanceFunction, this.config)
 
         /**
          * Returns a [List] of the [ColumnDef] produced by this [PQIndex].
@@ -237,6 +234,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
             cursor.close()
 
             /* Update index state for index. */
+            this.quantizer = quantizer
             this.updateState(IndexState.CLEAN, this.config.copy(centroids = quantizer.centroids()))
             LOGGER.debug("Rebuilding PQ index {} completed!", this@PQIndex.name)
         }
@@ -354,14 +352,11 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                     throw QueryException.UnsupportedPredicateException("Index '${this@PQIndex.name}' (PQ Index) does not support predicates of type '${predicate::class.simpleName}'.")
                 }
 
-                /** The [ProductQuantizer] instance used for this [Cursor]. */
-                private val pq = ProductQuantizer.loadFromConfig(this.predicate.distance, this.config)
-
                 /** Internal [ColumnTx] used to access actual values. */
                 private val columnTx: ColumnTx<RealVectorValue<*>>
 
                 /** Prepares [PQLookupTable]s for the given query vector(s). */
-                private val lookupTable: PQLookupTable = this.pq.createLookupTable(this.predicate.query.value as VectorValue<*>)
+                private val lookupTable: PQLookupTable = this@Tx.quantizer.createLookupTable(this.predicate.query.value as VectorValue<*>)
 
                 /** The [HeapSelection] use for finding the top k entries. */
                 private var selection = when(this.predicate) {
