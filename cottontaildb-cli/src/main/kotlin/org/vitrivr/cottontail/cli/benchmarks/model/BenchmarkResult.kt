@@ -13,16 +13,16 @@ data class BenchmarkResult(
     val startMs: Long,
     val endMs: Long,
     val durationMs: Long,
+    val count: Long,
     val prgraph: PRMeasure? = null
 ) {
-
     companion object {
         /** The header line in a CSV file. */
-        const val CSV_HEADER = "name,description,phase,repetition,start_ms,end_ms,duration_ms,ap"
+        const val CSV_HEADER = "name,description,phase,repetition,start_ms,end_ms,duration_ms,count,ap"
     }
 
     /**
      * Converts this [BenchmarkResult] to a line in a CSV file.
      */
-    fun toCSVLine(): String = "\"$name\",\"${description ?: ""}\",$phase,$repetition,$startMs,$endMs,$durationMs,${prgraph?.avgPrecision() ?: ""}"
+    fun toCSVLine(): String = "\"$name\",\"${description ?: ""}\",$phase,$repetition,$startMs,$endMs,$durationMs,$count,${prgraph?.avgPrecision() ?: ""}"
 }

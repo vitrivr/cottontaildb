@@ -53,8 +53,7 @@ class HighDimensionalIndexBenchmark(client: SimpleClient): AbstractBenchmarkComm
     private val index by argument(name = "index", help = "The type of index to create.").enum<IndexType>()
 
     /** The number of repetitions to perform when executing the benchmark. */
-    private val k: Long by option("-k", help = "Number of repetitions to perform while benchmarking.").convert { it.toLong() }.default(500L)
-
+    private val k: Long by option("-k", help = "The number of entries to retrieve during NNS.").convert { it.toLong() }.default(500L)
 
     override fun initialize(): Benchmark = object: Benchmark("HighDimensionalIndexBenchmark", 2){
         /** The query vector to use for this [Benchmark]. */
@@ -89,8 +88,7 @@ class HighDimensionalIndexBenchmark(client: SimpleClient): AbstractBenchmarkComm
                         .distance(this@HighDimensionalIndexBenchmark.featureColumn, vector, Distances.L2, "distance")
                         .order("distance", Direction.ASC)
                         .limit(this@HighDimensionalIndexBenchmark.k)
-
-                    this.query!!.withoutParallelism()
+                        .disallowParallelism()
 
                     /* Generate baseline result-set + warmup */
                     for (t in this@HighDimensionalIndexBenchmark.client.query(this.query!!)) {
@@ -138,16 +136,16 @@ class HighDimensionalIndexBenchmark(client: SimpleClient): AbstractBenchmarkComm
          * Executes the actual workload for this [HighDimensionalIndexBenchmark].
          */
         override fun workload(phase: Int, repetition: Int): BenchmarkResult {
+            val count = this@HighDimensionalIndexBenchmark.client.query(Query(this@HighDimensionalIndexBenchmark.entity.fqn).count()).next().asLong(0)!!
             val start = System.currentTimeMillis()
             val result = this@HighDimensionalIndexBenchmark.client.query(this.query!!)
             val end = System.currentTimeMillis()
             val prgraph = PRMeasure.generate(this.baseline, result)
             return if (phase == 1) {
-                BenchmarkResult("Brute-force", "${this@HighDimensionalIndexBenchmark.entity}", phase, repetition, start, end, end-start, prgraph)
+                BenchmarkResult("Brute-force", "${this@HighDimensionalIndexBenchmark.entity}", phase, repetition, start, end, end-start, count, prgraph)
             } else {
-                BenchmarkResult("Index", "${this@HighDimensionalIndexBenchmark.entity},${this@HighDimensionalIndexBenchmark.index}", phase, repetition, start, end, end-start, prgraph)
+                BenchmarkResult("Index", "${this@HighDimensionalIndexBenchmark.entity},${this@HighDimensionalIndexBenchmark.index}", phase, repetition, start, end, end-start, count, prgraph)
             }
         }
-
     }
 }

@@ -33,14 +33,14 @@ abstract class AbstractBenchmarkCommand(protected val client: SimpleClient, name
     }
 
     /** The number of repetitions to perform. */
-    protected val warmup: Int  by option(
+    protected open val warmup: Int by option(
         "-w",
         "--warmup",
         help = "The number of warmup rounds to perform before starting the benchmark."
     ).convert { it.toInt() }.default(1)
 
     /** The number of repetitions to perform when executing the benchmark. */
-    protected val repeat: Int by option(
+    protected open val repeat: Int by option(
         "-r",
         "--repeat",
         help = "Number of repetitions to perform while benchmarking."

@@ -21,6 +21,7 @@ import org.jline.terminal.TerminalBuilder
 import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.cli.basics.AbstractQueryCommand
 import org.vitrivr.cottontail.cli.basics.AbstractSchemaCommand
+import org.vitrivr.cottontail.cli.benchmarks.AdaptiveIndexBenchmark
 import org.vitrivr.cottontail.cli.benchmarks.HighDimensionalIndexBenchmark
 import org.vitrivr.cottontail.cli.entity.*
 import org.vitrivr.cottontail.cli.query.CountEntityCommand
@@ -227,9 +228,6 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
     @ExperimentalTime
     inner class CottontailCommand : NoOpCliktCommand(name = "cottontail", help = "The base command for all CLI commands.") {
 
-
-
-
         /** A list of aliases: mapping of alias name to commands */
         override fun aliases(): Map<String, List<String>> {
             /* List of top-level aliases */
@@ -330,7 +328,8 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                     invokeWithoutSubcommand = true,
                     printHelpOnEmptyArgs = true
                 ){}.subcommands(
-                    HighDimensionalIndexBenchmark(this@Cli.client)
+                    HighDimensionalIndexBenchmark(this@Cli.client),
+                    AdaptiveIndexBenchmark(this@Cli.client)
                 ),
 
                 /* Transaction related commands. */
