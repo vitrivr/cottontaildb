@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.data.importer
 
+import com.google.gson.GsonBuilder
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
@@ -24,9 +25,14 @@ import java.nio.file.Path
 class JsonDataImporter(override val path: Path, override val schema: List<ColumnDef<*>>) : DataImporter {
 
     /** The [JsonReader] instance used to read the JSON file. */
-    private val reader = JsonReader(Files.newBufferedReader(this.path))
+    private val reader = GsonBuilder()
+        .serializeNulls()
+        .serializeSpecialFloatingPointValues()
+        .create()
+        .newJsonReader(Files.newBufferedReader(this.path))
 
     init {
+        this.reader.isLenient = true
         this.reader.beginArray() /* Starts reading the JSON array, which is the expected input. */
     }
 
