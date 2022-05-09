@@ -3,7 +3,10 @@ package org.vitrivr.cottontail.dbms.exceptions
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.DBOVersion
+import org.vitrivr.cottontail.dbms.index.Index
+import org.vitrivr.cottontail.dbms.schema.Schema
 
 open class DatabaseException(message: String, cause: Throwable? = null) : Throwable(message, cause) {
     /**
@@ -15,64 +18,64 @@ open class DatabaseException(message: String, cause: Throwable? = null) : Throwa
     class VersionMismatchException(val expected: DBOVersion, val found: DBOVersion) : DatabaseException("Version mismatch for DBO: Expected $expected but found $found.")
 
     /**
-     * Thrown when trying to create a [Schema][org.vitrivr.cottontail.dbms.schema.DefaultSchema]
+     * Thrown when trying to create a [Schema]
      * that does already exist.
      *
-     * @param schema [Name] of the [Schema][org.vitrivr.cottontail.dbms.schema.DefaultSchema].
+     * @param schema [Name] of the [Schema].
      */
     class SchemaAlreadyExistsException(val schema: Name.SchemaName) : DatabaseException("Schema '$schema' does already exist!")
 
     /**
-     * Thrown when trying to access a [Schema][org.vitrivr.cottontail.dbms.schema.DefaultSchema]
+     * Thrown when trying to access a [Schema]
      * that does not exist.
      *
-     * @param schema [Name] of the [Schema][org.vitrivr.cottontail.dbms.schema.DefaultSchema].
+     * @param schema [Name] of the [Schema].
      */
     class SchemaDoesNotExistException(val schema: Name.SchemaName) : DatabaseException("Schema '$schema' does not exist!")
 
     /**
-     * Thrown when trying to create an [Entity][org.vitrivr.cottontail.dbms.entity.DefaultEntity]
+     * Thrown when trying to create an [Entity]
      * that does already exist.
      *
-     * @param entity [Name] of the [Entity][org.vitrivr.cottontail.dbms.entity.DefaultEntity].
+     * @param entity [Name] of the [Entity].
      */
     class EntityAlreadyExistsException(val entity: Name.EntityName) : DatabaseException("Entity '$entity' does already exist!")
 
     /**
-     * Thrown when trying to access an [Entity][org.vitrivr.cottontail.dbms.entity.DefaultEntity]
+     * Thrown when trying to access an [Entity]
      * that does not exist.
      *
-     * @param entity [Name] of the [Entity][org.vitrivr.cottontail.dbms.entity.DefaultEntity].
+     * @param entity [Name] of the [Entity].
      */
     class EntityDoesNotExistException(val entity: Name.EntityName) : DatabaseException("Entity '$entity' does not exist!")
 
     /**
-     * Thrown whenever trying to create an [Index][org.vitrivr.cottontail.dbms.index.AbstractIndex]
+     * Thrown whenever trying to create an [Index]
      * that does already exist.
      *
-     * @param index The [Name] of the [Index][org.vitrivr.cottontail.dbms.index.AbstractIndex]
+     * @param index The [Name] of the [Index]
      */
     class IndexAlreadyExistsException(val index: Name.IndexName) : DatabaseException("Index '$index' does already exist!")
 
     /**
-     * Thrown whenever trying to access an [Index][org.vitrivr.cottontail.dbms.index.AbstractIndex]
+     * Thrown whenever trying to access an [Index]
      * that does not exist.
      *
-     * @param index The [Name] of the [Index][org.vitrivr.cottontail.dbms.index.AbstractIndex]
+     * @param index The [Name] of the [Index]
      */
     class IndexDoesNotExistException(val index: Name) : DatabaseException("Index '$index' does not exist!")
 
     /**
-     * Thrown whenever trying to create an [Index][[org.vitrivr.cottontail.dbms.index.AbstractIndex] that is not supported (yet). *
+     * Thrown whenever trying to create an [Index]that is not supported (yet). *
      *
-     * @param index The [Name] of the [Index][org.vitrivr.cottontail.dbms.index.AbstractIndex]
+     * @param index The [Name] of the [Index]
      */
-    class IndexNotSupportedException(val index: Name.IndexName, val reason: String) : DatabaseException("Index '$index' could not be created: $reason")
+    class IndexNotSupportedException(val index: Name.IndexName, reason: String) : DatabaseException("Index '$index' could not be created: $reason")
 
     /**
      * Thrown upon creation of an [Entity] if the definition contains no column.
      *
-     * @param entity [Name] of the affected [Entity][org.vitrivr.cottontail.dbms.entity.DefaultEntity]
+     * @param entity [Name] of the affected [Entity]
      */
     class NoColumnException(entity: Name.EntityName) : DatabaseException("Entity '$entity' could not be created because it does not contain a column.")
 
@@ -85,8 +88,7 @@ open class DatabaseException(message: String, cause: Throwable? = null) : Throwa
     class DuplicateColumnException(entity: Name.EntityName, name: Name.ColumnName) : DatabaseException("Entity '$entity' could not be created because it contains duplicate column names '$name'.")
 
     /**
-     * Thrown whenever trying to access a [Column][org.vitrivr.cottontail.dbms.column.Column]
-     * that does not exist.
+     * Thrown whenever trying to access a [Column][org.vitrivr.cottontail.dbms.column.Column]that does not exist.
      *
      * @param column The [Name] of the [Column][org.vitrivr.cottontail.dbms.column.Column].
      */
@@ -112,6 +114,13 @@ open class DatabaseException(message: String, cause: Throwable? = null) : Throwa
      * @param message Description of the issue.
      */
     class ReservedValueException(message: String): DatabaseException(message)
+
+    /**
+     * Write could not be executed because it failed a validation step. This is often caused by a user error, providing erroneous data.
+     *
+     * @param message Description of the validation error.
+     */
+    class ValidationException(message: String) : TransactionException(message)
 }
 
 

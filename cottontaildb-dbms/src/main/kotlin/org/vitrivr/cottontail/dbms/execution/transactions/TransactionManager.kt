@@ -203,9 +203,8 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          */
         override fun commit() = runBlocking {
             this@TransactionImpl.mutex.withLock { /* Synchronise with ongoing COMMITS, ROLLBACKS or queries that are being scheduled. */
-                check(this@TransactionImpl.state.canCommit) {
-                    "Unable to commit transaction ${this@TransactionImpl.txId} because it is in wrong state (s = ${this@TransactionImpl.state})."
-                }
+                if (!this@TransactionImpl.state.canCommit)
+                    throw TransactionException.Commit(this@TransactionImpl.txId, "Unable to COMMIT because transaction is in wrong state (s = ${this@TransactionImpl.state}).")
                 this@TransactionImpl.state = TransactionStatus.FINALIZING
                 var commit = false
                 try {
@@ -233,9 +232,8 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          */
         override fun rollback() = runBlocking {
             this@TransactionImpl.mutex.withLock {
-                check(this@TransactionImpl.state.canRollback) {
-                    "Unable to rollback transaction ${this@TransactionImpl.txId} because it is in wrong state (s = ${this@TransactionImpl.state})."
-                }
+                if (!this@TransactionImpl.state.canRollback)
+                    throw TransactionException.Rollback(this@TransactionImpl.txId, "Unable to ROLLBACK because transaction is in wrong state (s = ${this@TransactionImpl.state}).")
                 this@TransactionImpl.performRollback()
             }
         }

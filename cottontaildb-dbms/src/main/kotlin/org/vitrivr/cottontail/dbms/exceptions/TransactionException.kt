@@ -20,12 +20,20 @@ sealed class TransactionException(message: String) : DatabaseException(message) 
     class DBOClosed(tid: TransactionId, dbo: DBO) : TransactionException("Tx object for transaction $tid could not be created for DBO '${dbo.name}': Enclosing DBO was closed.")
 
     /**
-     * Write could not be executed because it failed a validation step. This is often caused by a user error, providing erroneous data.
+     * COMMIT could not be executed because.
      *
      * @param tid The [TransactionId] of the [Tx] in which this error occurred.
      * @param message Description of the validation error.
      */
-    class Validation(tid: TransactionId, message: String) : TransactionException("Transaction $tid reported validation error: $message")
+    class Commit(tid: TransactionId, override val message: String?) : TransactionException("Transaction $tid could not be committed: $message")
+
+    /**
+     * ROLLBACK could not be executed because.
+     *
+     * @param tid The [TransactionId] of the [Tx] in which this error occurred.
+     * @param message Description of the validation error.
+     */
+    class Rollback(tid: TransactionId, override val message: String?) : TransactionException("Transaction $tid could not be rolled back: $message")
 
     /**
      * Thrown if a [Transaction] could not be committed, because it is in conflict with another [Transaction].

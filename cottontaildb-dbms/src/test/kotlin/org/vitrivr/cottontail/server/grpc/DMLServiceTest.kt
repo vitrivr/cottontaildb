@@ -1,12 +1,13 @@
 package org.vitrivr.cottontail.server.grpc
 
+import io.grpc.Status
+import io.grpc.StatusRuntimeException
 import org.apache.commons.lang3.RandomStringUtils
 import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.*
 import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.client.language.basics.predicate.Expression
-import org.vitrivr.cottontail.client.language.basics.predicate.Predicate
 import org.vitrivr.cottontail.client.language.ddl.CreateEntity
 import org.vitrivr.cottontail.client.language.ddl.CreateIndex
 import org.vitrivr.cottontail.client.language.ddl.OptimizeEntity
@@ -16,7 +17,6 @@ import org.vitrivr.cottontail.client.language.dml.Insert
 import org.vitrivr.cottontail.client.language.dml.Update
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.grpc.CottontailGrpc.AtomicBooleanPredicate
 import org.vitrivr.cottontail.test.AbstractClientTest
 import org.vitrivr.cottontail.test.GrpcTestUtils
 import org.vitrivr.cottontail.test.GrpcTestUtils.countElements
@@ -297,11 +297,18 @@ class DMLServiceTest : AbstractClientTest() {
         this.client.commit(txId)
 
         // this should probably already fail
+
         repeat(4) {
-            txId = this.client.begin()
-            val insert = Insert().into(entityName.fqn).value(STRING_COLUMN_NAME, entryString).txId(txId)
-            this.client.insert(insert)
-            this.client.commit(txId)
+            try {
+                txId = this.client.begin()
+                val insert = Insert().into(entityName.fqn).value(STRING_COLUMN_NAME, entryString).txId(txId)
+                this.client.insert(insert)
+                this.client.commit(txId)
+            } catch (e: StatusRuntimeException){
+                Assertions.assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code) /* Validation exception has INVALID_ARGUMENT code. */
+                Assertions.assertThrows(StatusRuntimeException::class.java) { this.client.commit(txId) } /* COMMIT should not longer be possible. */
+                this.client.rollback(txId)
+            }
         }
 
         // in the failed state, deleting the entries does not work (!)
