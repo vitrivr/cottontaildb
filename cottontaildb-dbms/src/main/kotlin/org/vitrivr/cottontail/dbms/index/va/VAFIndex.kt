@@ -467,6 +467,10 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
                 /** Cached in-memory version of the [EquidistantVAFMarks] used by this [Cursor]. */
                 private val marks = this@Tx.marks ?: throw IllegalStateException("VAFMarks could not be obtained. This is a programmer's error!")
 
+                /** */
+                private val produces = this@Tx.columnsFor(predicate).toTypedArray()
+
+
                 /** The current [Cursor] position. */
                 private var position = -1L
 
@@ -517,7 +521,56 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
                 override fun close() { }
 
                 /**
+                 * Reads the vector with the given [TupleId] and adds it to the [HeapSelection].
                  *
+                 * @param tupleId The [TupleId] to read.
+                 */
+                private fun readAndOffer(tupleId: TupleId) {
+                    val value = this.columnTx.get(tupleId)
+                    val distance = this.predicate.distance(this.query, value)!!
+                    this.selection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))
+                }
+
+                /**
+                 * Prepares the result set using the [VAFIndex] and the VA-SSA algorithm described in [1].
+                 */
+                private fun prepareVASSA() {
+                    /* Initialize cursor. */
+                    val subTx = this@Tx.context.xodusTx.readonlySnapshot
+                    val cursor = this@Tx.dataStore.openCursor(subTx)
+                    if (cursor.getSearchKey(partition.first.toKey()) == null) {
+                        return
+                    }
+                    try {
+                        /* First phase: Just add entries until we have k-results. */
+                        var threshold: Double
+                        do {
+                            this.readAndOffer(LongBinding.compressedEntryToLong(cursor.key))
+                        } while (cursor.next && this.selection.added < this.selection.k)
+                        threshold = (this.selection.peek()!![0] as DoubleValue).value
+
+                        /* Second phase: Use lower-bound to decide whether entry should be added. */
+                        do {
+                            val signature = VAFSignature.fromEntry(cursor.value)
+                            if (signature.isInvalid() || this.bounds.lb(VAFSignature.fromEntry(cursor.value), threshold) < threshold) {
+                                this.readAndOffer(LongBinding.compressedEntryToLong(cursor.key))
+                                threshold = (this.selection.peek()!![0] as DoubleValue).value
+                            }
+                        } while (cursor.next)
+                    } catch (e: Throwable) {
+                        LOGGER.error("VA-SSA Scan: Error while scanning VAF index: ${e.message}")
+                    } finally {
+                        /* Log efficiency of VAF scan. */
+                        LOGGER.debug("VA-SSA Scan: Read ${this.selection.added} and skipped over ${(1.0 - this.selection.added.toDouble() / this@Tx.count()) * 100}% of entries.")
+
+                        /* Close Xodus cursor. */
+                        cursor.close()
+                        subTx.abort()
+                    }
+                }
+
+                /**
+                 * Prepares the result set using the [VAFIndex] and the VA-NOA algorithm described in [1]. Currenty not in use.
                  */
                 private fun prepareVANOA() {
                     val subTx = this@Tx.context.xodusTx.readonlySnapshot
@@ -556,41 +609,6 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
                     }
 
                     LOGGER.debug("VA-NOA scan: Read ${this.selection.added} and skipped over ${(1.0 - this.selection.added.toDouble() / this@Tx.count()) * 100}% of entries.")
-                }
-
-
-                /**
-                 * Prepares the result set using the [VAFIndex] and the VA-SSA algorithm described in [1].
-                 */
-                private fun prepareVASSA() {
-                    /* Initialize cursor. */
-                    val subTx = this@Tx.context.xodusTx.readonlySnapshot
-                    val cursor = this@Tx.dataStore.openCursor(subTx)
-                    if (cursor.getSearchKey(partition.first.toKey()) == null) {
-                        return
-                    }
-                    val produces = this@Tx.columnsFor(predicate).toTypedArray()
-                    try {
-                        var threshold = Double.MAX_VALUE
-                        do {
-                            if (this.selection.added < this.selection.k || this.bounds.lb(VAFSignature.fromEntry(cursor.value), threshold) < threshold) {
-                                val tupleId = LongBinding.compressedEntryToLong(cursor.key)
-                                val value = this.columnTx.get(tupleId)
-                                val distance = this.predicate.distance(this.query, value)!!
-                                this.selection.offer(StandaloneRecord(tupleId, produces, arrayOf(distance, value)))
-                                threshold = (this.selection.peek()!![0] as DoubleValue).value
-                            }
-                        } while (cursor.next)
-                    } catch (e: Throwable) {
-                        LOGGER.error("VA-SSA Scan: Error while scanning VAF index: ${e.message}")
-                    } finally {
-                        /* Log efficiency of VAF scan. */
-                        LOGGER.debug("VA-SSA Scan: Read ${this.selection.added} and skipped over ${(1.0 - this.selection.added.toDouble() / this@Tx.count()) * 100}% of entries.")
-
-                        /* Close Xodus cursor. */
-                        cursor.close()
-                        subTx.abort()
-                    }
                 }
             }
         }
