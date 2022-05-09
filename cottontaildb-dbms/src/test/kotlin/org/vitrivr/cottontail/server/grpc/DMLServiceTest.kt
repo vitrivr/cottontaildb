@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.server.grpc
 
+import io.grpc.Status
+import io.grpc.StatusRuntimeException
 import org.apache.commons.lang3.RandomStringUtils
 import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.*
@@ -10,6 +12,7 @@ import org.vitrivr.cottontail.client.language.ddl.CreateEntity
 import org.vitrivr.cottontail.client.language.ddl.CreateIndex
 import org.vitrivr.cottontail.client.language.ddl.OptimizeEntity
 import org.vitrivr.cottontail.client.language.dml.BatchInsert
+import org.vitrivr.cottontail.client.language.dml.Delete
 import org.vitrivr.cottontail.client.language.dml.Insert
 import org.vitrivr.cottontail.client.language.dml.Update
 import org.vitrivr.cottontail.client.language.dql.Query
@@ -66,8 +69,8 @@ class DMLServiceTest : AbstractClientTest() {
         val txId = this.client.begin()
         repeat(entries / batchSize) { i ->
             val batch = BatchInsert().into(TEST_ENTITY_NAME.fqn).columns(INT_COLUMN_NAME, STRING_COLUMN_NAME, DOUBLE_COLUMN_NAME)
-            repeat(batchSize) {
-                j -> batch.append(i*j, RandomStringUtils.randomAlphanumeric(stringLength), 1.0)
+            repeat(batchSize) { j ->
+                batch.append(i * j, RandomStringUtils.randomAlphanumeric(stringLength), 1.0)
             }
             this.client.insert(batch.txId(txId))
         }
@@ -93,7 +96,7 @@ class DMLServiceTest : AbstractClientTest() {
         val txId = this.client.begin()
         repeat(entries / batchSize) { i ->
             val batch = BatchInsert().into(TEST_ENTITY_NAME.fqn).columns(INT_COLUMN_NAME, STRING_COLUMN_NAME, DOUBLE_COLUMN_NAME).txId(txId)
-            repeat(batchSize) { j -> batch.append(i*j, RandomStringUtils.randomAlphanumeric(stringLength), 1.0) }
+            repeat(batchSize) { j -> batch.append(i * j, RandomStringUtils.randomAlphanumeric(stringLength), 1.0) }
             this.client.insert(batch)
         }
 
@@ -235,7 +238,7 @@ class DMLServiceTest : AbstractClientTest() {
         val repeatBatchInsert = 100
         val stringLength = 200
         var txId = client.begin()
-        this.client.create( CreateEntity(entityName.fqn).column(STRING_COLUMN_NAME, Type.STRING).txId(txId))
+        this.client.create(CreateEntity(entityName.fqn).column(STRING_COLUMN_NAME, Type.STRING).txId(txId))
         this.client.create(CreateIndex(entityName.fqn, STRING_COLUMN_NAME, CottontailGrpc.IndexType.LUCENE).txId(txId))
         this.client.commit(txId)
 
@@ -256,5 +259,63 @@ class DMLServiceTest : AbstractClientTest() {
             this.client.optimize(OptimizeEntity(entityName.fqn))
         }
         Assertions.assertEquals(repeatBatchInsert * batchCount, countElements(this.client, entityName)!!.toInt())
+    }
+
+    @Test
+    fun testDuplicateEntryDelete() {
+        val entityName = TEST_SCHEMA.entity("test")
+        val entryString = "one"
+        var txId = client.begin()
+        //create entity with one column
+        this.client.create(CreateEntity(entityName.fqn).column(STRING_COLUMN_NAME, Type.STRING).txId(txId))
+        this.client.commit(txId)
+
+        //insert four times the same entry
+        repeat(4) {
+            txId = this.client.begin()
+            val insert = Insert().into(entityName.fqn).value(STRING_COLUMN_NAME, entryString).txId(txId)
+            this.client.insert(insert)
+            this.client.commit(txId)
+        }
+
+        // after deletion, we expect there to be 0 entries left
+        txId = this.client.begin()
+        val delete = Delete().from(entityName.fqn).where(Expression(STRING_COLUMN_NAME, "=", entryString)).txId(txId)
+        this.client.delete(delete)
+        this.client.commit(txId)
+        Assertions.assertEquals(0, countElements(this.client, entityName)!!.toInt())
+    }
+
+    @Test
+    fun testDuplicateEntryUniqueIdDelete() {
+        val entityName = TEST_SCHEMA.entity("test")
+        val entryString = "one"
+        var txId = client.begin()
+        //create entity with one column which is supposed to be unique
+        this.client.create(CreateEntity(entityName.fqn).column(STRING_COLUMN_NAME, Type.STRING).txId(txId))
+        this.client.create(CreateIndex(entityName.fqn, STRING_COLUMN_NAME, CottontailGrpc.IndexType.BTREE_UQ).txId(txId))
+        this.client.commit(txId)
+
+        // this should probably already fail
+
+        repeat(4) {
+            try {
+                txId = this.client.begin()
+                val insert = Insert().into(entityName.fqn).value(STRING_COLUMN_NAME, entryString).txId(txId)
+                this.client.insert(insert)
+                this.client.commit(txId)
+            } catch (e: StatusRuntimeException){
+                Assertions.assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code) /* Validation exception has INVALID_ARGUMENT code. */
+                Assertions.assertThrows(StatusRuntimeException::class.java) { this.client.commit(txId) } /* COMMIT should not longer be possible. */
+                this.client.rollback(txId)
+            }
+        }
+
+        // in the failed state, deleting the entries does not work (!)
+        txId = this.client.begin()
+        val delete = Delete().from(entityName.fqn).where(Expression(STRING_COLUMN_NAME, "=", entryString)).txId(txId)
+        this.client.delete(delete)
+        this.client.commit(txId)
+        Assertions.assertEquals(0, countElements(this.client, entityName)!!.toInt())
     }
 }
