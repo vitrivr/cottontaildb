@@ -26,15 +26,10 @@ class JsonDataExporter(override val path: Path, val indent: String = "") : DataE
         private set
 
     /** The [JsonWriter] instance used to read the JSON file. */
-    private val writer = JsonWriter(
-        Files.newBufferedWriter(
-            this.path,
-            StandardOpenOption.CREATE_NEW,
-            StandardOpenOption.WRITE
-        )
-    )
+    private val writer = JsonWriter(Files.newBufferedWriter(this.path, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE))
 
     init {
+        this.writer.isLenient = true
         this.writer.setIndent(this.indent)
         this.writer.beginArray() /* Starts writer the JSON array, which is the expected input. */
     }
