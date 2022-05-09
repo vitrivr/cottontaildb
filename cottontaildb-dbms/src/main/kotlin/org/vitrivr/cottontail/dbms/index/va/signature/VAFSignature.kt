@@ -15,6 +15,10 @@ import org.xerial.snappy.Snappy
 value class VAFSignature(val cells: ByteArray) {
 
     companion object {
+
+        /** The invalid signature is a 1d-byte array. */
+        val INVALID = VAFSignature(ByteArray(1){ Byte.MIN_VALUE })
+
         /**
          * De-serializes a [VAFSignature] from a [ByteIterable].
          *
@@ -23,6 +27,14 @@ value class VAFSignature(val cells: ByteArray) {
          */
         fun fromEntry(entry: ByteIterable): VAFSignature = VAFSignature(Snappy.uncompress(entry.bytesUnsafe))
     }
+
+    /**
+     * Checks if this [VAFSignature] is invalid.
+     *
+     * @return True, if this [VAFSignature] is invalid, false otherwise.
+     */
+    fun isInvalid(): Boolean
+        = this.cells.size == 1 && this.cells[0] == Byte.MIN_VALUE
 
     /**
      * Accessor for [VAFSignature].
