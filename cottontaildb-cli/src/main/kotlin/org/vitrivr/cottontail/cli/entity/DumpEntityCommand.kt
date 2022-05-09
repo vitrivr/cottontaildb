@@ -45,7 +45,7 @@ class DumpEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
                     }
                     dataExporter.close()
                 }
-                println("Dumping $entityName took $duration.")
+                println("Dumping ${entityName} took $duration.")
             } catch (e: Throwable) {
                 print("A ${e::class.java.simpleName} occurred while executing and exporting query: ${e.message}.")
             }

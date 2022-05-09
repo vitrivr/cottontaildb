@@ -187,7 +187,7 @@ sealed class AbstractCottontailCommand(name: String, help: String, val expand: B
                     }
                 }
                 println("Executing and exporting query took $duration.")
-            } catch (e: Throwable) {
+            } catch (e: StatusException) {
                 print("A ${e::class.java.simpleName} occurred while executing and exporting query: ${e.message}.")
             }
         }
