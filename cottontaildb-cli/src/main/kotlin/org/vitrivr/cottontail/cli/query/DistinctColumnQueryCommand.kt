@@ -33,10 +33,9 @@ class DistinctColumnQueryCommand(client: SimpleClient) : AbstractCottontailComma
         }
     }
 
-    val col: String by option("-c", "--column", help = "Column name").required()
+    val col: String by option( "--column", help = "Column name").required()
 
     private val countOnly: Boolean by option(
-            "-c",
             "--count",
             help = "Only counts the number of distinct elements instead of printing them"
     ).flag(default = false)
