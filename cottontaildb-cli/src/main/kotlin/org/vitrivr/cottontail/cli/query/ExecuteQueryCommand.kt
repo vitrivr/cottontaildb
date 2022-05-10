@@ -17,7 +17,7 @@ import kotlin.time.ExperimentalTime
  * @version 2.0.0
  */
 @ExperimentalTime
-class ExecuteQueryCommand(client: SimpleClient): org.vitrivr.cottontail.cli.AbstractCottontailCommand.Query(client, name = "execute", help = "Counts the number of entries in the given entity. Usage: entity count <schema>.<entity>", expand = false) {
+class ExecuteQueryCommand(client: SimpleClient): org.vitrivr.cottontail.cli.AbstractCottontailCommand.Query(client, name = "execute", help = "Counts the number of entries in the given entity", expand = false) {
 
     /** Path to .proto file that contains query. */
     private val input: Path by option("-i", "--input", help = "Path to input .proto file that contains query.").convert { Paths.get(it) }.required()

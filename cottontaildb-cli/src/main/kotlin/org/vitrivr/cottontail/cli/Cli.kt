@@ -19,10 +19,7 @@ import org.jline.reader.UserInterruptException
 import org.jline.reader.impl.completer.ArgumentCompleter
 import org.jline.terminal.TerminalBuilder
 import org.vitrivr.cottontail.cli.entity.*
-import org.vitrivr.cottontail.cli.query.CountEntityCommand
-import org.vitrivr.cottontail.cli.query.ExecuteQueryCommand
-import org.vitrivr.cottontail.cli.query.FindInEntityCommand
-import org.vitrivr.cottontail.cli.query.PreviewEntityCommand
+import org.vitrivr.cottontail.cli.query.*
 import org.vitrivr.cottontail.cli.schema.*
 import org.vitrivr.cottontail.cli.system.KillTransactionCommand
 import org.vitrivr.cottontail.cli.system.ListLocksCommand
@@ -315,7 +312,8 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                     CountEntityCommand(this@Cli.client),
                     PreviewEntityCommand(this@Cli.client),
                     FindInEntityCommand(this@Cli.client),
-                    ExecuteQueryCommand(this@Cli.client)
+                    ExecuteQueryCommand(this@Cli.client),
+                    DistinctColumnQueryCommand(this@Cli.client)
                 ),
 
                 /* Transaction related commands. */
