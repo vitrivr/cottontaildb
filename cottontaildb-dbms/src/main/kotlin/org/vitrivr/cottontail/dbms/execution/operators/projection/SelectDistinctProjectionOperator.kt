@@ -9,7 +9,6 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.*
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import java.nio.charset.Charset
@@ -26,10 +25,10 @@ import java.nio.charset.Charset
 class SelectDistinctProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, expected: Long) : Operator.PipelineOperator(parent) {
 
     /** [Funnel] implementation for [Record]s. */
-    object ValueFunnel : Funnel<Array<Value?>> {
-        override fun funnel(from: Array<Value?>, into: PrimitiveSink) {
-            from.forEach { value ->
-                when (value) {
+    class RecordFunnel : Funnel<org.vitrivr.cottontail.core.basics.Record> {
+        override fun funnel(from: Record, into: PrimitiveSink) {
+            for (i in 0 until from.columns.size) {
+                when (val value = from[i]) {
                     is BooleanValue -> into.putBoolean(value.value)
                     is ByteValue -> into.putByte(value.value)
                     is ShortValue -> into.putShort(value.value)
@@ -46,7 +45,7 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Name.Colum
                         into.putDouble(value.real.value)
                         into.putDouble(value.imaginary.value)
                     }
-                    is StringValue -> into.putString(value.value, Charset.defaultCharset())
+                    is StringValue -> into.putString(value.value, Charset.forName("UTF-8"))
                     is BooleanVectorValue -> value.data.forEach { into.putBoolean(it) }
                     is IntVectorValue -> value.data.forEach { into.putInt(it) }
                     is LongVectorValue -> value.data.forEach { into.putLong(it) }
@@ -54,7 +53,7 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Name.Colum
                     is DoubleVectorValue -> value.data.forEach { into.putDouble(it) }
                     is Complex32VectorValue -> value.data.forEach { into.putFloat(it) }
                     is Complex64VectorValue -> value.data.forEach { into.putDouble(it) }
-                    else -> into.putLong(-1L)
+                    null -> into.putByte(Byte.MIN_VALUE)
                 }
             }
         }
@@ -63,11 +62,11 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Name.Colum
     /** Columns produced by [SelectProjectionOperator]. */
     override val columns: List<ColumnDef<*>> = this.parent.columns.filter { c -> fields.any { f -> f == c.name }}
 
-    /** The [BloomFilter] used for SELECT DISTINCT. */
-    private val bloomFilter = BloomFilter.create(ValueFunnel, expected)
-
     /** [SelectProjectionOperator] does not act as a pipeline breaker. */
     override val breaker: Boolean = false
+
+    /** The [BloomFilter] used for SELECT DISTINCT. */
+    private val bloomFilter = BloomFilter.create(RecordFunnel(), expected, 0.0001)
 
     /**
      * Converts this [SelectProjectionOperator] to a [Flow] and returns it.
@@ -77,12 +76,11 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Name.Colum
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val columns = this.columns.toTypedArray()
-        val values = arrayOfNulls<Value?>(columns.size)
         return this.parent.toFlow(context).mapNotNull { r ->
-            columns.forEachIndexed { i, c -> values[i] = r[c]  }
-            if (!this.bloomFilter.mightContain(values)) {
-                this.bloomFilter.put(values)
-                StandaloneRecord(r.tupleId, columns, values)
+            val record = StandaloneRecord(r.tupleId, columns, Array(columns.size) { r[columns[it]]})
+            if (!this.bloomFilter.mightContain(record)) {
+                this.bloomFilter.put(record)
+                record
             } else {
                 null
             }
