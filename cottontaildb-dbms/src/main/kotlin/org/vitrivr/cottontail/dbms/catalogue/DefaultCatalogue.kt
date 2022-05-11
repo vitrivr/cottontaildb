@@ -6,6 +6,8 @@ import jetbrains.exodus.env.forEach
 import jetbrains.exodus.vfs.ClusteringStrategy
 import jetbrains.exodus.vfs.VfsConfig
 import jetbrains.exodus.vfs.VirtualFileSystem
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
@@ -20,6 +22,7 @@ import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.utilities.extensions.write
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.locks.StampedLock
 import kotlin.concurrent.withLock
@@ -38,6 +41,9 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
      * Companion object to [DefaultCatalogue]
      */
     companion object {
+        /** [Logger] instance used by [DefaultCatalogue]. */
+        private val LOGGER: Logger = LoggerFactory.getLogger(DefaultCatalogue::class.java)
+
         /** Prefix used for actual column stores. */
         internal const val ENTITY_STORE_PREFIX: String = "ctt_ent"
 
@@ -82,12 +88,6 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         this.config.xodus.toEnvironmentConfig()
     )
 
-    /** The Xodus [Environment] used by Cottontail DB to offload temporary data. This is an internal variable and not part of the official interface. */
-    internal val temporaryEnvironment: Environment = Environments.newInstance(
-        this.config.root.resolve("tmp").toFile(),
-        this.config.xodus.toEnvironmentConfig()
-    )
-
     /** The Xodus [VirtualFileSystem] used by Cottontail DB. This is an internal variable and not part of the official interface. */
     internal val vfs: VirtualFileSystem
 
@@ -129,8 +129,14 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
             throw e
         }
 
-        /* Clears the temporary environment. */
-        this.temporaryEnvironment.clear()
+        /* Tries to clean-up the temporary environment. */
+        Files.walk(this.config.dataFolder()).sorted(Comparator.reverseOrder()).forEach {
+            try {
+                Files.delete(it)
+            } catch (e: Throwable) {
+                LOGGER.warn("Failed to clean-up temporary data at $it.")
+            }
+        }
 
         /* Initialize function registry. */
         this.functions.initialize()
