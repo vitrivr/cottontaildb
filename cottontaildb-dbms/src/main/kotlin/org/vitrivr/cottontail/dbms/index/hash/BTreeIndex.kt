@@ -25,7 +25,6 @@ import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
@@ -245,11 +244,10 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
             /* Iterate over entity and update index with entries. */
             val cursor = entityTx.cursor(this.columns)
             cursor.forEach { record ->
-                val value = record[this.columns[0]] ?: throw TransactionException.Validation(
-                    this.context.txId,
-                    "A value cannot be null for instances of NonUniqueHashIndex ${this@BTreeIndex.name} but given value is (value = null, tupleId = ${record.tupleId})."
-                )
-                this.addMapping(value, record.tupleId)
+                val value = record[this.columns[0]]
+                if (value != null) {
+                    this.addMapping(value, record.tupleId)
+                }
             }
 
             /* Close cursor. */

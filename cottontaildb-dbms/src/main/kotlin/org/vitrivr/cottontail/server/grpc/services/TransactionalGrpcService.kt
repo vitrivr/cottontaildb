@@ -197,7 +197,8 @@ internal interface TransactionalGrpcService {
             is DatabaseException.EntityAlreadyExistsException,
             is DatabaseException.IndexAlreadyExistsException -> Status.ALREADY_EXISTS.withCause(e)
             is DatabaseException.NoColumnException,
-            is DatabaseException.DuplicateColumnException -> Status.INVALID_ARGUMENT.withCause(e)
+            is DatabaseException.DuplicateColumnException,
+            is DatabaseException.ValidationException -> Status.INVALID_ARGUMENT.withCause(e)
             is DeadlockException,
             is TransactionException.InConflict -> Status.ABORTED.withCause(e)
             is ExecutionException,

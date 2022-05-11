@@ -365,7 +365,8 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                 inserts[column.columnDef] = value
 
                 /* Check if null value is allowed. */
-                if (value == null && !column.columnDef.nullable) throw DatabaseException("Cannot insert NULL value into column ${column.columnDef}.")
+                if (value == null && !column.columnDef.nullable)
+                    throw DatabaseException.ValidationException("Cannot INSERT a NULL value into column ${column.columnDef}.")
                 (this.context.getTx(column) as ColumnTx<Value>).add(nextTupleId, value)
             }
 
@@ -394,10 +395,10 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /* Execute UPDATE on column level. */
             val updates = Object2ObjectArrayMap<ColumnDef<*>, Pair<Value?, Value?>>(record.columns.size)
             for (def in record.columns) {
-                val column = this.columns[def.name] ?: throw DatabaseException("Record with tuple ID ${record.tupleId} cannot be updated for column $def, because column does not exist on entity.")
+                val column = this.columns[def.name] ?: throw DatabaseException.ColumnDoesNotExistException(def.name)
                 val columnTx = (this.context.getTx(column) as ColumnTx<*>)
                 val value = record[def]
-                if (value == null && !def.nullable) throw DatabaseException("Record with tuple ID ${record.tupleId} cannot be updated with NULL value for column $def, because column is not nullable.")
+                if (value == null && !def.nullable) throw DatabaseException.ValidationException("Record ${record.tupleId} cannot be updated with NULL value for column $def, because column is not nullable.")
                 updates[def] = Pair((columnTx as ColumnTx<Value>).update(record.tupleId, value), value) /* Map: ColumnDef -> Pair[Old, New]. */
             }
 

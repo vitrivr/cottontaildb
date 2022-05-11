@@ -228,7 +228,9 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
 
             /* Resets the tuple ID counter. */
             if (!SequenceCatalogueEntries.reset(name.tid(), this@DefaultSchema.catalogue, this.context.xodusTx)) {
-                throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to delete tuple ID sequence entry.")
+                if (SequenceCatalogueEntries.read(name.tid(), this@DefaultSchema.catalogue, this.context.xodusTx) == null) {
+                    throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to reset tuple ID sequence entry.")
+                }
             }
         }
 
