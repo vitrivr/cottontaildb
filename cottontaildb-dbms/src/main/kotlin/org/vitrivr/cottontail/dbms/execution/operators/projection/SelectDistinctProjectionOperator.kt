@@ -43,7 +43,7 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.
     private val distinctColumns = this.parent.columns.filter { c -> fields.any { f -> f.first == c.name && f.second}}
 
     /** The name of the temporary [Store] used to execute this [SelectDistinctProjectionOperator] operation. */
-    private val tmpPath = config.root.resolve("tmp").resolve("${UUID.randomUUID()}")
+    private val tmpPath = config.temporaryDataFolder().resolve("${UUID.randomUUID()}")
 
     /** The Xodus [Environment] used by Cottontail DB. This is an internal variable and not part of the official interface. */
     private val tmpEnvironment: Environment = Environments.newInstance(this.tmpPath.toFile(), config.xodus.toEnvironmentConfig())

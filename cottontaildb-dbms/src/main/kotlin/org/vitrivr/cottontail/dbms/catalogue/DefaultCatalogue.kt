@@ -78,7 +78,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
     /** The Xodus [Environment] used by Cottontail DB. This is an internal variable and not part of the official interface. */
     internal val environment: Environment = Environments.newInstance(
-        this.config.root.resolve("xodus").toFile(),
+        this.config.dataFolder().toFile(),
         this.config.xodus.toEnvironmentConfig()
     )
 

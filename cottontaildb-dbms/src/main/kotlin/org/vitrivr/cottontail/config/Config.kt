@@ -9,7 +9,7 @@ import java.nio.file.Paths
  * Cottontail DB configuration class.
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 1.6.1
  */
 @Serializable
 data class Config(
@@ -40,4 +40,10 @@ data class Config(
 
         /** Reference to [CostConfig], which contains configuration regarding  Cottontail DB's cost model. */
         val cost: CostConfig = CostConfig()
-)
+) {
+        /** Returns a path to the main data folder used by Cottontail DB. */
+        fun dataFolder(): Path = this.root.resolve("xodus")
+
+        /** Returns a path to the temporary data folder used by Cottontail DB. */
+        fun temporaryDataFolder(): Path = this.root.resolve("tmp")
+}
