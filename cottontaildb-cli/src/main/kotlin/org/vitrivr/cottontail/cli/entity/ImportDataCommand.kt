@@ -7,7 +7,6 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.enum
 import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
-import org.vitrivr.cottontail.client.language.basics.Constants
 import org.vitrivr.cottontail.client.language.dml.BatchInsert
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.data.Format
@@ -20,7 +19,7 @@ import kotlin.time.measureTime
  * Command to import data into a specified entity in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 @ExperimentalTime
 class ImportDataCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "import", help = "Used to import data into Cottontail DB.") {
@@ -54,20 +53,25 @@ class ImportDataCommand(client: SimpleClient) : AbstractEntityCommand(client, na
                     batchedInsert.txId(txId)
                 }
                 batchedInsert.columns(*schema.map { it.name.simple }.toTypedArray())
-
                 var count = 0L
                 val duration = measureTime {
                     iterator.forEach { next ->
-                        batchedInsert.append(*schema.map { next[it] }.toTypedArray())
-                        if (batchedInsert.builder.build().serializedSize >= Constants.MAX_PAGE_SIZE_BYTES) {
+                        val data = schema.map { next[it] }.toTypedArray()
+                        if (!batchedInsert.append(*data)) {
+                            /* Execute insert... */
                             client.insert(batchedInsert)
-                            batchedInsert.builder.clearInserts()
+
+                            /* ... now clear and append. */
+                            batchedInsert.clear()
+                            if (!batchedInsert.append(*data)) {
+                                throw IllegalArgumentException("The appended data is too large for a single message.")
+                            }
                         }
                         count += 1
                     }
 
                     /** Insert remainder. */
-                    if (batchedInsert.builder.insertsCount > 0) {
+                    if (batchedInsert.count() > 0) {
                         client.insert(batchedInsert)
                     }
 
@@ -76,11 +80,11 @@ class ImportDataCommand(client: SimpleClient) : AbstractEntityCommand(client, na
                         client.commit(txId)
                     }
                 }
-                println("Importing $count entries into ${entityName} took $duration.")
+                println("Importing $count entries into $entityName took $duration.")
             } catch (e: Throwable) {
                 /** Rollback transaction, if single transaction option has been set. */
                 if (txId != null) client.rollback(txId)
-                println("Importing entries into ${entityName} failed due to error: ${e.message}")
+                println("Importing entries into $entityName failed due to error: ${e.message}")
             } finally {
                 iterator.close()
             }
