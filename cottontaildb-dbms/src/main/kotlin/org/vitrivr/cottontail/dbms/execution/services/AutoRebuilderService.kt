@@ -13,13 +13,9 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
-import org.vitrivr.cottontail.dbms.index.Index
-import org.vitrivr.cottontail.dbms.index.IndexState
-import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import java.util.concurrent.TimeUnit
-import kotlin.system.measureTimeMillis
 
 /**
  * A [TransactionObserver] that listens for [IndexEvent]s and triggers rebuilding of [Index]es that become [IndexState.STALE].
@@ -65,7 +61,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
 
         /* Schedule task for each index that needs rebuilding. */
         for ((index, type) in set) {
-            this.manager.executionManager.serviceWorkerPool.schedule(Task(index, type), 100L, TimeUnit.MILLISECONDS)
+            this.manager.executionManager.serviceWorkerPool.schedule(Task(index, type), 500L, TimeUnit.MILLISECONDS)
         }
     }
 
@@ -82,24 +78,29 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
      */
     inner class Task(private val index: Name.IndexName, private val type: IndexType): Runnable {
         override fun run() {
-            val duration = measureTimeMillis {
-                if (this.type.descriptor.supportsAsyncRebuild && this.type.descriptor.supportsIncrementalUpdate) {
-                    LOGGER.info("Starting asynchronous index auto-rebuilding for $index.")
-                    this.performAsynchronousRebuild()
-                } else {
-                    LOGGER.info("Starting index auto-rebuilding for $index.")
-                    this.performSynchronousRebuild()
-                }
+            val start = System.currentTimeMillis()
+            val success = if (this.type.descriptor.supportsAsyncRebuild && this.type.descriptor.supportsIncrementalUpdate) {
+                LOGGER.info("Starting asynchronous index auto-rebuilding for $index.")
+                this.performConcurrentRebuild()
+            } else {
+                LOGGER.info("Starting index auto-rebuilding for $index.")
+                this.performRebuild()
             }
-            LOGGER.info("Index auto-rebuilding for $index completed (took ${duration}ms).")
-
-
+            val end = System.currentTimeMillis()
+            if (success) {
+                LOGGER.info("Index auto-rebuilding for $index completed (took ${end-start}ms).")
+            } else {
+                LOGGER.warn("Index auto-rebuilding for $index failed (took ${end-start}ms). Re-scheduling the task...")
+                this@AutoRebuilderService.manager.executionManager.serviceWorkerPool.schedule(Task(this.index, this.type), 500L, TimeUnit.MILLISECONDS)
+            }
         }
 
         /**
          * Synchronous [Index] rebuilding.
+         *
+         * @return True on success, false otherwise.
          */
-        private fun performSynchronousRebuild() {
+        private fun performRebuild(): Boolean {
             val transaction = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
             try {
                 val catalogueTx = transaction.getTx(this@AutoRebuilderService.catalogue) as CatalogueTx
@@ -113,6 +114,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                     indexTx.rebuild()
                 }
                 transaction.commit()
+                return true
             } catch (e: Throwable) {
                 when (e) {
                     is DatabaseException.SchemaDoesNotExistException,
@@ -121,14 +123,17 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                     else -> LOGGER.error("Index auto-rebuilding for $index failed due to exception: ${e.message}.")
                 }
                 transaction.rollback()
+                return false
             }
         }
 
         /**
          * Performs asynchronous index rebuilding in two steps (SCAN -> MERGE).
+         *
+         * @return True on success, false otherwise.
          */
-        private fun performAsynchronousRebuild() {
-            /* Step 1: Scan index (read-only). */
+        private fun performConcurrentRebuild(): Boolean {
+            /* Step 1a: Scan index (read-only). */
             val transaction1 = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
             val rebuilder = try {
                 val catalogueTx = transaction1.getTx(this@AutoRebuilderService.catalogue) as CatalogueTx
@@ -138,36 +143,45 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                 val entityTx = transaction1.getTx(entity) as EntityTx
                 val index = entityTx.indexForName(this.index)
                 val indexTx = transaction1.getTx(index) as IndexTx
-                if (indexTx.state != IndexState.CLEAN) {
-                    indexTx.asyncRebuild()
-                } else {
-                    return
-                }
+                indexTx.asyncRebuild()
             } catch (e: Throwable) {
                 when (e) {
                     is DatabaseException.SchemaDoesNotExistException,
                     is DatabaseException.EntityAlreadyExistsException,
                     is DatabaseException.IndexDoesNotExistException -> LOGGER.warn("Index auto-rebuilding for $index failed because DBO no longer exists.")
-                    else -> LOGGER.error("Index auto-rebuilding (scan) for $index failed due to exception: ${e.message}.")
+                    else -> LOGGER.error("Index auto-rebuilding (SCAN) for $index failed due to exception: ${e.message}.")
                 }
-                return
+                return false
             } finally {
                 transaction1.rollback()
             }
 
-            /* Step 2: Merge index (write). */
+            /* Step 1b: Make sanity check to prevent obtaining an exclusive transaction unnecessarily. */
+            if (rebuilder.state != IndexRebuilderState.SCANNED) {
+                LOGGER.error("Index auto-rebuilding (SCAN) seems to have failed. Aborting...")
+                return false
+            }
+
+            /* Step 2: MERGE index (write). */
             val transaction2 = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
             try {
-                rebuilder.merge(transaction2)
-                transaction2.commit()
+                return if (rebuilder.state == IndexRebuilderState.SCANNED) {
+                    rebuilder.merge(transaction2)
+                    transaction2.commit()
+                    true
+                } else {
+                    transaction2.rollback()
+                    false
+                }
             } catch (e: Throwable) {
                 when (e) {
                     is DatabaseException.SchemaDoesNotExistException,
                     is DatabaseException.EntityAlreadyExistsException,
                     is DatabaseException.IndexDoesNotExistException -> LOGGER.warn("Index auto-rebuilding for $index failed because DBO no longer exists.")
-                    else -> LOGGER.error("Index auto-rebuilding (merge) for $index failed due to exception: ${e.message}.")
+                    else -> LOGGER.error("Index auto-rebuilding (MERGE) for $index failed due to exception: ${e.message}.")
                 }
                 transaction2.rollback()
+                return false
             }
         }
     }

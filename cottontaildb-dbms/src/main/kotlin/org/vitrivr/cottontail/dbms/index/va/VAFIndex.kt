@@ -4,13 +4,13 @@ import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
-import jetbrains.exodus.env.Transaction
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.*
@@ -29,6 +29,7 @@ import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
+import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
@@ -38,6 +39,7 @@ import org.vitrivr.cottontail.dbms.index.va.bounds.Bounds
 import org.vitrivr.cottontail.dbms.index.va.bounds.L1Bounds
 import org.vitrivr.cottontail.dbms.index.va.bounds.L2Bounds
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
+import org.vitrivr.cottontail.dbms.index.va.signature.VAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.dbms.statistics.columns.DoubleVectorValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.columns.FloatVectorValueStatistics
@@ -239,113 +241,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
         /**
          * Always throws an [UnsupportedOperationException], since [PQIndex] does not support asynchronous rebuilds.
          */
-        override fun asyncRebuild() = this.txLatch.withLock {
-            object: AbstractIndexRebuilder(this@VAFIndex) {
-
-                /** The [VAFIndexConfig] used by this [AbstractIndexRebuilder]. */
-                private val config: VAFIndexConfig = this@Tx.config
-
-                /** Reference to the index [ColumnDef]. */
-                private val indexedColumn = this@Tx.columns[0]
-
-                /** Name of the store used for rebuilding. */
-                private val name: String = "vaf-rebuild-${UUID.randomUUID()}"
-
-                /** The Xodus [Transaction] object ob the temproary environment. */
-                private val temporaryTx: Transaction = this@VAFIndex.catalogue.temporaryEnvironment.beginTransaction()
-
-                /** The Xodus [Store] used to store [VAFSignature]s. */
-                private val dataStore: Store = this@VAFIndex.catalogue.temporaryEnvironment.openStore(this.name, StoreConfig.WITHOUT_DUPLICATES, this.temporaryTx, true)
-                    ?: throw DatabaseException.DataCorruptionException("Temporary data store for index ${this@VAFIndex.name} could not be created.")
-
-                /** */
-                @Volatile
-                private var closed: Boolean = false
-
-                init {
-                    /* IMPORTANT: The rebuild must take place in the constructor! */
-                    this.rebuild(this@Tx.context)
-                    this.temporaryTx.flush()
-                }
-
-                /**
-                 * Merges this [AbstractIndexRebuilder] with the surrounding [VAFIndex].
-                 */
-                override fun merge(context: TransactionContext) {
-                    LOGGER.debug("Merging changes with VAF index {}.", this@VAFIndex.name)
-
-                    /* Obtain index and clear it. */
-                    val indexTx = context.getTx(this@VAFIndex) as VAFIndex.Tx
-                    indexTx.clear()
-
-                    /* Transfer data. */
-                    val cursor = this.dataStore.openCursor(this.temporaryTx)
-                    while (cursor.next) {
-                        indexTx.dataStore.putRight(context.xodusTx, cursor.key, cursor.value)
-                    }
-
-                    /* Process event, i.e., changes that were invisible to this re-builder. */
-                    LOGGER.debug("Processing deferred data change events changes with VAF index {}.", this@VAFIndex.name)
-                    for (event in this.events) {
-                        when (event) {
-                            is DataEvent.Insert -> indexTx.tryApply(event)
-                            is DataEvent.Update -> indexTx.tryApply(event)
-                            is DataEvent.Delete -> indexTx.tryApply(event)
-                        }
-                    }
-                    LOGGER.debug("Rebuilding VAF index {} completed!", this@VAFIndex.name)
-                }
-
-                /**
-                 * Merges this [AbstractIndexRebuilder] with the surrounding [VAFIndex].
-                 */
-                override fun close() {
-                    if (!this.closed) {
-                        this.temporaryTx.revert()
-                        this.closed = true
-                    }
-                }
-
-                /**
-                 * Internal, modified rebuild method. This method basically scans the entity and writes all the changes to the surrounding snapshot.
-                 *
-                 * @param
-                 */
-                private fun rebuild(context: TransactionContext) {
-                    LOGGER.debug("Scanning VAF index {} for rebuild.", this@VAFIndex.name)
-
-                    /* Obtain component-wise minimum and maximum for the vector held by the entity. */
-                    val dimension = this.indexedColumn.type.logicalSize
-                    val entityTx = context.getTx(this@VAFIndex.parent) as EntityTx
-                    val columnTx = context.getTx(entityTx.columnForName(this.indexedColumn.name)) as ColumnTx<*>
-                    val (minimum, maximum) = when (val stat = columnTx.statistics()) {
-                        is FloatVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() } to DoubleArray(dimension) { stat.max.data[it].toDouble() }
-                        is DoubleVectorValueStatistics -> DoubleArray(dimension) {  stat.min.data[it] } to DoubleArray(dimension) {  stat.max.data[it] }
-                        is IntVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() } to DoubleArray(dimension) { stat.max.data[it].toDouble() }
-                        is LongVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() } to DoubleArray(dimension) { stat.max.data[it].toDouble() }
-                        else -> throw DatabaseException("Column type not supported for VAF index.")
-                    }
-
-                    /* Calculate and update marks. */
-                    val newMarks = EquidistantVAFMarks(minimum, maximum, this.config.marksPerDimension)
-
-                    /* Iterate over entity and update index with entries. */
-                    val cursor = columnTx.cursor()
-                    while (cursor.hasNext()) {
-                        val value = cursor.value()
-                        if (value is RealVectorValue<*>) {
-                            this.dataStore.put(this.temporaryTx, cursor.key().toKey(), newMarks.getSignature(value).toEntry())
-                        }
-                    }
-
-                    /* Close cursor. */
-                    cursor.close()
-
-                    /* Update catalogue entry for index. */
-                    LOGGER.debug("Scanning VAF index {} completed!", this@VAFIndex.name)
-                }
-            }
-        }
+        override fun asyncRebuild() = this.txLatch.withLock { VAFIndexRebuilder() }
 
         /**
          * Returns the number of entries in this [VAFIndex].
@@ -380,12 +276,12 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             val value = event.data[this.column]
             val marks = this.marks ?: return false
 
-            /* Sanity checks. */
-            require(value is RealVectorValue<*>) { "Only real vector values can be stored in a VAFIndex. This is a programmer's error!" }
-
             /* Obtain marks and add them. */
-            this.dataStore.add(this.context.xodusTx, event.tupleId.toKey(), marks.getSignature(value).toEntry())
-            return true
+            return if (value is RealVectorValue<*>) {
+                this.dataStore.add(this.context.xodusTx, event.tupleId.toKey(), marks.getSignature(value).toEntry())
+            } else {
+                true /* This should only handle the NULL case. */
+            }
         }
 
         /**
@@ -396,15 +292,18 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Update): Boolean {
-            val value = event.data[this.column]?.second
+            val oldValue = event.data[this.column]?.first
+            val newValue = event.data[this.column]?.second
             val marks = this.marks ?: return false
 
-            /* Sanity checks. */
-            require(value is RealVectorValue<*>) { "Only real vector values can be stored in a VAFIndex. This is a programmer's error!" }
-
             /* Obtain marks and update them. */
-            this.dataStore.put(this.context.xodusTx, event.tupleId.toKey(), marks.getSignature(value).toEntry())
-            return true
+            return if (newValue is RealVectorValue<*>) { /* Case 1: New value is not null, i.e., update to new value. */
+                this.dataStore.put(this.context.xodusTx, event.tupleId.toKey(), marks.getSignature(newValue).toEntry())
+            } else if (oldValue is RealVectorValue<*>) { /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
+                this.dataStore.delete(this.context.xodusTx, event.tupleId.toKey())
+            } else { /* Case 3: There is no value, there was no value, proceed. */
+                true
+            }
         }
 
         /**
@@ -415,7 +314,12 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Delete): Boolean {
-            return this.dataStore.delete(this.context.xodusTx, event.tupleId.toKey())
+            val oldValue = event.data[this.column]
+            return if (oldValue != null) {
+                this.dataStore.delete(this.context.xodusTx, event.tupleId.toKey())
+            } else {
+                true
+            }
         }
 
         /**
@@ -469,7 +373,6 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
 
                 /** */
                 private val produces = this@Tx.columnsFor(predicate).toTypedArray()
-
 
                 /** The current [Cursor] position. */
                 private var position = -1L
@@ -610,6 +513,138 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
 
                     LOGGER.debug("VA-NOA scan: Read ${this.selection.added} and skipped over ${(1.0 - this.selection.added.toDouble() / this@Tx.count()) * 100}% of entries.")
                 }
+            }
+        }
+
+        /**
+         * An [IndexRebuilder] that can be used to concurrently rebuild a [VAFIndex].
+         *
+         * @author Ralph Gasser
+         * @version 1.0.0
+         */
+        inner class VAFIndexRebuilder: IndexRebuilder(this@VAFIndex) {
+
+            /** The [VAFIndexConfig] used by this [VAFIndexConfig]. */
+            private val config: VAFIndexConfig = this@Tx.config
+
+            /** Reference to the index [ColumnDef]. */
+            private val indexedColumn = this@Tx.columns[0]
+
+            /** The (temporary) Xodus [Store] used to store [VAFSignature]s. */
+            private val dataStore: Store = this.tmpEnvironment.openStore(this@VAFIndex.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.tmpTx, true)
+                ?: throw DatabaseException.DataCorruptionException("Temporary data store for index ${this@VAFIndex.name} could not be created.")
+
+            /** The [VAFMarks] generated by this [VAFIndexConfig]. */
+            private val newMarks: VAFMarks
+
+            init {
+                /* Obtain component-wise minimum and maximum for the vector held by the entity. */
+                val dimension = this.indexedColumn.type.logicalSize
+                val entityTx = this@Tx.context.getTx(this@VAFIndex.parent) as EntityTx
+                val columnTx = this@Tx.context.getTx(entityTx.columnForName(this.indexedColumn.name)) as ColumnTx<*>
+                val (minimum, maximum) = when (val stat = columnTx.statistics()) {
+                    is FloatVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() } to DoubleArray(dimension) { stat.max.data[it].toDouble() }
+                    is DoubleVectorValueStatistics -> DoubleArray(dimension) {  stat.min.data[it] } to DoubleArray(dimension) {  stat.max.data[it] }
+                    is IntVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() } to DoubleArray(dimension) { stat.max.data[it].toDouble() }
+                    is LongVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() } to DoubleArray(dimension) { stat.max.data[it].toDouble() }
+                    else -> throw DatabaseException("Column type not supported for VAF index.")
+                }
+
+                /* Calculate and update marks. */
+                this.newMarks = EquidistantVAFMarks(minimum, maximum, this.config.marksPerDimension)
+            }
+
+            /**
+             * Internal, modified rebuild method. This method basically scans the entity and writes all the changes to the surrounding snapshot.
+             */
+            override fun scan() {
+                LOGGER.debug("Scanning VAF index {} for rebuild.", this@VAFIndex.name)
+                val entityTx = this@Tx.context.getTx(this@VAFIndex.parent) as EntityTx
+                val columnTx = this@Tx.context.getTx(entityTx.columnForName(this.indexedColumn.name)) as ColumnTx<*>
+
+                /* Iterate over entity and update index with entries. */
+                columnTx.cursor().use { cursor ->
+                    while (cursor.hasNext() && this.state == IndexRebuilderState.INITIALIZED) {
+                        val value = cursor.value()
+                        if (value is RealVectorValue<*>) {
+                            this.dataStore.put(this.tmpTx, cursor.key().toKey(), this.newMarks.getSignature(value).toEntry())
+                        }
+                    }
+                }
+
+                /* Update catalogue entry for index. */
+                LOGGER.debug("Scanning VAF index {} completed!", this@VAFIndex.name)
+            }
+            /**
+             * Merges this [VAFIndexRebuilder] with the surrounding [VAFIndex].
+             */
+            override fun internalMerge(context: TransactionContext) {
+                LOGGER.debug("Merging changes with VAF index {}.", this@VAFIndex.name)
+
+                /* Obtain index and clear it. */
+                val indexTx = context.getTx(this@VAFIndex) as VAFIndex.Tx
+                indexTx.clear()
+
+                /* Transfer data. */
+                val cursor = this.dataStore.openCursor(this.tmpTx)
+                while (cursor.next && this.state == IndexRebuilderState.SCANNED) {
+                    indexTx.dataStore.putRight(context.xodusTx, cursor.key, cursor.value)
+                }
+                LOGGER.debug("Rebuilding VAF index {} completed!", this@VAFIndex.name)
+            }
+
+            /**
+             * Merges this [VAFIndexRebuilder] with the surrounding [VAFIndex].
+             */
+            override fun onCommit(txId: TransactionId, events: List<Event>) {
+                for (event in events) {
+                    when(event) {
+                        is DataEvent.Insert -> {
+                            require(event.entity == this.index.name.entity()) { "DataEvent $event received that does not concern this index. This is a programmer's error!" }
+
+                            /* Sanity checks. */
+                            val value = event.data[this.indexedColumn]
+                            if (value is RealVectorValue<*>) {
+                                if (!this.dataStore.add(this.tmpTx, event.tupleId.toKey(), this.newMarks.getSignature(value).toEntry())) {
+                                    this.abort()
+                                }
+                            }
+                        }
+                        is DataEvent.Update -> {
+                            require(event.entity == this.index.name.entity()) { "DataEvent $event received that does not concern this index. This is a programmer's error!" }
+
+                            val oldValue = event.data[this.indexedColumn]?.first
+                            val newValue = event.data[this.indexedColumn]?.second
+
+                            /* Obtain marks and update them. */
+                            if (newValue is RealVectorValue<*>) { /* Case 1: New value is not null, i.e., update to new value. */
+                                if (!this.dataStore.put(this.tmpTx, event.tupleId.toKey(), this.newMarks.getSignature(newValue).toEntry())) {
+                                    this.abort()
+                                }
+                            } else if (oldValue is RealVectorValue<*>) { /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
+                                if (!this.dataStore.delete(this.tmpTx, event.tupleId.toKey())) {
+                                    this.abort()
+                                }
+                            }
+                        }
+                        is DataEvent.Delete -> {
+                            require(event.entity == this.index.name.entity()) { "DataEvent $event received that does not concern this index. This is a programmer's error!" }
+                            val oldValue = event.data[this.indexedColumn]
+                            if (oldValue != null) {
+                                if (!this.dataStore.delete(this.tmpTx, event.tupleId.toKey())) {
+                                    this.abort()
+                                }
+                            }
+                        }
+                        else -> continue
+                    }
+                }
+            }
+            /**
+             * Merges this [IndexRebuilder] with the surrounding [VAFIndex].
+             */
+            override fun onDeliveryFailure(txId: TransactionId) {
+                this.abort()
             }
         }
     }

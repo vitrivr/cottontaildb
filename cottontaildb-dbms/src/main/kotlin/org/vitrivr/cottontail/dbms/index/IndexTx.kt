@@ -74,9 +74,9 @@ interface IndexTx: Tx, Filterable, Countable {
     /**
      * (Re-)builds the underlying [Index] in an asynchronous, non-blocking manner.
      *
-     * @return [AbstractIndexRebuilder] that can be used to merge the updated index at a later stage.
+     * @return [IndexRebuilder] that can be used to merge the updated index at a later stage.
      */
-    fun asyncRebuild(): AbstractIndexRebuilder
+    fun asyncRebuild(): IndexRebuilder
 
     /**
      * Clears the [Index] underlying this [IndexTx] and removes all entries it contains.
