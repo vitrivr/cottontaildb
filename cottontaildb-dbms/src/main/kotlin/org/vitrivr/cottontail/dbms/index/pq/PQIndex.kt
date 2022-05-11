@@ -169,7 +169,13 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@PQIndex.name} is missing.")
 
         /** The [ProductQuantizer] used by this [PQIndex.Tx] instance. */
-        private var quantizer = ProductQuantizer.loadFromConfig(this.distanceFunction, this.config)
+        private var quantizer: ProductQuantizer? = this.config.let {
+            if (it.centroids.isNotEmpty()) {
+                return@let ProductQuantizer.loadFromConfig(this.distanceFunction, this.config)
+            } else {
+                return@let null
+            }
+        }
 
         /**
          * Returns a [List] of the [ColumnDef] produced by this [PQIndex].
@@ -279,7 +285,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
             require(value is RealVectorValue<*>) { "Only real vector values can be stored in a VAFIndex. This is a programmer's error!" }
 
             /* Generate signature and store it. */
-            val sig = this.quantizer.quantize(value)
+            val sig = this.quantizer?.quantize(value) ?: return false
             return this.dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(sig), event.tupleId.toKey())
         }
 
@@ -297,7 +303,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
 
             /* Remove signature to tuple ID mapping. */
             if (oldValue is VectorValue<*>) {
-                val oldSig = this.quantizer.quantize(oldValue)
+                val oldSig = this.quantizer?.quantize(oldValue) ?: return false
                 val cursor = this.dataStore.openCursor(this.context.xodusTx)
                 if (cursor.getSearchBoth(PQSignature.Binding.valueToEntry(oldSig), event.tupleId.toKey())) {
                     cursor.deleteCurrent()
@@ -307,7 +313,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
 
             /* Generate signature and store it. */
             if (newValue is VectorValue<*>) {
-                val newSig = this.quantizer.quantize(newValue)
+                val newSig = this.quantizer?.quantize(newValue) ?: return false
                 return this.dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(newSig), event.tupleId.toKey())
             }
             return true
@@ -321,7 +327,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Delete): Boolean {
-            val sig = this.quantizer.quantize(event.data[this@Tx.column]!! as VectorValue<*>)
+            val sig = this.quantizer?.quantize(event.data[this@Tx.column]!! as VectorValue<*>) ?: return false
             val cursor = this.dataStore.openCursor(this.context.xodusTx)
             if (cursor.getSearchBoth(PQSignature.Binding.valueToEntry(sig), event.tupleId.toKey())) {
                 cursor.deleteCurrent()
@@ -342,9 +348,6 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          */
         override fun filter(predicate: Predicate): Cursor<Record> = this.txLatch.withLock {
             object : Cursor<Record> {
-                /** Local [PQIndexConfig] instance. */
-                private val config = this@Tx.config
-
                 /** Cast to [ProximityPredicate] (if such a cast is possible).  */
                 private val predicate = if (predicate is ProximityPredicate) {
                     predicate
@@ -356,7 +359,8 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                 private val columnTx: ColumnTx<RealVectorValue<*>>
 
                 /** Prepares [PQLookupTable]s for the given query vector(s). */
-                private val lookupTable: PQLookupTable = this@Tx.quantizer.createLookupTable(this.predicate.query.value as VectorValue<*>)
+                private val lookupTable: PQLookupTable = this@Tx.quantizer?.createLookupTable(this.predicate.query.value as VectorValue<*>) ?:
+                    throw IllegalStateException("Instance of PQIndex '${this@PQIndex.name}' does not seem to have a valid quantizer. This is a programmer's error.")
 
                 /** The [HeapSelection] use for finding the top k entries. */
                 private var selection = when(this.predicate) {
