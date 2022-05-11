@@ -27,10 +27,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.logical.management.InsertLo
 import org.vitrivr.cottontail.dbms.queries.operators.logical.management.UpdateLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterOnSubSelectLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.AggregatingProjectionLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.CountProjectionLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.ExistsProjectionLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.SelectProjectionLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.*
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sort.SortLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntitySampleLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntityScanLogicalOperatorNode
@@ -543,19 +540,35 @@ object GrpcQueryBinder {
      */
     private fun parseAndBindProjection(input: OperatorNode.Logical, projection: Map<Name.ColumnName, Name>, op: Projection, context: DefaultQueryContext): OperatorNode.Logical = try {
         when (op) {
-            Projection.SELECT,
-            Projection.SELECT_DISTINCT -> {
+            Projection.SELECT -> {
                 val fields = projection.keys.flatMap { cp ->
                     input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
                 }.map {
                     it.name
                 }
-                SelectProjectionLogicalOperatorNode(input, op, fields)
+                SelectProjectionLogicalOperatorNode(input, fields)
+            }
+            Projection.SELECT_DISTINCT -> {
+                val fields = projection.keys.flatMap { cp ->
+                    input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
+                }.map {
+                    it.name to true
+                }
+                SelectDistinctProjectionLogicalOperatorNode(input, fields, context.catalogue.config)
             }
             Projection.COUNT -> {
                 val columnName = projection.keys.first()
                 val columnDef = ColumnDef(Name.ColumnName(columnName.schemaName, columnName.entityName,"count(${columnName.columnName})"), Types.Long, false)
                 CountProjectionLogicalOperatorNode(input, context.bindings.bind(columnDef))
+            }
+            Projection.COUNT_DISTINCT -> {
+                val fields = projection.keys.flatMap { cp ->
+                    input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
+                }.map {
+                    it.name to true
+                }
+                val columnDef = ColumnDef(Name.ColumnName(fields.first().first.schemaName, fields.first().first.entityName,"count(${fields.joinToString(",") { it.first.columnName }})"), Types.Long, false)
+                CountProjectionLogicalOperatorNode(SelectDistinctProjectionLogicalOperatorNode(input, fields, context.catalogue.config), context.bindings.bind(columnDef))
             }
             Projection.EXISTS -> {
                 val columnName = projection.keys.first()
@@ -573,7 +586,6 @@ object GrpcQueryBinder {
                 }
                 AggregatingProjectionLogicalOperatorNode(input, op, fields)
             }
-            else -> throw QueryException.QuerySyntaxException("Project of type $op is currently not supported.")
         }
     } catch (e: java.lang.IllegalArgumentException) {
         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): $op is not supported.")
