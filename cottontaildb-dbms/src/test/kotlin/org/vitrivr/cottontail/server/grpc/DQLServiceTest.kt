@@ -3,13 +3,15 @@ package org.vitrivr.cottontail.server.grpc
 import io.grpc.ManagedChannel
 import io.grpc.netty.NettyChannelBuilder
 import org.junit.jupiter.api.*
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.basics.Distances
 import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.client.language.basics.predicate.Expression
 import org.vitrivr.cottontail.client.language.ddl.CreateEntity
+import org.vitrivr.cottontail.client.language.ddl.DropEntity
 import org.vitrivr.cottontail.client.language.dml.Insert
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.embedded
@@ -176,29 +178,32 @@ class DQLServiceTest {
     }
 
     private fun testDistinct(entryStrings: List<String>){
-        val entityName = TestConstants.TEST_SCHEMA.entity("test")
-        var txId = client.begin()
-        //create entity with one column
-        this.client.create(CreateEntity(entityName.fqn).column(STRING_COLUMN_NAME, Type.STRING).txId(txId))
-        this.client.commit(txId)
+        /* Create entity with one column. */
+        val entityName = TestConstants.TEST_SCHEMA.entity("distinct_test")
+        this.client.create(CreateEntity(entityName.fqn).column(STRING_COLUMN_NAME, Type.STRING))
 
-        //insert the same entry multiple times
-        txId = this.client.begin()
-        entryStrings.forEachIndexed { idx, s ->
-            repeat(maxOf(2, idx)) {
-                val insert = Insert().into(entityName.fqn).value(STRING_COLUMN_NAME, s).txId(txId)
-                this.client.insert(insert)
+        try {
+            /* INSERT the same entry multiple times. */
+            val txId = this.client.begin()
+            entryStrings.forEachIndexed { idx, s ->
+                repeat(maxOf(2, idx)) {
+                    val insert = Insert().into(entityName.fqn).value(STRING_COLUMN_NAME, s).txId(txId)
+                    this.client.insert(insert)
+                }
             }
+            this.client.commit(txId)
+
+            /* Execute and check query. */
+            val query = Query().from(entityName.fqn).distinct(STRING_COLUMN_NAME, null)
+            val result = this.client.query(query)
+            val set = mutableSetOf<String>()
+            for(r in result){
+                val string = r.asString(STRING_COLUMN_NAME)!!
+                assertTrue(set.add(string), "$string was returned twice!")
+            }
+            entryStrings.forEach { s -> assertTrue(set.contains(s), "$s was not returned") }
+        } finally {
+            this.client.drop(DropEntity(entityName.fqn))
         }
-        this.client.commit(txId)
-        val query = Query().from(entityName.fqn)
-                .distinct(STRING_COLUMN_NAME, null)
-        val result = this.client.query(query)
-        val set = mutableSetOf<String>()
-        for(r in result){
-            val string = r.asString(STRING_COLUMN_NAME)!!
-            assertTrue(set.add(string), "$string was returned twice!")
-        }
-        entryStrings.forEach { s -> assertTrue(set.contains(s), "$s was not returned") }
     }
 }
