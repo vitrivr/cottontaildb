@@ -14,7 +14,6 @@ import org.vitrivr.cottontail.cli.benchmarks.model.Benchmark
 import org.vitrivr.cottontail.cli.benchmarks.model.BenchmarkResult
 import org.vitrivr.cottontail.cli.benchmarks.model.PRMeasure
 import org.vitrivr.cottontail.client.SimpleClient
-import org.vitrivr.cottontail.client.language.basics.Constants
 import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.basics.Distances
 import org.vitrivr.cottontail.client.language.ddl.CreateIndex
@@ -216,18 +215,24 @@ class AdaptiveIndexBenchmark(client: SimpleClient): AbstractBenchmarkCommand(cli
                 while (inserted < this@AdaptiveIndexBenchmark.initSize && this.importer.hasNext()) {
                     inserted += 1
                     val next = this.importer.next()
-                    batchedInsert.append(*this.schema.map { next[it] }.toTypedArray())
+                    val data = this.schema.map { next[it] }.toTypedArray()
+                    if (!batchedInsert.append(*data)) {
+                        /* Execute insert... */
+                        this@AdaptiveIndexBenchmark.client.insert(batchedInsert)
+
+                        /* ... now clear and append. */
+                        batchedInsert.clear()
+                        if (!batchedInsert.append(*data)) {
+                            throw IllegalArgumentException("The appended data seems too large for a single message.")
+                        }
+                    }
                     if (this.random.nextBoolean()) {
                         this.queryVector = next[this.featureColumn]
-                    }
-                    if ((batchedInsert.builder.build().serializedSize) >= Constants.MAX_PAGE_SIZE_BYTES) {
-                        this@AdaptiveIndexBenchmark.client.insert(batchedInsert)
-                        batchedInsert.builder.clearInserts()
                     }
                 }
 
                 /** Insert remainder. */
-                if (batchedInsert.builder.insertsCount > 0) {
+                if (batchedInsert.count() > 0) {
                     this@AdaptiveIndexBenchmark.client.insert(batchedInsert)
                 }
 
