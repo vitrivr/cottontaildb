@@ -40,6 +40,7 @@ class JsonDataExporter(override val path: Path, val indent: String = "") : DataE
      *
      * @param tuple The [Tuple] to append.
      */
+    @Suppress("UNCHECKED_CAST")
     override fun offer(tuple: Tuple) {
         this.writer.beginObject()
         repeat(tuple.size()) {
