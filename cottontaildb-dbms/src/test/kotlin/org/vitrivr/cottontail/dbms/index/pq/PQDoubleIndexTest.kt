@@ -17,7 +17,6 @@ import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
-import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
@@ -82,7 +81,7 @@ class PQDoubleIndexTest : AbstractIndexTest() {
     private var counter: Long = 0L
 
     /**
-     * This is a highly artificial test-case for NNS with the [PQIndex] structure for [FloatVectorValue]s.
+     * This is a highly artificial test-case for NNS with the [PQIndex] structure for [DoubleVectorValue]s.
      *
      * Basically, it revolves around a test-dataset that is arranged in a pre-defined number of clusters, i.e.,
      * the clustering employed by the [PQIndex] can be foreseen. By furthermore keeping k smaller than the number
@@ -98,8 +97,8 @@ class PQDoubleIndexTest : AbstractIndexTest() {
     fun test(distance: Name.FunctionName) {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         val k = (this.numberOfClusters * 0.25).toLong()
-        val query = FloatVectorValue(FloatArray(this.indexColumn.type.logicalSize) {
-            (this.counter % this.numberOfClusters) + this.random.nextDouble(-1.0, 1.0).toFloat() /* Pre-clustered data. */
+        val query = DoubleVectorValue(DoubleArray(this.indexColumn.type.logicalSize) {
+            (this.counter % this.numberOfClusters) + this.random.nextDouble(-1.0, 1.0) /* Pre-clustered data. */
         })
         val function = this.catalogue.functions.obtain(Signature.Closed(distance, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Types.Double)) as VectorDistance<*>
         val context = DefaultBindingContext()
@@ -117,22 +116,22 @@ class PQDoubleIndexTest : AbstractIndexTest() {
         /* Fetch results through full table scan. */
         val bruteForceResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(k.toInt())
         val bruteForceDuration = measureTime {
-            val cursor = entityTx.cursor(arrayOf(this.indexColumn))
-            cursor.forEach {
-                val vector = it[this.indexColumn]
-                if (vector is FloatVectorValue) {
-                    bruteForceResults.offer(ComparablePair(it.tupleId, function(query, vector)!!))
+            val cursor = entityTx.cursor(arrayOf(this.indexColumn)).use { cursor ->
+                cursor.forEach {
+                    val vector = it[this.indexColumn]
+                    if (vector is DoubleVectorValue) {
+                        bruteForceResults.offer(ComparablePair(it.tupleId, function(query, vector)!!))
+                    }
                 }
             }
-            cursor.close()
         }
 
         /* Fetch results through index. */
         val indexResults = ArrayList<Record>(k.toInt())
         val indexDuration = measureTime {
-            val cursor = indexTx.filter(predicate)
-            cursor.forEach { indexResults.add(it) }
-            cursor.close()
+           indexTx.filter(predicate).use { cursor ->
+               cursor.forEach { indexResults.add(it) }
+           }
         }
         txn.commit()
 
