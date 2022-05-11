@@ -8,8 +8,6 @@ import jetbrains.exodus.env.StoreConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onCompletion
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
@@ -19,7 +17,6 @@ import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.utilities.hashing.RecordHasher
-import java.nio.file.Files
 import java.util.*
 
 /**
@@ -31,10 +28,6 @@ import java.util.*
  * @version 2.0.0
  */
 class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.ColumnName, Boolean>>, config: Config) : Operator.PipelineOperator(parent) {
-    companion object {
-        /** [Logger] instance used by [SelectDistinctProjectionOperator]. */
-        private val LOGGER: Logger = LoggerFactory.getLogger(SelectDistinctProjectionOperator::class.java)
-    }
 
     /** Columns produced by [SelectDistinctProjectionOperator]. */
     override val columns: List<ColumnDef<*>> = this.parent.columns.filter { c -> fields.any { f -> f.first == c.name }}
@@ -77,16 +70,9 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.
                 null
             }
         }.onCompletion {
-            try {
-                /* Abort transaction and close environment. */
-                this@SelectDistinctProjectionOperator.tmpTxn.abort()
-                this@SelectDistinctProjectionOperator.tmpEnvironment.close()
-
-                /* Delete temporary environments. */
-                Files.walk(this@SelectDistinctProjectionOperator.tmpPath).sorted(Comparator.reverseOrder()).forEach { Files.delete(it) }
-            } catch (e: Throwable) {
-                LOGGER.warn("Failed to cleanup temporary data structures after query has concluded: ${e.message}")
-            }
+            /* Abort transaction and close environment. */
+            this@SelectDistinctProjectionOperator.tmpTxn.abort()
+            this@SelectDistinctProjectionOperator.tmpEnvironment.close()
         }
     }
 }
