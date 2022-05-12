@@ -252,11 +252,10 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          *
          * @param event [DataEvent.Insert]s to process.
          */
-        override fun insert(event: DataEvent.Insert) = this.txLatch.withLock {
-            val value = event.data[this.columns[0]]
-            if (value != null) {
-                this.addMapping(value, event.tupleId)
-            }
+        override fun tryApply(event: DataEvent.Insert): Boolean {
+            val value = event.data[this.columns[0]] ?: return true
+            this.addMapping(value, event.tupleId)
+            return true
         }
 
         /**
@@ -264,15 +263,12 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          *
          * @param event [DataEvent.Update]s to process.
          */
-        override fun update(event: DataEvent.Update) = this.txLatch.withLock {
-            val old = event.data[this.columns[0]]?.first
-            if (old != null) {
-                this.removeMapping(old)
-            }
-            val new = event.data[this.columns[0]]?.second
-            if (new != null) {
-                this.addMapping(new, event.tupleId)
-            }
+        override fun tryApply(event: DataEvent.Update): Boolean {
+            val oldValue = event.data[this.columns[0]]?.first
+            val newValue = event.data[this.columns[0]]?.second
+            val removed = (oldValue == null || this.removeMapping(oldValue))
+            if (newValue != null) this.addMapping(newValue, event.tupleId)
+            return removed
         }
 
         /**
@@ -280,11 +276,9 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          *
          * @param event [DataEvent.Delete]s to apply.
          */
-        override fun delete(event: DataEvent.Delete) = this.txLatch.withLock {
-            val old = event.data[this.columns[0]]
-            if (old != null) {
-                this.removeMapping(old)
-            }
+        override fun tryApply(event: DataEvent.Delete) : Boolean  {
+            val oldValue = event.data[this.columns[0]]
+            return (oldValue == null) || this.removeMapping(oldValue)
         }
 
         /**

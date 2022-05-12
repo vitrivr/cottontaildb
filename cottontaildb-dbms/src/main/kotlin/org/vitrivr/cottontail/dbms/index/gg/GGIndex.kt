@@ -12,6 +12,8 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
@@ -45,7 +47,7 @@ import kotlin.concurrent.withLock
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 3.0.0
  */
-class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(name, parent) {
+class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
     /**
      * [IndexDescriptor] for [GGIndex].
@@ -133,19 +135,11 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
     /**
      * A [IndexTx] that affects this [GGIndex].
      */
-    private inner class Tx(context: TransactionContext) : AbstractHDIndex.Tx(context) {
+    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
         /** The [GGIndexConfig] used by this [GGIndex] instance. */
         override val config: GGIndexConfig
             get() = super.config as GGIndexConfig
-
-        /** The set of supported [VectorDistance]s. */
-        override val supportedDistances: Set<Signature.Closed<*>>
-
-        init {
-            val config = this.config
-            this.supportedDistances = setOf( Signature.Closed(config.distance, arrayOf(this.column.type, this.column.type), Types.Double))
-        }
 
         /**
          * Calculates the cost estimate if this [GGIndex] processing the provided [Predicate].
@@ -163,6 +157,14 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> {
             require(predicate is ProximityPredicate.NNS) { "GGIndex can only process proximity predicates." }
             return listOf(predicate.distanceColumn)
+        }
+
+        override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> {
+            TODO("Not yet implemented")
+        }
+
+        override fun canProcess(predicate: Predicate): Boolean {
+            TODO("Not yet implemented")
         }
 
         /**
@@ -359,6 +361,7 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> {
             throw UnsupportedOperationException("The UniqueHashIndex does not support ranged filtering!")
         }
+
 
         /**
          * The [GGIndex] does not support incremental updates. Hence, this method will always throw an [UnsupportedOperationException].

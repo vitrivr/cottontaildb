@@ -8,6 +8,6 @@ package org.vitrivr.cottontail.dbms.index
  */
 enum class IndexState {
     CLEAN, /** The [Index] is clean, up-to-date and ready for use. */
-    DIRTY, /** The [Index] is dirty and using it may incur additional costs in terms for performance and/or quality.. */
+    DIRTY, /** The [Index] is dirty and using it may incur additional costs in terms for performance and/or quality. */
     STALE /** The [Index] is stale and cannot be used any longer. */
 }

@@ -6,6 +6,7 @@ import jetbrains.exodus.bindings.SignedDoubleBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
+import org.vitrivr.cottontail.dbms.statistics.columns.*
 import java.io.ByteArrayInputStream
 import kotlin.math.absoluteValue
 import kotlin.math.floor
@@ -49,6 +50,28 @@ class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, Com
             }
         }
     }
+
+    /**
+     * Constructs [EquidistantVAFMarks] from the [VectorValueStatistics].
+     *
+     * @param statistics [VectorValueStatistics<*>] to construct [EquidistantVAFMarks] for.
+     * @param marksPerDimension The number of marks per dimension.
+     */
+    constructor(statistics: VectorValueStatistics<*>, marksPerDimension: Int): this(
+        when (statistics) {
+            is FloatVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
+            is DoubleVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) {  statistics.min.data[it] }
+            is IntVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
+            is LongVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
+        },
+        when (statistics) {
+            is FloatVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
+            is DoubleVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) {  statistics.max.data[it] }
+            is IntVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
+            is LongVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
+        },
+        marksPerDimension
+    )
 
     /**
      * Constructs [EquidistantVAFMarks] from the given [min] and [max] [DoubleArray].

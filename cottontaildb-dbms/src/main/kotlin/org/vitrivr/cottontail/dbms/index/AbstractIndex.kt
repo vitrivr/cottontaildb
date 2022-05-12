@@ -6,12 +6,15 @@ import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.ColumnCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.events.IndexEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
+import org.vitrivr.cottontail.dbms.index.basics.avc.AuxiliaryValueCollection
+import kotlin.concurrent.withLock
 
 /**
  * An abstract [Index] implementation that outlines the fundamental structure. Implementations of
@@ -49,7 +52,7 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
     /**
      * A [Tx] that affects this [AbstractIndex].
      */
-    protected abstract inner class Tx(context: TransactionContext) : AbstractTx(context), IndexTx {
+    protected abstract inner class Tx(context: TransactionContext) : AbstractTx(context), IndexTx, WriteModel {
 
         /** Reference to the [AbstractIndex] */
         final override val dbo: AbstractIndex
@@ -91,6 +94,15 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
                 return entry.config
             }
 
+        /** The number of INSERT operations since last rebuilding the index. */
+        protected var numberOfInserts = 0L
+
+        /** The number of UPDATE operations since last rebuilding the index. */
+        protected var numberOfUpdates = 0L
+
+        /** The number of DELETE operations since last rebuilding the index. */
+        protected var numberOfDeletes = 0L
+
         /**
          * Obtains a global (non-exclusive) read-lock on [DefaultCatalogue].
          *
@@ -105,7 +117,61 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
         }
 
         /**
-         * Convenience method to update [IndexState] for this [AbstractHDIndex].
+         * Tries to process an incoming [DataEvent.Insert].
+         *
+         * If the [AbstractIndex] does not support incremental updates, the [AbstractIndex] will be marked as [IndexState.STALE].
+         * Otherwise, the change is either propagated to the [AbstractIndex] or to the [AuxiliaryValueCollection] this marking the
+         * [AbstractIndex] as [IndexState.DIRTY].
+         *
+         * @param event [DataEvent.Insert] that should be processed,
+         */
+        final override fun insert(event: DataEvent.Insert) = this.txLatch.withLock {
+            /* If write-model does not allow propagation, mark index as STALE. */
+            if (this.tryApply(event)) {
+                this.numberOfInserts += 1
+            } else {
+                this.updateState(IndexState.STALE)
+            }
+        }
+
+        /**
+         * Tries to process an incoming [DataEvent.Update].
+         *
+         * If the [AbstractIndex] does not support incremental updates, the [AbstractIndex] will be marked as [IndexState.STALE].
+         * Otherwise, the change is either propagated to the [AbstractIndex] or to the [AuxiliaryValueCollection] this marking the
+         * [AbstractIndex] as [IndexState.DIRTY].
+         *
+         * @param event [DataEvent.Update]
+         */
+        final override fun update(event: DataEvent.Update) = this.txLatch.withLock {
+            /* If write-model does not allow propagation, mark index as STALE. */
+            if (this.tryApply(event)) {
+                this.numberOfUpdates += 1
+            } else {
+                this.updateState(IndexState.STALE)
+            }
+        }
+
+        /**
+         * Tries to process an incoming [DataEvent.Delete].
+         *
+         * If the [AbstractIndex] does not support incremental updates, the [AbstractIndex] will be marked as [IndexState.STALE].
+         * Otherwise, the change is either propagated to the [AbstractIndex] or to the [AuxiliaryValueCollection] this marking the
+         * [AbstractIndex] as [IndexState.DIRTY].
+         *
+         * @param event [DataEvent.Delete] that should be processed.
+         */
+        final override fun delete(event: DataEvent.Delete) = this.txLatch.withLock {
+            /* If write-model does not allow propagation, mark index as dirty. */
+            if (this.tryApply(event)) {
+                this.numberOfDeletes += 1
+            } else {
+                this.updateState(IndexState.STALE)
+            }
+        }
+
+        /**
+         * Convenience method to update [IndexState] for this [AbstractIndex].
          *
          * @param state The new [IndexState].
          */

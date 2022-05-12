@@ -21,7 +21,7 @@ import java.io.ByteArrayInputStream
  * A [IndexCatalogueEntry] in the Cottontail DB [Catalogue]. Used to store metadata about [Index]es.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 data class IndexCatalogueEntry(val name: Name.IndexName, val type: IndexType, val state: IndexState, val columns: List<Name.ColumnName>, val config: IndexConfig<*>) {
 

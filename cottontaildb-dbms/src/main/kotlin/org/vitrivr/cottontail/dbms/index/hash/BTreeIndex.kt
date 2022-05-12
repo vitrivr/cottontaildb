@@ -268,11 +268,9 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          *
          * @param event [DataEvent.Insert] to apply.
          */
-        override fun insert(event: DataEvent.Insert) = this.txLatch.withLock {
-            val value = event.data[this.columns[0]]
-            if (value != null) {
-                this.addMapping(value, event.tupleId)
-            }
+        override fun tryApply(event: DataEvent.Insert): Boolean {
+            val value = event.data[this.columns[0]] ?: return true
+            return this.addMapping(value, event.tupleId)
         }
 
         /**
@@ -280,15 +278,12 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          *
          * @param event [DataEvent.Update] to apply.
          */
-        override fun update(event: DataEvent.Update) = this.txLatch.withLock {
+        override fun tryApply(event: DataEvent.Update): Boolean {
             val old = event.data[this.columns[0]]?.first
-            if (old != null) {
-                this.removeMapping(old, event.tupleId)
-            }
             val new = event.data[this.columns[0]]?.second
-            if (new != null) {
-                this.addMapping(new, event.tupleId)
-            }
+            val removed = (old == null || this.removeMapping(old, event.tupleId))
+            val added = (new == null || this.addMapping(new, event.tupleId))
+            return removed && added
         }
 
         /**
@@ -296,11 +291,9 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          *
          * @param event [DataEvent.Delete] to apply.
          */
-        override fun delete(event: DataEvent.Delete) = this.txLatch.withLock {
-            val old = event.data[this.columns[0]]
-            if (old != null) {
-                this.removeMapping(old, event.tupleId)
-            }
+        override fun tryApply(event: DataEvent.Delete): Boolean {
+            val old = event.data[this.columns[0]] ?: return true
+            return this.removeMapping(old, event.tupleId)
         }
 
         /**

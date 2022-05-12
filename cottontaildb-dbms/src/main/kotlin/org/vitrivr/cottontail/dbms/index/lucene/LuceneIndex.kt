@@ -363,6 +363,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
         /**
          * (Re-)builds the [LuceneIndex].
          */
+        @Suppress("UNCHECKED_CAST")
         override fun rebuild() = this.txLatch.withLock {
             LOGGER.debug("Rebuilding Lucene index {}", this@LuceneIndex.name)
 
@@ -402,14 +403,13 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          *
          * @param event [DataEvent.Insert] to apply.
          */
-        override fun insert(event: DataEvent.Insert) = this.txLatch.withLock {
-            val new = event.data[this.columns[0]]
-            if (new is StringValue) {
-                this.indexWriter.addDocument(this@Tx.documentFromValue(new, event.tupleId))
-                if (this.indexWriter.pendingNumDocs % 10000L == 0L) {
-                    this.indexWriter.flush()
-                }
+        override fun tryApply(event: DataEvent.Insert): Boolean {
+            val newValue = event.data[this.columns[0]] ?: return true
+            this.indexWriter.addDocument(this@Tx.documentFromValue(newValue as StringValue, event.tupleId))
+            if (this.indexWriter.pendingNumDocs % 10000L == 0L) {
+                this.indexWriter.flush()
             }
+            return true
         }
 
         /**
@@ -417,14 +417,13 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          *
          * @param event [DataEvent.Update] to apply.
          */
-        override fun update(event: DataEvent.Update) = this.txLatch.withLock {
-            val new = event.data[this.columns[0]]?.second
-            if (new is StringValue) {
-                this.indexWriter.updateDocument(Term(TID_COLUMN, event.tupleId.toString()), this@Tx.documentFromValue(new, event.tupleId))
-                if (this.indexWriter.pendingNumDocs % 10000L == 0L) {
-                    this.indexWriter.flush()
-                }
+        override fun tryApply(event: DataEvent.Update): Boolean {
+            val newValue = event.data[this.columns[0]]?.second ?: return true
+            this.indexWriter.updateDocument(Term(TID_COLUMN, event.tupleId.toString()), this@Tx.documentFromValue(newValue as StringValue, event.tupleId))
+            if (this.indexWriter.pendingNumDocs % 10000L == 0L) {
+                this.indexWriter.flush()
             }
+            return true
         }
 
         /**
@@ -432,13 +431,12 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          *
          * @param event [DataEvent.Delete] to apply.
          */
-        override fun delete(event: DataEvent.Delete) {
-            this.txLatch.withLock {
-                this.indexWriter.deleteDocuments(Term(TID_COLUMN, event.tupleId.toString()))
-                if (this.indexWriter.pendingNumDocs % 10000L == 0L) {
-                    this.indexWriter.flush()
-                }
+        override fun tryApply(event: DataEvent.Delete): Boolean {
+            this.indexWriter.deleteDocuments(Term(TID_COLUMN, event.tupleId.toString()))
+            if (this.indexWriter.pendingNumDocs % 10000L == 0L) {
+                this.indexWriter.flush()
             }
+            return true
         }
 
         /**

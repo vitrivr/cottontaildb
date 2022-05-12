@@ -10,10 +10,15 @@ import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.functions.Signature
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.*
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.MinkowskiDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
+import org.vitrivr.cottontail.core.queries.nodes.traits.LimitTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
@@ -21,7 +26,6 @@ import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
@@ -29,7 +33,6 @@ import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
-import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
@@ -39,18 +42,14 @@ import org.vitrivr.cottontail.dbms.index.va.bounds.Bounds
 import org.vitrivr.cottontail.dbms.index.va.bounds.L1Bounds
 import org.vitrivr.cottontail.dbms.index.va.bounds.L2Bounds
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
-import org.vitrivr.cottontail.dbms.index.va.signature.VAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
-import org.vitrivr.cottontail.dbms.statistics.columns.DoubleVectorValueStatistics
-import org.vitrivr.cottontail.dbms.statistics.columns.FloatVectorValueStatistics
-import org.vitrivr.cottontail.dbms.statistics.columns.IntVectorValueStatistics
-import org.vitrivr.cottontail.dbms.statistics.columns.LongVectorValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.columns.VectorValueStatistics
 import org.vitrivr.cottontail.utilities.selection.HeapSelection
 import java.util.*
 import kotlin.concurrent.withLock
 
 /**
- * An [AbstractHDIndex] structure for proximity based search (NNS / FNS) that uses a vector
+ * An [AbstractIndex] structure for proximity based search (NNS / FNS) that uses a vector
  * approximation (VA) file ([1]). Can be used for all types of [RealVectorValue]s and all
  * Minkowski metrics (L1, L2 etc.).
  *
@@ -58,9 +57,9 @@ import kotlin.concurrent.withLock
  * [1] Weber, R. and Blott, S., 1997. An approximation based data structure for similarity search (No. 9141, p. 416). Technical Report 24, ESPRIT Project HERMES.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 3.1.0
+ * @version 3.2.0
  */
-class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(name, parent) {
+class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
     /**
      * The [IndexDescriptor] for the [VAFIndex].
@@ -152,16 +151,11 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
     /**
      * A [IndexTx] that affects this [VAFIndex].
      */
-    private inner class Tx(context: TransactionContext) : AbstractHDIndex.Tx(context) {
+    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
         /** The [VAFIndexConfig] used by this [VAFIndex] instance. */
         override val config: VAFIndexConfig
             get() = super.config as VAFIndexConfig
-
-        /** The set of supported [VectorDistance]s. */
-        override val supportedDistances: Set<Signature.Closed<*>> = listOf(ManhattanDistance, EuclideanDistance, SquaredEuclideanDistance).map {
-            Signature.Closed(it.signature.name, arrayOf(this.column.type, this.column.type), Types.Double)
-        }.toSet()
 
         /** The [EquidistantVAFMarks] object used by this [VAFIndex.Tx]. */
         private val marks: EquidistantVAFMarks?
@@ -192,7 +186,34 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          */
         override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> {
             require(predicate is ProximityPredicate) { "VAFIndex can only process proximity predicates." }
-            return listOf(predicate.distanceColumn, this.column)
+            return listOf(predicate.distanceColumn, this.columns[0])
+        }
+
+        /**
+         * Checks if this [VAFIndex] can process the provided [Predicate] and returns true if so and false otherwise.
+         *
+         * @param predicate [Predicate] to check.
+         * @return True if [Predicate] can be processed, false otherwise.
+         */
+        override fun canProcess(predicate: Predicate): Boolean
+            = predicate is ProximityPredicate && predicate.column == this.columns[0] && predicate.distance is MinkowskiDistance
+
+        /**
+         * Returns the map of [Trait]s this [VAFIndex] implements for the given [Predicate]s.
+         *
+         * @param predicate [Predicate] to check.
+         * @return Map of [Trait]s for this [VAFIndex]
+         */
+        override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> = when (predicate) {
+            is ProximityPredicate.NNS -> mutableMapOf(
+                OrderTrait to OrderTrait(listOf(predicate.distanceColumn to SortOrder.ASCENDING)),
+                LimitTrait to LimitTrait(predicate.k)
+            )
+            is ProximityPredicate.FNS -> mutableMapOf(
+                OrderTrait to OrderTrait(listOf(predicate.distanceColumn to SortOrder.DESCENDING)),
+                LimitTrait to LimitTrait(predicate.k)
+            )
+            else -> throw IllegalArgumentException("Unsupported predicate for high-dimensional index. This is a programmer's error!")
         }
 
         /**
@@ -203,20 +224,11 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
 
             /* Obtain component-wise minimum and maximum for the vector held by the entity. */
             val config = this.config
-            val indexedColumn = this.columns[0]
-            val dimension = indexedColumn.type.logicalSize
             val entityTx = this.context.getTx(this@VAFIndex.parent) as EntityTx
             val columnTx = this.context.getTx(entityTx.columnForName(this.columns[0].name)) as ColumnTx<*>
-            val (minimum, maximum) = when (val stat = columnTx.statistics()) {
-                is FloatVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() } to DoubleArray(dimension) { stat.max.data[it].toDouble() }
-                is DoubleVectorValueStatistics -> DoubleArray(dimension) {  stat.min.data[it] } to DoubleArray(dimension) {  stat.max.data[it] }
-                is IntVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() } to DoubleArray(dimension) { stat.max.data[it].toDouble() }
-                is LongVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() } to DoubleArray(dimension) { stat.max.data[it].toDouble() }
-                else -> throw DatabaseException("Column type not supported for VAF index.")
-            }
 
             /* Calculate and update marks. */
-            val newMarks = EquidistantVAFMarks(minimum, maximum, config.marksPerDimension)
+            val newMarks = EquidistantVAFMarks(columnTx.statistics() as VectorValueStatistics<*>, config.marksPerDimension)
 
             /* Clear old signatures. */
             this.clear()
@@ -273,15 +285,11 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Insert): Boolean {
-            val value = event.data[this.column]
+            val value = event.data[this.columns[0]] ?: return true
             val marks = this.marks ?: return false
 
             /* Obtain marks and add them. */
-            return if (value is RealVectorValue<*>) {
-                this.dataStore.add(this.context.xodusTx, event.tupleId.toKey(), marks.getSignature(value).toEntry())
-            } else {
-                true /* This should only handle the NULL case. */
-            }
+            return this.dataStore.add(this.context.xodusTx, event.tupleId.toKey(), marks.getSignature(value as RealVectorValue<*>).toEntry())
         }
 
         /**
@@ -292,8 +300,8 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Update): Boolean {
-            val oldValue = event.data[this.column]?.first
-            val newValue = event.data[this.column]?.second
+            val oldValue = event.data[this.columns[0]]?.first
+            val newValue = event.data[this.columns[0]]?.second
             val marks = this.marks ?: return false
 
             /* Obtain marks and update them. */
@@ -314,12 +322,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Delete): Boolean {
-            val oldValue = event.data[this.column]
-            return if (oldValue != null) {
-                this.dataStore.delete(this.context.xodusTx, event.tupleId.toKey())
-            } else {
-                true
-            }
+            return event.data[this.columns[0]] == null || this.dataStore.delete(this.context.xodusTx, event.tupleId.toKey())
         }
 
         /**
@@ -347,6 +350,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Iterator].
          */
+        @Suppress("UNCHECKED_CAST")
         override fun filter(predicate: Predicate, partition: LongRange) = this.txLatch.withLock {
             object : Cursor<Record> {
 
@@ -534,30 +538,20 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             private val dataStore: Store = this.tmpEnvironment.openStore(this@VAFIndex.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.tmpTx, true)
                 ?: throw DatabaseException.DataCorruptionException("Temporary data store for index ${this@VAFIndex.name} could not be created.")
 
-            /** The [VAFMarks] generated by this [VAFIndexConfig]. */
-            private val newMarks: VAFMarks
-
-            init {
+            /** The [EquidistantVAFMarks] generated by this [VAFIndexConfig]. */
+            private val newMarks: EquidistantVAFMarks by lazy {
                 /* Obtain component-wise minimum and maximum for the vector held by the entity. */
-                val dimension = this.indexedColumn.type.logicalSize
                 val entityTx = this@Tx.context.getTx(this@VAFIndex.parent) as EntityTx
                 val columnTx = this@Tx.context.getTx(entityTx.columnForName(this.indexedColumn.name)) as ColumnTx<*>
-                val (minimum, maximum) = when (val stat = columnTx.statistics()) {
-                    is FloatVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() } to DoubleArray(dimension) { stat.max.data[it].toDouble() }
-                    is DoubleVectorValueStatistics -> DoubleArray(dimension) {  stat.min.data[it] } to DoubleArray(dimension) {  stat.max.data[it] }
-                    is IntVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() } to DoubleArray(dimension) { stat.max.data[it].toDouble() }
-                    is LongVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() } to DoubleArray(dimension) { stat.max.data[it].toDouble() }
-                    else -> throw DatabaseException("Column type not supported for VAF index.")
-                }
 
                 /* Calculate and update marks. */
-                this.newMarks = EquidistantVAFMarks(minimum, maximum, this.config.marksPerDimension)
+                EquidistantVAFMarks(columnTx.statistics() as VectorValueStatistics<*>, this.config.marksPerDimension)
             }
 
             /**
              * Internal, modified rebuild method. This method basically scans the entity and writes all the changes to the surrounding snapshot.
              */
-            override fun scan() {
+            override fun internalScan() {
                 LOGGER.debug("Scanning VAF index {} for rebuild.", this@VAFIndex.name)
                 val entityTx = this@Tx.context.getTx(this@VAFIndex.parent) as EntityTx
                 val columnTx = this@Tx.context.getTx(entityTx.columnForName(this.indexedColumn.name)) as ColumnTx<*>
@@ -590,61 +584,51 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
                 while (cursor.next && this.state == IndexRebuilderState.SCANNED) {
                     indexTx.dataStore.putRight(context.xodusTx, cursor.key, cursor.value)
                 }
+
+                /* Update index state. */
+                indexTx.updateState(IndexState.CLEAN, this.config.copy(marks = this.newMarks))
                 LOGGER.debug("Rebuilding VAF index {} completed!", this@VAFIndex.name)
             }
 
             /**
-             * Merges this [VAFIndexRebuilder] with the surrounding [VAFIndex].
+             * Internal method that apples a [DataEvent.Insert] from an external transaction to this [VAFIndexRebuilder].
+             *
+             * @param event The [DataEvent.Insert] to process.
+             * @return True on success, false otherwise.
              */
-            override fun onCommit(txId: TransactionId, events: List<Event>) {
-                for (event in events) {
-                    when(event) {
-                        is DataEvent.Insert -> {
-                            require(event.entity == this.index.name.entity()) { "DataEvent $event received that does not concern this index. This is a programmer's error!" }
+            override fun applyInsert(event: DataEvent.Insert): Boolean {
+                val value = event.data[this.indexedColumn] ?: return true
+                return this.dataStore.add(this.tmpTx, event.tupleId.toKey(), this.newMarks.getSignature(value as RealVectorValue<*>).toEntry())
+            }
 
-                            /* Sanity checks. */
-                            val value = event.data[this.indexedColumn]
-                            if (value is RealVectorValue<*>) {
-                                if (!this.dataStore.add(this.tmpTx, event.tupleId.toKey(), this.newMarks.getSignature(value).toEntry())) {
-                                    this.abort()
-                                }
-                            }
-                        }
-                        is DataEvent.Update -> {
-                            require(event.entity == this.index.name.entity()) { "DataEvent $event received that does not concern this index. This is a programmer's error!" }
+            /**
+             * Internal method that apples a [DataEvent.Update] from an external transaction to this [VAFIndexRebuilder].
+             *
+             * @param event The [DataEvent.Update] to process.
+             * @return True on success, false otherwise.
+             */
+            override fun applyUpdate(event: DataEvent.Update): Boolean {
+                val oldValue = event.data[this.indexedColumn]?.first
+                val newValue = event.data[this.indexedColumn]?.second
 
-                            val oldValue = event.data[this.indexedColumn]?.first
-                            val newValue = event.data[this.indexedColumn]?.second
-
-                            /* Obtain marks and update them. */
-                            if (newValue is RealVectorValue<*>) { /* Case 1: New value is not null, i.e., update to new value. */
-                                if (!this.dataStore.put(this.tmpTx, event.tupleId.toKey(), this.newMarks.getSignature(newValue).toEntry())) {
-                                    this.abort()
-                                }
-                            } else if (oldValue is RealVectorValue<*>) { /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
-                                if (!this.dataStore.delete(this.tmpTx, event.tupleId.toKey())) {
-                                    this.abort()
-                                }
-                            }
-                        }
-                        is DataEvent.Delete -> {
-                            require(event.entity == this.index.name.entity()) { "DataEvent $event received that does not concern this index. This is a programmer's error!" }
-                            val oldValue = event.data[this.indexedColumn]
-                            if (oldValue != null) {
-                                if (!this.dataStore.delete(this.tmpTx, event.tupleId.toKey())) {
-                                    this.abort()
-                                }
-                            }
-                        }
-                        else -> continue
-                    }
+                /* Obtain marks and update them. */
+                return if (newValue != null) { /* Case 1: New value is not null, i.e., update to new value. */
+                    this.dataStore.put(this.tmpTx, event.tupleId.toKey(), this.newMarks.getSignature(newValue as RealVectorValue<*>).toEntry())
+                } else if (oldValue != null) { /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
+                    this.dataStore.delete(this.tmpTx, event.tupleId.toKey())
+                } else {
+                    true /* If value is NULL. */
                 }
             }
+
             /**
-             * Merges this [IndexRebuilder] with the surrounding [VAFIndex].
+             * Internal method that apples a [DataEvent.Delete] from an external transaction to this [VAFIndexRebuilder].
+             *
+             * @param event The [DataEvent.Delete] to process.
+             * @return True on success, false otherwise.
              */
-            override fun onDeliveryFailure(txId: TransactionId) {
-                this.abort()
+            override fun applyDelete(event: DataEvent.Delete): Boolean {
+                return event.data[this.indexedColumn] == null || this.dataStore.delete(this.tmpTx, event.tupleId.toKey())
             }
         }
     }

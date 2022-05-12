@@ -13,13 +13,14 @@ import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.functions.Signature
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.CosineDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
+import org.vitrivr.cottontail.core.queries.nodes.traits.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
+import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
@@ -30,6 +31,7 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
+import org.vitrivr.cottontail.dbms.index.gg.GGIndex
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignature
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignatureGenerator
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
@@ -38,7 +40,7 @@ import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import kotlin.concurrent.withLock
 
 /**
- * An [AbstractHDIndex] structure for proximity based search (NNS / FNS) based on locality sensitive hashing (LSH, see [1]).
+ * An [AbstractIndex] structure for proximity based search (NNS / FNS) based on locality sensitive hashing (LSH, see [1]).
  *
  * This [LSHIndex] is a generalization that basically maps an [LSHSignature] to the [TupleId] that match that [LSHSignature].
  * Generating the [LSHSignature] is delegated to a [LSHSignatureGenerator], which enables different types of LSH algorithms
@@ -48,9 +50,9 @@ import kotlin.concurrent.withLock
  * [1] Indyk, P. and Motwani, R., 1998. Approximate Nearest Neighbors: Towards Removing the Curse of Dimensionality (p. 604–613). Proceedings of the Thirtieth Annual ACM Symposium on Theory of Computing
  *
  * @author Ralph Gasser, Manuel Hürbin, Gabriel Zihlmann
- * @version 1.0.0
+ * @version 1.1.0
  */
-class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(name, parent) {
+class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
     /**
      * The [IndexDescriptor] for the [LSHIndex].
@@ -148,23 +150,15 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
     /**
      * A [IndexTx] that affects this [LSHIndex].
      */
-    private inner class Tx(context: TransactionContext) : AbstractHDIndex.Tx(context) {
+    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
         /** The [LSHIndexConfig] used by this [LSHIndex.Tx] instance. */
         override val config: LSHIndexConfig
             get() = super.config as LSHIndexConfig
 
-        /** The set of supported [VectorDistance]s. */
-        override val supportedDistances: Set<Signature.Closed<*>>
-
         /** The Xodus [Store] used to store [PQSignature]s. */
         private var dataStore: Store = this@LSHIndex.catalogue.environment.openStore(this@LSHIndex.name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, this.context.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@LSHIndex.name} is missing.")
-
-        init {
-            val config = this.config
-            this.supportedDistances = setOf(Signature.Closed(config.distance, arrayOf(this.column.type, this.column.type), Types.Double))
-        }
 
         /**
          * Adds a mapping from the bucket [IntArray] to the given [TupleId].
@@ -213,6 +207,41 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             return emptyList()
         }
 
+        /**
+         * Checks if this [GGIndex] can process the provided [Predicate] and returns true if so and false otherwise.
+         *
+         * @param predicate [Predicate] to check.
+         * @return True if [Predicate] can be processed, false otherwise.
+         */
+        override fun canProcess(predicate: Predicate): Boolean
+           = predicate is ProximityPredicate && predicate.column == this.columns[0] && predicate.distance is CosineDistance<*>
+
+        /**
+         * Returns the map of [Trait]s this [LSHIndex] implements for the given [Predicate]s.
+         *
+         * @param predicate [Predicate] to check.
+         * @return Map of [Trait]s for this [LSHIndex]
+         */
+        override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> = when (predicate) {
+            is ProximityPredicate.NNS -> mutableMapOf(
+                OrderTrait to OrderTrait(listOf(predicate.distanceColumn to SortOrder.ASCENDING)),
+                LimitTrait to LimitTrait(predicate.k),
+                NotPartitionableTrait to NotPartitionableTrait
+            )
+            is ProximityPredicate.FNS -> mutableMapOf(
+                OrderTrait to OrderTrait(listOf(predicate.distanceColumn to SortOrder.DESCENDING)),
+                LimitTrait to LimitTrait(predicate.k),
+                NotPartitionableTrait to NotPartitionableTrait
+            )
+            else -> throw IllegalArgumentException("Unsupported predicate for high-dimensional index. This is a programmer's error!")
+        }
+
+        /**
+         * Estimates the [Cost] for using this [LSHIndex] to evaluate the given [Predicate]
+         *
+         * @param predicate [Predicate] to check.
+         * @return [Cost] estimation.
+         */
         override fun costFor(predicate: Predicate): Cost {
             TODO("Not yet implemented")
         }
@@ -221,7 +250,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          * (Re-)builds the [LSHIndex].
          */
         override fun rebuild() {
-            LOGGER.debug("Rebuilding SB-LSH index {}", this@LSHIndex.name)
+            LOGGER.debug("Rebuilding LSH index {}", this@LSHIndex.name)
 
             /* Initialize SignatureGenerator. */
             val entityTx = this.context.getTx(this.dbo.parent) as EntityTx

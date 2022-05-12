@@ -20,7 +20,14 @@ import java.io.ByteArrayInputStream
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 1.3.0
  */
-data class PQIndexConfig(val distance: Name.FunctionName, val samples: Int, val numCentroids: Int, val seed: Long = System.currentTimeMillis(), val centroids: List<DoubleArray> = emptyList()) : IndexConfig<PQIndex> {
+data class PQIndexConfig(
+    val distance: Name.FunctionName,
+    val samples: Int,
+    val numCentroids: Int,
+    val seed: Long = System.currentTimeMillis(),
+    val centroids: List<DoubleArray> = emptyList(),
+    var accumulatedChanges: Long = 0L
+) : IndexConfig<PQIndex> {
 
     companion object {
         /** Configuration key for the number of subspaces. */
@@ -52,7 +59,8 @@ data class PQIndexConfig(val distance: Name.FunctionName, val samples: Int, val 
             val centroids = (0 until actualNumberOfCentroids).map {
                 Snappy.uncompressDoubleArray(stream.readNBytes(IntegerBinding.readCompressed(stream)))
             }
-            return PQIndexConfig(distance, samples, numCentroids, seed, centroids)
+            val accumulatedChanges = LongBinding.readCompressed(stream)
+            return PQIndexConfig(distance, samples, numCentroids, seed, centroids, accumulatedChanges)
         }
 
         override fun writeObject(output: LightOutputStream, `object`: Comparable<PQIndexConfig>) {
@@ -67,6 +75,7 @@ data class PQIndexConfig(val distance: Name.FunctionName, val samples: Int, val 
                 IntegerBinding.writeCompressed(output, compressed.size)
                 output.write(compressed)
             }
+            LongBinding.writeCompressed(output, `object`.accumulatedChanges)
         }
     }
 
