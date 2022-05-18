@@ -21,7 +21,7 @@ import java.io.PrintStream
  * [OperatorNode]s allow for reasoning and transformation of the execution plan during query optimization and are manipulated by the query planner.
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.6.0
  */
 sealed class OperatorNode : NodeWithTrait {
     /** The arity of this [OperatorNode], i.e., the number of parents or inputs allowed. */
@@ -78,12 +78,13 @@ sealed class OperatorNode : NodeWithTrait {
      * are transformed into equivalent representations of [OperatorNode.Logical]s.
      *
      * @author Ralph Gasser
-     * @version 2.5.0
+     * @version 2.6.0
      */
     abstract class Logical : OperatorNode() {
 
         /** The [OperatorNode.Logical] that receives the results produced by this [OperatorNode.Logical] as input. May be null, which makes this [OperatorNode.Logical] the root of the tree. */
         var output: Logical? = null
+            internal set
 
         /** The root of this [OperatorNode.Logical], i.e., the final [OperatorNode.Logical] in terms of operation that usually produces the output. */
         val root: Logical
@@ -101,6 +102,13 @@ sealed class OperatorNode : NodeWithTrait {
          * @return Copy of this [OperatorNode.Logical].
          */
         abstract override fun copy(): Logical
+
+        /**
+         * Creates and returns a copy of this [OperatorNode.Logical] using the given parents as input.
+         *
+         * @return Copy of this [OperatorNode.Logical].
+         */
+        abstract fun copy(vararg input: Logical): Logical
 
         /**
          * Creates and returns a copy of this [OperatorNode.Logical] and all its inputs that belong to the same [GroupId],
@@ -146,7 +154,7 @@ sealed class OperatorNode : NodeWithTrait {
      * and a cost model that allows the query planner to select the optimal plan.
      *
      * @author Ralph Gasser
-     * @version 2.5.0
+     * @version 2.6.0
      *
      * @see OperatorNode
      */
@@ -154,6 +162,7 @@ sealed class OperatorNode : NodeWithTrait {
 
         /** The [OperatorNode.Logical] that receives the results produced by this [OperatorNode.Logical] as input. May be null, which makes this [OperatorNode.Logical] the root of the tree. */
         var output: Physical? = null
+            internal set
 
         /** The root of this [OperatorNode.Physical], i.e., the final [OperatorNode.Physical] in terms of operation that usually produces the output. */
         val root: Physical
@@ -180,6 +189,20 @@ sealed class OperatorNode : NodeWithTrait {
 
         /** Most [OperatorNode.Physical]s are executable by default. */
         override val executable: Boolean = true
+
+        /**
+         * Creates and returns a copy of this [OperatorNode.Physical] without any children or parents.
+         *
+         * @return Copy of this [OperatorNode.Physical].
+         */
+        abstract override fun copy(): Physical
+
+        /**
+         * Creates and returns a copy of this [OperatorNode.Physical] using the given parents as input.
+         *
+         * @return Copy of this [OperatorNode.Physical].
+         */
+        abstract fun copy(vararg input: Physical): Physical
 
         /**
          * Creates and returns a copy of this [OperatorNode.Physical] with all its inputs reaching up to the [base] of the tree.
