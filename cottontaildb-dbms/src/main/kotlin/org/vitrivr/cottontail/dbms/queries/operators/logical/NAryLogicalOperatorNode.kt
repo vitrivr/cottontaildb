@@ -20,7 +20,7 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical): OperatorNode.Log
     val inputs: List<Logical>
         get() = Collections.unmodifiableList(this._inputs)
 
-    /** A [BinaryLogicalOperatorNode]'s index is always the [depth] of its first input + 1. */
+    /** A [NAryLogicalOperatorNode]'s index is always the [depth] of its first input + 1. */
     final override var depth: Int = 0
         private set
 
