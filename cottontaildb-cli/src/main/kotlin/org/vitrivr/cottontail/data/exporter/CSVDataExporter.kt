@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.data.exporter
 
 import com.github.doyaaaaaken.kotlincsv.client.KotlinCsvExperimental
 import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
+import org.apache.commons.codec.binary.Base64
 import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.data.Format
@@ -39,17 +40,17 @@ class CSVDataExporter(override val path: Path) : DataExporter {
                 Type.DOUBLE -> tuple.asDouble(colName)
                 Type.DATE -> tuple.asDate(colName)
                 Type.STRING -> tuple.asString(colName)
-                Type.COMPLEX32 -> TODO()
-                Type.COMPLEX64 -> TODO()
-                Type.DOUBLE_VECTOR -> TODO()
-                Type.FLOAT_VECTOR -> TODO()
-                Type.LONG_VECTOR -> TODO()
-                Type.INTEGER_VECTOR -> TODO()
-                Type.BOOLEAN_VECTOR -> TODO()
-                Type.COMPLEX32_VECTOR -> TODO()
-                Type.COMPLEX64_VECTOR -> TODO()
-                Type.BLOB -> TODO()
-                Type.UNDEFINED -> TODO()
+                Type.COMPLEX32,
+                Type.COMPLEX64 -> encode((tuple[tuple.indexForName(colName)] as Pair<*, *>).toList())
+                Type.DOUBLE_VECTOR -> encode(tuple.asDoubleVector(colName)?.toList())
+                Type.FLOAT_VECTOR -> encode(tuple.asFloatVector(colName)?.toList())
+                Type.LONG_VECTOR -> encode(tuple.asLongVector(colName)?.toList())
+                Type.INTEGER_VECTOR -> encode(tuple.asIntVector(colName)?.toList())
+                Type.BOOLEAN_VECTOR -> encode(tuple.asBooleanVector(colName)?.toList())
+                Type.COMPLEX32_VECTOR,
+                Type.COMPLEX64_VECTOR -> encode((tuple[tuple.indexForName(colName)] as Array<Pair<*,*>>).map { encode(it.toList()) })
+                Type.BLOB -> Base64.encodeBase64String(tuple[tuple.indexForName(colName)] as ByteArray)
+                Type.UNDEFINED -> "undefined"
             }
         }
         writer.writeRow(row)
@@ -59,6 +60,8 @@ class CSVDataExporter(override val path: Path) : DataExporter {
         writer.close()
         this.closed = true
     }
+
+    private fun encode(vector: List<Any?>?) : String = vector?.joinToString(separator = ",", prefix = "[", postfix = "]") ?: "[]"
 
 
 }
