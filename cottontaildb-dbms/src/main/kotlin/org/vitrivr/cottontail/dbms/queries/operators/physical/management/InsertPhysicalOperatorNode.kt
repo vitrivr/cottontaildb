@@ -62,7 +62,7 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
         this.entity.listColumns().forEach { columnDef ->
             this.statistics[columnDef] = (this.entity.context.getTx(this.entity.columnForName(columnDef.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
         }
-        val cummulativeAvgRecordSize = this.records.sumOf { r -> r.columns.sumOf { c -> r[c]!!.logicalSize }}
+        val cummulativeAvgRecordSize = this.records.sumOf { r -> r.columns.sumOf { c -> r[c]?.logicalSize ?: 0 }}
         this.cost = (Cost.DISK_ACCESS_WRITE + Cost.MEMORY_ACCESS) * cummulativeAvgRecordSize
     }
 
