@@ -3,12 +3,10 @@ package org.vitrivr.cottontail.data.importer
 import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.data.Format
-import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.nio.file.Path
 
 class CSVDataImporter(override val path: Path, override val schema: List<ColumnDef<*>>) : DataImporter {
