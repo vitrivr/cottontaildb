@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.queries.planner
+package org.vitrivr.cottontail.dbms.queries.planning.planner
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
@@ -33,7 +33,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.Coun
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
 /**
- * A collection of test cases for the [UniqueBTreeIndexSelectionPlannerTest].
+ * A collection of test cases that test the outcome for index selection in presend of an [IndexType.BTREE_UQ].
  *
  * @author Ralph Gasser
  * @version 1.0.0
