@@ -101,7 +101,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
             }
 
             /* Windows flag in case of cleanup exceptions (file system does not allow move) */
-            var isWindoof = false
+            var isWindows = false
 
             /* Execute actual data migration. */
             try {
@@ -116,7 +116,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
                 Files.move(migratedDatabaseRoot, config.root, StandardCopyOption.ATOMIC_MOVE)
             } catch (e: Throwable) {
                 this.log("Error during data migration: ${e.message}\n")
-                isWindoof = System.getProperty("os.name").lowercase().contains("windows")
+                isWindows = System.getProperty("os.name").lowercase().contains("windows")
                 /* Delete destination (Cleanup). */
                 TxFileUtilities.delete(dstCatalogue.path)
             } finally {
@@ -124,7 +124,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
                 srcCatalogue.close()
                 dstCatalogue.close()
             }
-            if(isWindoof){
+            if(isWindows){
                 this.log("""
                             Windows detected. Finish the migration before a restart manually:
                               1. Move ${config.root} -> ${config.root.parent.resolve("${config.root.fileName}~old")}
