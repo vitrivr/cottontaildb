@@ -6,7 +6,7 @@ package org.vitrivr.cottontail.core.queries.planning.cost
  * @author Ralph Gasser
  * @version 1.0.0
  */
-interface CostPolicy: Comparator<Cost> {
+interface CostPolicy: Comparator<NormalizedCost> {
 
     /** The weight / importance of the IO aspect of the [CostPolicy]. */
     val wio: Float
@@ -38,17 +38,17 @@ interface CostPolicy: Comparator<Cost> {
      * @param cost The [Cost] to transform.
      * @return The cost score.
      */
-    fun toScore(cost: Cost): Float =
+    fun toScore(cost: NormalizedCost): Float =
         (this.wio * cost.io + this.wcpu * cost.cpu + this.wmemory * cost.memory + this.waccuracy * cost.accuracy)
 
     /**
-     * Compares two [Cost] objects based on the score.
+     * Compares two [NormalizedCost] objects based on the score.
      *
-     * @param o1 The first [Cost] in the comparison.
-     * @param o2 The second [Cost] in the comparison.
+     * @param o1 The first [NormalizedCost] in the comparison.
+     * @param o2 The second [NormalizedCost] in the comparison.
      * @return
      */
-    override fun compare(o1: Cost, o2: Cost): Int = this.toScore(o1).compareTo(this.toScore(o2))
+    override fun compare(o1: NormalizedCost, o2: NormalizedCost): Int = this.toScore(o1).compareTo(this.toScore(o2))
 
     /**
      * Estimates, how much parallelization makes sense given the parallelisable portion vs the total [Cost]. The estimation

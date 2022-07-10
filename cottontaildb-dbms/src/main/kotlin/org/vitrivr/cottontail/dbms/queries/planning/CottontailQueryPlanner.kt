@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.planning
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.queries.planning.cost.NormalizedCost
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
@@ -53,7 +54,10 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
 
         /* Execute actual query planning and select candidate with lowest cost. */
         val candidates = this.plan(context)
-        val selected = candidates.minByOrNull { context.costPolicy.toScore(it.totalCost) } ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for query. Maybe there is an index missing?")
+        val normalized = NormalizedCost.normalize(candidates.map { it.totalCost })
+        val selected = candidates.zip(normalized).minByOrNull { (_, cost) ->
+            context.costPolicy.toScore(cost)
+        }?.first ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for query. Maybe there is an index missing?")
 
         /* Update plan cache. */
         if (!cache) this.planCache[digest] = selected
@@ -77,11 +81,11 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         for (d in decomposition) {
             val stage1 = this.optimizeLogical(d.value, context).map { it.implement() }
             val stage2 = stage1.flatMap { this.optimizePhysical(it, context) }
-            val candidate = stage2.filter {
-                it.executable /* Filter-out plans that cannot be executed. */
-            }.minByOrNull {
-                context.costPolicy.toScore(it.totalCost)
-            } ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for expression: $logical.")
+            val executable = stage2.filter { it.executable }
+            val normalized = NormalizedCost.normalize(executable.map { it.totalCost })
+            val candidate = executable.zip(normalized).minByOrNull { (_, cost) ->
+                context.costPolicy.toScore(cost)
+            }?.first ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for expression: $logical.")
             candidates[d.key] = candidate
         }
         return listOf(this.compose(0, candidates))

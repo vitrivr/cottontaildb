@@ -6,12 +6,14 @@ import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
+import org.vitrivr.cottontail.core.queries.planning.cost.NormalizedCost
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.FloatValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
@@ -44,11 +46,14 @@ class ExplainQueryOperator(private val candidates: Collection<OperatorNode.Physi
     override val columns: List<ColumnDef<*>> = COLUMNS
 
     override fun toFlow(context: TransactionContext): Flow<Record> {
-        val candidate = this.candidates.minByOrNull { this@ExplainQueryOperator.costPolicy.toScore(it.totalCost) }!!
+        val normalized = NormalizedCost.normalize(this.candidates.map { it.totalCost })
+        val selected = this.candidates.zip(normalized).minByOrNull { (_, cost) ->
+            this@ExplainQueryOperator.costPolicy.toScore(cost)
+        }?.first ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for query. Maybe there is an index missing?")
         val columns = this.columns.toTypedArray()
         val values = Array<Value?>(this@ExplainQueryOperator.columns.size) { null }
         return flow {
-            val plan = enumerate(emptyArray(), candidate)
+            val plan = enumerate(emptyArray(), selected)
             var row = 0L
             for (p in plan) {
                 val node = p.second
