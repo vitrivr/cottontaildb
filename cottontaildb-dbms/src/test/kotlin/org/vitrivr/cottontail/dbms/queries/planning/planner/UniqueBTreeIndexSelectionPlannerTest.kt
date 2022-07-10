@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.QueryHint
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
@@ -17,6 +16,7 @@ import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.SelectProjectionLogicalOperatorNode
@@ -33,10 +33,10 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.Coun
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
 /**
- * A collection of test cases that test the outcome for index selection in presend of an [IndexType.BTREE_UQ].
+ * A collection of test cases that test the outcome for index selection in presence of an [IndexType.BTREE_UQ].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
 
@@ -81,7 +81,7 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
     @Test
     fun testEqualsWithoutHint() {
         for (i in 0 until 100) {
-            val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
+            val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
             try {
                 val ctx = DefaultQueryContext("test", this.catalogue, txn)
                 val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
@@ -121,7 +121,7 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
      */
     @Test
     fun testEqualsWithNoIndexHint() {
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn, setOf(QueryHint.NoIndex))
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
@@ -157,7 +157,7 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
     @Test
     fun testInWithoutHint() {
         for (i in 0 until 100) {
-            val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
+            val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
             try {
                 val ctx = DefaultQueryContext("test", this.catalogue, txn)
                 val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
@@ -197,7 +197,7 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
     @Test
     fun testInWithoutHintButWithAndCondition() {
         for (i in 0 until 100) {
-            val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
+            val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
             try {
                 val ctx = DefaultQueryContext("test", this.catalogue, txn)
                 val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
@@ -237,7 +237,7 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
      */
     @Test
     fun testInWithNoIndexHint() {
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn, setOf(QueryHint.NoIndex))
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx

@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.transform
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.client.language.basics.Constants
 import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.core.queries.QueryHint
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
@@ -19,6 +18,8 @@ import org.vitrivr.cottontail.dbms.execution.locking.DeadlockException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
+import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.utilities.extensions.proto
@@ -31,7 +32,7 @@ import kotlin.time.TimeSource
  * A facility common to all service that handle [TransactionManager.TransactionImpl]s over gRPC.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.4.1
  */
 @ExperimentalTime
 internal interface TransactionalGrpcService {
@@ -76,22 +77,28 @@ internal interface TransactionalGrpcService {
         }
 
         /* Parse all the query hints provided by the user. */
-        val hints = metadata.hintList.mapNotNull {
-            when (it.hintCase) {
-                CottontailGrpc.Hint.HintCase.NOINDEXHINT -> QueryHint.NoIndex
-                CottontailGrpc.Hint.HintCase.PARALLELINDEXHINT -> QueryHint.NoParallel
-                CottontailGrpc.Hint.HintCase.POLICYHINT -> QueryHint.CostPolicy(
-                    it.policyHint.weightIo,
-                    it.policyHint.weightCpu,
-                    it.policyHint.weightMemory,
-                    it.policyHint.weightAccuracy,
-                    this.catalogue.config.cost.speedupPerWorker, /* Setting is inherited from global config. */
-                    this.catalogue.config.cost.nonParallelisableIO /* Setting is inherited from global config. */
-                )
-                CottontailGrpc.Hint.HintCase.NAMEINDEXHINT -> TODO()
-                else -> null
+        val hints = mutableSetOf<QueryHint>()
+        if (metadata.hasParallelHint()) {
+            hints.add(QueryHint.Parallelism(metadata.parallelHint.max))
+        }
+        if (metadata.hasIndexHint()) {
+            if (metadata.indexHint.disallow) {
+                hints.add(QueryHint.NoIndex)
+            } else {
+                hints.add(QueryHint.Index(metadata.indexHint.name, metadata.indexHint.type?.let { IndexType.valueOf(it.name) }))
             }
-        }.toSet()
+        }
+        if (metadata.hasPolicyHint()) {
+            QueryHint.CostPolicy(
+                metadata.policyHint.weightIo,
+                metadata.policyHint.weightCpu,
+                metadata.policyHint.weightMemory,
+                metadata.policyHint.weightAccuracy,
+                this.catalogue.config.cost.speedupPerWorker, /* Setting inherited from global config. */
+                this.catalogue.config.cost.nonParallelisableIO /* Setting inherited from global config. */
+            )
+        }
+
 
         return DefaultQueryContext(queryId, this.catalogue, transactionContext, hints)
     }

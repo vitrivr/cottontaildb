@@ -1,23 +1,45 @@
-package org.vitrivr.cottontail.core.queries
+package org.vitrivr.cottontail.dbms.queries
 
+import org.vitrivr.cottontail.dbms.index.IndexType
 import kotlin.math.abs
 
 /**
  * A [QueryHint] as provided by the user that issues a query.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 interface QueryHint {
     /**
-     * A [QueryHint] that instructs the query planner to ignore index structures.
+     * A [QueryHint] that instructs the query planner use no index.
      */
     object NoIndex: QueryHint
 
     /**
-     * A [QueryHint] that instructs the query execution engine to not allow for intra query parallelism.
+     * A [QueryHint] that instructs the query planner use a specific index
      */
-    object NoParallel: QueryHint
+    data class Index(val name: String? = null, val type: IndexType? = null): QueryHint {
+        /**
+         * Checks if the provided [Index] matches thins [QueryHint.Index].
+         *
+         * @param index The [Index] to check.
+         * @return True on success, false otherwise.
+         */
+        fun matches(index: org.vitrivr.cottontail.dbms.index.Index): Boolean {
+            if (this.name != null && index.name.simple != this.name) {
+                return false
+            }
+            if (this.type != null && index.type != this.type) {
+                return false
+            }
+            return true
+        }
+    }
+
+    /**
+     * A [QueryHint] that instructs the query execution engine to limit parallelism.
+     */
+    data class Parallelism(val max: Int): QueryHint
 
     /**
      * A [QueryHint] that acts as cost [CostPolicy] for query planning.

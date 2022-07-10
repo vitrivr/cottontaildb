@@ -2,12 +2,12 @@ package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.QueryHint
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.index.IndexState
 import org.vitrivr.cottontail.dbms.index.IndexTx
+import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
@@ -19,11 +19,11 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhy
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 
 /**
- * A [RewriteRule] that implements a [FilterLogicalOperatorNode] preceded by a
- * [EntityScanLogicalOperatorNode] through a single [IndexScanPhysicalOperatorNode].
+ * A [RewriteRule] that implements a [FilterLogicalOperatorNode] preceded by a  [EntityScanLogicalOperatorNode]
+ * through a single [IndexScanPhysicalOperatorNode].
  *
  * @author Ralph Gasser
- * @version 1.3.1
+ * @version 1.5.0
  */
 object BooleanIndexScanRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean = node is FilterPhysicalOperatorNode &&
@@ -40,12 +40,23 @@ object BooleanIndexScanRule : RewriteRule {
             if (parent is EntityScanPhysicalOperatorNode) {
                 val fetch = parent.fetch.toMap()
                 val normalizedPredicate = this.normalize(node.predicate, fetch)
-                val indexes = parent.entity.listIndexes()
-                val candidate = indexes.map {
-                    parent.entity.context.getTx(parent.entity.indexForName(it)) as IndexTx
-                }.find {
-                    it.state != IndexState.DIRTY && it.canProcess(normalizedPredicate)
+
+                /* Extract index hint and search for candidate. */
+                val hint = ctx.hints.filterIsInstance<QueryHint.Index>().firstOrNull()
+                val candidate = if (hint != null) {
+                    parent.entity.listIndexes().map {
+                        parent.entity.context.getTx(parent.entity.indexForName(it)) as IndexTx
+                    }.find {
+                        it.state != IndexState.DIRTY && hint.matches(it.dbo) && it.canProcess(normalizedPredicate)
+                    }
+                } else {
+                    parent.entity.listIndexes().map {
+                        parent.entity.context.getTx(parent.entity.indexForName(it)) as IndexTx
+                    }.find {
+                        it.state != IndexState.DIRTY && it.canProcess(normalizedPredicate)
+                    }
                 }
+
                 if (candidate != null) {
                     val newFetch = parent.fetch.filter { candidate.columnsFor(normalizedPredicate).contains(it.second) }
                     val delta = parent.fetch.filter { !candidate.columnsFor(normalizedPredicate).contains(it.second) }

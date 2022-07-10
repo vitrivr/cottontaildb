@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index
 
-import org.vitrivr.cottontail.core.queries.QueryHint
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.functions.math.score.FulltextScore
 import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
@@ -9,6 +8,7 @@ import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.dbms.index.IndexState
 import org.vitrivr.cottontail.dbms.index.IndexTx
+import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNodeUtilities
@@ -28,7 +28,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * - Function: Executed function must be the [FulltextScore] function.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.1
  */
 object FulltextIndexRule : RewriteRule {
 
@@ -64,6 +64,8 @@ object FulltextIndexRule : RewriteRule {
         val probingArgument = node.function.arguments.filterIsInstance<Binding.Column>().singleOrNull() ?: return null
         val queryString = node.function.arguments.filterIsInstance<Binding.Literal>().singleOrNull() ?: return null
         val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Match(probingArgument, queryString), false)
+
+        /* This rule does not heed index hints, because it can lead the planner to not produce a plan at all. */
         val candidate = scan.entity.listIndexes().map {
             scan.entity.context.getTx(scan.entity.indexForName(it)) as IndexTx
         }.find {
