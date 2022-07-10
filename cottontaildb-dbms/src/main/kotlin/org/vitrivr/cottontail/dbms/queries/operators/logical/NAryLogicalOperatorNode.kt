@@ -4,7 +4,6 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.BinaryPhysicalOperatorNode
 import java.io.PrintStream
 import java.util.*
 
@@ -12,23 +11,23 @@ import java.util.*
  * An abstract [OperatorNode.Logical] implementation that has multiple [OperatorNode.Logical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.6.0
+ * @version 2.7.0
  */
-abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical() {
+abstract class NAryLogicalOperatorNode(vararg inputs: Logical): OperatorNode.Logical() {
 
     /** The inputs to this [NAryLogicalOperatorNode]. The first input belongs to the same group. */
     private val _inputs: MutableList<Logical> = LinkedList<Logical>()
     val inputs: List<Logical>
         get() = Collections.unmodifiableList(this._inputs)
 
-    /** A [BinaryLogicalOperatorNode]'s index is always the [depth] of its [left] input + 1. */
+    /** A [NAryLogicalOperatorNode]'s index is always the [depth] of its first input + 1. */
     final override var depth: Int = 0
         private set
 
     /**
      * The group ID of a [NAryLogicalOperatorNode] is always the one of its left parent.
      *
-     * This is an (arbitrary) definition but very relevant when implementing [BinaryPhysicalOperatorNode]s.
+     * This is an (arbitrary) definition but very relevant when implementing [NAryLogicalOperatorNode]s.
      */
     final override val groupId: GroupId
         get() = this._inputs.firstOrNull()?.groupId ?: 0
@@ -75,8 +74,31 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : org.vitrivr.cot
     abstract override fun copy(): NAryLogicalOperatorNode
 
     /**
-     * Creates and returns a copy of this [NAryLogicalOperatorNode] and all its inputs that belong to the same [GroupId],
-     * up and until the base of the tree.
+     * Creates and returns a copy of this [NAryLogicalOperatorNode] using the provided [OperatorNode.Logical] as input.
+     *
+     * @param input The [OperatorNode.Logical]s that act as input to this [NAryLogicalOperatorNode].
+     * @return Copy of this [NAryLogicalOperatorNode] with new input.
+     */
+    final override fun copy(vararg input: Logical): NAryLogicalOperatorNode {
+        require(input.size <= this.inputArity) { "Cannot provide more than ${this.inputArity} inputs for ${this.javaClass.simpleName}." }
+        val copy = this.copy()
+        input.forEach { copy.addInput(it) }
+        return copy
+    }
+
+    /**
+     * Creates and returns a copy of this [NAryLogicalOperatorNode] and its entire output [OperatorNode.Logical] tree using the provided nodes as input.
+     *
+     * @param input The [OperatorNode.Logical]s that act as input.
+     * @return Copy of this [NAryLogicalOperatorNode] with its output.
+     */
+    final override fun copyWithOutput(vararg input: Logical): Logical {
+        val copy = this.copy(*input)
+        return (this.output?.copyWithOutput(copy) ?: copy).root
+    }
+
+    /**
+     * Creates and returns a copy of this [NAryLogicalOperatorNode] and the entire input [OperatorNode.Logical] tree that belong to the same [GroupId].
      *
      * @return Copy of this [NAryLogicalOperatorNode].
      */
@@ -90,7 +112,7 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : org.vitrivr.cot
     }
 
     /**
-     * Creates and returns a copy of this [NAryLogicalOperatorNode] and all its inputs up and until the base of the tree.
+     * Creates and returns a copy of this [NAryLogicalOperatorNode] and the entire input [OperatorNode.Logical] tree.
      *
      * @return Copy of this [NAryLogicalOperatorNode].
      */
@@ -98,19 +120,6 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : org.vitrivr.cot
         val copy = this.copy()
         this.inputs.forEach { copy.addInput(it.copyWithInputs()) }
         return copy
-    }
-
-    /**
-     * Creates and returns a copy of this [NAryLogicalOperatorNode] with its output reaching down to the [root] of the tree.
-     * Furthermore, connects the provided [input] to the copied [OperatorNode.Logical]s.
-     *
-     * @param input The [OperatorNode.Logical]s that act as input.
-     * @return Copy of this [NAryLogicalOperatorNode] with its output.
-     */
-    override fun copyWithOutput(vararg input: Logical): Logical {
-        val copy = this.copy()
-        input.forEach { copy.addInput(it) }
-        return (this.output?.copyWithOutput(copy) ?: copy).root
     }
 
     /**

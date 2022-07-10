@@ -17,12 +17,14 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
+import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.StringValue
@@ -46,7 +48,7 @@ import kotlin.concurrent.withLock
  * An Apache Lucene based [AbstractIndex]. The [LuceneIndex] allows for fast search on text using the EQUAL or LIKE operator.
  *
  * @author Luca Rossetto & Ralph Gasser
- * @version 3.1.0
+ * @version 3.2.0
  */
 class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
@@ -326,8 +328,11 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * @return List that describes the sort order of the values returned by the [BTreeIndex]
          */
         override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> = this.txLatch.withLock {
-            require(predicate is BooleanPredicate) { "Lucene index can only process boolean predicates." }
-            mapOf(NotPartitionableTrait to NotPartitionableTrait)
+            require(predicate is BooleanPredicate) { "Lucene Index can only process Boolean predicates." }
+            mapOf(
+                NotPartitionableTrait to NotPartitionableTrait,
+                OrderTrait to OrderTrait(listOf(ColumnDef(this@LuceneIndex.parent.name.column("score"), Types.Double) to SortOrder.DESCENDING))
+            )
         }
 
         /**

@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.queries.planning
+package org.vitrivr.cottontail.dbms.queries.planning.rules
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test

@@ -1,9 +1,11 @@
 package org.vitrivr.cottontail.data
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.data.exporter.CSVDataExporter
 import org.vitrivr.cottontail.data.exporter.DataExporter
 import org.vitrivr.cottontail.data.exporter.JsonDataExporter
 import org.vitrivr.cottontail.data.exporter.ProtoDataExporter
+import org.vitrivr.cottontail.data.importer.CSVDataImporter
 import org.vitrivr.cottontail.data.importer.DataImporter
 import org.vitrivr.cottontail.data.importer.JsonDataImporter
 import org.vitrivr.cottontail.data.importer.ProtoDataImporter
@@ -50,7 +52,7 @@ enum class Format(val suffix: String) {
     fun newImporter(file: Path, schema: List<ColumnDef<*>>): DataImporter = when (this) {
         PROTO -> ProtoDataImporter(file, schema)
         JSON -> JsonDataImporter(file, schema)
-        CSV -> TODO()
+        CSV -> CSVDataImporter(file, schema)
     }
 
     /**
@@ -62,6 +64,6 @@ enum class Format(val suffix: String) {
     fun newExporter(file: Path): DataExporter = when (this) {
         PROTO -> ProtoDataExporter(file)
         JSON -> JsonDataExporter(file)
-        CSV -> TODO()
+        CSV -> CSVDataExporter(file)
     }
 }

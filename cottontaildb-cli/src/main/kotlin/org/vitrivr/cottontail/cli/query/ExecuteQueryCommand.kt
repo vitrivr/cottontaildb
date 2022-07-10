@@ -18,7 +18,7 @@ import kotlin.time.ExperimentalTime
  * @version 2.0.0
  */
 @ExperimentalTime
-class ExecuteQueryCommand(client: SimpleClient): AbstractQueryCommand(client, name = "execute", help = "Counts the number of entries in the given entity. Usage: entity count <schema>.<entity>", expand = false) {
+class ExecuteQueryCommand(client: SimpleClient): AbstractQueryCommand(client, name = "execute", help = "Executes a query that has been serialized to the native .proto format.", expand = false) {
 
     /** Path to .proto file that contains query. */
     private val input: Path by option("-i", "--input", help = "Path to input .proto file that contains query.").convert { Paths.get(it) }.required()

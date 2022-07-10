@@ -538,57 +538,53 @@ object GrpcQueryBinder {
      *
      * @return The resulting [SelectProjectionLogicalOperatorNode].
      */
-    private fun parseAndBindProjection(input: OperatorNode.Logical, projection: Map<Name.ColumnName, Name>, op: Projection, context: DefaultQueryContext): OperatorNode.Logical = try {
-        when (op) {
-            Projection.SELECT -> {
-                val fields = projection.keys.flatMap { cp ->
-                    input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
-                }.map {
-                    it.name
-                }
-                SelectProjectionLogicalOperatorNode(input, fields)
+private fun parseAndBindProjection(input: OperatorNode.Logical, projection: Map<Name.ColumnName, Name>, op: Projection, context: DefaultQueryContext): OperatorNode.Logical = when (op) {
+        Projection.SELECT -> {
+            val fields = projection.keys.flatMap { cp ->
+                input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
+            }.map {
+                it.name
             }
-            Projection.SELECT_DISTINCT -> {
-                val fields = projection.keys.flatMap { cp ->
-                    input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
-                }.map {
-                    it.name to true
-                }
-                SelectDistinctProjectionLogicalOperatorNode(input, fields, context.catalogue.config)
-            }
-            Projection.COUNT -> {
-                val columnName = projection.keys.first()
-                val columnDef = ColumnDef(Name.ColumnName(columnName.schemaName, columnName.entityName,"count(${columnName.columnName})"), Types.Long, false)
-                CountProjectionLogicalOperatorNode(input, context.bindings.bind(columnDef))
-            }
-            Projection.COUNT_DISTINCT -> {
-                val fields = projection.keys.flatMap { cp ->
-                    input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
-                }.map {
-                    it.name to true
-                }
-                val columnDef = ColumnDef(Name.ColumnName(fields.first().first.schemaName, fields.first().first.entityName,"count(${fields.joinToString(",") { it.first.columnName }})"), Types.Long, false)
-                CountProjectionLogicalOperatorNode(SelectDistinctProjectionLogicalOperatorNode(input, fields, context.catalogue.config), context.bindings.bind(columnDef))
-            }
-            Projection.EXISTS -> {
-                val columnName = projection.keys.first()
-                val columnDef = ColumnDef(Name.ColumnName(columnName.schemaName, columnName.entityName, "exists(${columnName.columnName})"), Types.Long, false)
-                ExistsProjectionLogicalOperatorNode(input, context.bindings.bind(columnDef))
-            }
-            Projection.SUM,
-            Projection.MAX,
-            Projection.MIN,
-            Projection.MEAN -> {
-                val fields = projection.keys.flatMap { cp ->
-                    input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
-                }.map {
-                    it.name
-                }
-                AggregatingProjectionLogicalOperatorNode(input, op, fields)
-            }
+            SelectProjectionLogicalOperatorNode(input, fields)
         }
-    } catch (e: java.lang.IllegalArgumentException) {
-        throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): $op is not supported.")
+        Projection.SELECT_DISTINCT -> {
+            val fields = projection.keys.flatMap { cp ->
+                input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
+            }.map {
+                it.name to true
+            }
+            SelectDistinctProjectionLogicalOperatorNode(input, fields, context.catalogue.config)
+        }
+        Projection.COUNT -> {
+            val columnName = projection.keys.first()
+            val columnDef = ColumnDef(Name.ColumnName(columnName.schemaName, columnName.entityName,"count(${columnName.columnName})"), Types.Long, false)
+            CountProjectionLogicalOperatorNode(input, context.bindings.bind(columnDef))
+        }
+        Projection.COUNT_DISTINCT -> {
+            val fields = projection.keys.flatMap { cp ->
+                input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
+            }.map {
+                it.name to true
+            }
+            val columnDef = ColumnDef(Name.ColumnName(fields.first().first.schemaName, fields.first().first.entityName,"count(${fields.joinToString(",") { it.first.columnName }})"), Types.Long, false)
+            CountProjectionLogicalOperatorNode(SelectDistinctProjectionLogicalOperatorNode(input, fields, context.catalogue.config), context.bindings.bind(columnDef))
+        }
+        Projection.EXISTS -> {
+            val columnName = projection.keys.first()
+            val columnDef = ColumnDef(Name.ColumnName(columnName.schemaName, columnName.entityName, "exists(${columnName.columnName})"), Types.Long, false)
+            ExistsProjectionLogicalOperatorNode(input, context.bindings.bind(columnDef))
+        }
+        Projection.SUM,
+        Projection.MAX,
+        Projection.MIN,
+        Projection.MEAN -> {
+            val fields = projection.keys.flatMap { cp ->
+                input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
+            }.map {
+                it.name
+            }
+            AggregatingProjectionLogicalOperatorNode(input, op, fields)
+        }
     }
 
 
