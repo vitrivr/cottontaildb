@@ -60,7 +60,7 @@ interface CostPolicy: Comparator<Cost> {
      * @return parallelization estimation for this [Cost].
      */
     fun parallelisation(parallelisableCost: Cost, totalCost: Cost, pmax: Int): Int {
-        if (pmax <= 2) return 1
+        if (pmax < 2) return 1
         if (parallelisableCost.cpu < 1.0f) return 1
         val sp = this.wcpu * parallelisableCost.cpu + this.wio * parallelisableCost.io * this.nonParallelisableIO /* Parallelisable portion of the cost. */
         val ss = this.wcpu * (totalCost.cpu - parallelisableCost.cpu) + this.wio *(totalCost.io - parallelisableCost.io * this.nonParallelisableIO) /* Serial portion of the cost. */
