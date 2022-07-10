@@ -130,7 +130,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         }
 
         /* Tries to clean-up the temporary environment. */
-        Files.walk(this.config.dataFolder()).sorted(Comparator.reverseOrder()).forEach {
+        Files.walk(this.config.temporaryDataFolder()).sorted(Comparator.reverseOrder()).forEach {
             try {
                 Files.delete(it)
             } catch (e: Throwable) {
