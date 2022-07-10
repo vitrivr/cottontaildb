@@ -130,11 +130,15 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         }
 
         /* Tries to clean-up the temporary environment. */
-        Files.walk(this.config.temporaryDataFolder()).sorted(Comparator.reverseOrder()).forEach {
-            try {
-                Files.delete(it)
-            } catch (e: Throwable) {
-                LOGGER.warn("Failed to clean-up temporary data at $it.")
+        if (!Files.exists(this.config.temporaryDataFolder())) {
+            Files.createDirectories(this.config.temporaryDataFolder())
+        } else {
+            Files.walk(this.config.temporaryDataFolder()).sorted(Comparator.reverseOrder()).forEach {
+                try {
+                    Files.delete(it)
+                } catch (e: Throwable) {
+                    LOGGER.warn("Failed to clean-up temporary data at $it.")
+                }
             }
         }
 
