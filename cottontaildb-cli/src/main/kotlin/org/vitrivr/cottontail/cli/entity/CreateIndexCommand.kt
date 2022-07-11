@@ -17,7 +17,7 @@ import kotlin.time.measureTimedValue
  * Command to create a index on a specified entities column from Cottontail DB.
  *
  * @author Loris Sauter & Ralph Gasser
- * @version 2.0.1
+ * @version 2.1.0
  */
 @ExperimentalTime
 class CreateIndexCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "create-index", help = "Creates an index on the given entity and rebuilds the newly created index. Usage: entity createIndex <schema>.<entity> <column> <index>") {
@@ -31,18 +31,9 @@ class CreateIndexCommand(client: SimpleClient) : AbstractEntityCommand(client, n
         help = "The type of index to create."
     ).enum<IndexType>()
 
-    private val skipBuild: Boolean by option(
-        "-s",
-        "--skip-build",
-        help = "Skips the build step for the newly created index. Such an index cannot be used!"
-    ).flag(default = false)
-
     override fun exec() {
         try {
             val create = CreateIndex(this.entityName.fqn, this.attribute, this.index)
-            if (!this.skipBuild) {
-                create.rebuild()
-            }
             val timedTable = measureTimedValue {
                 TabulationUtilities.tabulate(this.client.create(create))
             }

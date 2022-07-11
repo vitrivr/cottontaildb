@@ -244,7 +244,7 @@ class AdaptiveIndexBenchmark(client: SimpleClient): AbstractBenchmarkCommand(cli
             }
 
             /* Build the index. */
-            this@AdaptiveIndexBenchmark.client.create(CreateIndex(this@AdaptiveIndexBenchmark.entity.fqn, this@AdaptiveIndexBenchmark.featureColumn, this@AdaptiveIndexBenchmark.index).name(testIndex).rebuild())
+            this@AdaptiveIndexBenchmark.client.create(CreateIndex(this@AdaptiveIndexBenchmark.entity.fqn, this@AdaptiveIndexBenchmark.featureColumn, this@AdaptiveIndexBenchmark.index).name(testIndex))
 
             /* Start the importer thread. */
             this.inserterThread.start()

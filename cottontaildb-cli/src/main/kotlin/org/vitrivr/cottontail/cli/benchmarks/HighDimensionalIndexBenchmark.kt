@@ -102,7 +102,7 @@ class HighDimensionalIndexBenchmark(client: SimpleClient): AbstractBenchmarkComm
                         this@HighDimensionalIndexBenchmark.entity.fqn,
                         this@HighDimensionalIndexBenchmark.featureColumn,
                         this@HighDimensionalIndexBenchmark.index
-                    ).name(testIndex).rebuild())
+                    ).name(testIndex))
                 }
                 else -> throw IllegalStateException("Phase index $phase is out of bounds for this benchmark instance.")
             }

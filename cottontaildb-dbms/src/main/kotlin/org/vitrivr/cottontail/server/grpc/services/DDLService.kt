@@ -129,7 +129,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
         } else {
             entityName.index("idx_${request.columnsList.joinToString("-")}_${indexType.name.lowercase()}")
         }
-        ctx.assign(CreateIndexPhysicalOperatorNode(ctx.txn.getTx(this.catalogue) as CatalogueTx, indexName, indexType, columns, params, request.rebuild))
+        ctx.assign(CreateIndexPhysicalOperatorNode(ctx.txn.getTx(this.catalogue) as CatalogueTx, indexName, indexType, columns, params))
         ctx.toOperatorTree()
     }.single()
 
