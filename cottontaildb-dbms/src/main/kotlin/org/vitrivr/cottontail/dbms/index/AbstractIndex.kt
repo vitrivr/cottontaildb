@@ -86,7 +86,7 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
         /**
          * Accessor for the [IndexConfig].
          *
-         * This object is accessed lazily, since it may change within the scope of a transactio.
+         * This object is accessed lazily, since it may change within the scope of a transaction.
          */
         override val config: IndexConfig<*>
             get() {
@@ -175,7 +175,7 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
          *
          * @param state The new [IndexState].
          */
-        protected fun updateState(state: IndexState, config: IndexConfig<*>? = null) {
+        internal fun updateState(state: IndexState, config: IndexConfig<*>? = null) {
             /* Obtain old entry and compare state. */
             val oldEntry = IndexCatalogueEntry.read(this@AbstractIndex.name, this@AbstractIndex.catalogue, this.context.xodusTx) ?: throw DatabaseException.DataCorruptionException("Failed to update state for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
             if (oldEntry.state == state) return

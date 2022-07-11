@@ -67,18 +67,6 @@ interface IndexTx: Tx, Filterable, Countable {
     fun traitsFor(predicate: Predicate): Map<TraitType<*>,Trait>
 
     /**
-     * (Re-)builds the underlying [Index].
-     */
-    fun rebuild()
-
-    /**
-     * (Re-)builds the underlying [Index] in an asynchronous, non-blocking manner.
-     *
-     * @return [IndexRebuilder] that can be used to merge the updated index at a later stage.
-     */
-    fun asyncRebuild(): IndexRebuilder
-
-    /**
      * Clears the [Index] underlying this [IndexTx] and removes all entries it contains.
      */
     fun clear()

@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.index
 
+import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.entity.Entity
@@ -26,6 +27,9 @@ interface Index : DBO {
     /** The [Name.IndexName] of this [Index]. */
     override val name: Name.IndexName
 
+    /** The [ColumnDef]s indexed by the [Index]. */
+    val columns: Array<ColumnDef<*>>
+
     /** True, if the [Index] supports incremental updates, i.e., can be updated tuple by tuple. */
     val supportsIncrementalUpdate: Boolean
 
@@ -37,11 +41,17 @@ interface Index : DBO {
 
     /** The [IndexType] of this [Index]. */
     val type: IndexType
-    
+
+    /**
+     * Creates and returns a new [IndexRebuilder] for this [Index].
+     */
+    fun newRebuilder(): IndexRebuilder<Index>
+
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [Index].
      *
      * @param context If the [TransactionContext] that requested the [IndexTx].
      */
     override fun newTx(context: TransactionContext): IndexTx
+
 }

@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicReference
  * @author Ralph Gasser
  * @version 1.0.0
  */
-abstract class IndexRebuilder(val index: Index): TransactionObserver, Closeable {
+abstract class IndexRebuilder<T: Index>(val index: T): TransactionObserver, Closeable {
 
     /** The current [IndexRebuilderState] of this [IndexRebuilder]. */
     private val _state = AtomicReference(IndexRebuilderState.INITIALIZED)
@@ -46,7 +46,7 @@ abstract class IndexRebuilder(val index: Index): TransactionObserver, Closeable 
     protected val tmpPath = this.index.catalogue.config.temporaryDataFolder().resolve("${index.type.toString().lowercase()}-rebuild-${UUID.randomUUID()}")
 
     /** The temporary [Environment] used by this [IndexRebuilder]. */
-    protected val tmpEnvironment: Environment = Environments.newInstance(tmpPath.toFile(), this.index.catalogue.config.xodus.toEnvironmentConfig())
+    protected val tmpEnvironment: Environment = Environments.newInstance(this.tmpPath.toFile(), this.index.catalogue.config.xodus.toEnvironmentConfig())
 
     /** The Xodus [Transaction] object of the temporary environment. */
     protected val tmpTx: Transaction = this.tmpEnvironment.beginExclusiveTransaction()
@@ -58,24 +58,39 @@ abstract class IndexRebuilder(val index: Index): TransactionObserver, Closeable 
     override fun isRelevant(event: Event): Boolean
         = event is DataEvent && event.entity == this.entityName
 
-    init {
-        this.internalScan()
-        if (this._state.compareAndSet(IndexRebuilderState.INITIALIZED, IndexRebuilderState.SCANNED)) {
-            this.tmpTx.flush()
-        }
-    }
-
     /**
      * Scans the data necessary for this [IndexRebuilder]. Usually, this takes place within an existing [TransactionContext].
      */
-    protected abstract fun internalScan()
+    fun scan(context: TransactionContext, async: Boolean) {
+        require(this._state.get() == IndexRebuilderState.INITIALIZED) { "Cannot perform SCAN with index builder because it is in the wrong state."}
+        this.internalScan(context, async)
+        this._state.compareAndSet(IndexRebuilderState.INITIALIZED, IndexRebuilderState.SCANNED)
+    }
+
+    /**
+     * Merges this [IndexRebuilder] with its [IndexTx] using the given [TransactionContext].
+     *
+     * @param context The [TransactionContext] to perform the MERGE in.
+     */
+    fun merge(context: TransactionContext) {
+        require(this._state.get() == IndexRebuilderState.SCANNED) { "Cannot perform MERGE with index builder because it is in the wrong state."}
+        this.internalMerge(context)
+        this._state.compareAndSet(IndexRebuilderState.SCANNED, IndexRebuilderState.MERGED)
+    }
+
+    /**
+     * Internal scan method that is being executed when executing the SCAN stage of this [IndexRebuilder].
+     *
+     * @param context The [TransactionContext] to execute the SCAN stage in.
+     */
+    abstract fun internalScan(context: TransactionContext, async: Boolean)
 
     /**
      * Internal merge method that is being executed when executing the MERGE stage of this [IndexRebuilder].
      *
      * @param context The [TransactionContext] to execute the MERGE stage in.
      */
-    protected abstract fun internalMerge(context: TransactionContext)
+    abstract fun internalMerge(context: TransactionContext)
 
     /**
      * Internal method that apples a [DataEvent.Insert] from an external transaction to this [IndexRebuilder].
@@ -100,17 +115,6 @@ abstract class IndexRebuilder(val index: Index): TransactionObserver, Closeable 
      * @return True on success, false otherwise.
      */
     protected abstract fun applyDelete(event: DataEvent.Delete): Boolean
-
-    /**
-     * Merges this [IndexRebuilder] with its [IndexTx] using the given [TransactionContext].
-     *
-     * @param context The [TransactionContext] to perform the MERGE in.
-     */
-    fun merge(context: TransactionContext) {
-        require(this._state.get() == IndexRebuilderState.SCANNED) { "Cannot perform MERGE with index rebuilder because it is in the wrong state."}
-        this.internalMerge(context)
-        this._state.compareAndSet(IndexRebuilderState.SCANNED, IndexRebuilderState.MERGED)
-    }
 
     /**
      * If an external transaction reports a successful COMMIT, the committed information must be considered by this [IndexRebuilder].
