@@ -72,7 +72,6 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
         /* No op. */
     }
 
-
     /**
      * The actual [Runnable] that rebuilds an [Index].
      */
@@ -102,7 +101,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
          */
         private fun performRebuild(): Boolean {
             val transaction = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
-            try {
+            val rebuilder = try {
                 val catalogueTx = transaction.getTx(this@AutoRebuilderService.catalogue) as CatalogueTx
                 val schema = catalogueTx.schemaForName(this.index.schema())
                 val schemaTx = transaction.getTx(schema) as SchemaTx
@@ -110,19 +109,14 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                 val entityTx = transaction.getTx(entity) as EntityTx
                 val index = entityTx.indexForName(this.index)
                 val indexTx = transaction.getTx(index) as IndexTx
-                if (indexTx.state != IndexState.CLEAN) {
-                    indexTx.rebuild()
-                }
-                transaction.commit()
-                return true
+                indexTx.asyncRebuild()
             } catch (e: Throwable) {
                 when (e) {
                     is DatabaseException.SchemaDoesNotExistException,
                     is DatabaseException.EntityAlreadyExistsException,
                     is DatabaseException.IndexDoesNotExistException -> LOGGER.warn("Index auto-rebuilding for $index failed because DBO no longer exists.")
-                    else -> LOGGER.error("Index auto-rebuilding for $index failed due to exception: ${e.message}.")
+                    else -> LOGGER.error("Index auto-rebuilding (SCAN) for $index failed due to exception: ${e.message}.")
                 }
-                transaction.rollback()
                 return false
             }
         }
@@ -151,6 +145,15 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                     is DatabaseException.IndexDoesNotExistException -> LOGGER.warn("Index auto-rebuilding for $index failed because DBO no longer exists.")
                     else -> LOGGER.error("Index auto-rebuilding (SCAN) for $index failed due to exception: ${e.message}.")
                 }
+                transaction1.rollback()
+                return false
+            }
+
+            /* Start rebuilding. */
+            try {
+                rebuilder.scan(transaction1)
+            } catch (e: Throwable) {
+                LOGGER.error("Index auto-rebuilding (SCAN) for $index failed due to exception: ${e.message}.")
                 return false
             } finally {
                 transaction1.rollback()
