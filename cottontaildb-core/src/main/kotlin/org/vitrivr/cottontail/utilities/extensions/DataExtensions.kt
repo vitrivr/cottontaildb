@@ -63,6 +63,7 @@ fun CottontailGrpc.Literal.toValue(type: Types<*>): Value = when (type) {
     is Types.BooleanVector -> this.toBooleanVectorValue()
     is Types.Complex32Vector -> this.toComplex32VectorValue()
     is Types.Complex64Vector -> this.toComplex64VectorValue()
+    Types.ByteString -> TODO()
 }
 
 /**
@@ -182,6 +183,7 @@ fun Types<*>.proto(): CottontailGrpc.Type = when(this) {
     is Types.DoubleVector -> CottontailGrpc.Type.DOUBLE_VEC
     is Types.Complex32Vector -> CottontailGrpc.Type.COMPLEX32_VEC
     is Types.Complex64Vector -> CottontailGrpc.Type.COMPLEX64_VEC
+    Types.ByteString -> TODO()
 }
 
 /**

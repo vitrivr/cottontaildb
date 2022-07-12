@@ -52,6 +52,7 @@ class CSVDataImporter(override val path: Path, override val schema: List<ColumnD
                     is Types.FloatVector -> FloatVectorValue(parseVector(csvValue){it.toFloat()})
                     is Types.IntVector -> IntVectorValue(parseVector(csvValue){it.toInt()})
                     is Types.LongVector -> LongVectorValue(parseVector(csvValue){it.toLong()})
+                    is Types.ByteString -> TODO()
                 }
             }
         }
