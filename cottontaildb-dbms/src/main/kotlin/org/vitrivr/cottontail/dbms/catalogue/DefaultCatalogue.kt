@@ -152,6 +152,14 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         this.environment.close()
     }
 
+    override fun equals(other: Any?): Boolean {
+        if (other !is DefaultCatalogue) return false
+        if (this.path != other.path) return false
+        return true
+    }
+
+    override fun hashCode(): Int = this.path.hashCode()
+
     /**
      * A [Tx] that affects this [DefaultCatalogue].
      *

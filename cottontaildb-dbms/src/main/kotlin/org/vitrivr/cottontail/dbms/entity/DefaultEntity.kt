@@ -58,6 +58,19 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
      */
     override fun newTx(context: TransactionContext) = this.Tx(context)
 
+    override fun equals(other: Any?): Boolean {
+        if (other !is DefaultEntity) return false
+        if (other.catalogue != this.catalogue) return false
+        if (other.name != this.name) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = name.hashCode()
+        result = 31 * result + parent.hashCode()
+        return result
+    }
+
     /**
      * A [Tx] that affects this [DefaultEntity]. Opening a [DefaultEntity.Tx] will automatically spawn [ColumnTx]
      * and [IndexTx] for every [Column] and [IndexTx] associated with this [DefaultEntity].

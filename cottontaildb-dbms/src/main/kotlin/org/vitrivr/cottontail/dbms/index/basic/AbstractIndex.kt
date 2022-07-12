@@ -43,6 +43,18 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
     /** The [DBOVersion] of this [AbstractIndex]. */
     override val version: DBOVersion = DBOVersion.V3_0
 
+    override fun equals(other: Any?): Boolean {
+        if (other !is AbstractIndex) return false
+        if (other.catalogue != this.catalogue) return false
+        if (other.name != this.name) return false
+        return true
+    }
+    override fun hashCode(): Int {
+        var result = name.hashCode()
+        result = 31 * result + parent.hashCode()
+        return result
+    }
+
     /**
      * A [Tx] that affects this [AbstractIndex].
      */

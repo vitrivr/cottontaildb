@@ -55,10 +55,23 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
      */
     override fun newTx(context: TransactionContext): ColumnTx<T> = Tx(context)
 
+    override fun equals(other: Any?): Boolean {
+        if (other !is DefaultColumn<*>) return false
+        if (other.catalogue != this.catalogue) return false
+        if (other.name != this.name) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = name.hashCode()
+        result = 31 * result + parent.hashCode()
+        return result
+    }
+
     /**
      * A [Tx] that affects this [DefaultColumn].
      */
-    inner class Tx constructor(context: TransactionContext) : AbstractTx(context), ColumnTx<T> {
+    inner class Tx constructor(context: TransactionContext) : AbstractTx(context), ColumnTx<T>, org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization  {
 
         /** Internal data [Store] reference. */
         private val dataStore: Store = this@DefaultColumn.catalogue.environment.openStore(
@@ -342,7 +355,6 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
                     this.context.signalEvent(ColumnEvent.Stale(this@DefaultColumn.name))
                 }
             }
-            super.beforeCommit()
         }
     }
 }
