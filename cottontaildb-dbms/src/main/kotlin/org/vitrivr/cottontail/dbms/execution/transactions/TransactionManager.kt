@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
@@ -41,11 +40,6 @@ import kotlin.coroutines.CoroutineContext
  * @version 1.7.0
  */
 class TransactionManager(val executionManager: ExecutionManager, transactionTableSize: Int, val transactionHistorySize: Int, private val catalogue: DefaultCatalogue) {
-    /** Logger used for logging the output. */
-    companion object {
-        private val LOGGER = LoggerFactory.getLogger(TransactionManager::class.java)
-    }
-
     /** Map of [TransactionImpl]s that are currently PENDING or RUNNING. */
     private val transactions = Collections.synchronizedMap(Long2ObjectOpenHashMap<TransactionImpl>(transactionTableSize, VERY_FAST_LOAD_FACTOR))
 
@@ -122,6 +116,12 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         /** Map of all [Tx] that have been created as part of this [TransactionImpl]. */
         private val txns: MutableMap<Name, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
+        /** List of all [Tx.WithCommitFinalization] that must be notified before commit. */
+        private val notifyOnCommit: MutableList<Tx.WithCommitFinalization> = Collections.synchronizedList(LinkedList())
+
+        /** List of all [Tx.WithRollbackFinalization] that must be notified before rollback. */
+        private val notifyOnRollback: MutableList<Tx.WithRollbackFinalization> = Collections.synchronizedList(LinkedList())
+
         /** A [Mutex] data structure used for synchronisation on the [TransactionImpl]. */
         private val mutex = Mutex()
 
@@ -184,7 +184,10 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          * @return entity [Tx]
          */
         override fun getTx(dbo: DBO): Tx = this.txns.computeIfAbsent(dbo.name) {
-            dbo.newTx(this)
+            val new = dbo.newTx(this)
+            if (new is Tx.WithCommitFinalization) this.notifyOnCommit.add(new)
+            if (new is Tx.WithRollbackFinalization) this.notifyOnRollback.add(new)
+            new
         }
 
         /**
@@ -250,13 +253,8 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
                 this@TransactionImpl.state = TransactionStatus.FINALIZING
                 var commit = false
                 try {
-                    for ((i, txn) in this@TransactionImpl.txns.values.reversed().withIndex()) {
-                        try {
-                            txn.beforeCommit()
-                        } catch (e: Throwable) {
-                            LOGGER.error("An error occurred while preparing Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId} for commit. This is serious!", e)
-                            throw e
-                        }
+                    for (txn in this@TransactionImpl.notifyOnCommit) {
+                        txn.beforeCommit()
                     }
                     if (this@TransactionImpl.xodusTx.isReadonly) {
                         commit = true /* Xodus read-only transaction cannot be committed. */
@@ -308,14 +306,13 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         private fun performRollback() {
             this@TransactionImpl.state = TransactionStatus.FINALIZING
             try {
-                for ((i, txn) in this@TransactionImpl.txns.values.reversed().withIndex()) {
-                    try {
+                try {
+                    for (txn in this@TransactionImpl.notifyOnRollback) {
                         txn.beforeRollback()
-                    } catch (e: Throwable) {
-                        LOGGER.error("An error occurred while rolling back Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId}. This is serious!", e)
                     }
+                } finally {
+                    this.xodusTx.abort()
                 }
-                this.xodusTx.abort()
             } finally {
                 this@TransactionImpl.finalize(false)
             }
@@ -329,6 +326,8 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         private fun finalize(committed: Boolean) {
             this@TransactionImpl.allLocks().forEach { this@TransactionManager.lockManager.unlock(this@TransactionImpl, it.obj) }
             this@TransactionImpl.txns.clear()
+            this@TransactionImpl.notifyOnCommit.clear()
+            this@TransactionImpl.notifyOnRollback.clear()
             this@TransactionImpl.ended = System.currentTimeMillis()
             this@TransactionManager.transactions.remove(this@TransactionImpl.txId)
             if (committed) {

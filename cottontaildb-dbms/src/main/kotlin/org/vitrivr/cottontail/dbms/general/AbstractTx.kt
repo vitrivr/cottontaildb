@@ -18,18 +18,4 @@ abstract class AbstractTx(final override val context: TransactionContext) : Tx {
      * This requires synchronisation.
      */
     val txLatch: ReentrantLock = ReentrantLock()
-
-    /**
-     * Called when the global transaction is committed.
-     */
-    override fun beforeCommit() {
-
-    }
-
-    /**
-     * Called when the global transaction is rolled back.
-     */
-    override fun beforeRollback() {
-
-    }
 }

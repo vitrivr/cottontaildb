@@ -29,7 +29,7 @@ interface TransactionContext: ExecutionContext {
     /**
      * Obtains a [Tx] for the given [DBO]. This method should make sure, that only one [Tx] per [DBO] is created.
      *
-     * @param dbo The DBO] to create the [Tx] for.
+     * @param dbo The [DBO] to create the [Tx] for.
      * @return The resulting [Tx]
      */
     fun getTx(dbo: DBO): Tx
