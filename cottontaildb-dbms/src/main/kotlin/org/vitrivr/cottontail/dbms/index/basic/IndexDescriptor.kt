@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.index
+package org.vitrivr.cottontail.dbms.index.basic
 
 import jetbrains.exodus.bindings.ComparableBinding
 import org.vitrivr.cottontail.core.database.Name
@@ -25,7 +25,7 @@ interface IndexDescriptor<T: Index> {
      * Tries to open an [Index] with the given [Name.IndexName] for the given [DefaultEntity].
      *
      * @param name The [Name.IndexName] of the [Index].
-     * @param entity The [DefaultEntity] that holds the [Index].
+     * @param entity The [DefaultEntity] to open the [Index] for.
      * @return The opened [Index]
      */
     fun open(name: Name.IndexName, entity: DefaultEntity): T

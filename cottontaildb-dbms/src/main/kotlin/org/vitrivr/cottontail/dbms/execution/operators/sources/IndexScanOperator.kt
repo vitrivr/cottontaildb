@@ -13,8 +13,8 @@ import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import org.vitrivr.cottontail.dbms.index.Index
-import org.vitrivr.cottontail.dbms.index.IndexTx
+import org.vitrivr.cottontail.dbms.index.basic.Index
+import org.vitrivr.cottontail.dbms.index.basic.IndexTx
 
 /**
  * An [Operator.SourceOperator] that scans an [Index] and streams all [Record]s found within.

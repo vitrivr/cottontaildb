@@ -1,0 +1,105 @@
+package org.vitrivr.cottontail.dbms.index.pq.signature
+
+import jetbrains.exodus.bindings.ComparableBinding
+import jetbrains.exodus.bindings.IntegerBinding
+import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
+import org.vitrivr.cottontail.core.values.DoubleVectorValue
+import org.vitrivr.cottontail.core.values.FloatVectorValue
+import org.vitrivr.cottontail.core.values.IntVectorValue
+import org.vitrivr.cottontail.core.values.LongVectorValue
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
+import org.xerial.snappy.Snappy
+import java.io.ByteArrayInputStream
+
+/**
+ * A serializable version of a [ProductQuantizer].
+ *
+ * @author Ralph Gasser
+ * @version 1.0.0
+ */
+class SerializableProductQuantizer(val codebooks: Array<Array<DoubleArray>>): IndexStructCatalogueEntry() {
+
+    /**
+     * The [ComparableBinding] used to de-/serialize the [SerializableProductQuantizer].
+     */
+    object Binding: ComparableBinding() {
+        override fun readObject(stream: ByteArrayInputStream): Comparable<SerializableProductQuantizer> {
+            val numberOfSubspaces = IntegerBinding.readCompressed(stream)
+            val numberOfCentroids = IntegerBinding.readCompressed(stream)
+            return SerializableProductQuantizer(Array(numberOfSubspaces) {
+                Array(numberOfCentroids) {
+                    val bytes = stream.readNBytes(IntegerBinding.readCompressed(stream))
+                    Snappy.uncompressDoubleArray(bytes)
+                }
+            })
+        }
+
+        override fun writeObject(output: LightOutputStream, `object`: Comparable<SerializableProductQuantizer>) {
+            require(`object` is SerializableProductQuantizer) { "SerializableProductQuantizer.Binding can only be used to serialize instances of SerializableProductQuantizer." }
+            IntegerBinding.writeCompressed(output, `object`.numberOfSubspaces)
+            IntegerBinding.writeCompressed(output, `object`.numberOfCentroids)
+            for (cb in `object`.codebooks) {
+                for (co in cb) {
+                    val compressed = Snappy.compress(co)
+                    IntegerBinding.writeCompressed(output, compressed.size)
+                    output.write(compressed)
+                }
+            }
+        }
+    }
+
+    /** The number of subspaces as defined in this [SerializableProductQuantizer]. */
+    val numberOfSubspaces
+        get() = this.codebooks.size
+
+    /** The number of dimensions per subspace. */
+    val dimensionsPerSubspace
+        get() = this.codebooks[0].size
+
+    /** The number of centroids per subspace. */
+    val numberOfCentroids
+        get() = this.codebooks[0][0].size
+
+    /**
+     * Converts this [SerializableProductQuantizer] to a [ProductQuantizer].
+     *
+     * @param distance The [VectorDistance] to prepare the [ProductQuantizer] for.
+     * @return New [ProductQuantizer] instance
+     */
+    fun toProductQuantizer(distance: VectorDistance<*>): ProductQuantizer {
+        val reshaped = distance.copy(this.dimensionsPerSubspace)
+        val codebooks = Array(this.numberOfSubspaces) { j ->
+            ProductQuantizer.PQCodebook(reshaped, Array(this.numberOfCentroids) { i ->
+                when(distance.type) {
+                    is Types.DoubleVector -> DoubleVectorValue(this.codebooks[j][i])
+                    is Types.FloatVector -> FloatVectorValue(this.codebooks[j][i])
+                    is Types.LongVector -> LongVectorValue(this.codebooks[j][i])
+                    is Types.IntVector -> IntVectorValue(this.codebooks[j][i])
+                    else -> throw IllegalArgumentException("Reconstruction of product quantizer not possible; type ${distance.type} not supported.")
+                }
+            })
+        }
+        return ProductQuantizer(codebooks)
+    }
+
+    /**
+     * Trivial comparator between two [IndexStructCatalogueEntry]. Proably never used.
+     *
+     * @param other The other [IndexStructCatalogueEntry] to compare this [IndexStructCatalogueEntry] to.
+     * @return -1, 0 or 1
+     */
+    override fun compareTo(other: IndexStructCatalogueEntry): Int {
+        if (other !is SerializableProductQuantizer) return -1
+        for ((i, cb) in this.codebooks.withIndex()) {
+            for ((j, ce) in cb.withIndex()) {
+                for ((k, d) in ce.withIndex()) {
+                    val compare = d.compareTo(other.codebooks[i][j][k])
+                    if (compare != 0) return compare
+                }
+            }
+        }
+        return 0
+    }
+}

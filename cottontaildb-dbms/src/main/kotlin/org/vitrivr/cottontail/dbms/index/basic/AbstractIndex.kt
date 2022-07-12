@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.index
+package org.vitrivr.cottontail.dbms.index.basic
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
@@ -13,7 +13,6 @@ import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
-import org.vitrivr.cottontail.dbms.index.basics.avc.AuxiliaryValueCollection
 import kotlin.concurrent.withLock
 
 /**
@@ -23,9 +22,9 @@ import kotlin.concurrent.withLock
  * @see Index
  *
  * @author Ralph Gasser
- * @version 3.0.0
+ * @version 3.1.0
  */
-abstract class AbstractIndex(final override val name: Name.IndexName, final override val parent: DefaultEntity) : Index {
+abstract class AbstractIndex(final override val name: Name.IndexName, final override val parent: DefaultEntity): Index {
 
     /** A [AbstractIndex] belongs to its [DefaultCatalogue]. */
     final override val catalogue: DefaultCatalogue = this.parent.catalogue
@@ -52,7 +51,7 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
     /**
      * A [Tx] that affects this [AbstractIndex].
      */
-    protected abstract inner class Tx(context: TransactionContext) : AbstractTx(context), IndexTx, WriteModel {
+    abstract inner class Tx(context: TransactionContext) : AbstractTx(context), IndexTx, WriteModel {
 
         /** Reference to the [AbstractIndex] */
         final override val dbo: AbstractIndex
@@ -70,29 +69,29 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
         override val supportsPartitioning: Boolean
             get() = this@AbstractIndex.supportsPartitioning
 
+        /** The [IndexConfig] used by the [AbstractIndex] this [Tx] belongs to. */
+        final override val config: IndexConfig<*>
+
         /** The [ColumnDef] indexed by the [AbstractIndex] this [Tx] belongs to. */
-        override val columns: Array<ColumnDef<*>> = IndexCatalogueEntry.read(this@AbstractIndex.name, this@AbstractIndex.catalogue, this.context.xodusTx)?.columns?.map {
-                ColumnCatalogueEntry.read(it, this@AbstractIndex.catalogue, this.context.xodusTx)?.toColumnDef() ?: throw DatabaseException.DataCorruptionException("Failed to obtain columns for index ${this@AbstractIndex.name} because catalogue entry for column could not be read ${it}.")
-            }?.toTypedArray() ?: throw DatabaseException.DataCorruptionException("Failed to obtain columns for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
+        final override val columns: Array<ColumnDef<*>>
 
         /**
          * Flag indicating, if this [AbstractIndex] reflects all changes done to the [DefaultEntity] it belongs to.
          *
          * This object is accessed lazily, since it may change within the scope of a transactio.
          */
-        override val state: IndexState
-            get() = IndexCatalogueEntry.read(this@AbstractIndex.name, this@AbstractIndex.catalogue, this.context.xodusTx)?.state ?: throw DatabaseException.DataCorruptionException("Failed to obtain state for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
+        final override var state: IndexState
+            private set
 
-        /**
-         * Accessor for the [IndexConfig].
-         *
-         * This object is accessed lazily, since it may change within the scope of a transaction.
-         */
-        override val config: IndexConfig<*>
-            get() {
-                val entry = IndexCatalogueEntry.read(this@AbstractIndex.name, this@AbstractIndex.catalogue, this.context.xodusTx) ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue entry for index ${this@AbstractIndex.name}.")
-                return entry.config
-            }
+        init {
+            val entry = IndexCatalogueEntry.read(this@AbstractIndex.name, this@AbstractIndex.catalogue, this.context.xodusTx) ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
+            this.state = entry.state
+            this.columns = entry.columns.map {
+                ColumnCatalogueEntry.read(it, this@AbstractIndex.catalogue, this.context.xodusTx)?.toColumnDef() ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name} because catalogue entry for column could not be read ${it}.")
+            }.toTypedArray()
+            this.config = entry.config
+        }
+
 
         /** The number of INSERT operations since last rebuilding the index. */
         protected var numberOfInserts = 0L
@@ -120,8 +119,7 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
          * Tries to process an incoming [DataEvent.Insert].
          *
          * If the [AbstractIndex] does not support incremental updates, the [AbstractIndex] will be marked as [IndexState.STALE].
-         * Otherwise, the change is either propagated to the [AbstractIndex] or to the [AuxiliaryValueCollection] this marking the
-         * [AbstractIndex] as [IndexState.DIRTY].
+         * Otherwise, the change is propagated to the [AbstractIndex].
          *
          * @param event [DataEvent.Insert] that should be processed,
          */
@@ -138,8 +136,7 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
          * Tries to process an incoming [DataEvent.Update].
          *
          * If the [AbstractIndex] does not support incremental updates, the [AbstractIndex] will be marked as [IndexState.STALE].
-         * Otherwise, the change is either propagated to the [AbstractIndex] or to the [AuxiliaryValueCollection] this marking the
-         * [AbstractIndex] as [IndexState.DIRTY].
+         * Otherwise, the change is propagated to the [AbstractIndex].
          *
          * @param event [DataEvent.Update]
          */
@@ -156,8 +153,7 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
          * Tries to process an incoming [DataEvent.Delete].
          *
          * If the [AbstractIndex] does not support incremental updates, the [AbstractIndex] will be marked as [IndexState.STALE].
-         * Otherwise, the change is either propagated to the [AbstractIndex] or to the [AuxiliaryValueCollection] this marking the
-         * [AbstractIndex] as [IndexState.DIRTY].
+         * Otherwise, the change is propagated to the [AbstractIndex].
          *
          * @param event [DataEvent.Delete] that should be processed.
          */
@@ -175,23 +171,19 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
          *
          * @param state The new [IndexState].
          */
-        internal fun updateState(state: IndexState, config: IndexConfig<*>? = null) {
-            /* Obtain old entry and compare state. */
-            val oldEntry = IndexCatalogueEntry.read(this@AbstractIndex.name, this@AbstractIndex.catalogue, this.context.xodusTx) ?: throw DatabaseException.DataCorruptionException("Failed to update state for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
-            if (oldEntry.state == state) return
+        internal fun updateState(state: IndexState) {
+            if (state != this.state) {
+                /* Obtain old entry and compare state. */
+                val oldEntry = IndexCatalogueEntry.read(this@AbstractIndex.name, this@AbstractIndex.catalogue, this.context.xodusTx)
+                    ?: throw DatabaseException.DataCorruptionException("Failed to update state for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
+                val newEntry = oldEntry.copy(state = state)
 
-            /* Copy entry... */
-            val newEntry = if (config != null) {
-                oldEntry.copy(state = state, config = config)
-            } else {
-                oldEntry.copy(state = state)
+                /* ... and write it to catalogue. */
+                IndexCatalogueEntry.write(newEntry, this@AbstractIndex.catalogue, this.context.xodusTx)
+
+                /* Signal event to transaction context. */
+                this.context.signalEvent(IndexEvent.State(this@AbstractIndex.name, this@AbstractIndex.type, state))
             }
-
-            /* ... and write it to catalogue. */
-            IndexCatalogueEntry.write(newEntry, this@AbstractIndex.catalogue, this.context.xodusTx)
-
-            /* Signal event to transaction context. */
-            this.context.signalEvent(IndexEvent.State(this@AbstractIndex.name, this@AbstractIndex.type, state))
         }
 
         /**

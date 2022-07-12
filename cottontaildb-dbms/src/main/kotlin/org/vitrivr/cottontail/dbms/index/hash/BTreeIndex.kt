@@ -22,11 +22,11 @@ import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import org.vitrivr.cottontail.dbms.index.*
+import org.vitrivr.cottontail.dbms.index.basic.*
+import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
@@ -38,7 +38,7 @@ import kotlin.concurrent.withLock
  * to map a [Value] to a [TupleId]. Well suited for equality based lookups of [Value]s.
  *
  * @author Luca Rossetto & Ralph Gasser
- * @version 3.0.0
+ * @version 3.1.0
  */
 class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
@@ -100,7 +100,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         /**
          * Generates and returns an empty [IndexConfig].
          */
-        override fun buildConfig(parameters: Map<String, String>): IndexConfig<BTreeIndex> = object : IndexConfig<BTreeIndex>{}
+        override fun buildConfig(parameters: Map<String, String>): IndexConfig<BTreeIndex> = object : IndexConfig<BTreeIndex> {}
 
         /**
          * Returns the [BTreeIndexConfig]
@@ -112,11 +112,26 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
     override val type: IndexType = IndexType.BTREE
 
     /**
-     * Opens and returns a new [IndexTx] object that can be used to interact with this [AbstractIndex].
+     * Opens and returns a new [IndexTx] object that can be used to interact with this [BTreeIndex].
      *
      * @param context If the [TransactionContext] to create the [IndexTx] for.
+     * @return [Tx]
      */
-    override fun newTx(context: TransactionContext): IndexTx = Tx(context)
+    override fun newTx(context: TransactionContext) = Tx(context)
+
+    /**
+     * Opens and returns a new [BTreeIndexRebuilder] object that can be used to rebuild with this [BTreeIndex].
+     *
+     * @param context If the [TransactionContext] to create the [BTreeIndexRebuilder] for.
+     * @return [BTreeIndexRebuilder]
+     */
+    override fun newRebuilder(context: TransactionContext) = BTreeIndexRebuilder(this, context)
+
+    /**
+     * Since [BTreeIndex] does not support asynchronous re-indexing, this method will throw an error.
+     */
+    override fun newAsyncRebuilder(): AsyncIndexRebuilder<BTreeIndex>
+        = throw UnsupportedOperationException("BTreeIndex does not support asynchronous index rebuilding.")
 
     /**
      * Closes this [BTreeIndex]
@@ -128,19 +143,15 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
     /**
      * An [IndexTx] that affects this [BTreeIndex].
      */
-    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
+    inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
         /** The internal [XodusBinding] reference used for de-/serialization. */
         @Suppress("UNCHECKED_CAST")
         private val binding: XodusBinding<Value> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable) as XodusBinding<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
-        private var dataStore: Store = this@BTreeIndex.catalogue.environment.openStore(this@BTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
+        private val dataStore: Store = this@BTreeIndex.catalogue.environment.openStore(this@BTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@BTreeIndex.name} is missing.")
-
-        /** The dummy [BTreeIndexConfig]. */
-        override val config: IndexConfig<BTreeIndex>
-            get() = BTreeIndexConfig
 
         /**
          * Adds a mapping from the given [Value] to the given [TupleId].
@@ -230,40 +241,6 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         }
 
         /**
-         * (Re-)builds the [BTreeIndex].
-         */
-        override fun rebuild() = this.txLatch.withLock {
-            LOGGER.debug("Rebuilding BTree index {}", this@BTreeIndex.name)
-
-            /* Obtain Tx for parent [Entity. */
-            val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
-
-            /* Truncate and reopen old store. */
-            this.clear()
-
-            /* Iterate over entity and update index with entries. */
-            val cursor = entityTx.cursor(this.columns)
-            cursor.forEach { record ->
-                val value = record[this.columns[0]]
-                if (value != null) {
-                    this.addMapping(value, record.tupleId)
-                }
-            }
-
-            /* Close cursor. */
-            cursor.close()
-
-            /* Update state of this index. */
-            this.updateState(IndexState.CLEAN)
-            LOGGER.debug("Rebuilding BTree index {} completed!", this@BTreeIndex.name)
-        }
-
-        /**
-         * Always throws an [UnsupportedOperationException], since [BTreeIndex] does not support asynchronous rebuilds.
-         */
-        override fun asyncRebuild() = throw UnsupportedOperationException("BTreeIndex does not support asynchronous rebuild.")
-
-        /**
          * Updates the [BTreeIndex] with the provided [DataEvent.Insert].
          *
          * @param event [DataEvent.Insert] to apply.
@@ -303,16 +280,6 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          */
         override fun count(): Long  = this.txLatch.withLock {
             this.dataStore.count(this.context.xodusTx)
-        }
-
-        /**
-         * Clears the [BTreeIndex] underlying this [Tx] and removes all entries it contains.
-         */
-        override fun clear() = this.txLatch.withLock {
-            this@BTreeIndex.parent.parent.parent.environment.truncateStore(this@BTreeIndex.name.storeName(), this.context.xodusTx)
-            this.dataStore = this@BTreeIndex.parent.parent.parent.environment.openStore(
-                this@BTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false
-            ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@BTreeIndex.name} is missing.")
         }
 
         /**

@@ -12,6 +12,8 @@ import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
+import org.vitrivr.cottontail.dbms.index.basic.Index
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.test.TestConstants
@@ -142,8 +144,8 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
             val entity = schemaTx.entityForName(this.entityName)
             val entityTx = txn.getTx(entity) as EntityTx
             val index = entityTx.indexForName(this.indexName)
-            val indexTx = txn.getTx(index) as IndexTx
-            indexTx.rebuild()
+            val rebuilder = index.newRebuilder(txn)
+            rebuilder.rebuild()
             txn.commit()
         } catch (e: Throwable) {
             txn.rollback()
@@ -197,8 +199,8 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
         val entityTx = tx1.getTx(entity) as EntityTx
         val preCount = entityTx.count()
         entityTx.listIndexes().map {
-            val indexTx = tx1.getTx(entityTx.indexForName(it)) as IndexTx
-            indexTx.rebuild()
+            val rebuilder = entityTx.indexForName(it).newRebuilder(tx1)
+            rebuilder.rebuild()
         }
         tx1.commit()
 

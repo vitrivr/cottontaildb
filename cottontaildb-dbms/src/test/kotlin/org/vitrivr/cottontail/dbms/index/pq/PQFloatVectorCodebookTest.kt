@@ -6,10 +6,11 @@ import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.dbms.index.pq.signature.PQSignature
+import org.vitrivr.cottontail.dbms.index.pq.signature.ProductQuantizer
 import org.vitrivr.cottontail.test.TestConstants
-import org.vitrivr.cottontail.utilities.math.random.nextDouble
-import org.vitrivr.cottontail.utilities.math.random.nextInt
 import java.util.*
+import kotlin.math.log10
 import kotlin.math.pow
 import kotlin.math.sqrt
 
@@ -44,7 +45,7 @@ class PQFloatVectorCodebookTest {
     private val config = PQIndexConfig(this.distance.signature.name, 3000, this.numberOfClusters)
 
     /** The data to train the quantizer with. */
-    private val trainingdata = this.testdata.filter { this.random.nextDouble() <= (this.config.samples.toDouble() / TestConstants.TEST_COLLECTION_SIZE) }
+    private val trainingdata = this.testdata.filter { this.random.nextDouble() <= ((log10(this.testdata.size.toDouble()) * 1000L) / this.testdata.size) }
 
     /** The [ProductQuantizer] that is used for the tests. */
     private val quantizer = ProductQuantizer.learnFromData(this.distance, this.trainingdata, this.config)
@@ -59,32 +60,6 @@ class PQFloatVectorCodebookTest {
             val serialized = PQSignature.Binding.valueToEntry(signature)
             val signature2 = PQSignature.Binding.entryToValue(serialized)
             Assertions.assertArrayEquals(signature.cells, signature2.cells)
-        }
-    }
-
-    /**
-     * Tests serialization / deserialization of [PQIndexConfig] and the associated codebooks.
-     */
-    @Test
-    fun testCodebookSerialization() {
-        val config2 = this.config.copy(centroids = quantizer.centroids())
-        val serialized = PQIndexConfig.Binding.objectToEntry(config2)
-        val config3 =  PQIndexConfig.Binding.entryToObject(serialized) as PQIndexConfig
-
-        /* Compare PQIndexConfig. */
-        Assertions.assertEquals(config2.seed, config3.seed)
-        Assertions.assertEquals(config2.numCentroids, config3.numCentroids)
-        Assertions.assertEquals(config2.samples, config3.samples)
-        for ((c1, c2) in config2.centroids.zip(config3.centroids)) {
-            Assertions.assertArrayEquals(c1, c2)
-        }
-        for ((c1, c2) in config3.centroids.zip(this.quantizer.centroids())) {
-            Assertions.assertArrayEquals(c1, c2)
-        }
-
-        val loadedQuantizer = ProductQuantizer.loadFromConfig(this.distance, config3)
-        for ((c1, c2) in config3.centroids.zip(loadedQuantizer.centroids())) {
-            Assertions.assertArrayEquals(c1, c2)
         }
     }
 

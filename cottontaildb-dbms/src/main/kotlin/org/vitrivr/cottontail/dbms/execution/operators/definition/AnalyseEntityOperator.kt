@@ -10,33 +10,26 @@ import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import kotlin.system.measureTimeMillis
 
 /**
- * An [Operator.SourceOperator] used during query execution. Optimizes an [Entity]
+ * An [Operator.SourceOperator] used during query execution. Analyses an [Entity] and updates statistics.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.4.0
  */
-class OptimizeEntityOperator(private val tx: CatalogueTx, private val name: Name.EntityName) : AbstractDataDefinitionOperator(name, "OPTIMIZE ENTITY") {
+class AnalyseEntityOperator(private val tx: CatalogueTx, private val name: Name.EntityName) : AbstractDataDefinitionOperator(name, "ANALYSE ENTITY") {
     override fun toFlow(context: TransactionContext): Flow<Record> = flow {
-        val schemaTxn = context.getTx(this@OptimizeEntityOperator.tx.schemaForName(this@OptimizeEntityOperator.name.schema())) as SchemaTx
-        val entityTxn = context.getTx(schemaTxn.entityForName(this@OptimizeEntityOperator.name)) as EntityTx
+        val schemaTxn = context.getTx(this@AnalyseEntityOperator.tx.schemaForName(this@AnalyseEntityOperator.name.schema())) as SchemaTx
+        val entityTxn = context.getTx(schemaTxn.entityForName(this@AnalyseEntityOperator.name)) as EntityTx
         val time = measureTimeMillis {
             /** Analyse all columns that have stale statistics. */
             for (column in entityTxn.listColumns().map { entityTxn.columnForName(it.name) }) {
                 val columnTx = context.getTx(column) as ColumnTx<*>
                 columnTx.analyse()
             }
-
-            /** Rebuild all indexes that are not CLEAN. */
-            for (index in entityTxn.listIndexes().map { entityTxn.indexForName(it) }) {
-                val indexTx = context.getTx(index) as IndexTx
-                indexTx.rebuild()
-            }
         }
-        emit(this@OptimizeEntityOperator.statusRecord(time))
+        emit(this@AnalyseEntityOperator.statusRecord(time))
     }
 }

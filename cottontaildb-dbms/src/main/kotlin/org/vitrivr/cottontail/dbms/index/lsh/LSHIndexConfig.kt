@@ -8,7 +8,7 @@ import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.CosineDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.InnerProductDistance
-import org.vitrivr.cottontail.dbms.index.IndexConfig
+import org.vitrivr.cottontail.dbms.index.basic.IndexConfig
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignatureGenerator
 import org.vitrivr.cottontail.dbms.index.lsh.signature.SBLSHSignatureGenerator
 import java.io.ByteArrayInputStream

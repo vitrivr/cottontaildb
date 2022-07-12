@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries
 
-import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import kotlin.math.abs
 
 /**
@@ -25,7 +25,7 @@ interface QueryHint {
          * @param index The [Index] to check.
          * @return True on success, false otherwise.
          */
-        fun matches(index: org.vitrivr.cottontail.dbms.index.Index): Boolean {
+        fun matches(index: org.vitrivr.cottontail.dbms.index.basic.Index): Boolean {
             if (this.name != null && index.name.simple != this.name) {
                 return false
             }

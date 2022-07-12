@@ -24,7 +24,7 @@ import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
-import org.vitrivr.cottontail.dbms.index.*
+import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import kotlin.concurrent.withLock
 
@@ -80,7 +80,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         private val columns = Object2ObjectLinkedOpenHashMap<Name.ColumnName,Column<*>>()
 
         /** Map of [Name.IndexName] to [IndexTx]. */
-        private val indexes = Object2ObjectLinkedOpenHashMap<Name.IndexName,Index>()
+        private val indexes = Object2ObjectLinkedOpenHashMap<Name.IndexName, Index>()
 
         /**
          * Obtains a global (non-exclusive) read-lock on [DefaultCatalogue].

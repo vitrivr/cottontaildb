@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.index
+package org.vitrivr.cottontail.dbms.index.basic
 
 /**
  * The state of an [Index] in Cottontail DB. Acts as a hint to the query planner whether an index should be used for query execution.

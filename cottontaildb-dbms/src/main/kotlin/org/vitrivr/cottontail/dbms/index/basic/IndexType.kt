@@ -1,6 +1,5 @@
-package org.vitrivr.cottontail.dbms.index
+package org.vitrivr.cottontail.dbms.index.basic
 
-import org.vitrivr.cottontail.dbms.index.gg.GGIndex
 import org.vitrivr.cottontail.dbms.index.hash.BTreeIndex
 import org.vitrivr.cottontail.dbms.index.hash.UQBTreeIndex
 import org.vitrivr.cottontail.dbms.index.lsh.LSHIndex
@@ -27,7 +26,5 @@ enum class IndexType(val descriptor: IndexDescriptor<*>) {
 
     PQ(PQIndex), /* A product quantization (PQ) based index (for approximate nearest neighbour search). */
 
-    LSH(LSHIndex), /* A locality sensitive hashing (LSH) based index (for approximate nearest neighbour search). */
-
-    GG(GGIndex);  /* A greedy grouping (GG) based index (for nearest neighbour search). */
+    LSH(LSHIndex) /* A locality sensitive hashing (LSH) based index (for approximate nearest neighbour search). */
 }

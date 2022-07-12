@@ -12,7 +12,6 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.column.Column
-import org.vitrivr.cottontail.dbms.column.ColumnEngine
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
@@ -98,10 +97,6 @@ class ColumnV2<T : Value>(val path: Path, override val parent: Entity) : Column<
     /** The [DBOVersion] of this [ColumnV2]. */
     override val version: DBOVersion
         get() = DBOVersion.V2_0
-
-    /** The [ColumnEngine] for [ColumnV2]. */
-    val engine: ColumnEngine
-        get() = ColumnEngine.MAPDB
 
     /** Status indicating whether this [ColumnV2] is open or closed. */
     override val closed: Boolean
@@ -246,10 +241,6 @@ class ColumnV2<T : Value>(val path: Path, override val parent: Entity) : Column<
         }
 
         override fun cursor(partition: LongRange): Cursor<T?> {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
-        override fun clear() {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
     }

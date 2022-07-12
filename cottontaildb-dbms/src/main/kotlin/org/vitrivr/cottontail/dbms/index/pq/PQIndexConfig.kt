@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.index.pq
 
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.IntegerBinding
-import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.database.Name
@@ -10,8 +9,7 @@ import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.Cosine
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
-import org.vitrivr.cottontail.dbms.index.IndexConfig
-import org.xerial.snappy.Snappy
+import org.vitrivr.cottontail.dbms.index.basic.IndexConfig
 import java.io.ByteArrayInputStream
 
 /**
@@ -20,14 +18,7 @@ import java.io.ByteArrayInputStream
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 1.3.0
  */
-data class PQIndexConfig(
-    val distance: Name.FunctionName,
-    val samples: Int,
-    val numCentroids: Int,
-    val seed: Long = System.currentTimeMillis(),
-    val centroids: List<DoubleArray> = emptyList(),
-    var accumulatedChanges: Long = 0L
-) : IndexConfig<PQIndex> {
+data class PQIndexConfig(val distance: Name.FunctionName, val numCentroids: Int, val seed: Int = System.currentTimeMillis().toInt()) : IndexConfig<PQIndex> {
 
     companion object {
         /** Configuration key for the number of subspaces. */
@@ -50,32 +41,17 @@ data class PQIndexConfig(
      * [ComparableBinding] for [PQIndexConfig].
      */
     object Binding: ComparableBinding() {
-        override fun readObject(stream: ByteArrayInputStream): Comparable<PQIndexConfig> {
-            val distance = Name.FunctionName(StringBinding.BINDING.readObject(stream))
-            val samples = IntegerBinding.readCompressed(stream)
-            val numCentroids = IntegerBinding.readCompressed(stream)
-            val seed = LongBinding.readCompressed(stream)
-            val actualNumberOfCentroids = IntegerBinding.readCompressed(stream)
-            val centroids = (0 until actualNumberOfCentroids).map {
-                Snappy.uncompressDoubleArray(stream.readNBytes(IntegerBinding.readCompressed(stream)))
-            }
-            val accumulatedChanges = LongBinding.readCompressed(stream)
-            return PQIndexConfig(distance, samples, numCentroids, seed, centroids, accumulatedChanges)
-        }
+        override fun readObject(stream: ByteArrayInputStream) = PQIndexConfig(
+            Name.FunctionName(StringBinding.BINDING.readObject(stream)),
+            IntegerBinding.readCompressed(stream),
+            IntegerBinding.readCompressed(stream)
+        )
 
         override fun writeObject(output: LightOutputStream, `object`: Comparable<PQIndexConfig>) {
             require(`object` is PQIndexConfig) { "PQIndexConfig.Binding can only be used to serialize instances of PQIndexConfig." }
             StringBinding.BINDING.writeObject(output, `object`.distance.simple)
-            IntegerBinding.writeCompressed(output, `object`.samples)
             IntegerBinding.writeCompressed(output, `object`.numCentroids)
-            LongBinding.writeCompressed(output, `object`.seed)
-            IntegerBinding.writeCompressed(output, `object`.centroids.size)
-            for (c in `object`.centroids) {
-                val compressed = Snappy.compress(c)
-                IntegerBinding.writeCompressed(output, compressed.size)
-                output.write(compressed)
-            }
-            LongBinding.writeCompressed(output, `object`.accumulatedChanges)
+            IntegerBinding.writeCompressed(output, `object`.seed)
         }
     }
 

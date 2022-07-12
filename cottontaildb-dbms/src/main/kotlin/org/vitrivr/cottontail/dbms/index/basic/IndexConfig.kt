@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.index
+package org.vitrivr.cottontail.dbms.index.basic
 
 /**
  * An [Index] configuration object.

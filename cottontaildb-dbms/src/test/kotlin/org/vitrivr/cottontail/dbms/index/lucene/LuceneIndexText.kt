@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.generators.StringValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
-import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
 
 /**
  * A set of unit tests to test basic data insert functionality.

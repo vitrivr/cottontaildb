@@ -4,8 +4,6 @@ import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
-import org.apache.commons.math3.random.JDKRandomGenerator
-import org.apache.commons.math3.random.RandomGenerator
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
@@ -13,7 +11,6 @@ import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
@@ -26,6 +23,7 @@ import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.column.ColumnTx
@@ -36,14 +34,16 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import org.vitrivr.cottontail.dbms.index.*
-import org.vitrivr.cottontail.dbms.index.gg.GGIndex
+import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
+import org.vitrivr.cottontail.dbms.index.pq.rebuilder.AsyncPQIndexRebuilder
+import org.vitrivr.cottontail.dbms.index.pq.rebuilder.PQIndexRebuilder
+import org.vitrivr.cottontail.dbms.index.pq.signature.PQLookupTable
+import org.vitrivr.cottontail.dbms.index.pq.signature.PQSignature
+import org.vitrivr.cottontail.dbms.index.pq.signature.ProductQuantizer
+import org.vitrivr.cottontail.dbms.index.pq.signature.SerializableProductQuantizer
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
-import org.vitrivr.cottontail.dbms.index.va.VAFIndexConfig
-import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.utilities.selection.HeapSelection
-import java.util.*
 import kotlin.concurrent.withLock
 
 /**
@@ -54,9 +54,9 @@ import kotlin.concurrent.withLock
  * [1] Guo, Ruiqi, et al. "Quantization based fast inner product search." Artificial Intelligence and Statistics. 2016.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 3.3.0
+ * @version 3.4.0
  */
-class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
+class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, parent) {
 
     /**
      * The [IndexDescriptor] for the [PQIndex].
@@ -139,8 +139,25 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name,
      * Opens and returns a new [IndexTx] object that can be used to interact with this [PQIndex].
      *
      * @param context The [TransactionContext] to create this [IndexTx] for.
+     * @return [Tx]
      */
     override fun newTx(context: TransactionContext): IndexTx = Tx(context)
+
+    /**
+     * Opens and returns a new [PQIndexRebuilder] object that can be used to rebuild with this [PQIndex].
+     *
+     * @param context The [TransactionContext] to create [PQIndexRebuilder] for.
+     * @return [PQIndexRebuilder]
+     */
+    override fun newRebuilder(context: TransactionContext) = PQIndexRebuilder(this, context)
+
+    /**
+     * Opens and returns a new [AsyncPQIndexRebuilder] object that can be used to rebuild with this [PQIndex].
+     *
+     * @return [AsyncPQIndexRebuilder]
+     */
+    override fun newAsyncRebuilder() = AsyncPQIndexRebuilder(this)
+
 
     /**
      * Closes this [PQIndex]
@@ -154,36 +171,22 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name,
      */
     private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
-        /** The [PQIndexConfig] used by this [PQIndex] instance. */
-        override val config: PQIndexConfig
-            get() = super.config as PQIndexConfig
-
         /** The [VectorDistance] function employed by this [PQIndex]. */
-        private val distanceFunction: VectorDistance<*>
+        private val distanceFunction: VectorDistance<*> by lazy {
+            val signature = Signature.Closed((this.config as PQIndexConfig).distance, arrayOf(this.columns[0].type, this.columns[0].type), Types.Double)
+            this@PQIndex.catalogue.functions.obtain(signature) as VectorDistance<*>
+        }
 
         /** The [ProductQuantizer] used by this [PQIndex.Tx] instance. */
-        private var quantizer: ProductQuantizer? = null
-
-        /** The number of changes that have accumulated since the last rebuild for this [PQIndex.Tx]. */
-        private var changesSinceRebuild: Long
+        private val quantizer: ProductQuantizer by lazy {
+            val serializable = IndexStructCatalogueEntry.read<SerializableProductQuantizer>(this@PQIndex.name, this@PQIndex.catalogue, context.xodusTx, SerializableProductQuantizer.Binding)?:
+                throw DatabaseException.DataCorruptionException("ProductQuantizer for PQ index ${this@PQIndex.name} is missing.")
+            serializable.toProductQuantizer(this.distanceFunction)
+        }
 
         /** The Xodus [Store] used to store [PQSignature]s. */
-        private var dataStore: Store = this@PQIndex.catalogue.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
+        private val dataStore: Store = this@PQIndex.catalogue.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@PQIndex.name} is missing.")
-
-        init {
-            val config = this.config
-            this.changesSinceRebuild = config.accumulatedChanges
-
-            /* Obtain distance function. */
-            val signature = Signature.Closed(config.distance, arrayOf(this.columns[0].type, this.columns[0].type), Types.Double)
-            this.distanceFunction = this@PQIndex.catalogue.functions.obtain(signature) as VectorDistance<*>
-
-            /* Obtain ProductQuantizer. */
-            if (config.centroids.isNotEmpty()) {
-                this.quantizer = ProductQuantizer.loadFromConfig(this.distanceFunction, this.config)
-            }
-        }
 
         /**
          * Returns a [List] of the [ColumnDef] produced by this [PQIndex].
@@ -196,7 +199,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name,
         }
 
         /**
-         * Checks if this [GGIndex] can process the provided [Predicate] and returns true if so and false otherwise.
+         * Checks if this [PQIndex] can process the provided [Predicate] and returns true if so and false otherwise.
          *
          * @param predicate [Predicate] to check.
          * @return True if [Predicate] can be processed, false otherwise.
@@ -233,7 +236,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name,
         override fun costFor(predicate: Predicate): Cost = this.txLatch.withLock {
             if (predicate !is ProximityPredicate) return Cost.INVALID
             if (predicate.column != this.columns[0]) return Cost.INVALID
-            if (predicate.distance.name != this.config.distance) return Cost.INVALID
+            if (predicate.distance.name != (this.config as PQIndexConfig).distance) return Cost.INVALID
             val count = this.count()
             val subspaces = ProductQuantizer.numberOfSubspaces(predicate.column.type.logicalSize)
             return Cost(
@@ -241,53 +244,6 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name,
                 count * (4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu) + predicate.cost.cpu * predicate.k,
                 (predicate.k * this.columnsFor(predicate).sumOf { it.type.physicalSize }).toFloat()
             )
-        }
-
-        /**
-         * (Re-)builds the [PQIndex] from scratch.
-         */
-        override fun rebuild() = this.txLatch.withLock {
-            /* Obtain some learning data for training. */
-            LOGGER.debug("Rebuilding PQ index {}", this@PQIndex.name)
-            val random = JDKRandomGenerator(System.currentTimeMillis().toInt())
-            val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
-
-            /* Obtain PQ data structure. */
-            val config = this.config
-            val column = this.columns[0]
-            val type = column.type as Types.Vector<*,*>
-            val columnTx = this.context.getTx(entityTx.columnForName(this.columns[0].name)) as ColumnTx<*>
-            val distanceFunction = this@PQIndex.catalogue.functions.obtain(Signature.SemiClosed(config.distance, arrayOf(Argument.Typed(type), Argument.Typed(type)))) as VectorDistance<*>
-            val newQuantizer = ProductQuantizer.learnFromData(distanceFunction, this.acquireLearningData(columnTx, random), config)
-
-            /* Clear old signatures. */
-            this.clear()
-
-            /* Iterate over column and update index with entries. */
-            val cursor = columnTx.cursor()
-            while (cursor.moveNext()) {
-                val value = cursor.value()
-                if (value is VectorValue<*>) {
-                    val sig = newQuantizer.quantize(value)
-                    this.dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(sig), cursor.key().toKey())
-                }
-            }
-
-            /* Close cursor. */
-            cursor.close()
-
-            /* Update index state for index. */
-            this.quantizer = newQuantizer
-            this.changesSinceRebuild = 0L
-            this.updateState(IndexState.CLEAN, this.config.copy(centroids = newQuantizer.centroids(), accumulatedChanges = 0L))
-            LOGGER.debug("Rebuilding PQ index {} completed!", this@PQIndex.name)
-        }
-
-        /**
-         * Returns a new [PQIndexRebuilder] instance.
-         */
-        override fun asyncRebuild() = this.txLatch.withLock {
-            PQIndexRebuilder()
         }
 
         /**
@@ -300,19 +256,6 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name,
         }
 
         /**
-         * Clears the [VAFIndex] underlying this [Tx] and removes all entries it contains.
-         */
-        override fun clear() = this.txLatch.withLock {
-            /* Truncate and replace store.*/
-            this@PQIndex.catalogue.environment.truncateStore(this@PQIndex.name.storeName(), this.context.xodusTx)
-            this.dataStore = this@PQIndex.catalogue.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
-                ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@PQIndex.name} is missing.")
-
-            /* Update catalogue entry for index. */
-            this.updateState(IndexState.STALE)
-        }
-
-        /**
          * Tries to apply the change applied by this [DataEvent.Insert] to the [PQIndex] underlying this [PQIndex.Tx]. This method implements the
          * [PQIndex]'es write model: INSERTs are always applied with the existing quantizer.
          *
@@ -322,8 +265,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name,
         override fun tryApply(event: DataEvent.Insert): Boolean {
             /* Extract value and return true if value is NULL (since NULL values are ignored). */
             val value = event.data[this@Tx.columns[0]] ?: return true
-
-            val sig = this.quantizer?.quantize(value as RealVectorValue<*>) ?: return false
+            val sig = this.quantizer.quantize(value as RealVectorValue<*>)
             return this.dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(sig), event.tupleId.toKey())
         }
 
@@ -341,7 +283,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name,
 
             /* Remove signature to tuple ID mapping. */
             if (oldValue != null) {
-                val oldSig = this.quantizer?.quantize(oldValue as VectorValue<*>) ?: return false
+                val oldSig = this.quantizer.quantize(oldValue as VectorValue<*>)
                 val cursor = this.dataStore.openCursor(this.context.xodusTx)
                 if (cursor.getSearchBoth(PQSignature.Binding.valueToEntry(oldSig), event.tupleId.toKey())) {
                     cursor.deleteCurrent()
@@ -351,7 +293,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name,
 
             /* Generate signature and store it. */
             if (newValue != null) {
-                val newSig = this.quantizer?.quantize(newValue as VectorValue<*>) ?: return false
+                val newSig = this.quantizer.quantize(newValue as VectorValue<*>)
                 return this.dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(newSig), event.tupleId.toKey())
             }
             return true
@@ -366,7 +308,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name,
          */
         override fun tryApply(event: DataEvent.Delete): Boolean {
             val oldValue = event.data[this.columns[0]] ?: return true
-            val sig = this.quantizer?.quantize(oldValue as VectorValue<*>) ?: return false
+            val sig = this.quantizer.quantize(oldValue as VectorValue<*>)
             val cursor = this.dataStore.openCursor(this.context.xodusTx)
             if (cursor.getSearchBoth(PQSignature.Binding.valueToEntry(sig), event.tupleId.toKey())) {
                 cursor.deleteCurrent()
@@ -399,8 +341,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name,
                 private val columnTx: ColumnTx<RealVectorValue<*>>
 
                 /** Prepares [PQLookupTable]s for the given query vector(s). */
-                private val lookupTable: PQLookupTable = this@Tx.quantizer?.createLookupTable(this.predicate.query.value as VectorValue<*>) ?:
-                    throw IllegalStateException("Instance of PQIndex '${this@PQIndex.name}' does not seem to have a valid quantizer. This is a programmer's error.")
+                private val lookupTable: PQLookupTable = this@Tx.quantizer.createLookupTable(this.predicate.query.value as VectorValue<*>)
 
                 /** The [HeapSelection] use for finding the top k entries. */
                 private var selection = when(this.predicate) {
@@ -496,164 +437,6 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name,
          */
         override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> {
             throw UnsupportedOperationException("The PQIndex does not support ranged filtering!")
-        }
-
-        /**
-         * Collects and returns a subset of the available data for learning and training.
-         *
-         * @param txn The [EntityTx] used to obtain the learning data.
-         * @return List of [Record]s used for learning.
-         */
-        private fun acquireLearningData(txn: ColumnTx<*>, random: RandomGenerator): List<VectorValue<*>> {
-            val learningData = LinkedList<VectorValue<*>>()
-            val learningDataFraction = this@Tx.config.samples.toDouble() / txn.count()
-            val cursor = txn.cursor()
-            while (cursor.hasNext()) {
-                if (random.nextDouble() <= learningDataFraction) {
-                    val value = cursor.value()
-                    if (value is VectorValue<*>) {
-                        learningData.add(value)
-                    }
-                }
-            }
-            cursor.close()
-            return learningData
-        }
-
-        /**
-         * An [IndexRebuilder] that can be used to concurrently rebuild a [PQIndex].
-         *
-         * @author Ralph Gasser
-         * @version 1.0.0
-         */
-        inner class PQIndexRebuilder: IndexRebuilder(this@PQIndex) {
-
-            /** The [VAFIndexConfig] used by this [VAFIndexConfig]. */
-            private val config: PQIndexConfig = this@Tx.config
-
-            /** Reference to the index [ColumnDef]. */
-            private val indexedColumn = this@Tx.columns[0]
-
-            /** The (temporary) Xodus [Store] used to store [VAFSignature]s. */
-            private val dataStore: Store = this.tmpEnvironment.openStore(this@PQIndex.name.storeName(), StoreConfig.WITH_DUPLICATES, this.tmpTx, true)
-                ?: throw DatabaseException.DataCorruptionException("Temporary data store for index ${this@PQIndex.name} could not be created.")
-
-            /** The [ProductQuantizer] instance used for this [PQIndexRebuilder]. */
-            val newQuantizer: ProductQuantizer by lazy {
-                /* Obtain component-wise minimum and maximum for the vector held by the entity. */
-                val random = JDKRandomGenerator(System.currentTimeMillis().toInt())
-                val entityTx = this@Tx.context.getTx(this@PQIndex.parent) as EntityTx
-                val columnTx = this@Tx.context.getTx(entityTx.columnForName(this.indexedColumn.name)) as ColumnTx<*>
-
-                /* Obtain a new ProductQuantizer. */
-                ProductQuantizer.learnFromData(this@Tx.distanceFunction, this@Tx.acquireLearningData(columnTx, random), this.config)
-            }
-
-            /**
-             * Internal, modified rebuild method. This method basically scans the entity and writes all the changes to the surrounding snapshot.
-             */
-            override fun internalScan() {
-                LOGGER.debug("Scanning {} for PQ index rebuild.", this@PQIndex.parent.name)
-                val entityTx = this@Tx.context.getTx(this@PQIndex.parent) as EntityTx
-                val columnTx = this@Tx.context.getTx(entityTx.columnForName(this.indexedColumn.name)) as ColumnTx<*>
-
-                /* Iterate over entity and update index with entries. */
-                columnTx.cursor().use { cursor ->
-                    while (cursor.hasNext() && this.state == IndexRebuilderState.INITIALIZED) {
-                        val value = cursor.value()
-                        if (value is RealVectorValue<*>) {
-                            val sig = this.newQuantizer.quantize(value)
-                            this.dataStore.put(this.tmpTx, PQSignature.Binding.valueToEntry(sig), cursor.key().toKey())
-                        }
-                    }
-                }
-
-                /* Update catalogue entry for index. */
-                LOGGER.debug("Scanning {} for PQ index rebuild completed!", this@PQIndex.parent.name)
-            }
-
-            /**
-             * Merges this [PQIndexRebuilder] with the surrounding [PQIndex].
-             */
-            override fun internalMerge(context: TransactionContext) {
-                LOGGER.debug("Merging changes with PQ index {}.", this@PQIndex.name)
-
-                /* Obtain index and clear it. */
-                val indexTx = context.getTx(this@PQIndex) as PQIndex.Tx
-                indexTx.clear()
-
-                /* Transfer data. */
-                val cursor = this.dataStore.openCursor(this.tmpTx)
-                while (cursor.next && this.state == IndexRebuilderState.SCANNED) {
-                    indexTx.dataStore.putRight(context.xodusTx, cursor.key, cursor.value)
-                }
-
-                /* Update index state + configuration. */
-                indexTx.updateState(IndexState.CLEAN, this.config.copy(centroids = this.newQuantizer.centroids()))
-                indexTx.quantizer = this.newQuantizer
-                LOGGER.debug("Rebuilding PQ index {} completed!", this@PQIndex.name)
-            }
-
-            /**
-             * Internal method that apples a [DataEvent.Insert] from an external transaction to this [PQIndexRebuilder].
-             *
-             * @param event The [DataEvent.Insert] to process.
-             * @return True on success, false otherwise.
-             */
-            override fun applyInsert(event: DataEvent.Insert): Boolean {
-                /* Extract value and perform sanity check. */
-                val value = event.data[this.indexedColumn] ?: return true
-
-                /* If value is NULL, return true. NULL values are simply ignored by the PQIndex. */
-                val sig = this.newQuantizer.quantize(value as VectorValue<*>)
-                return this.dataStore.put(this.tmpTx, PQSignature.Binding.valueToEntry(sig), event.tupleId.toKey())
-            }
-
-            /**
-             * Internal method that apples a [DataEvent.Update] from an external transaction to this [PQIndexRebuilder].
-             *
-             * @param event The [DataEvent.Update] to process.
-             * @return True on success, false otherwise.
-             */
-            override fun applyUpdate(event: DataEvent.Update): Boolean {
-                /* Extract value and perform sanity check. */
-                val oldValue = event.data[this@Tx.columns[0]]?.first
-                val newValue = event.data[this@Tx.columns[0]]?.second
-
-                /* Remove signature to tuple ID mapping. */
-                if (oldValue != null) {
-                    val oldSig = this.newQuantizer.quantize(oldValue as VectorValue<*>)
-                    val cursor = this.dataStore.openCursor(this.tmpTx)
-                    if (cursor.getSearchBoth(PQSignature.Binding.valueToEntry(oldSig), event.tupleId.toKey())) {
-                        cursor.deleteCurrent()
-                    }
-                    cursor.close()
-                }
-
-                /* Generate signature and store it. */
-                if (newValue != null) {
-                    val newSig = this.newQuantizer.quantize(newValue as VectorValue<*>)
-                    return this.dataStore.put(this.tmpTx, PQSignature.Binding.valueToEntry(newSig), event.tupleId.toKey())
-                }
-                return true
-            }
-
-            /**
-             * Internal method that apples a [DataEvent.Delete] from an external transaction to this [PQIndexRebuilder].
-             *
-             * @param event The [DataEvent.Delete] to process.
-             * @return True on success, false otherwise.
-             */
-            override fun applyDelete(event: DataEvent.Delete): Boolean {
-                val oldValue = event.data[this.indexedColumn] ?: return true
-                val sig = this.newQuantizer.quantize(oldValue as VectorValue<*>)
-                val cursor = this.dataStore.openCursor(this.tmpTx)
-                if (cursor.getSearchBoth(PQSignature.Binding.valueToEntry(sig), event.tupleId.toKey())) {
-                    cursor.deleteCurrent()
-                }
-                cursor.close()
-                return true
-            }
         }
     }
 }

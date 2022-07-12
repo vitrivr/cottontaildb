@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.dbms.events
 
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.dbms.index.Index
-import org.vitrivr.cottontail.dbms.index.IndexState
-import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.index.basic.Index
+import org.vitrivr.cottontail.dbms.index.basic.IndexState
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
 
 /**
  * An [Event] that signals changes with respect to [Index] structures.

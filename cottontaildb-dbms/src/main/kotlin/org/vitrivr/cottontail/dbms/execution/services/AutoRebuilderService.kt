@@ -13,7 +13,10 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
-import org.vitrivr.cottontail.dbms.index.*
+import org.vitrivr.cottontail.dbms.index.basic.Index
+import org.vitrivr.cottontail.dbms.index.basic.IndexState
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
+import org.vitrivr.cottontail.dbms.index.basic.rebuilder.IndexRebuilderState
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import java.util.concurrent.TimeUnit
 
@@ -101,21 +104,20 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
          */
         private fun performRebuild(): Boolean {
             val transaction = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
-            val rebuilder = try {
+            try {
                 val catalogueTx = transaction.getTx(this@AutoRebuilderService.catalogue) as CatalogueTx
                 val schema = catalogueTx.schemaForName(this.index.schema())
                 val schemaTx = transaction.getTx(schema) as SchemaTx
                 val entity = schemaTx.entityForName(this.index.entity())
                 val entityTx = transaction.getTx(entity) as EntityTx
                 val index = entityTx.indexForName(this.index)
-                val indexTx = transaction.getTx(index) as IndexTx
-                indexTx.asyncRebuild()
+                return index.newRebuilder(transaction).rebuild()
             } catch (e: Throwable) {
                 when (e) {
                     is DatabaseException.SchemaDoesNotExistException,
                     is DatabaseException.EntityAlreadyExistsException,
                     is DatabaseException.IndexDoesNotExistException -> LOGGER.warn("Index auto-rebuilding for $index failed because DBO no longer exists.")
-                    else -> LOGGER.error("Index auto-rebuilding (SCAN) for $index failed due to exception: ${e.message}.")
+                    else -> LOGGER.error("Index auto-rebuilding for $index failed due to exception: ${e.message}.")
                 }
                 return false
             }
@@ -136,8 +138,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                 val entity = schemaTx.entityForName(this.index.entity())
                 val entityTx = transaction1.getTx(entity) as EntityTx
                 val index = entityTx.indexForName(this.index)
-                val indexTx = transaction1.getTx(index) as IndexTx
-                indexTx.asyncRebuild()
+                index.newAsyncRebuilder()
             } catch (e: Throwable) {
                 when (e) {
                     is DatabaseException.SchemaDoesNotExistException,

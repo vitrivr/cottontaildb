@@ -1,16 +1,12 @@
-package org.vitrivr.cottontail.dbms.index.pq
+package org.vitrivr.cottontail.dbms.index.pq.signature
 
 import org.apache.commons.math3.random.JDKRandomGenerator
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
-import org.vitrivr.cottontail.core.values.DoubleVectorValue
-import org.vitrivr.cottontail.core.values.FloatVectorValue
-import org.vitrivr.cottontail.core.values.IntVectorValue
-import org.vitrivr.cottontail.core.values.LongVectorValue
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.dbms.index.pq.PQIndexConfig
 import org.vitrivr.cottontail.utilities.math.clustering.KMeansClusterer
 
 /**
@@ -21,7 +17,7 @@ import org.vitrivr.cottontail.utilities.math.clustering.KMeansClusterer
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 2.0.0
  */
-class ProductQuantizer private constructor(val codebooks: Array<PQCodebook>) {
+class ProductQuantizer constructor(val codebooks: Array<PQCodebook>) {
 
     companion object {
         /** Recommended number of subspaces according to [1]. */
@@ -51,7 +47,7 @@ class ProductQuantizer private constructor(val codebooks: Array<PQCodebook>) {
 
             /* Prepare k-means clusterer. */
             val reshape = distance.copy(dimensionsPerSubspace)
-            val clusterer = KMeansClusterer(config.numCentroids, reshape, JDKRandomGenerator(config.seed.toInt()))
+            val clusterer = KMeansClusterer(config.numCentroids, reshape, JDKRandomGenerator(config.seed))
 
             /* Prepare codebooks. */
             val codebooks = Array(numSubspaces) { j ->
@@ -61,33 +57,6 @@ class ProductQuantizer private constructor(val codebooks: Array<PQCodebook>) {
             }
 
             /* Return quantizer. */
-            return ProductQuantizer(codebooks)
-        }
-
-        /**
-         * Reconstructs a  [ProductQuantizer] a [VectorDistance], a given number of subspaces and a list of [DoubleArray] centroid vectors.
-         *
-         * @param distance The [VectorDistance] to create the [ProductQuantizer] for.
-         * @param config The [PQIndexConfig]
-         * @return Reconstructed [ProductQuantizer]
-         */
-        fun loadFromConfig(distance: VectorDistance<*>, config: PQIndexConfig): ProductQuantizer {
-            /* Determine logical size and perform some sanity checks. */
-            val logicalSize = distance.type.logicalSize
-            val numSubspaces = numberOfSubspaces(logicalSize)
-            val dimensionsPerSubspace = logicalSize / numSubspaces
-            val reshaped = distance.copy(dimensionsPerSubspace)
-            val codebooks = Array(numSubspaces) { j ->
-                PQCodebook(reshaped, Array(config.numCentroids) { i ->
-                    when(distance.type) {
-                        is Types.DoubleVector -> DoubleVectorValue(config.centroids[j * config.numCentroids + i])
-                        is Types.FloatVector -> FloatVectorValue(config.centroids[j * config.numCentroids + i])
-                        is Types.LongVector -> LongVectorValue(config.centroids[j * config.numCentroids + i].toList())
-                        is Types.IntVector -> IntVectorValue(config.centroids[j * config.numCentroids + i].toList())
-                        else -> throw IllegalArgumentException("Reconstruction of product quantizer not possible; type ${distance.type} not supported.")
-                    }
-                })
-            }
             return ProductQuantizer(codebooks)
         }
 
@@ -152,13 +121,17 @@ class ProductQuantizer private constructor(val codebooks: Array<PQCodebook>) {
     }
 
     /**
-     * Dumps the centroids that make up this [ProductQuantizer] into a list of [DoubleArray]s.
+     * Converts this [ProductQuantizer] to a [SerializableProductQuantizer].
      *
-     * @return List of [DoubleArray] of all centroids that make-up this [ProductQuantizer].
+     * @return [SerializableProductQuantizer]
      */
-    fun centroids(): List<DoubleArray> = this.codebooks.flatMap { cb ->
-        cb.centroids.map { v -> DoubleArray(v.logicalSize) { v[it].value.toDouble()} }
-    }
+    fun toSerializableProductQuantizer(): SerializableProductQuantizer = SerializableProductQuantizer(Array(this.codebooks.size){ i ->
+        Array(this.codebooks[0].numberOfCentroids) { j->
+            DoubleArray(this.codebooks[0].subspaceSize) { k ->
+                this.codebooks[i].centroids[j][k].value.toDouble()
+            }
+        }
+    })
 
     /**
      * A codebook that can be used to quantize a [VectorValue] (or more precisely, a subspace thereof)

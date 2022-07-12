@@ -5,6 +5,7 @@ import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.SignedDoubleBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.statistics.columns.*
 import java.io.ByteArrayInputStream
@@ -16,9 +17,9 @@ import kotlin.math.min
  * Double precision [EquidistantVAFMarks] implementation used in [VAFIndex] structures.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, Comparable<EquidistantVAFMarks> {
+class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, IndexStructCatalogueEntry() {
 
     /**
      * A [ComparableBinding] to serialize and deserialize [EquidistantVAFMarks].
@@ -135,7 +136,8 @@ class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, Com
      * @param other The [EquidistantVAFMarks] object to compare this [EquidistantVAFMarks] object to.
      * @return [Int]
      */
-    override fun compareTo(other: EquidistantVAFMarks): Int {
+    override fun compareTo(other: IndexStructCatalogueEntry): Int {
+        if (other !is EquidistantVAFMarks) return -1
         for ((i,d) in this.marks.withIndex()) {
             if (i >= other.marks.size) return Int.MIN_VALUE
             for ((j,v) in d.withIndex()) {

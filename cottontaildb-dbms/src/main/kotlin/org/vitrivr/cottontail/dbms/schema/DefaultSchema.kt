@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.*
 import org.vitrivr.cottontail.dbms.catalogue.storeName
-import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
@@ -16,7 +15,6 @@ import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
-import org.vitrivr.cottontail.dbms.index.IndexTx
 import kotlin.concurrent.withLock
 
 /**
@@ -214,16 +212,14 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             val entry = EntityCatalogueEntry.read(name, this@DefaultSchema.catalogue, this.context.xodusTx) ?: throw DatabaseException.EntityDoesNotExistException(name)
 
             /* Clears all indexes. */
-            val entityTx = this.context.getTx(DefaultEntity(name, this@DefaultSchema)) as EntityTx
             entry.indexes.forEach {
-                val indexTx = this.context.getTx(entityTx.indexForName(it)) as IndexTx
-                indexTx.clear()
+                IndexStructCatalogueEntry.delete(it, this@DefaultSchema.catalogue, this.context.xodusTx)
+                this@DefaultSchema.catalogue.environment.truncateStore(it.storeName(), this.context.xodusTx)
             }
 
             /* Clears all columns. */
             entry.columns.forEach {
-                val columnTx = this.context.getTx(entityTx.columnForName(it)) as ColumnTx<*>
-                columnTx.clear()
+                this@DefaultSchema.catalogue.environment.truncateStore(it.storeName(), this.context.xodusTx)
             }
 
             /* Resets the tuple ID counter. */

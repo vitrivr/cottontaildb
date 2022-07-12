@@ -1,11 +1,12 @@
-package org.vitrivr.cottontail.dbms.index
+package org.vitrivr.cottontail.dbms.index.basic
 
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.DBO
+import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
+import org.vitrivr.cottontail.dbms.index.basic.rebuilder.IndexRebuilder
 
 /**
  * Represents a (secondary) [Index] structure in the Cottontail DB data model. An [Index] belongs
@@ -27,9 +28,6 @@ interface Index : DBO {
     /** The [Name.IndexName] of this [Index]. */
     override val name: Name.IndexName
 
-    /** The [ColumnDef]s indexed by the [Index]. */
-    val columns: Array<ColumnDef<*>>
-
     /** True, if the [Index] supports incremental updates, i.e., can be updated tuple by tuple. */
     val supportsIncrementalUpdate: Boolean
 
@@ -43,15 +41,24 @@ interface Index : DBO {
     val type: IndexType
 
     /**
-     * Creates and returns a new [IndexRebuilder] for this [Index].
-     */
-    fun newRebuilder(): IndexRebuilder<Index>
-
-    /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [Index].
      *
      * @param context If the [TransactionContext] that requested the [IndexTx].
      */
     override fun newTx(context: TransactionContext): IndexTx
 
+    /**
+     * Creates and returns a new [IndexRebuilder] for this [Index].
+     *
+     * @param context If the [TransactionContext] that requested the [IndexRebuilder].
+     * @return [IndexRebuilder]
+     */
+    fun newRebuilder(context: TransactionContext): IndexRebuilder<*>
+
+    /**
+     * Creates and returns a new [AsyncIndexRebuilder] for this [Index].
+     *
+     * @return [AsyncIndexRebuilder]
+     */
+    fun newAsyncRebuilder(): AsyncIndexRebuilder<*>
 }

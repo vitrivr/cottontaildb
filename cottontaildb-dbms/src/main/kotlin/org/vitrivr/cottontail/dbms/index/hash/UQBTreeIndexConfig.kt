@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.dbms.index.hash
 
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.util.LightOutputStream
-import org.vitrivr.cottontail.dbms.index.IndexConfig
+import org.vitrivr.cottontail.dbms.index.basic.IndexConfig
 import java.io.ByteArrayInputStream
 
 /**

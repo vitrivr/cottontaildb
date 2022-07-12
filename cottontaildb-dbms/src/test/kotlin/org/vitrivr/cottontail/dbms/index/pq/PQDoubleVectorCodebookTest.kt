@@ -6,11 +6,13 @@ import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.dbms.index.pq.signature.PQSignature
+import org.vitrivr.cottontail.dbms.index.pq.signature.ProductQuantizer
+import org.vitrivr.cottontail.dbms.index.pq.signature.SerializableProductQuantizer
 import org.vitrivr.cottontail.test.TestConstants
-import org.vitrivr.cottontail.utilities.math.random.nextDouble
-import org.vitrivr.cottontail.utilities.math.random.nextInt
 import java.lang.Math.floorDiv
 import java.util.*
+import kotlin.math.log10
 import kotlin.math.pow
 import kotlin.math.sqrt
 
@@ -44,7 +46,7 @@ class PQDoubleVectorCodebookTest {
     private val config = PQIndexConfig(this.distance.signature.name, 3000, this.numberOfClusters)
 
     /** The data to train the quantizer with. */
-    private val trainingdata = this.testdata.filter { this.random.nextDouble() <= (this.config.samples.toDouble() / TestConstants.TEST_COLLECTION_SIZE) }
+    private val trainingdata = this.testdata.filter { this.random.nextDouble() <= ((log10(this.testdata.size.toDouble()) * 1000L) / this.testdata.size) }
 
     /** The [ProductQuantizer] that is used for the tests. */
     private val quantizer = ProductQuantizer.learnFromData(this.distance, this.trainingdata, this.config)
@@ -63,24 +65,20 @@ class PQDoubleVectorCodebookTest {
     }
 
     /**
-     * Tests serialization / deserialization of [PQIndexConfig] and the associated codebooks.
+     * Tests serialization / deserialization of [ProductQuantizer] and the associated codebooks.
      */
     @Test
     fun testCodebookSerialization() {
-        val config2 = this.config.copy(centroids = quantizer.centroids())
-        val serialized = PQIndexConfig.Binding.objectToEntry(config2)
-        val config3 =  PQIndexConfig.Binding.entryToObject(serialized) as PQIndexConfig
+        val serializable1 = this.quantizer.toSerializableProductQuantizer()
+        val serialized = SerializableProductQuantizer.Binding.objectToEntry(serializable1)
+        val serializable2 = SerializableProductQuantizer.Binding.entryToObject(serialized) as SerializableProductQuantizer
 
-        /* Compare PQIndexConfig. */
-        Assertions.assertEquals(config2.seed, config3.seed)
-        Assertions.assertEquals(config2.numCentroids, config3.numCentroids)
-        Assertions.assertEquals(config2.samples, config3.samples)
-        for ((c1, c2) in config2.centroids.zip(config3.centroids)) {
-            Assertions.assertArrayEquals(c1, c2)
-        }
-        for ((c1, c2) in config3.centroids.zip(this.quantizer.centroids())) {
-            Assertions.assertArrayEquals(c1, c2)
-        }
+        /* Compare SerializableProductQuantizer. */
+        Assertions.assertEquals(serializable1, serializable2)
+
+        /* Compare reconstructed quantizer. */
+        val original = serializable2.toProductQuantizer(this.distance)
+        Assertions.assertEquals(this.quantizer, original)
     }
 
     /**

@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.definition
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.execution.operators.definition.CreateIndexOperator
-import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**

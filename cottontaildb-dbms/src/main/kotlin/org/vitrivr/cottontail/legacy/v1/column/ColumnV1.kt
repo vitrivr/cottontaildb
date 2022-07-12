@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.column.Column
-import org.vitrivr.cottontail.dbms.column.ColumnEngine
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
@@ -18,7 +17,6 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
-
 import org.vitrivr.cottontail.legacy.v1.entity.EntityV1
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.mapdb.MapDBSerializer
@@ -80,10 +78,6 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
     /** The [DBOVersion] of this [ColumnV1]. */
     override val version: DBOVersion
         get() = DBOVersion.V1_0
-
-    /** The [ColumnEngine] of this [ColumnV1]. */
-    val engine: ColumnEngine
-        get() = ColumnEngine.MAPDB
 
     /**
      * Status indicating whether this [ColumnV1] is open or closed.
@@ -221,9 +215,6 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
         }
 
         override fun delete(tupleId: Long): T? {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-        override fun clear() {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 

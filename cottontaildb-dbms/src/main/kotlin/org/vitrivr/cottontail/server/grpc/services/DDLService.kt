@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
-import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
 import org.vitrivr.cottontail.dbms.queries.operators.physical.definition.*
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.SortPhysicalOperatorNode
@@ -113,7 +113,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
     }.single()
 
     /**
-     * gRPC endpoint for creating a particular [org.vitrivr.cottontail.dbms.index.Index]
+     * gRPC endpoint for creating a particular [Index]
      */
     override suspend fun createIndex(request: CottontailGrpc.CreateIndexMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val entityName = request.entity.fqn()

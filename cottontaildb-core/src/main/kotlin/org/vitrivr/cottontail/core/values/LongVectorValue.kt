@@ -14,6 +14,10 @@ import kotlin.math.pow
 value class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
     constructor(input: List<Number>) : this(LongArray(input.size) { input[it].toLong() })
     constructor(input: Array<Number>) : this(LongArray(input.size) { input[it].toLong() })
+    constructor(input: DoubleArray) : this(LongArray(input.size) { input[it].toLong() })
+    constructor(input: FloatArray) : this(LongArray(input.size) { input[it].toLong() })
+    constructor(input: IntArray) : this(LongArray(input.size) { input[it].toLong() })
+
 
     /** The logical size of this [LongVectorValue]. */
     override val logicalSize: Int

@@ -11,9 +11,11 @@ import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.DBOVersion
-import org.vitrivr.cottontail.dbms.index.Index
-import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.index.basic.Index
+import org.vitrivr.cottontail.dbms.index.basic.IndexTx
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
+import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
+import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import java.nio.file.Path
 
 /**
@@ -21,7 +23,7 @@ import java.nio.file.Path
  * or no longer supported. Still exposes basic properties of the underlying [Index].
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 class BrokenIndexV2(override val name: Name.IndexName, override val parent: Entity, val path: Path) : Index {
     companion object {
@@ -47,6 +49,8 @@ class BrokenIndexV2(override val name: Name.IndexName, override val parent: Enti
         get() = this.headerField.get().type
 
     override fun newTx(context: TransactionContext): IndexTx = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+    override fun newRebuilder(context: TransactionContext): AbstractIndexRebuilder<*> = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+    override fun newAsyncRebuilder(): AsyncIndexRebuilder<*> = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
     override fun close() {
         this.store.close()
     }
@@ -96,7 +100,7 @@ class BrokenIndexV2(override val name: Name.IndexName, override val parent: Enti
          * @author Ralph Gasser
          * @version 2.0.0
          */
-        private enum class IndexTypeV2() {
+        private enum class IndexTypeV2 {
             HASH_UQ,
             HASH,
             BTREE,
@@ -122,7 +126,6 @@ class BrokenIndexV2(override val name: Name.IndexName, override val parent: Enti
                 PQ -> IndexType.PQ
                 LSH,
                 LSH_SB -> IndexType.LSH
-                GG -> IndexType.GG
                 else -> throw UnsupportedOperationException("The index type ${this} is no longer supported by Cottontail DB. ")
             }
         }

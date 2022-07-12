@@ -21,11 +21,11 @@ import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import org.vitrivr.cottontail.dbms.index.*
+import org.vitrivr.cottontail.dbms.index.basic.*
+import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
@@ -37,7 +37,7 @@ import kotlin.concurrent.withLock
  * unique [Value] to a [TupleId]. Well suited for equality based lookups of [Value]s.
  *
  * @author Ralph Gasser
- * @version 3.0.0
+ * @version 3.1.0
  */
 class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
@@ -96,7 +96,8 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
         /**
          * Generates and returns an empty [IndexConfig].
          */
-        override fun buildConfig(parameters: Map<String, String>): IndexConfig<UQBTreeIndex> = object : IndexConfig<UQBTreeIndex>{}
+        override fun buildConfig(parameters: Map<String, String>): IndexConfig<UQBTreeIndex> = object :
+            IndexConfig<UQBTreeIndex> {}
 
         /**
          * Returns the [UQBTreeIndexConfig]
@@ -110,9 +111,24 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [AbstractIndex].
      *
-     * @param context [TransactionContext] to open the [AbstractIndex.Tx] for.
+     * @param context [TransactionContext] to open the [Tx] for.
+     * @return [Tx]
      */
     override fun newTx(context: TransactionContext): IndexTx = Tx(context)
+
+    /**
+     * Opens and returns a new [UQBTreeIndexRebuilder] object that can be used to rebuild with this [UQBTreeIndex].
+     *
+     * @param context [TransactionContext] to open the [UQBTreeIndexRebuilder] for.
+     * @return [UQBTreeIndexRebuilder]
+     */
+    override fun newRebuilder(context: TransactionContext) = UQBTreeIndexRebuilder(this, context)
+
+    /**
+     * Since [UQBTreeIndex] does not support asynchronous re-indexing, this method will throw an error.
+     */
+    override fun newAsyncRebuilder(): AsyncIndexRebuilder<UQBTreeIndex>
+        = throw UnsupportedOperationException("BTreeIndex does not support asynchronous index rebuilding.")
 
     /**
      * Closes this [UQBTreeIndex]
@@ -133,9 +149,6 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
         private var dataStore: Store = this@UQBTreeIndex.catalogue.environment.openStore(this@UQBTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@UQBTreeIndex.name} is missing.")
-
-        /** The dummy [UQBTreeIndexConfig]. */
-        override val config: IndexConfig<UQBTreeIndex> = UQBTreeIndexConfig
 
         /**
          * Adds a mapping from the given [Value] to the given [TupleId].
@@ -214,40 +227,6 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
         }
 
         /**
-         * (Re-)builds the [UQBTreeIndex].
-         */
-        override fun rebuild() = this.txLatch.withLock {
-            LOGGER.debug("Rebuilding Unique BTree index {}", this@UQBTreeIndex.name)
-
-            /* Obtain Tx for parent [Entity. */
-            val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
-
-            /* Truncate, reopen and repopulate store. */
-            this.clear()
-
-            /* Iterate over entity and update index with entries. */
-            val cursor = entityTx.cursor(this.columns)
-            cursor.forEach { record ->
-                val value = record[this.columns[0]]
-                if (value != null) {
-                    this.addMapping(value, record.tupleId)
-                }
-            }
-
-            /* Close cursor. */
-            cursor.close()
-
-            /* Update state of this index. */
-            this.updateState(IndexState.CLEAN)
-            LOGGER.debug("Rebuilding Unique BTree index {} completed!", this@UQBTreeIndex.name)
-        }
-
-        /**
-         * Always throws an [UnsupportedOperationException], since [UQBTreeIndex] does not support asynchronous rebuilds.
-         */
-        override fun asyncRebuild() = throw UnsupportedOperationException("UQBTreeIndex does not support asynchronous rebuild.")
-
-        /**
          * Updates the [UQBTreeIndex] with the provided [DataEvent.Insert]
          *
          * @param event [DataEvent.Insert]s to process.
@@ -288,15 +267,6 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          */
         override fun count(): Long  = this.txLatch.withLock {
             this.dataStore.count(this.context.xodusTx)
-        }
-
-        /**
-         * Clears the [UQBTreeIndex] underlying this [Tx] and removes all entries it contains.
-         */
-        override fun clear() = this.txLatch.withLock {
-            this@UQBTreeIndex.parent.parent.parent.environment.truncateStore(this@UQBTreeIndex.name.storeName(), this.context.xodusTx)
-            this.dataStore = this@UQBTreeIndex.parent.parent.parent.environment.openStore(this@UQBTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
-                ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@UQBTreeIndex.name} is missing.")
         }
 
         /**

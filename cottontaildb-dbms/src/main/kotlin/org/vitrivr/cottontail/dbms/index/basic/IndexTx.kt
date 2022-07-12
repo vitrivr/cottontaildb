@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.index
+package org.vitrivr.cottontail.dbms.index.basic
 
 import org.vitrivr.cottontail.core.basics.Countable
 import org.vitrivr.cottontail.core.basics.Cursor
@@ -17,15 +17,12 @@ import org.vitrivr.cottontail.dbms.general.Tx
  * A [Tx] that operates on a single [Index]. [Tx]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 3.0.0
+ * @version 3.1.0
  */
 interface IndexTx: Tx, Filterable, Countable {
 
     /** Reference to the [Index] this [IndexTx] belongs to. */
     override val dbo: Index
-
-    /** The [ColumnDef]s indexed by the [Index] backing this [IndexTx]. */
-    val columns: Array<ColumnDef<*>>
 
     /** True, if the [Index] backing this [IndexTx] supports incremental updates, i.e., can be updated tuple by tuple. */
     val supportsIncrementalUpdate: Boolean
@@ -36,11 +33,14 @@ interface IndexTx: Tx, Filterable, Countable {
     /** True, if the [Index] backing this [IndexTx] supports querying filtering a partition. */
     override val supportsPartitioning: Boolean
 
+    /** The [IndexConfig] instance used by the [Index] backing this [IndexTx].*/
+    val config: IndexConfig<*>
+
+    /** The [ColumnDef]s indexed by the [Index] backing this [IndexTx]. */
+    val columns: Array<ColumnDef<*>>
+
     /** The [IndexType] of the [Index] that underpins this [IndexTx]. */
     val state: IndexState
-
-    /** The configuration map used for the [Index] that underpins this [IndexTx]. */
-    val config: IndexConfig<*>
 
     /**
      * Calculates the cost estimate of this [IndexTx] processing the provided [Predicate].
@@ -65,11 +65,6 @@ interface IndexTx: Tx, Filterable, Countable {
      * @return List of [Trait]s produced by this [IndexTx]
      */
     fun traitsFor(predicate: Predicate): Map<TraitType<*>,Trait>
-
-    /**
-     * Clears the [Index] underlying this [IndexTx] and removes all entries it contains.
-     */
-    fun clear()
 
     /**
      * Inserts a new entry in the [Index] underlying this [IndexTx] based on the provided [DataEvent.Insert].

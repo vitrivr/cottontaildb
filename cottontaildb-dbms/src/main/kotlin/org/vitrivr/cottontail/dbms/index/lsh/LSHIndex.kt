@@ -4,10 +4,8 @@ import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
-
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
@@ -23,20 +21,16 @@ import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
-import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
-import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import org.vitrivr.cottontail.dbms.index.*
-import org.vitrivr.cottontail.dbms.index.gg.GGIndex
+import org.vitrivr.cottontail.dbms.index.basic.*
+import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignature
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignatureGenerator
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
-import org.vitrivr.cottontail.dbms.index.pq.PQSignature
-import org.vitrivr.cottontail.dbms.index.va.VAFIndex
+import org.vitrivr.cottontail.dbms.index.pq.signature.PQSignature
 import kotlin.concurrent.withLock
 
 /**
@@ -141,6 +135,21 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
     override fun newTx(context: TransactionContext): IndexTx = Tx(context)
 
     /**
+     * Opens and returns a new [LSHIndexRebuilder] object that can be used to rebuild with this [LSHIndex].
+     *
+     * @param context The [TransactionContext] to create [LSHIndexRebuilder] for.
+     * @return [LSHIndexRebuilder]
+     */
+    override fun newRebuilder(context: TransactionContext) = LSHIndexRebuilder(this, context)
+
+    /**
+     * Since [LSHIndex] does not support asynchronous re-indexing, this method will throw an error.
+     */
+    override fun newAsyncRebuilder(): AsyncIndexRebuilder<*>
+        = throw UnsupportedOperationException("LSHIndex does not support asynchronous index rebuilding.")
+
+
+    /**
      * Closes this [LSHIndex] index
      */
     override fun close() {
@@ -152,50 +161,8 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
      */
     private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
-        /** The [LSHIndexConfig] used by this [LSHIndex.Tx] instance. */
-        override val config: LSHIndexConfig
-            get() = super.config as LSHIndexConfig
-
         /** The Xodus [Store] used to store [PQSignature]s. */
-        private var dataStore: Store = this@LSHIndex.catalogue.environment.openStore(this@LSHIndex.name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, this.context.xodusTx, false)
-            ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@LSHIndex.name} is missing.")
-
-        /**
-         * Adds a mapping from the bucket [IntArray] to the given [TupleId].
-         *
-         * @param signature The [IntArray] signature key to add a mapping for.
-         * @param tupleId The [TupleId] to add to the mapping
-         *
-         * This is an internal function and can be used safely with values o
-         */
-        private fun addMapping(signature: LSHSignature, tupleId: TupleId): Boolean {
-            val signatureRaw = LSHSignature.Binding.objectToEntry(signature)
-            val tupleIdRaw = tupleId.toKey()
-            return if (this.dataStore.exists(this.context.xodusTx, signatureRaw, tupleIdRaw)) {
-                this.dataStore.put(this.context.xodusTx, signatureRaw, tupleIdRaw)
-            } else {
-                false
-            }
-        }
-
-        /**
-         * Removes a mapping from the given [IntArray] signature to the given [TupleId].
-         *
-         * @param signature The [IntArray] signature key to remove a mapping for.
-         * @param tupleId The [TupleId] to remove.
-
-         * This is an internal function and can be used safely with values o
-         */
-        private fun removeMapping(signature: LSHSignature, tupleId: TupleId): Boolean {
-            val signatureRaw = LSHSignature.Binding.objectToEntry(signature)
-            val valueRaw = tupleId.toKey()
-            val cursor = this.dataStore.openCursor(this.context.xodusTx)
-            return if (cursor.getSearchBoth(signatureRaw, valueRaw)) {
-                cursor.deleteCurrent()
-            } else {
-                false
-            }
-        }
+        private val store: LSHDataStore = LSHDataStore.open(context.xodusTx, this@LSHIndex)
 
         /**
          * [LSHIndex] only produced candidate [TupleId]s and no columns.
@@ -208,7 +175,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         }
 
         /**
-         * Checks if this [GGIndex] can process the provided [Predicate] and returns true if so and false otherwise.
+         * Checks if this [LSHIndex] can process the provided [Predicate] and returns true if so and false otherwise.
          *
          * @param predicate [Predicate] to check.
          * @return True if [Predicate] can be processed, false otherwise.
@@ -247,42 +214,6 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         }
 
         /**
-         * (Re-)builds the [LSHIndex].
-         */
-        override fun rebuild() {
-            LOGGER.debug("Rebuilding LSH index {}", this@LSHIndex.name)
-
-            /* Initialize SignatureGenerator. */
-            val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
-            val specimen = entityTx.read(entityTx.smallestTupleId(), this@Tx.columns)[this@Tx.columns[0]] as VectorValue<*>
-
-            /* Clears this index. */
-            this.clear()
-
-            /* Generate a new LSHSignature for each entry in the entity and adds it to the index. */
-            val generator = this.config.generator(specimen.logicalSize)
-            val cursor = entityTx.cursor(this.columns)
-            cursor.forEach {
-                val value = it[this.columns[0]] ?: throw DatabaseException("Could not find column for entry in index $this") // todo: what if more columns? This should never happen -> need to change type and sort this out on index creation
-                if (value is VectorValue<*>) {
-                    val signature = generator.generate(value)
-                    this.addMapping(signature, it.tupleId)
-                }
-            }
-
-            /* Close cursor. */
-            cursor.close()
-
-            /* Update state of index. */
-            this.updateState(IndexState.CLEAN, this.config.copy(generator = generator))
-        }
-
-        /**
-         * Always throws an [UnsupportedOperationException], since [LSHIndex] does not support asynchronous rebuilds.
-         */
-        override fun asyncRebuild() = throw UnsupportedOperationException("LSHIndex does not support asynchronous rebuild.")
-
-        /**
          * Tries to apply the change applied by this [DataEvent.Insert] to the [LSHIndex] underlying this [LSHIndex.Tx].
          *
          * This method implements the [LSHIndex]'es write model. TODO: True for all types of LSH algorithms?
@@ -291,40 +222,39 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Insert): Boolean = this.txLatch.withLock {
-            val generator = this.config.generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
+            val generator = (this.config as LSHIndexConfig).generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
             val value = event.data[this.columns[0]]
             check(value is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.addMapping(generator.generate(value), event.tupleId)
+            return this.store.addMapping(this.context.xodusTx, generator.generate(value), event.tupleId)
         }
 
         /**
          * Tries to apply the change applied by this [DataEvent.Update] to the [LSHIndex] underlying this [LSHIndex.Tx]. This method
-         * implements the [VAFIndex]'es [WriteModel].  TODO: True for all types of LSH algorithms?
+         * implements the [LSHIndex]'es [WriteModel].  TODO: True for all types of LSH algorithms?
          *
          * @param event The [DataEvent.Update] to apply.
          * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Update): Boolean {
-            val generator = this.config.generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
+            val generator = (this.config as LSHIndexConfig).generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
             val value = event.data[this.columns[0]]
             check(value?.first is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
             check(value?.second is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.removeMapping(generator.generate(value!!.first as VectorValue<*>), event.tupleId) && this.addMapping(generator.generate(value.second as VectorValue<*>), event.tupleId)
-
+            return this.store.removeMapping(this.context.xodusTx, generator.generate(value!!.first as VectorValue<*>), event.tupleId) && this.store.addMapping(this.context.xodusTx,generator.generate(value.second as VectorValue<*>), event.tupleId)
         }
 
         /**
          * Tries to apply the change applied by this [DataEvent.Delete] to the [LSHIndex] underlying this [LSHIndex.Tx]. This method
-         * implements the [VAFIndex]'es [WriteModel]: DELETES can always be applied.
+         * implements the [LSHIndex]'es [WriteModel]: DELETES can always be applied.
          *
          * @param event The [DataEvent.Delete] to apply.
          * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Delete): Boolean {
-            val generator = this.config.generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
+            val generator = (this.config as LSHIndexConfig).generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
             val value = event.data[this.columns[0]]
             check(value is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.removeMapping(generator.generate(value), event.tupleId)
+            return this.store.removeMapping(this.context.xodusTx, generator.generate(value), event.tupleId)
         }
 
         /**
@@ -333,20 +263,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return Number of entries in this [LSHIndex]
          */
         override fun count(): Long  = this.txLatch.withLock {
-            this.dataStore.count(this.context.xodusTx)
-        }
-
-        /**
-         * Clears the [LSHIndex] underlying this [Tx] and removes all entries it contains.
-         */
-        override fun clear() = this.txLatch.withLock {
-            /* Truncate and replace store.*/
-            this@LSHIndex.catalogue.environment.truncateStore(this@LSHIndex.name.storeName(), this.context.xodusTx)
-            this.dataStore = this@LSHIndex.catalogue.environment.openStore(this@LSHIndex.name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, this.context.xodusTx, false)
-                ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@LSHIndex.name} is missing.")
-
-            /* Update catalogue entry for index. */
-            this.updateState(IndexState.STALE)
+            this.store.store.count(this.context.xodusTx)
         }
 
         /**
@@ -370,12 +287,12 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             private val subTx = this@Tx.context.xodusTx.readonlySnapshot
 
             /** The Xodus cursors used to navigate the data. */
-            private val cursor = this@Tx.dataStore.openCursor(this.subTx)
+            private val cursor = this@Tx.store.store.openCursor(this.subTx)
 
             /* Performs some sanity checks. */
             init {
                 val config = this@Tx.config
-                if (this.predicate.columns.first() != this@Tx.columns[0] || this.predicate.distance.name != config.distance) {
+                if (this.predicate.columns.first() != this@Tx.columns[0] || this.predicate.distance.name != (config as LSHIndexConfig).distance) {
                     throw QueryException.UnsupportedPredicateException("Index '${this@LSHIndex.name}' (lsh-index) does not support the provided predicate.")
                 }
 

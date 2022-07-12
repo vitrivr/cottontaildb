@@ -27,6 +27,7 @@ import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.column.ColumnTx
@@ -36,14 +37,14 @@ import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import org.vitrivr.cottontail.dbms.index.*
-import org.vitrivr.cottontail.dbms.index.pq.PQIndex
+import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.va.bounds.Bounds
 import org.vitrivr.cottontail.dbms.index.va.bounds.L1Bounds
 import org.vitrivr.cottontail.dbms.index.va.bounds.L2Bounds
+import org.vitrivr.cottontail.dbms.index.va.rebuilder.AsyncVAFIndexRebuilder
+import org.vitrivr.cottontail.dbms.index.va.rebuilder.VAFIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
-import org.vitrivr.cottontail.dbms.statistics.columns.VectorValueStatistics
 import org.vitrivr.cottontail.utilities.selection.HeapSelection
 import java.util.*
 import kotlin.concurrent.withLock
@@ -57,7 +58,7 @@ import kotlin.concurrent.withLock
  * [1] Weber, R. and Blott, S., 1997. An approximation based data structure for similarity search (No. 9141, p. 416). Technical Report 24, ESPRIT Project HERMES.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 3.2.0
+ * @version 3.3.0
  */
 class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
@@ -137,6 +138,21 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
     override val type = IndexType.VAF
 
     /**
+     * Opens and returns a new [VAFIndexRebuilder] object that can be used to rebuild with this [VAFIndex].
+     *
+     * @param context The [TransactionContext] to create this [VAFIndexRebuilder] for.
+     * @return [VAFIndexRebuilder]
+     */
+    override fun newRebuilder(context: TransactionContext) = VAFIndexRebuilder(this, context)
+
+    /**
+     * Opens and returns a new [AsyncVAFIndexRebuilder] object that can be used to rebuild with this [VAFIndex].
+     *
+     * @return [AsyncVAFIndexRebuilder]
+     */
+    override fun newAsyncRebuilder() = AsyncVAFIndexRebuilder(this)
+
+    /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [VAFIndex].
      *
      * @param context The [TransactionContext] to create this [IndexTx] for.
@@ -151,19 +167,19 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
     /**
      * A [IndexTx] that affects this [VAFIndex].
      */
-    internal inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
-
-        /** The [VAFIndexConfig] used by this [VAFIndex] instance. */
-        override val config: VAFIndexConfig
-            get() = super.config as VAFIndexConfig
+    inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
         /** The [EquidistantVAFMarks] object used by this [VAFIndex.Tx]. */
-        private val marks: EquidistantVAFMarks?
-            get() = this.config.marks
+        private val marks: EquidistantVAFMarks by lazy {
+            IndexStructCatalogueEntry.read<EquidistantVAFMarks>(this@VAFIndex.name, this@VAFIndex.catalogue, context.xodusTx, EquidistantVAFMarks.Binding)?:
+                throw DatabaseException.DataCorruptionException("Marks for VAF index ${this@VAFIndex.name} are missing.")
+        }
 
         /** The Xodus [Store] used to store [VAFSignature]s. */
-        private var dataStore: Store = this@VAFIndex.catalogue.environment.openStore(this@VAFIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
-            ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@VAFIndex.name} is missing.")
+        private val dataStore: Store by lazy {
+            this@VAFIndex.catalogue.environment.openStore(this@VAFIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false) ?:
+                throw DatabaseException.DataCorruptionException("Store for VAF index ${this@VAFIndex.name} is missing.")
+        }
 
         /**
          * Calculates the cost estimate of this [VAFIndex.Tx] processing the provided [Predicate].
@@ -217,64 +233,12 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         }
 
         /**
-         * (Re-)builds the [VAFIndex] from scratch.
-         */
-        override fun rebuild() = this.txLatch.withLock {
-            LOGGER.debug("Rebuilding VAF index {}", this@VAFIndex.name)
-
-            /* Obtain component-wise minimum and maximum for the vector held by the entity. */
-            val config = this.config
-            val entityTx = this.context.getTx(this@VAFIndex.parent) as EntityTx
-            val columnTx = this.context.getTx(entityTx.columnForName(this.columns[0].name)) as ColumnTx<*>
-
-            /* Calculate and update marks. */
-            val newMarks = EquidistantVAFMarks(columnTx.statistics() as VectorValueStatistics<*>, config.marksPerDimension)
-
-            /* Clear old signatures. */
-            this.clear()
-
-            /* Iterate over entity and update index with entries. */
-            val cursor = columnTx.cursor()
-            while (cursor.hasNext()) {
-                val value = cursor.value()
-                if (value is RealVectorValue<*>) {
-                    this.dataStore.put(this.context.xodusTx, cursor.key().toKey(), newMarks.getSignature(value).toEntry())
-                }
-            }
-
-            /* Close cursor. */
-            cursor.close()
-
-            /* Update catalogue entry for index. */
-            this.updateState(IndexState.CLEAN, config.copy(marks = newMarks))
-            LOGGER.debug("Rebuilding VAF index {} completed!", this@VAFIndex.name)
-        }
-
-        /**
-         * Always throws an [UnsupportedOperationException], since [PQIndex] does not support asynchronous rebuilds.
-         */
-        override fun asyncRebuild() = this.txLatch.withLock { VAFIndexRebuilder() }
-
-        /**
          * Returns the number of entries in this [VAFIndex].
          *
          * @return Number of entries in this [VAFIndex]
          */
         override fun count(): Long  = this.txLatch.withLock {
             this.dataStore.count(this.context.xodusTx)
-        }
-
-        /**
-         * Clears the [VAFIndex] underlying this [Tx] and removes all entries it contains.
-         */
-        override fun clear() = this.txLatch.withLock {
-            /* Truncate and replace store.*/
-            this@VAFIndex.catalogue.environment.truncateStore(this@VAFIndex.name.storeName(), this.context.xodusTx)
-            this.dataStore = this@VAFIndex.catalogue.environment.openStore(this@VAFIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
-                ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@VAFIndex.name} is missing.")
-
-            /* Update catalogue entry for index. */
-            this.updateState(IndexState.STALE)
         }
 
         /**
@@ -286,10 +250,9 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          */
         override fun tryApply(event: DataEvent.Insert): Boolean {
             val value = event.data[this.columns[0]] ?: return true
-            val marks = this.marks ?: return false
 
             /* Obtain marks and add them. */
-            return this.dataStore.add(this.context.xodusTx, event.tupleId.toKey(), marks.getSignature(value as RealVectorValue<*>).toEntry())
+            return this.dataStore.add(this.context.xodusTx, event.tupleId.toKey(), this.marks.getSignature(value as RealVectorValue<*>).toEntry())
         }
 
         /**
@@ -302,11 +265,10 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         override fun tryApply(event: DataEvent.Update): Boolean {
             val oldValue = event.data[this.columns[0]]?.first
             val newValue = event.data[this.columns[0]]?.second
-            val marks = this.marks ?: return false
 
             /* Obtain marks and update them. */
             return if (newValue is RealVectorValue<*>) { /* Case 1: New value is not null, i.e., update to new value. */
-                this.dataStore.put(this.context.xodusTx, event.tupleId.toKey(), marks.getSignature(newValue).toEntry())
+                this.dataStore.put(this.context.xodusTx, event.tupleId.toKey(), this.marks.getSignature(newValue).toEntry())
             } else if (oldValue is RealVectorValue<*>) { /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
                 this.dataStore.delete(this.context.xodusTx, event.tupleId.toKey())
             } else { /* Case 3: There is no value, there was no value, proceed. */
@@ -373,9 +335,9 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
                 }
 
                 /** Cached in-memory version of the [EquidistantVAFMarks] used by this [Cursor]. */
-                private val marks = this@Tx.marks ?: throw IllegalStateException("VAFMarks could not be obtained. This is a programmer's error!")
+                private val marks = this@Tx.marks
 
-                /** */
+                /** The columns produced by this [Cursor]. */
                 private val produces = this@Tx.columnsFor(predicate).toTypedArray()
 
                 /** The current [Cursor] position. */

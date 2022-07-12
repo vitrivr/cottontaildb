@@ -1,7 +1,8 @@
-package org.vitrivr.cottontail.dbms.index.pq
+package org.vitrivr.cottontail.dbms.index.pq.signature
 
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
+import org.vitrivr.cottontail.dbms.index.pq.PQIndex
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.xerial.snappy.Snappy
 
