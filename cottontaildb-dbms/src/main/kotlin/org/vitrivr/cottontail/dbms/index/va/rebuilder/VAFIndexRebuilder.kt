@@ -49,7 +49,7 @@ class VAFIndexRebuilder(index: VAFIndex, context: TransactionContext): AbstractI
             while (cursor.hasNext()) {
                 val value = cursor.value()
                 if (value is RealVectorValue<*>) {
-                    dataStore.put(this.context.xodusTx, cursor.key().toKey(), marks.getSignature(value).toEntry())
+                    dataStore.put(this.context.xodusTx, marks.getSignature(value).toEntry(), cursor.key().toKey())
                 }
 
                 /* Data is flushed every once in a while. */

@@ -46,7 +46,6 @@ import org.vitrivr.cottontail.dbms.index.va.rebuilder.VAFIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.utilities.selection.HeapSelection
-import java.util.*
 import kotlin.concurrent.withLock
 
 /**
@@ -166,7 +165,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
 
         /** The [EquidistantVAFMarks] object used by this [VAFIndex.Tx]. */
         private val marks: EquidistantVAFMarks by lazy {
-            IndexStructCatalogueEntry.read<EquidistantVAFMarks>(this@VAFIndex.name, this@VAFIndex.catalogue, context.xodusTx, EquidistantVAFMarks.Binding)?:
+            IndexStructCatalogueEntry.read(this@VAFIndex.name, this@VAFIndex.catalogue, context.xodusTx, EquidistantVAFMarks.Binding)?:
                 throw DatabaseException.DataCorruptionException("Marks for VAF index ${this@VAFIndex.name} are missing.")
         }
 
@@ -417,10 +416,12 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
                         do {
                             val signature = VAFSignature.fromEntry(cursor.value)
                             if (signature.isInvalid() || this.bounds.lb(VAFSignature.fromEntry(cursor.value), threshold) < threshold) {
-                                this.readAndOffer(LongBinding.compressedEntryToLong(cursor.key))
+                                do {
+                                    this.readAndOffer(LongBinding.compressedEntryToLong(cursor.key))
+                                } while (cursor.nextDup)
                                 threshold = (this.selection.peek()!![0] as DoubleValue).value
                             }
-                        } while (cursor.next)
+                        } while (cursor.nextNoDup)
                     } catch (e: Throwable) {
                         LOGGER.error("VA-SSA Scan: Error while scanning VAF index: ${e.message}")
                     } finally {
@@ -431,48 +432,6 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
                         cursor.close()
                         subTx.abort()
                     }
-                }
-
-                /**
-                 * Prepares the result set using the [VAFIndex] and the VA-NOA algorithm described in [1]. Currenty not in use.
-                 */
-                private fun prepareVANOA() {
-                    val subTx = this@Tx.context.xodusTx.readonlySnapshot
-                    val cursor = this@Tx.dataStore.openCursor(subTx)
-                    if (cursor.getSearchKey(partition.first.toKey()) == null) return
-                    val produces = this@Tx.columnsFor(predicate).toTypedArray()
-
-                    /* Phase 1: Explore all signatures. */
-                    val p1 = HeapSelection<Triple<TupleId,Double,Double>>(this.predicate.k) { t1, t2 -> t1.third.compareTo(t2.third) }
-                    val candidates = LinkedList<Triple<TupleId,Double, Double>>()
-                    var threshold = Double.MAX_VALUE
-                    do {
-                        val signature = VAFSignature.fromEntry(cursor.value)
-                        val (lb, ub) = this.bounds.bounds(signature)
-                        if (p1.added < p1.k || lb <= threshold) {
-                            val triple = Triple(LongBinding.compressedEntryToLong(cursor.key), lb, ub)
-                            p1.offer(triple)
-                            candidates.add(triple)
-                            threshold = p1.peek()!!.third
-                        }
-                    } while (cursor.next)
-
-                    /* Close Xodus cursor. */
-                    cursor.close()
-                    subTx.abort()
-
-                    /** Phase 2: Sort candidates list and  */
-                    candidates.sortBy { it.second }
-                    threshold = Double.MAX_VALUE
-                    for (c in candidates) {
-                        if (c.second > threshold) break
-                        val value = this.columnTx.get(c.first)
-                        val distance = this.predicate.distance(this.query, value)!!
-                        this.selection.offer(StandaloneRecord(c.first, produces, arrayOf(distance, value)))
-                        threshold = (this.selection.peek()!![0] as DoubleValue).value
-                    }
-
-                    LOGGER.debug("VA-NOA scan: Read ${this.selection.added} and skipped over ${(1.0 - this.selection.added.toDouble() / this@Tx.count()) * 100}% of entries.")
                 }
             }
         }
