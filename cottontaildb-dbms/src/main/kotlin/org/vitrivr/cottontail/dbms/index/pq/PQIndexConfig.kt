@@ -27,8 +27,8 @@ data class PQIndexConfig(val distance: Name.FunctionName, val numCentroids: Int,
         /** Configuration key for the number of centroids. */
         const val KEY_NUM_CENTROIDS = "num_centroids"
 
-        /** Configuration key for the sample size. */
-        const val KEY_SAMPLE_SIZE = "sample_rate"
+        /** Configuration key for the number of centroids. */
+        const val KEY_SEED = "seed"
 
         /** DEfault value for the number of centroids as recommended by Jegou et al. */
         const val DEFAULT_CENTROIDS = 256

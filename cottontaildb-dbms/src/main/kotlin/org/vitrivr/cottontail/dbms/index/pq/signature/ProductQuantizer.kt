@@ -125,9 +125,9 @@ class ProductQuantizer constructor(val codebooks: Array<PQCodebook>) {
      *
      * @return [SerializableProductQuantizer]
      */
-    fun toSerializableProductQuantizer(): SerializableProductQuantizer = SerializableProductQuantizer(Array(this.codebooks.size){ i ->
-        Array(this.codebooks[0].numberOfCentroids) { j->
-            DoubleArray(this.codebooks[0].subspaceSize) { k ->
+    fun toSerializableProductQuantizer(): SerializableProductQuantizer = SerializableProductQuantizer(Array(this.numberOfSubspaces){ i ->
+        Array(this.codebooks[i].numberOfCentroids) { j->
+            DoubleArray(this.codebooks[i].subspaceSize) { k ->
                 this.codebooks[i].centroids[j][k].value.toDouble()
             }
         }

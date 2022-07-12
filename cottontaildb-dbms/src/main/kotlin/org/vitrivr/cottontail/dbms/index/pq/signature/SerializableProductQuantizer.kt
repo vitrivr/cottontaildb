@@ -54,12 +54,12 @@ class SerializableProductQuantizer(val codebooks: Array<Array<DoubleArray>>): In
     val numberOfSubspaces
         get() = this.codebooks.size
 
-    /** The number of dimensions per subspace. */
-    val dimensionsPerSubspace
-        get() = this.codebooks[0].size
-
     /** The number of centroids per subspace. */
     val numberOfCentroids
+        get() = this.codebooks[0].size
+
+    /** The number of dimensions per subspace. */
+    val dimensionsPerSubspace
         get() = this.codebooks[0][0].size
 
     /**
@@ -70,13 +70,13 @@ class SerializableProductQuantizer(val codebooks: Array<Array<DoubleArray>>): In
      */
     fun toProductQuantizer(distance: VectorDistance<*>): ProductQuantizer {
         val reshaped = distance.copy(this.dimensionsPerSubspace)
-        val codebooks = Array(this.numberOfSubspaces) { j ->
-            ProductQuantizer.PQCodebook(reshaped, Array(this.numberOfCentroids) { i ->
+        val codebooks = Array(this.numberOfSubspaces) { i ->
+            ProductQuantizer.PQCodebook(reshaped, Array(this.numberOfCentroids) { j ->
                 when(distance.type) {
-                    is Types.DoubleVector -> DoubleVectorValue(this.codebooks[j][i])
-                    is Types.FloatVector -> FloatVectorValue(this.codebooks[j][i])
-                    is Types.LongVector -> LongVectorValue(this.codebooks[j][i])
-                    is Types.IntVector -> IntVectorValue(this.codebooks[j][i])
+                    is Types.DoubleVector -> DoubleVectorValue(this.codebooks[i][j])
+                    is Types.FloatVector -> FloatVectorValue(this.codebooks[i][j])
+                    is Types.LongVector -> LongVectorValue(this.codebooks[i][j])
+                    is Types.IntVector -> IntVectorValue(this.codebooks[i][j])
                     else -> throw IllegalArgumentException("Reconstruction of product quantizer not possible; type ${distance.type} not supported.")
                 }
             })
