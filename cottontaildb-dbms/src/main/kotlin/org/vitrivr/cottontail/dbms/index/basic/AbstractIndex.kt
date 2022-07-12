@@ -165,17 +165,8 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
          *
          * @param state The new [IndexState].
          */
-        internal fun updateState(state: IndexState) {
-            if (state != this.state) {
-                /* Obtain old entry and compare state. */
-                val oldEntry = IndexCatalogueEntry.read(this@AbstractIndex.name, this@AbstractIndex.catalogue, this.context.xodusTx)
-                    ?: throw DatabaseException.DataCorruptionException("Failed to update state for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
-                val newEntry = oldEntry.copy(state = state)
-
-                /* ... and write it to catalogue. */
-                IndexCatalogueEntry.write(newEntry, this@AbstractIndex.catalogue, this.context.xodusTx)
-
-                /* Signal event to transaction context. */
+        protected fun updateState(state: IndexState) {
+            if (state != this.state && IndexCatalogueEntry.updateState(this@AbstractIndex.name, this@AbstractIndex.catalogue, state, this.context.xodusTx)) {
                 this.context.signalEvent(IndexEvent.State(this@AbstractIndex.name, this@AbstractIndex.type, state))
             }
         }
