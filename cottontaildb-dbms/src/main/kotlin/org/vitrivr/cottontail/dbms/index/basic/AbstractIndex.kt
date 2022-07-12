@@ -99,16 +99,6 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
             this.config = entry.config
         }
 
-
-        /** The number of INSERT operations since last rebuilding the index. */
-        protected var numberOfInserts = 0L
-
-        /** The number of UPDATE operations since last rebuilding the index. */
-        protected var numberOfUpdates = 0L
-
-        /** The number of DELETE operations since last rebuilding the index. */
-        protected var numberOfDeletes = 0L
-
         /**
          * Tries to process an incoming [DataEvent.Insert].
          *
@@ -118,11 +108,10 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
          * @param event [DataEvent.Insert] that should be processed,
          */
         final override fun insert(event: DataEvent.Insert) = this.txLatch.withLock {
-            /* If write-model does not allow propagation, mark index as STALE. */
-            if (this.tryApply(event)) {
-                this.numberOfInserts += 1
-            } else {
-                this.updateState(IndexState.STALE)
+            if (this.state != IndexState.STALE) { /* Stale indexes are no longer updated; if write-model does not allow propagation, mark index as STALE. */
+                if (!this.tryApply(event)) {
+                    this.updateState(IndexState.STALE)
+                }
             }
         }
 
@@ -135,11 +124,10 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
          * @param event [DataEvent.Update]
          */
         final override fun update(event: DataEvent.Update) = this.txLatch.withLock {
-            /* If write-model does not allow propagation, mark index as STALE. */
-            if (this.tryApply(event)) {
-                this.numberOfUpdates += 1
-            } else {
-                this.updateState(IndexState.STALE)
+            if (this.state != IndexState.STALE) { /* Stale indexes are no longer updated; if write-model does not allow propagation, mark index as STALE. */
+                if (!this.tryApply(event)) {
+                    this.updateState(IndexState.STALE)
+                }
             }
         }
 
@@ -152,11 +140,10 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
          * @param event [DataEvent.Delete] that should be processed.
          */
         final override fun delete(event: DataEvent.Delete) = this.txLatch.withLock {
-            /* If write-model does not allow propagation, mark index as dirty. */
-            if (this.tryApply(event)) {
-                this.numberOfDeletes += 1
-            } else {
-                this.updateState(IndexState.STALE)
+            if (this.state != IndexState.STALE) { /* Stale indexes are no longer updated; if write-model does not allow propagation, mark index as STALE. */
+                if (!this.tryApply(event)) {
+                    this.updateState(IndexState.STALE)
+                }
             }
         }
 
