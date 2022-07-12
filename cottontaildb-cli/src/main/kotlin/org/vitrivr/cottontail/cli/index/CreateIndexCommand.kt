@@ -1,8 +1,6 @@
-package org.vitrivr.cottontail.cli.entity
+package org.vitrivr.cottontail.cli.index
 
 import com.github.ajalt.clikt.parameters.arguments.argument
-import com.github.ajalt.clikt.parameters.options.flag
-import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.enum
 import io.grpc.StatusException
 import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
@@ -20,16 +18,12 @@ import kotlin.time.measureTimedValue
  * @version 2.1.0
  */
 @ExperimentalTime
-class CreateIndexCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "create-index", help = "Creates an index on the given entity and rebuilds the newly created index. Usage: entity createIndex <schema>.<entity> <column> <index>") {
+class CreateIndexCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "create-index", help = "Creates an index on the given entity and rebuilds the newly created index. Usage: index create <schema>.<entity> <column> <index>") {
+    /** The attribute that should be indexed. */
+    private val attribute by argument(name = "column", help = "The name of the column to create the index for.")
 
-    private val attribute by argument(
-        name = "column",
-        help = "The name of the column to create the index for."
-    )
-    private val index by argument(
-        name = "index",
-        help = "The type of index to create."
-    ).enum<IndexType>()
+    /** The type of index to create. */
+    private val index by argument(name = "index", help = "The type of index to create.").enum<IndexType>()
 
     override fun exec() {
         try {

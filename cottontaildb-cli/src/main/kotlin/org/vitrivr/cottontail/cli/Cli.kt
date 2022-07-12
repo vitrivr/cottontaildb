@@ -24,6 +24,9 @@ import org.vitrivr.cottontail.cli.basics.AbstractSchemaCommand
 import org.vitrivr.cottontail.cli.benchmarks.AdaptiveIndexBenchmark
 import org.vitrivr.cottontail.cli.benchmarks.HighDimensionalIndexBenchmark
 import org.vitrivr.cottontail.cli.entity.*
+import org.vitrivr.cottontail.cli.index.CreateIndexCommand
+import org.vitrivr.cottontail.cli.index.DropIndexCommand
+import org.vitrivr.cottontail.cli.index.RebuildIndexCommand
 import org.vitrivr.cottontail.cli.query.*
 import org.vitrivr.cottontail.cli.schema.*
 import org.vitrivr.cottontail.cli.system.KillTransactionCommand
@@ -253,35 +256,6 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
         init {
             context { helpFormatter = CliHelpFormatter() }
             subcommands(
-                /* Entity related commands. */
-                object : NoOpCliktCommand(
-                    name = "entity",
-                    help = "Groups commands that act on Cottontail DB entities. Usually requires the entity's qualified name.",
-                    epilog = "Entity related commands usually have the form: entity <command> <name>, `entity about schema_name.entity_name. Check help for command specific parameters.",
-                    invokeWithoutSubcommand = true,
-                    printHelpOnEmptyArgs = true
-                ) {
-                    override fun aliases(): Map<String, List<String>> {
-                        /* List of entity aliases: entity <alias> */
-                        return mapOf(
-                            "ls" to listOf("list"),
-                            "list-indexes" to listOf("list-indices")
-                        )
-                    }
-                }.subcommands(
-                    AboutEntityCommand(this@Cli.client),
-                    ClearEntityCommand(this@Cli.client),
-                    CreateEntityCommand(this@Cli.client),
-                    DropEntityCommand(this@Cli.client),
-                    TruncateEntityCommand(this@Cli.client),
-                    ListAllEntitiesCommand(this@Cli.client),
-                    OptimizeEntityCommand(this@Cli.client),
-                    CreateIndexCommand(this@Cli.client),
-                    DropIndexCommand(this@Cli.client),
-                    DumpEntityCommand(this@Cli.client),
-                    ImportDataCommand(this@Cli.client)
-                ),
-
                 /* Schema related commands. */
                 object : NoOpCliktCommand(
                     name = "schema",
@@ -301,6 +275,53 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                     DumpSchemaCommand(this@Cli.client),
                     ListAllSchemaCommand(this@Cli.client),
                     ListEntitiesCommand(this@Cli.client)
+                ),
+
+                /* Entity related commands. */
+                object : NoOpCliktCommand(
+                    name = "entity",
+                    help = "Groups commands that act on Cottontail DB entities. Usually requires the entity's qualified name.",
+                    epilog = "Entity related commands usually have the form: entity <command> <name>, `entity about schema_name.entity_name. Check help for command specific parameters.",
+                    invokeWithoutSubcommand = true,
+                    printHelpOnEmptyArgs = true
+                ) {
+                    override fun aliases(): Map<String, List<String>> {
+                        /* List of entity aliases: entity <alias> */
+                        return mapOf(
+                            "ls" to listOf("list"),
+                            "list-indexes" to listOf("list-indices")
+                        )
+                    }
+                }.subcommands(
+                    AboutEntityCommand(this@Cli.client),
+                    CreateEntityCommand(this@Cli.client),
+                    DropEntityCommand(this@Cli.client),
+                    TruncateEntityCommand(this@Cli.client),
+                    ListAllEntitiesCommand(this@Cli.client),
+                    AnalyzeEntityCommand(this@Cli.client),
+                    DumpEntityCommand(this@Cli.client),
+                    ImportDataCommand(this@Cli.client)
+                ),
+
+                /* Entity related commands. */
+                object : NoOpCliktCommand(
+                    name = "index",
+                    help = "Groups commands that act on Cottontail DB index's. Usually requires the index's qualified name.",
+                    epilog = "Index related commands usually have the form: index <command> <name>, `index rebuild <schema_name>.<entity_name>.<index_name>. Check help for command specific parameters.",
+                    invokeWithoutSubcommand = true,
+                    printHelpOnEmptyArgs = true
+                ) {
+                    override fun aliases(): Map<String, List<String>> {
+                        /* List of entity aliases: entity <alias> */
+                        return mapOf(
+                            "ls" to listOf("list"),
+                            "list-indexes" to listOf("list-indices")
+                        )
+                    }
+                }.subcommands(
+                    CreateIndexCommand(this@Cli.client),
+                    DropIndexCommand(this@Cli.client),
+                    RebuildIndexCommand(this@Cli.client)
                 ),
 
                 /* Transaction related commands. */

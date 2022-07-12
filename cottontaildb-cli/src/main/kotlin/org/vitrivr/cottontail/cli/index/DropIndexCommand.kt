@@ -1,15 +1,12 @@
-package org.vitrivr.cottontail.cli.entity
+package org.vitrivr.cottontail.cli.index
 
 import com.github.ajalt.clikt.output.TermUi
-import com.github.ajalt.clikt.parameters.arguments.argument
-import com.github.ajalt.clikt.parameters.arguments.convert
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import io.grpc.StatusException
-import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
+import org.vitrivr.cottontail.cli.basics.AbstractIndexCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.DropIndex
-import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.utilities.TabulationUtilities
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
@@ -18,23 +15,13 @@ import kotlin.time.measureTimedValue
  * Command to drop an index for a specified entity from Cottontail DB.
  *
  * @author Loris Sauter
- * @version 2.0.0
+ * @version 2.1.0
  */
 @ExperimentalTime
-class DropIndexCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "drop-index", help = "Drops the index on an entity. Usage: entity drop-index <schema>.<entity> <index>") {
-
-    /** Name of the index to drop. */
-    private val indexName: Name.IndexName by argument(
-        name = "name",
-        help = "The name of the index. Ideally from a previous list-indices call"
-    ).convert { this@DropIndexCommand.entityName.index(it) }
+class DropIndexCommand(client: SimpleClient) : AbstractIndexCommand(client, name = "drop", help = "Drops the specified index. Usage: index drop <schema>.<entity>.<index>") {
 
     /** Flag that can be used to directly provide confirmation. */
-    private val confirm: Boolean by option(
-        "-c",
-        "--confirm",
-        help = "Directly provides the confirmation option."
-    ).flag()
+    private val confirm: Boolean by option("-c", "--confirm", help = "Directly provides the confirmation option.").flag()
 
     override fun exec() {
         if (this.confirm || TermUi.confirm("Do you really want to drop the index ${this.indexName} [y/N]?", default = false, showDefault = false) == true) {
