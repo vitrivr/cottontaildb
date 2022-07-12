@@ -99,6 +99,7 @@ fun CottontailGrpc.Literal.toValue(): Value = when(this.dataCase) {
     }
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to VALUE.")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> ByteStringValue(this.byteStringData.toByteArray())
 }
 
 /**
@@ -130,6 +131,7 @@ fun CottontailGrpc.Literal.toType(): Types<*> = when(this.dataCase) {
     }
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to VALUE.")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> Types.ByteString
 }
 
 /**
@@ -183,7 +185,7 @@ fun Types<*>.proto(): CottontailGrpc.Type = when(this) {
     is Types.DoubleVector -> CottontailGrpc.Type.DOUBLE_VEC
     is Types.Complex32Vector -> CottontailGrpc.Type.COMPLEX32_VEC
     is Types.Complex64Vector -> CottontailGrpc.Type.COMPLEX64_VEC
-    Types.ByteString -> TODO()
+    Types.ByteString -> CottontailGrpc.Type.BYTESTRING
 }
 
 /**
@@ -205,6 +207,7 @@ fun CottontailGrpc.Literal.toStringValue(): StringValue = when (this.dataCase) {
     CottontailGrpc.Literal.DataCase.VECTORDATA -> throw IllegalArgumentException("A value of type VECTOR cannot be cast to STRING.")
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to STRING.")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> StringValue("~~Binary~~") //TODO show somehow?
 }
 
 /**
@@ -226,6 +229,7 @@ fun CottontailGrpc.Literal.toDateValue(): DateValue = when (this.dataCase) {
     CottontailGrpc.Literal.DataCase.VECTORDATA -> throw IllegalArgumentException("A value of type VECTOR cannot be cast to DATE.")
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to STRING.")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> DateValue(this.intData.toLong())
 }
 
 /**
@@ -247,6 +251,7 @@ fun CottontailGrpc.Literal.toBooleanValue(): BooleanValue = when (this.dataCase)
     CottontailGrpc.Literal.DataCase.VECTORDATA -> throw IllegalArgumentException("A value of VECTOR cannot be cast to BOOLEAN.")
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to BOOLEAN.")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> throw IllegalArgumentException("A value of type BYTESTRING cannot be cast to BOOLEAN.")
 }
 
 /**
@@ -271,6 +276,7 @@ fun CottontailGrpc.Literal.toDoubleValue(): DoubleValue = when (this.dataCase) {
     CottontailGrpc.Literal.DataCase.VECTORDATA -> throw IllegalArgumentException("A value of VECTOR cannot be cast to DOUBLE.")
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to DOUBLE.")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> throw IllegalArgumentException("A value of BYTESTRING cannot be cast to DOUBLE.")
 }
 
 /**
@@ -295,6 +301,7 @@ fun CottontailGrpc.Literal.toFloatValue(): FloatValue = when (this.dataCase) {
     CottontailGrpc.Literal.DataCase.VECTORDATA -> throw IllegalArgumentException("A value of VECTOR cannot be cast to FLOAT.")
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to FLOAT.")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> throw IllegalArgumentException("A value of BYTESTRING cannot be cast to FLOAT.")
 }
 
 /**
@@ -319,6 +326,7 @@ fun CottontailGrpc.Literal.toShortValue(): ShortValue = when (this.dataCase) {
     CottontailGrpc.Literal.DataCase.VECTORDATA -> throw IllegalArgumentException("A value of VECTOR cannot be cast to SHORT.")
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to SHORT.")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> throw IllegalArgumentException("A value of BYTESTRING cannot be cast to SHORT.")
 }
 
 /**
@@ -343,6 +351,7 @@ fun CottontailGrpc.Literal.toByteValue(): ByteValue = when (this.dataCase) {
     CottontailGrpc.Literal.DataCase.VECTORDATA -> throw IllegalArgumentException("A value of VECTOR cannot be cast to BYTE.")
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to BYTE.")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> throw IllegalArgumentException("A value of BYTESTRING cannot be cast to BYTE.")
 }
 
 /**
@@ -367,6 +376,7 @@ fun CottontailGrpc.Literal.toIntValue(): IntValue = when (this.dataCase) {
     CottontailGrpc.Literal.DataCase.VECTORDATA -> throw IllegalArgumentException("A value of VECTOR cannot be cast to INT.")
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to INT.")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> throw IllegalArgumentException("A value of BYTESTRING cannot be cast to INT.")
 }
 
 /**
@@ -391,6 +401,7 @@ fun CottontailGrpc.Literal.toLongValue(): LongValue = when (this.dataCase) {
     CottontailGrpc.Literal.DataCase.VECTORDATA -> throw IllegalArgumentException("A value of VECTOR cannot be cast to LONG.")
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to LONG.")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> throw IllegalArgumentException("A value of BYTESTRING cannot be cast to LONG.")
 }
 
 /**
@@ -412,6 +423,7 @@ fun CottontailGrpc.Literal.toComplex32Value(): Complex32Value = when (this.dataC
     CottontailGrpc.Literal.DataCase.VECTORDATA -> throw IllegalArgumentException("A value of VECTOR cannot be cast to COMPLEX32.")
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to COMPLEX32.")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> throw IllegalArgumentException("A value of BYTESTRING cannot be cast to COMPLEX32.")
 }
 
 /**
@@ -433,6 +445,7 @@ fun CottontailGrpc.Literal.toComplex64Value(): Complex64Value = when (this.dataC
     CottontailGrpc.Literal.DataCase.VECTORDATA -> throw IllegalArgumentException("A value of VECTOR cannot be cast to COMPLEX64.")
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to COMPLEX64.")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> throw IllegalArgumentException("A value of BYTESTRING cannot be cast to COMPLEX64.")
 }
 
 /**
@@ -456,6 +469,7 @@ fun CottontailGrpc.Literal.toFloatVectorValue(): FloatVectorValue = when (this.d
     CottontailGrpc.Literal.DataCase.COMPLEX64DATA -> throw IllegalArgumentException("A value of COMPLEX64 cannot be cast to VECTOR.")
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to VECTOR[FLOAT].")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> throw IllegalArgumentException("A value of BYTESTRING cannot be cast to VECTOR.")
 }
 
 
@@ -481,6 +495,7 @@ fun CottontailGrpc.Literal.toDoubleVectorValue(): DoubleVectorValue = when (this
     CottontailGrpc.Literal.DataCase.COMPLEX64DATA -> throw IllegalArgumentException("A value of COMPLEX64 cannot be cast to VECTOR[DOUBLE].")
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to VECTOR[DOUBLE].")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> throw IllegalArgumentException("A value of BYTESTRING cannot be cast to VECTOR[DOUBLE].")
 }
 
 /**
@@ -505,6 +520,7 @@ fun CottontailGrpc.Literal.toLongVectorValue(): LongVectorValue = when (this.dat
     CottontailGrpc.Literal.DataCase.COMPLEX64DATA -> throw IllegalArgumentException("A value of COMPLEX64 cannot be cast to VECTOR[LONG].")
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to VECTOR[LONG].")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> throw IllegalArgumentException("A value of BYTESTRING cannot be cast to VECTOR[LONG].")
 }
 
 /**
@@ -529,6 +545,7 @@ fun CottontailGrpc.Literal.toIntVectorValue(): IntVectorValue = when (this.dataC
     CottontailGrpc.Literal.DataCase.COMPLEX64DATA -> throw IllegalArgumentException("A value of COMPLEX64 cannot be cast to VECTOR[INT].")
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to VECTOR[INT].")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> throw IllegalArgumentException("A value of BYTESTRING cannot be cast to VECTOR[INT].")
 }
 
 /**
@@ -551,6 +568,7 @@ fun CottontailGrpc.Literal.toBooleanVectorValue(): BooleanVectorValue = when (th
     CottontailGrpc.Literal.DataCase.COMPLEX64DATA -> throw IllegalArgumentException("A value of COMPLEX64 cannot be cast to VECTOR[BOOL].")
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to VECTOR[BOOL].")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> throw IllegalArgumentException("A value of BYTESTRING cannot be cast to VECTOR[BOOL].")
 }
 
 /**
@@ -572,6 +590,7 @@ fun CottontailGrpc.Literal.toComplex32VectorValue(): Complex32VectorValue = when
     CottontailGrpc.Literal.DataCase.COMPLEX64DATA -> Complex32VectorValue(arrayOf(Complex32Value(FloatValue(this.complex64Data.real.toFloat()), FloatValue(this.complex64Data.imaginary.toFloat())))) // cave! precision!
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to VECTOR[COMPLEX32].")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> throw IllegalArgumentException("A value of BYTESTRING cannot be cast to VECTOR[COMPLEX32].")
 }
 
 /**
@@ -593,6 +612,7 @@ fun CottontailGrpc.Literal.toComplex64VectorValue(): Complex64VectorValue = when
     CottontailGrpc.Literal.DataCase.COMPLEX64DATA -> Complex64VectorValue(arrayOf(Complex64Value(this.complex64Data.real, this.complex64Data.imaginary)))
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to VECTOR[COMPLEX64].")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> throw IllegalArgumentException("A value of BYTESTRING cannot be cast to VECTOR[COMPLEX64].")
 }
 
 /**
