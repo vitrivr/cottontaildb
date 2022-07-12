@@ -7,12 +7,15 @@ import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
+import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
+import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
 import org.vitrivr.cottontail.dbms.queries.operators.physical.definition.*
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.SortPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DDLGrpcKt
 import org.vitrivr.cottontail.utilities.extensions.fqn
@@ -22,13 +25,12 @@ import kotlin.time.ExperimentalTime
  * This is a gRPC service endpoint that handles DDL (= Data Definition Language) request for Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.3.1
+ * @version 2.4.0
  */
 @ExperimentalTime
 class DDLService(override val catalogue: DefaultCatalogue, override val manager: TransactionManager) : DDLGrpcKt.DDLCoroutineImplBase(), TransactionalGrpcService {
-
     /**
-     * gRPC endpoint for creating a new [org.vitrivr.cottontail.dbms.schema.Schema]
+     * gRPC endpoint for creating a new [Schema]
      */
     override suspend fun createSchema(request: CottontailGrpc.CreateSchemaMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val schemaName = request.schema.fqn()
@@ -37,7 +39,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
     }.single()
 
     /**
-     * gRPC endpoint for dropping a [org.vitrivr.cottontail.dbms.schema.Schema]
+     * gRPC endpoint for dropping a [Schema]
      */
     override suspend fun dropSchema(request: CottontailGrpc.DropSchemaMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val schemaName = request.schema.fqn()
@@ -46,7 +48,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
     }.single()
 
     /**
-     * gRPC endpoint listing the available [org.vitrivr.cottontail.dbms.schema.DefaultSchema]s.
+     * gRPC endpoint listing the available [Schema]s.
      */
     override fun listSchemas(request: CottontailGrpc.ListSchemaMessage): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(request.metadata, true) { ctx ->
         ctx.assign(SortPhysicalOperatorNode(ListSchemaPhysicalOperatorNode(ctx.txn.getTx(this.catalogue) as CatalogueTx), listOf(Pair(ColumnSets.DDL_LIST_COLUMNS[0], SortOrder.ASCENDING))))
@@ -54,7 +56,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
     }
 
     /**
-     * gRPC endpoint for creating a new [org.vitrivr.cottontail.dbms.entity.Entity]
+     * gRPC endpoint for creating a new [Entity]
      */
     override suspend fun createEntity(request: CottontailGrpc.CreateEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val entityName = request.definition.entity.fqn()
@@ -68,7 +70,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
     }.single()
 
     /**
-     * gRPC endpoint for dropping a specific [org.vitrivr.cottontail.dbms.entity.Entity].
+     * gRPC endpoint for dropping a specific [Entity].
      */
     override suspend fun dropEntity(request: CottontailGrpc.DropEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val entityName = request.entity.fqn()
@@ -77,7 +79,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
     }.single()
 
     /**
-     * gRPC endpoint for truncating a specific [org.vitrivr.cottontail.dbms.entity.Entity].
+     * gRPC endpoint for truncating a specific [Entity].
      */
     override suspend fun truncateEntity(request: CottontailGrpc.TruncateEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val entityName = request.entity.fqn()
@@ -86,16 +88,16 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
     }.single()
 
     /**
-     * gRPC endpoint for optimizing a particular [org.vitrivr.cottontail.dbms.entity.Entity].
+     * gRPC endpoint for optimizing a particular [Entity].
      */
-    override suspend fun optimizeEntity(request: CottontailGrpc.OptimizeEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
+    override suspend fun analyzeEntity(request: CottontailGrpc.AnalyzeEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val entityName = request.entity.fqn()
-        ctx.assign(OptimizeEntityPhysicalOperatorNode(ctx.txn.getTx(this.catalogue) as CatalogueTx, entityName))
+        ctx.assign(AnalyseEntityPhysicalOperatorNode(ctx.txn.getTx(this.catalogue) as CatalogueTx, entityName))
         ctx.toOperatorTree()
     }.single()
 
     /**
-     * gRPC endpoint listing the available [org.vitrivr.cottontail.dbms.entity.Entity]s for the provided [org.vitrivr.cottontail.dbms.schema.Schema].
+     * gRPC endpoint listing the available [Entity]s for the provided [Schema].
      */
     override fun listEntities(request: CottontailGrpc.ListEntityMessage): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(request.metadata, true) { ctx ->
         val schemaName = if (request.hasSchema()) { request.schema.fqn() } else { null }
@@ -104,7 +106,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
     }
 
     /**
-     * gRPC endpoint for requesting details about a specific [org.vitrivr.cottontail.dbms.entity.Entity].
+     * gRPC endpoint for requesting details about a specific [Entity].
      */
     override suspend fun entityDetails(request: CottontailGrpc.EntityDetailsMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, true) { ctx ->
         val entityName = request.entity.fqn()
@@ -134,7 +136,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
     }.single()
 
     /**
-     * gRPC endpoint for dropping a particular [org.vitrivr.cottontail.dbms.index.Index]
+     * gRPC endpoint for dropping a particular [Index]
      */
     override suspend fun dropIndex(request: CottontailGrpc.DropIndexMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val indexName = request.index.fqn()
@@ -143,7 +145,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
     }.single()
 
     /**
-     * gRPC endpoint for rebuilding a particular [org.vitrivr.cottontail.dbms.index.Index]
+     * gRPC endpoint for rebuilding a particular [Index]
      */
     override suspend fun rebuildIndex(request: CottontailGrpc.RebuildIndexMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val indexName = request.index.fqn()

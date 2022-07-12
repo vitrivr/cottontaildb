@@ -7,12 +7,13 @@ import org.vitrivr.cottontail.dbms.execution.operators.definition.AnalyseEntityO
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
- * A [DataDefinitionPhysicalOperatorNode] used to optimize an [Entity].
+ * A [DataDefinitionPhysicalOperatorNode] used to analyze an [Entity].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
-class OptimizeEntityPhysicalOperatorNode(val tx: CatalogueTx, val entityName: Name.EntityName): DataDefinitionPhysicalOperatorNode("OptimizeEntity") {
-    override fun copy() = OptimizeEntityPhysicalOperatorNode(this.tx, this.entityName)
+class AnalyseEntityPhysicalOperatorNode(val tx: CatalogueTx, val entityName: Name.EntityName): DataDefinitionPhysicalOperatorNode("AnalyseEntity") {
+    override fun copy() = AnalyseEntityPhysicalOperatorNode(this.tx, this.entityName)
     override fun toOperator(ctx: QueryContext) = AnalyseEntityOperator(this.tx, this.entityName)
 }
+
