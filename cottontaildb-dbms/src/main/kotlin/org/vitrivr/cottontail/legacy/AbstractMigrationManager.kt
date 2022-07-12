@@ -32,6 +32,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
+import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
@@ -40,7 +41,7 @@ import kotlin.time.measureTime
  * An abstract implementation of the [MigrationManager].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 @ExperimentalTime
 abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Path) : MigrationManager {
@@ -311,9 +312,6 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         override fun commit() {
             check(this.state === TransactionStatus.IDLE) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
-            for (txn in this.txns.values.reversed()) {
-                txn.beforeCommit()
-            }
             this.txns.clear()
             this.state = TransactionStatus.COMMIT
         }
@@ -324,9 +322,6 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         override fun rollback() {
             check(this.state === TransactionStatus.IDLE || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
-            for (txn in this.txns.values.reversed()) {
-                txn.beforeRollback()
-            }
             this.txns.clear()
             this.state = TransactionStatus.ROLLBACK
         }
@@ -343,7 +338,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
      * A [MigrationContext] is a special type of [TransactionContext] used during data migration.
      *
      * @author Ralph Gasser
-     * @version 2.0.0
+     * @version 2.1.0
      */
     inner class MigrationContext(override val xodusTx: jetbrains.exodus.env.Transaction) : TransactionContext, Transaction {
         /** The [TransactionId] of the [MigrationContext]. */
@@ -366,6 +361,12 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         /** Map of all [Tx] that have been created as part of this [MigrationManager]. Used for final COMMIT or ROLLBACK. */
         private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
+        /** List of all [Tx.WithCommitFinalization] that must be notified before commit. */
+        private val notifyOnCommit: MutableList<Tx.WithCommitFinalization> = Collections.synchronizedList(LinkedList())
+
+        /** List of all [Tx.WithRollbackFinalization] that must be notified before rollback. */
+        private val notifyOnRollback: MutableList<Tx.WithRollbackFinalization> = Collections.synchronizedList(LinkedList())
+
         /**
          * Returns the [Tx] for the provided [DBO]. Creating [Tx] through this method makes sure,
          * that only on [Tx] per [DBO] and [Transaction] is created.
@@ -374,7 +375,10 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
          * @return entity [Tx]
          */
         override fun getTx(dbo: DBO): Tx = this.txns.computeIfAbsent(dbo) {
-            dbo.newTx(this)
+            val new = dbo.newTx(this)
+            if (new is Tx.WithCommitFinalization) this.notifyOnCommit.add(new)
+            if (new is Tx.WithRollbackFinalization) this.notifyOnRollback.add(new)
+            new
         }
 
         override fun requestLock(dbo: DBO, mode: LockMode) {
@@ -396,17 +400,17 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
             check(this.state === TransactionStatus.IDLE) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
-                for (txn in this.txns.values.reversed()) {
-                    try {
-                        txn.beforeCommit()
-                    } catch (e: Throwable) {
-                        this.xodusTx.abort()
-                        throw e
-                    }
+                for (txn in this.notifyOnCommit) {
+                    txn.beforeCommit()
                 }
                 this.xodusTx.commit()
+            } catch (e: Throwable) {
+                this.xodusTx.abort()
+                throw e
             } finally {
                 this.txns.clear()
+                this.notifyOnCommit.clear()
+                this.notifyOnRollback.clear()
                 this.state = TransactionStatus.COMMIT
             }
         }
@@ -418,17 +422,17 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
             check(this.state === TransactionStatus.IDLE || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
-                for (txn in this.txns.values.reversed()) {
-                    try {
+                try {
+                    for (txn in this.notifyOnRollback) {
                         txn.beforeRollback()
-                    } catch (e: Throwable) {
-                        this.xodusTx.abort()
-                        throw e
                     }
+                } finally {
+                    this.xodusTx.abort()
                 }
-                this.xodusTx.abort()
             } finally {
                 this.txns.clear()
+                this.notifyOnCommit.clear()
+                this.notifyOnRollback.clear()
                 this.state = TransactionStatus.ROLLBACK
             }
         }
