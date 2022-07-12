@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.dbms.index.pq.rebuilder
 
 import jetbrains.exodus.env.Store
-import org.apache.commons.math3.random.JDKRandomGenerator
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
@@ -41,7 +40,6 @@ class PQIndexRebuilder(index: PQIndex, context: TransactionContext): AbstractInd
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
         val config = entry.config as PQIndexConfig
         val column = entry.columns[0]
-        val random = JDKRandomGenerator(System.currentTimeMillis().toInt())
 
         /* Tx objects required for index rebuilding. */
         val entityTx = this.context.getTx(this.index.parent) as EntityTx
