@@ -21,24 +21,15 @@ abstract class AbstractTx(final override val context: TransactionContext) : Tx {
 
     /**
      * Called when the global transaction is committed.
-     *
-     * This implementation only calls the [cleanup] method, which can be implemented by subclasses.
      */
     override fun beforeCommit() {
-        this.cleanup()
+
     }
 
     /**
      * Called when the global transaction is rolled back.
-     *
-     * This implementation only calls the [cleanup] method, which can be implemented by subclasses.
      */
     override fun beforeRollback() {
-        this.cleanup()
-    }
 
-    /**
-     * Used to perform cleanup-operations necessary after a transaction concludes.
-     */
-    abstract fun cleanup()
+    }
 }

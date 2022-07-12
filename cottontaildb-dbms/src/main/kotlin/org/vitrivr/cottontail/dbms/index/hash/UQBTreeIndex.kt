@@ -131,13 +131,6 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
         = throw UnsupportedOperationException("BTreeIndex does not support asynchronous index rebuilding.")
 
     /**
-     * Closes this [UQBTreeIndex]
-     */
-    override fun close() {
-        /* No op. */
-    }
-
-    /**
      * An [IndexTx] that affects this [UQBTreeIndex].
      */
     private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {

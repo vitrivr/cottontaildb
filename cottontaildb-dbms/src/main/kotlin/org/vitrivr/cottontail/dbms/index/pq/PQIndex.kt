@@ -158,14 +158,6 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
      */
     override fun newAsyncRebuilder() = AsyncPQIndexRebuilder(this)
 
-
-    /**
-     * Closes this [PQIndex]
-     */
-    override fun close() {
-        /* No op. */
-    }
-
     /**
      * A [IndexTx] that affects this [AbstractIndex].
      */

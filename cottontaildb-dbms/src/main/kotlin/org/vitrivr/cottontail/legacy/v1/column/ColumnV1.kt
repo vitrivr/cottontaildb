@@ -21,6 +21,7 @@ import org.vitrivr.cottontail.legacy.v1.entity.EntityV1
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.mapdb.MapDBSerializer
 import org.vitrivr.cottontail.utilities.extensions.write
+import java.io.Closeable
 import java.nio.file.Path
 import java.util.concurrent.locks.StampedLock
 
@@ -37,7 +38,7 @@ import java.util.concurrent.locks.StampedLock
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class ColumnV1<T : Value>(override val name: Name.ColumnName, override val parent: EntityV1) : Column<T>, AutoCloseable {
+class ColumnV1<T : Value>(override val name: Name.ColumnName, override val parent: EntityV1) : Column<T>, Closeable {
 
     /**
      * Companion object with some important constants.
@@ -83,7 +84,7 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
      * Status indicating whether this [ColumnV1] is open or closed.
      */
     @Volatile
-    override var closed: Boolean = false
+    var closed: Boolean = false
         private set
 
     /** An internal lock that is used to synchronize structural changes to an [ColumnV1] (e.g. closing or deleting) with running [ColumnV1.Tx]. */
@@ -224,10 +225,6 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
 
         override fun statistics(): ValueStatistics<T> {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
-        override fun cleanup() {
-            this@ColumnV1.closeLock.unlockRead(this.closeStamp)
         }
 
         override fun cursor(): Cursor<T?> {

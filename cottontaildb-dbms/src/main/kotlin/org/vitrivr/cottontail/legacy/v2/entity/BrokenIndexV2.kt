@@ -16,6 +16,7 @@ import org.vitrivr.cottontail.dbms.index.basic.IndexTx
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
+import java.io.Closeable
 import java.nio.file.Path
 
 /**
@@ -25,7 +26,7 @@ import java.nio.file.Path
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class BrokenIndexV2(override val name: Name.IndexName, override val parent: Entity, val path: Path) : Index {
+class BrokenIndexV2(override val name: Name.IndexName, override val parent: Entity, val path: Path) : Index, Closeable {
     companion object {
         /** Field name for the [IndexHeader] entry.  */
         const val INDEX_HEADER_FIELD = "cdb_index_header"
@@ -38,8 +39,6 @@ class BrokenIndexV2(override val name: Name.IndexName, override val parent: Enti
 
     /** The [ColumnDef] that are covered (i.e. indexed) by this [BrokenIndexV2]. */
     val columns: Array<ColumnDef<*>> = this.headerField.get().columns
-
-    override val closed: Boolean = true
     override val catalogue: Catalogue = this.parent.catalogue
     override val version: DBOVersion = DBOVersion.UNDEFINED
     override val supportsIncrementalUpdate: Boolean = false

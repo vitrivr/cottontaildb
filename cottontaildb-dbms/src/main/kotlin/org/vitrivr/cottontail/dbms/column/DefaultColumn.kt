@@ -16,7 +16,6 @@ import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.events.ColumnEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
@@ -40,10 +39,6 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
     override val name: Name.ColumnName
         get() = this.columnDef.name
 
-    /** Status indicating whether this [DefaultColumn] has been closed. */
-    override val closed: Boolean
-        get() = this.parent.closed
-
     /** A [DefaultColumn] belongs to the same [DefaultCatalogue] as the [DefaultEntity] it belongs to. */
     override val catalogue: DefaultCatalogue
         get() = this.parent.catalogue
@@ -59,11 +54,6 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
      * @return New [DefaultColumn.Tx]
      */
     override fun newTx(context: TransactionContext): ColumnTx<T> = Tx(context)
-
-    /**
-     *
-     */
-    override fun close() {/* No op. */ }
 
     /**
      * A [Tx] that affects this [DefaultColumn].
@@ -93,21 +83,6 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         /** Flag indicating that changes have been made through this [DefaultColumn.Tx] */
         @Volatile
         private var updateStatistics: Boolean = false
-
-        /**
-         * Obtains a global (non-exclusive) read-lock on [DefaultCatalogue].
-         *
-         * Prevents [DefaultCatalogue] from being closed while transaction is ongoing.
-         */
-        private val closeStamp: Long
-
-        init {
-            /** Checks if DBO is still open. */
-            if (this.dbo.closed) {
-                throw TransactionException.DBOClosed(this.context.txId, this.dbo)
-            }
-            this.closeStamp = this.dbo.catalogue.closeLock.readLock()
-        }
 
         /**
          * Performs analysis of the [DefaultColumn] backing this [ColumnTx] and updates the associated [ValueStatistics].
@@ -368,13 +343,6 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
                 }
             }
             super.beforeCommit()
-        }
-
-        /**
-         * Called when a transaction finalizes. Releases the lock held on the [DefaultCatalogue].
-         */
-        override fun cleanup() {
-            this.dbo.catalogue.closeLock.unlockRead(this.closeStamp)
         }
     }
 }

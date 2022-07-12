@@ -47,10 +47,6 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
     override val version: DBOVersion
         get() = DBOVersion.V3_0
 
-    /** Status indicating whether this [DefaultEntity] is open or closed. */
-    override val closed: Boolean
-        get() = this.parent.closed
-
     /** The [Name.SequenceName] for this [DefaultEntity]*/
     private val sequenceName: Name.SequenceName = this@DefaultEntity.name.tid()
 
@@ -61,11 +57,6 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
      * @return New [DefaultEntity.Tx]
      */
     override fun newTx(context: TransactionContext) = this.Tx(context)
-
-    /**
-     *
-     */
-    override fun close() {/* No op. */ }
 
     /**
      * A [Tx] that affects this [DefaultEntity]. Opening a [DefaultEntity.Tx] will automatically spawn [ColumnTx]
@@ -82,20 +73,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         /** Map of [Name.IndexName] to [IndexTx]. */
         private val indexes = Object2ObjectLinkedOpenHashMap<Name.IndexName, Index>()
 
-        /**
-         * Obtains a global (non-exclusive) read-lock on [DefaultCatalogue].
-         *
-         * Prevents [DefaultCatalogue] from being closed while transaction is ongoing.
-         */
-        private val closeStamp: Long
-
         init {
-            /** Checks if DBO is still open. */
-            if (this.dbo.closed) {
-                throw TransactionException.DBOClosed(this.context.txId, this.dbo)
-            }
-            this.closeStamp = this.dbo.catalogue.closeLock.readLock()
-
             /* Load entity entry.  */
             val entityEntry = EntityCatalogueEntry.read(this@DefaultEntity.name, this@DefaultEntity.catalogue, this.context.xodusTx)
                 ?: throw DatabaseException.DataCorruptionException("Catalogue entry for entity ${this@DefaultEntity.name} is missing.")
@@ -435,13 +413,5 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /* Signal event to transaction context. */
             this.context.signalEvent(event)
         }
-
-        /**
-         * Called when a transaction finalizes. Releases the lock held on the [DefaultCatalogue].
-         */
-        override fun cleanup() {
-            this.dbo.catalogue.closeLock.unlockRead(this.closeStamp)
-        }
-
     }
 }

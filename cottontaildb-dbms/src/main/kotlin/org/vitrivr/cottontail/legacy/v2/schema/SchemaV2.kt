@@ -18,10 +18,8 @@ import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.legacy.v2.catalogue.CatalogueV2
 import org.vitrivr.cottontail.legacy.v2.entity.EntityV2
-import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
 import java.util.*
-import java.util.concurrent.locks.StampedLock
 
 /**
  * Default [Schema] implementation in Cottontail DB based on Map DB.
@@ -51,9 +49,6 @@ class SchemaV2(val path: Path, override val parent: CatalogueV2) : Schema, AutoC
     /** The [SchemaHeader] of this [SchemaV2]. */
     private val headerField = this.store.atomicVar(SCHEMA_HEADER_FIELD, SchemaHeader.Serializer).createOrOpen()
 
-    /** A lock used to mediate access the closed state of this [SchemaV2]. */
-    private val closeLock = StampedLock()
-
     /** A map of loaded [EntityV2] references. */
     private val registry: MutableMap<Name.EntityName, EntityV2> = Collections.synchronizedMap(Object2ObjectOpenHashMap())
 
@@ -69,7 +64,7 @@ class SchemaV2(val path: Path, override val parent: CatalogueV2) : Schema, AutoC
         get() = DBOVersion.V2_0
 
     /** Flag indicating whether this [SchemaV2] has been closed. */
-    override val closed: Boolean
+    val closed: Boolean
         get() = this.store.isClosed()
 
     init {
@@ -95,7 +90,7 @@ class SchemaV2(val path: Path, override val parent: CatalogueV2) : Schema, AutoC
      * objects may be held by other threads, it can take a
      * while for this method to complete.
      */
-    override fun close() = this.closeLock.write {
+    override fun close() {
         if (!this.closed) {
             this.store.close()
             this.registry.entries.removeIf {
@@ -113,8 +108,6 @@ class SchemaV2(val path: Path, override val parent: CatalogueV2) : Schema, AutoC
      */
     inner class Tx(context: TransactionContext) : AbstractTx(context), SchemaTx {
 
-        /** Obtains a global (non-exclusive) read-lock on [SchemaV2]. Prevents enclosing [SchemaV2] from being closed. */
-        private val closeStamp = this@SchemaV2.closeLock.readLock()
 
         /** Reference to the surrounding [SchemaV2]. */
         override val dbo: DBO
@@ -122,10 +115,7 @@ class SchemaV2(val path: Path, override val parent: CatalogueV2) : Schema, AutoC
 
         /** Checks if DBO is still open. */
         init {
-            if (this@SchemaV2.closed) {
-                this@SchemaV2.closeLock.unlockRead(this.closeStamp)
-                throw TransactionException.DBOClosed(this.context.txId, this@SchemaV2)
-            }
+            if (this@SchemaV2.closed) throw TransactionException.DBOClosed(this.context.txId, this@SchemaV2)
         }
 
         /**
@@ -158,13 +148,6 @@ class SchemaV2(val path: Path, override val parent: CatalogueV2) : Schema, AutoC
 
         override fun truncateEntity(name: Name.EntityName) {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
-        /**
-         * Releases the [closeLock] on the [SchemaV2].
-         */
-        override fun cleanup() {
-            this@SchemaV2.closeLock.unlockRead(this.closeStamp)
         }
     }
 }

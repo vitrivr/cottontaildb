@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.schema.Schema
+import java.io.Closeable
 
 /**
  * The main catalogue in Cottontail DB. It contains references to all the [Schema]s managed by
@@ -16,7 +17,7 @@ import org.vitrivr.cottontail.dbms.schema.Schema
  * @author Ralph Gasser
  * @version 3.0.0
  */
-interface Catalogue : DBO {
+interface Catalogue : DBO, Closeable {
     /** Reference to [Config] object. */
     val config: Config
 

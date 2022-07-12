@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.dbms.schema
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.*
 import org.vitrivr.cottontail.dbms.catalogue.storeName
@@ -11,7 +10,6 @@ import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
@@ -34,11 +32,6 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
     /** The [DBOVersion] of this [DefaultSchema]. */
     override val version: DBOVersion
         get() = DBOVersion.V3_0
-
-    /** Flag indicating whether this [DefaultSchema] has been closed. Depends solely on the parent [Catalogue]. */
-    override val closed: Boolean
-        get() = this.parent.closed
-
     /**
      * Creates and returns a new [DefaultSchema.Tx] for the given [TransactionContext].
      *
@@ -46,11 +39,6 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
      * @return New [DefaultSchema.Tx]
      */
     override fun newTx(context: TransactionContext) = this.Tx(context)
-
-    /**
-     * Closes this [DefaultSchema]
-     */
-    override fun close() { /* No op. */ }
 
     /**
      * A [Tx] that affects this [DefaultSchema].
@@ -63,21 +51,6 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
         /** Reference to the surrounding [DefaultSchema]. */
         override val dbo: DefaultSchema
             get() = this@DefaultSchema
-
-        /**
-         * Obtains a global (non-exclusive) read-lock on [DefaultCatalogue].
-         *
-         * Prevents [DefaultCatalogue] from being closed while transaction is ongoing.
-         */
-        private val closeStamp: Long
-
-        init {
-            /** Checks if DBO is still open. */
-            if (this.dbo.closed) {
-                throw TransactionException.DBOClosed(this.context.txId, this.dbo)
-            }
-            this.closeStamp = this.dbo.catalogue.closeLock.readLock()
-        }
 
         /**
          * Returns a list of all [Name.EntityName]s held by this [DefaultSchema].
@@ -229,15 +202,5 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
                 }
             }
         }
-
-        /**
-         * Called when a transaction finalizes. Releases the lock held on the [DefaultCatalogue].
-         */
-        override fun cleanup() {
-            this.dbo.catalogue.closeLock.unlockRead(this.closeStamp)
-        }
     }
 }
-
-
-

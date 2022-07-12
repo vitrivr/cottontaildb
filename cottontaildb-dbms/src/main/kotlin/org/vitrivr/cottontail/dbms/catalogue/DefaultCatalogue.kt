@@ -14,17 +14,14 @@ import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.dbms.catalogue.entries.*
 import org.vitrivr.cottontail.dbms.catalogue.entries.MetadataEntry.Companion.METADATA_ENTRY_DB_VERSION
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.functions.initialize
 import org.vitrivr.cottontail.dbms.general.*
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.concurrent.locks.StampedLock
 import kotlin.concurrent.withLock
 
 /**
@@ -74,13 +71,6 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
     /** The [FunctionRegistry] exposed by this [Catalogue]. */
     override val functions: FunctionRegistry = FunctionRegistry()
-
-    /** Status indicating whether this [DefaultCatalogue] is open or closed. */
-    override val closed: Boolean
-        get() = !this.environment.isOpen
-
-    /** A lock used to mediate access to this [DefaultCatalogue]. This is an internal variable and not part of the official interface. */
-    internal val closeLock = StampedLock()
 
     /** The main Xodus [Environment] used by Cottontail DB. This is an internal variable and not part of the official interface. */
     internal val environment: Environment = Environments.newInstance(
@@ -157,7 +147,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
     /**
      * Closes the [DefaultCatalogue] and all objects contained within.
      */
-    override fun close() = this.closeLock.write {
+    override fun close() {
         this.vfs.shutdown()
         this.environment.close()
     }
@@ -173,21 +163,6 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         /** Reference to the [DefaultCatalogue] this [CatalogueTx] belongs to. */
         override val dbo: DefaultCatalogue
             get() = this@DefaultCatalogue
-
-        /**
-         * Obtains a global (non-exclusive) read-lock on [DefaultCatalogue].
-         *
-         * Prevents [DefaultCatalogue] from being closed while transaction is ongoing.
-         */
-        private val closeStamp: Long
-
-        /** Checks if DBO is still open. */
-        init {
-            if (this@DefaultCatalogue.closed) {
-                throw TransactionException.DBOClosed(this.context.txId, this@DefaultCatalogue)
-            }
-            this.closeStamp = this@DefaultCatalogue.closeLock.readLock()
-        }
 
         /**
          * Returns a list of [Name.SchemaName] held by this [DefaultCatalogue].
@@ -248,13 +223,6 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
             /* Remove schema from catalogue. */
             SchemaCatalogueEntry.delete(name, this@DefaultCatalogue, this.context.xodusTx)
             Unit
-        }
-
-        /**
-         * Called when a transaction finalizes. Releases the lock held on the [DefaultCatalogue].
-         */
-        override fun cleanup() {
-            this@DefaultCatalogue.closeLock.unlockRead(this.closeStamp)
         }
     }
 }

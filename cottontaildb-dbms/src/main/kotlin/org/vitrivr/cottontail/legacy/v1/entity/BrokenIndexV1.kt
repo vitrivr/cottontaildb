@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.dbms.index.basic.IndexTx
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
+import java.io.Closeable
 import java.nio.file.Path
 
 /**
@@ -19,9 +20,7 @@ import java.nio.file.Path
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class BrokenIndexV1(override val name: Name.IndexName, override val parent: Entity, val path: Path, override val type: IndexType, ) :
-    Index {
-    override val closed: Boolean = true
+class BrokenIndexV1(override val name: Name.IndexName, override val parent: Entity, val path: Path, override val type: IndexType) : Index, Closeable {
     override val catalogue: Catalogue = this.parent.catalogue
     override val version: DBOVersion = DBOVersion.UNDEFINED
     override val supportsIncrementalUpdate: Boolean = false

@@ -9,7 +9,6 @@ import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.events.IndexEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
@@ -43,10 +42,6 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
 
     /** The [DBOVersion] of this [AbstractIndex]. */
     override val version: DBOVersion = DBOVersion.V3_0
-
-    /** Flag indicating if this [AbstractIndex] has been closed. */
-    override val closed: Boolean
-        get() = this.parent.closed
 
     /**
      * A [Tx] that affects this [AbstractIndex].
@@ -101,19 +96,6 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
 
         /** The number of DELETE operations since last rebuilding the index. */
         protected var numberOfDeletes = 0L
-
-        /**
-         * Obtains a global (non-exclusive) read-lock on [DefaultCatalogue].
-         *
-         * Prevents [DefaultCatalogue] from being closed while transaction is ongoing.
-         */
-        private val closeStamp: Long
-
-        init {
-            /** Checks if DBO is still open. */
-            if (this.dbo.closed) throw TransactionException.DBOClosed(this.context.txId, this.dbo)
-            this.closeStamp = this.dbo.catalogue.closeLock.readLock()
-        }
 
         /**
          * Tries to process an incoming [DataEvent.Insert].
@@ -184,13 +166,6 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
                 /* Signal event to transaction context. */
                 this.context.signalEvent(IndexEvent.State(this@AbstractIndex.name, this@AbstractIndex.type, state))
             }
-        }
-
-        /**
-         * Called when a transaction finalizes. Releases the lock held on the [DefaultCatalogue].
-         */
-        override fun cleanup() {
-            this.dbo.catalogue.closeLock.unlockRead(this.closeStamp)
         }
     }
 }

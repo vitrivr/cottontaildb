@@ -28,9 +28,8 @@ import org.vitrivr.cottontail.dbms.index.basic.IndexConfig
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.legacy.v1.column.ColumnV1
 import org.vitrivr.cottontail.legacy.v1.schema.SchemaV1
-import org.vitrivr.cottontail.utilities.extensions.write
+import java.io.Closeable
 import java.nio.file.Path
-import java.util.concurrent.locks.StampedLock
 import kotlin.concurrent.withLock
 
 /**
@@ -48,7 +47,7 @@ import kotlin.concurrent.withLock
  * @author Ralph Gasser
  * @version 2.0.1
  */
-class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1) : Entity, AutoCloseable {
+class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1) : Entity, Closeable {
     /**
      * Companion object of the [Entity]
      */
@@ -74,9 +73,6 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
     private val header: EntityV1Header
         get() = this.store.get(HEADER_RECORD_ID, EntityV1Header.Serializer)
             ?: throw DatabaseException.DataCorruptionException("Failed to open header of entity '$name'!")
-
-    /** An internal lock that is used to synchronize access to this [Entity] and [EntityTx] and it being closed or dropped. */
-    private val closeLock = StampedLock()
 
     /** List of all the [Column]s associated with this [Entity]; Iteration order of entries as defined in schema! */
     private val columns: MutableMap<Name.ColumnName, ColumnV1<*>> = Object2ObjectLinkedOpenHashMap()
@@ -111,7 +107,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
      * Status indicating whether this [Entity] is open or closed.
      */
     @Volatile
-    override var closed: Boolean = false
+    var closed: Boolean = false
         private set
 
     /**
@@ -126,7 +122,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
      * Closes the [Entity]. Closing an [Entity] is a delicate matter since ongoing [EntityTx] objects as well as all involved [Column]s are involved.
      * Therefore, access to the method is mediated by an global [Entity] wide lock.
      */
-    override fun close() = this.closeLock.write {
+    override fun close() {
         if (!this.closed) {
             this.columns.values.forEach { it.close() }
             this.store.close()
@@ -141,21 +137,13 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
      */
     inner class Tx(context: TransactionContext) : AbstractTx(context), EntityTx {
 
-        /** Obtains a global (non-exclusive) read-lock on [Entity]. Prevents enclosing [Entity] from being closed. */
-        private val closeStamp = this@EntityV1.closeLock.readLock()
-
         /** Reference to the surrounding [Entity]. */
         override val dbo: Entity
             get() = this@EntityV1
 
-
-
         /** Tries to acquire a global read-lock on this entity. */
         init {
-            if (this@EntityV1.closed) {
-                this@EntityV1.closeLock.unlockRead(this.closeStamp)
-                throw TransactionException.DBOClosed(this.context.txId, this@EntityV1)
-            }
+            if (this@EntityV1.closed) throw TransactionException.DBOClosed(this.context.txId, this@EntityV1)
         }
 
         /**
@@ -268,13 +256,6 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
 
         override fun delete(tupleId: TupleId) {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
-        /**
-         * Closes all the [ColumnTx] and releases the [closeLock] on the [Entity].
-         */
-        override fun cleanup() {
-            this@EntityV1.closeLock.unlockRead(this.closeStamp)
         }
     }
 }

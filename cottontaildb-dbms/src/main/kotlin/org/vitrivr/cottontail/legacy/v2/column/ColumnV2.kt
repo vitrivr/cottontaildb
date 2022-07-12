@@ -25,7 +25,6 @@ import org.vitrivr.cottontail.legacy.v1.column.ColumnV1
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.concurrent.locks.StampedLock
 
 /**
  * Represents a [Column] in the Cottontail DB model that uses the Map DB storage engine.
@@ -99,11 +98,8 @@ class ColumnV2<T : Value>(val path: Path, override val parent: Entity) : Column<
         get() = DBOVersion.V2_0
 
     /** Status indicating whether this [ColumnV2] is open or closed. */
-    override val closed: Boolean
+    val closed: Boolean
         get() = this.store.isClosed
-
-    /** An internal lock that is used to synchronize closing of the[ColumnV2] in presence of ongoing [ColumnV2.Tx]. */
-    private val closeLock = StampedLock()
 
     /**
      * Creates and returns a new [ColumnV2.Tx] for the given [TransactionContext].
@@ -138,15 +134,9 @@ class ColumnV2<T : Value>(val path: Path, override val parent: Entity) : Column<
         /** The [Serializer] used for de-/serialization of [ColumnV2] entries. */
         private val serializer = ValueSerializerFactory.mapdb(this@ColumnV2.type)
 
-        /** Obtains a global (non-exclusive) read-lock on [ColumnV2]. Prevents enclosing [ColumnV2] from being closed while this [ColumnV2.Tx] is still in use. */
-        private val closeStamp = this@ColumnV2.closeLock.readLock()
-
         /** Tries to acquire a global read-lock on the surrounding column. */
         init {
-            if (this@ColumnV2.closed) {
-                this@ColumnV2.closeLock.unlockRead(this.closeStamp)
-                throw TransactionException.DBOClosed(this.context.txId, this@ColumnV2)
-            }
+            if (this@ColumnV2.closed) throw TransactionException.DBOClosed(this.context.txId, this@ColumnV2)
         }
 
         /**
@@ -227,13 +217,6 @@ class ColumnV2<T : Value>(val path: Path, override val parent: Entity) : Column<
 
         override fun statistics(): ValueStatistics<T> {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
-        /**
-         * Releases the [closeLock] on the [ColumnV2].
-         */
-        override fun cleanup() {
-            this@ColumnV2.closeLock.unlockRead(this.closeStamp)
         }
 
         override fun cursor(): Cursor<T?> {

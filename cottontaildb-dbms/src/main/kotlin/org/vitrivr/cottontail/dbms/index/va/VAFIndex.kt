@@ -160,11 +160,6 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
     override fun newTx(context: TransactionContext): IndexTx = Tx(context)
 
     /**
-     * Closes this [VAFIndex]
-     */
-    override fun close() { /* No op. */ }
-
-    /**
      * A [IndexTx] that affects this [VAFIndex].
      */
     inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {

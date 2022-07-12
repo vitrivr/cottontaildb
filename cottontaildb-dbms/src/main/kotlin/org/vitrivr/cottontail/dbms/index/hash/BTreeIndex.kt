@@ -134,13 +134,6 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         = throw UnsupportedOperationException("BTreeIndex does not support asynchronous index rebuilding.")
 
     /**
-     * Closes this [BTreeIndex]
-     */
-    override fun close() {
-        /* No op. */
-    }
-
-    /**
      * An [IndexTx] that affects this [BTreeIndex].
      */
     inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {

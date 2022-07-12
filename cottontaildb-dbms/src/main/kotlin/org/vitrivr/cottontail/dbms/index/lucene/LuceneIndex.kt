@@ -166,13 +166,6 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
         = throw UnsupportedOperationException("LuceneIndex does not support asynchronous index rebuilding.")
 
     /**
-     * Closes this [LuceneIndex]
-     */
-    override fun close() {
-        /* No op. */
-    }
-
-    /**
      * An [IndexTx] that affects this [LuceneIndex].
      */
     private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
