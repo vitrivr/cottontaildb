@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.column.ColumnTx
@@ -22,6 +23,7 @@ import org.vitrivr.cottontail.dbms.index.pq.PQIndex
 import org.vitrivr.cottontail.dbms.index.pq.PQIndexConfig
 import org.vitrivr.cottontail.dbms.index.pq.signature.PQSignature
 import org.vitrivr.cottontail.dbms.index.pq.signature.ProductQuantizer
+import org.vitrivr.cottontail.dbms.index.pq.signature.SerializableProductQuantizer
 import org.vitrivr.cottontail.dbms.index.va.rebuilder.AsyncVAFIndexRebuilder
 
 class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex>(index) {
@@ -86,7 +88,9 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
                 store.put(context2.xodusTx, cursor.key, cursor.value)
             }
         }
-        return true
+
+        /* Update stored ProductQuantizer. */
+        return IndexStructCatalogueEntry.write(this.index.name, this.newQuantizer!!.toSerializableProductQuantizer(), this.index.catalogue, context2.xodusTx, SerializableProductQuantizer.Binding)
     }
 
     /**

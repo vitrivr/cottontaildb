@@ -5,6 +5,7 @@ import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.column.ColumnTx
@@ -89,7 +90,9 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
             if (this.state != IndexRebuilderState.MERGING) return false
             store.putRight(context2.xodusTx, cursor.key, cursor.value)
         }
-        return true
+
+        /* Update stored VAFMarks. */
+        return IndexStructCatalogueEntry.write(this.index.name, this.newMarks!!, this.index.catalogue, context2.xodusTx, EquidistantVAFMarks.Binding)
     }
 
     /**
