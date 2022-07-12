@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.utilities.extensions
 
+import com.google.protobuf.ByteString
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
@@ -34,6 +35,7 @@ fun Value.toLiteral(): CottontailGrpc.Literal = when (this) {
     is Complex64VectorValue -> CottontailGrpc.Literal.newBuilder().setVectorData(
         CottontailGrpc.Vector.newBuilder().setComplex64Vector(CottontailGrpc.Complex64Vector.newBuilder().addAllVector(this.map { CottontailGrpc.Complex64.newBuilder().setReal(it.real.value).setImaginary(it.imaginary.value).build() }))
     ).build()
+    is ByteStringValue -> CottontailGrpc.Literal.newBuilder().setByteStringData(ByteString.copyFrom(this.value)).build()
     else -> throw IllegalArgumentException("The specified value cannot be converted to a gRPC Data object.")
 }
 
@@ -63,7 +65,7 @@ fun CottontailGrpc.Literal.toValue(type: Types<*>): Value = when (type) {
     is Types.BooleanVector -> this.toBooleanVectorValue()
     is Types.Complex32Vector -> this.toComplex32VectorValue()
     is Types.Complex64Vector -> this.toComplex64VectorValue()
-    Types.ByteString -> TODO()
+    is Types.ByteString -> this.toByteStringValue()
 }
 
 /**
@@ -749,4 +751,20 @@ fun CottontailGrpc.Vector.toComplex64VectorValue(): Complex64VectorValue = when 
     CottontailGrpc.Vector.VectorDataCase.COMPLEX64VECTOR -> Complex64VectorValue(Array(this.complex64Vector.vectorList.size) { Complex64Value(this.complex64Vector.vectorList[it].real, this.complex64Vector.vectorList[it].imaginary) })
     CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET,
     null -> throw IllegalArgumentException("A value of NULL cannot be cast to VECTOR[COMPLEX64].")
+}
+
+fun CottontailGrpc.Literal.toByteStringValue(): ByteStringValue = when (this.dataCase) {
+    CottontailGrpc.Literal.DataCase.BOOLEANDATA -> throw IllegalArgumentException("A value of BOOLEAN cannot be cast to BYTESTRING.")
+    CottontailGrpc.Literal.DataCase.INTDATA -> throw IllegalArgumentException("A value of INT cannot be cast to BYTESTRING.")
+    CottontailGrpc.Literal.DataCase.LONGDATA -> throw IllegalArgumentException("A value of LONG cannot be cast to BYTESTRING.")
+    CottontailGrpc.Literal.DataCase.FLOATDATA -> throw IllegalArgumentException("A value of FLOAT cannot be cast to BYTESTRING.")
+    CottontailGrpc.Literal.DataCase.DOUBLEDATA -> throw IllegalArgumentException("A value of DOUBLE cannot be cast to BYTESTRING.")
+    CottontailGrpc.Literal.DataCase.STRINGDATA -> ByteStringValue(this.stringData.toByteArray(Charsets.UTF_8))
+    CottontailGrpc.Literal.DataCase.DATEDATA -> throw IllegalArgumentException("A value of DATE cannot be cast to BYTESTRING.")
+    CottontailGrpc.Literal.DataCase.COMPLEX32DATA -> throw IllegalArgumentException("A value of COMPLEX32 cannot be cast to BYTESTRING.")
+    CottontailGrpc.Literal.DataCase.COMPLEX64DATA -> throw IllegalArgumentException("A value of COMPLEX64 cannot be cast to BYTESTRING.")
+    CottontailGrpc.Literal.DataCase.VECTORDATA -> throw IllegalArgumentException("A value of VECTOR cannot be cast to BYTESTRING.")
+    CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> ByteStringValue(this.byteStringData.toByteArray())
+    CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
+    null -> throw IllegalArgumentException("A value of NULL cannot be cast to BYTESTRING.")
 }
