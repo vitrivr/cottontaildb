@@ -168,7 +168,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
     /**
      * An [IndexTx] that affects this [LuceneIndex].
      */
-    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
+    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context), org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization, org.vitrivr.cottontail.dbms.general.Tx.WithRollbackFinalization  {
 
         /** The [LuceneIndexDataStore] backing this [LuceneIndex]. */
         private val store = LuceneIndexDataStore(XodusDirectory(this@LuceneIndex.catalogue.vfs, this@LuceneIndex.name.toString(), this.context.xodusTx), this.columns[0].name)
@@ -430,8 +430,6 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * Commits changes made through the [IndexWriter]
          */
         override fun beforeCommit() {
-            /* Call super. */
-            super.beforeCommit()
             this.store.close()
         }
 
@@ -439,8 +437,6 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * Rolls back changes made through the [IndexWriter]
          */
         override fun beforeRollback() {
-            /* Call super. */
-            super.beforeCommit()
             this.store.close()
         }
     }
