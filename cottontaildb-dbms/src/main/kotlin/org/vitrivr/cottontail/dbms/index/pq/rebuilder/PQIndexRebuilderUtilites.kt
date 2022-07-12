@@ -24,7 +24,7 @@ object PQIndexRebuilderUtilites {
         if (count == 0L) return emptyList()
         val random = JDKRandomGenerator(config.seed)
         val learningData = LinkedList<VectorValue<*>>()
-        val learningDataFraction = (1000.0f * log10(count.toDouble())).toInt()
+        val learningDataFraction = ((100.0 * log10(count.toDouble())) / count)
         txn.cursor().use { cursor ->
             while (cursor.hasNext()) {
                 if (random.nextDouble() <= learningDataFraction) {
