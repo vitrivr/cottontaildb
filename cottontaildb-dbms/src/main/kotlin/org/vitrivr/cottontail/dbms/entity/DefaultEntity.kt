@@ -226,7 +226,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             val indexEntry = if (this.count() == 0L && type in setOf(IndexType.BTREE_UQ, IndexType.BTREE, IndexType.LUCENE)) {
                 IndexCatalogueEntry(name, type, IndexState.CLEAN, columns, configuration)
             } else {
-                IndexCatalogueEntry(name, type, IndexState.DIRTY, columns, configuration)
+                IndexCatalogueEntry(name, type, IndexState.STALE, columns, configuration)
             }
             if (!IndexCatalogueEntry.write(indexEntry, this@DefaultEntity.catalogue, this.context.xodusTx)) {
                 throw DatabaseException.DataCorruptionException("CREATE index $name failed: Failed to create catalogue entry.")
