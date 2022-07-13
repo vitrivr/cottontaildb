@@ -60,6 +60,9 @@ class VAFFloatIndexTest : AbstractIndexTest() {
     override val indexType: IndexType
         get() = IndexType.VAF
 
+    /** The dimensionality of the test vector. Determined randomly.  */
+    private val numberOfClusters = this.random.nextInt(128, 256)
+
     /** Random number generator. */
     private var counter: Long = 0L
 
@@ -116,9 +119,14 @@ class VAFFloatIndexTest : AbstractIndexTest() {
         }
     }
 
+    /**
+     * Generates pre-clustered data, which allows control of correctness.
+     */
     override fun nextRecord(): StandaloneRecord {
         val id = LongValue(this.counter++)
-        val vector = FloatVectorValueGenerator.random(this.indexColumn.type.logicalSize, this.random)
+        val vector = FloatVectorValue(FloatArray(this.indexColumn.type.logicalSize) {
+            (this.counter % this.numberOfClusters) + this.random.nextDouble(-1.0, 1.0).toFloat()
+        })
         return StandaloneRecord(0L, columns = this.columns, values = arrayOf(id, vector))
     }
 }
