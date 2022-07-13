@@ -94,7 +94,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return True on success, false otherwise.
          */
         override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
-            val store = entity.dbo.catalogue.environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES, entity.context.xodusTx, true)
+            val store = entity.dbo.catalogue.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES, entity.context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize VAF index $name due to an exception: ${e.message}.")
@@ -401,23 +401,22 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
                     /* Initialize cursor. */
                     val subTx = this@Tx.context.xodusTx.readonlySnapshot
                     val cursor = this@Tx.dataStore.openCursor(subTx)
-                    if (cursor.getSearchKey(partition.first.toKey()) == null) {
-                        return
-                    }
                     try {
                         /* First phase: Just add entries until we have k-results. */
                         var threshold: Double
-                        do {
-                            this.readAndOffer(LongBinding.compressedEntryToLong(cursor.key))
-                        } while (cursor.next && this.selection.added < this.selection.k)
+                        while (cursor.nextNoDup && this.selection.added < this.selection.k) {
+                            do {
+                                this.readAndOffer(LongBinding.compressedEntryToLong(cursor.value))
+                            } while (cursor.nextDup)
+                        }
                         threshold = (this.selection.peek()!![0] as DoubleValue).value
 
                         /* Second phase: Use lower-bound to decide whether entry should be added. */
                         do {
-                            val signature = VAFSignature.fromEntry(cursor.value)
-                            if (signature.isInvalid() || this.bounds.lb(VAFSignature.fromEntry(cursor.value), threshold) < threshold) {
+                            val signature = VAFSignature.fromEntry(cursor.key)
+                            if (signature.isInvalid() || this.bounds.lb(signature, threshold) < threshold) {
                                 do {
-                                    this.readAndOffer(LongBinding.compressedEntryToLong(cursor.key))
+                                    this.readAndOffer(LongBinding.compressedEntryToLong(cursor.value))
                                 } while (cursor.nextDup)
                                 threshold = (this.selection.peek()!![0] as DoubleValue).value
                             }

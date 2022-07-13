@@ -9,9 +9,6 @@ import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.statistics.columns.*
 import java.io.ByteArrayInputStream
-import kotlin.math.absoluteValue
-import kotlin.math.floor
-import kotlin.math.min
 
 /**
  * Double precision [EquidistantVAFMarks] implementation used in [VAFIndex] structures.
@@ -94,9 +91,6 @@ class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, Ind
     /** */
     override val maximum: DoubleArray by lazy { DoubleArray(this.d) { this.marks[it].last() } }
 
-    /** */
-    private val stepSize: DoubleArray by lazy { DoubleArray(this.d) { (this.maximum[it] - this.minimum[it]) / (this.marksPerDimension - 3) } }
-
     /** The dimensionality of this [EquidistantVAFMarks] object. */
     val d: Int = this.marks.size
 
@@ -123,10 +117,12 @@ class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, Ind
      * @return An [VAFSignature] containing the signature of the vector.
      */
     override fun getSignature(vector: RealVectorValue<*>): VAFSignature {
-        return VAFSignature(ByteArray(vector.logicalSize) { j ->
-            val value = vector[j].value.toDouble()
-            val index = floor((value + this.minimum[j].absoluteValue) / this.stepSize[j]).toInt() + 1
-            min(index, this.marks[0].size - 1).toByte()
+        return VAFSignature(ByteArray(vector.logicalSize) { i ->
+            val value = vector[i].value.toDouble()
+            for (j in 0 until this.marksPerDimension - 1) {
+                if (value >= this.marks[i][j] && value <= this.marks[i][j+1]) return@ByteArray j.toByte()
+            }
+            return VAFSignature.INVALID
         })
     }
 
