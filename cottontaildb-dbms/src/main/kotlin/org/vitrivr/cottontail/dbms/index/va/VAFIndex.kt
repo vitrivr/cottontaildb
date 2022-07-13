@@ -77,7 +77,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         override val supportsAsyncRebuild: Boolean = true
 
         /** True since [VAFIndex] supports partitioning. */
-        override val supportsPartitioning: Boolean = false
+        override val supportsPartitioning: Boolean = true
 
         /**
          * Opens a [VAFIndex] for the given [Name.IndexName] in the given [DefaultEntity].
@@ -97,7 +97,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return True on success, false otherwise.
          */
         override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            val store = (catalogue as DefaultCatalogue).environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES, context.xodusTx, true)
+            val store = (catalogue as DefaultCatalogue).environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize VAF index $name due to an exception: ${e.message}.")
@@ -406,25 +406,25 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
                     val subTx = this@Tx.context.xodusTx.readonlySnapshot
                     val cursor = this@Tx.dataStore.openCursor(subTx)
                     try {
+                        if (cursor.getSearchKey(partition.first.toKey()) == null) {
+                            return
+                        }
+
                         /* First phase: Just add entries until we have k-results. */
                         var threshold: Double
-                        while (cursor.nextNoDup && this.selection.added < this.selection.k) {
-                            do {
-                                this.readAndOffer(LongBinding.compressedEntryToLong(cursor.value))
-                            } while (cursor.nextDup)
-                        }
+                        do {
+                            this.readAndOffer(LongBinding.compressedEntryToLong(cursor.key))
+                        } while (this.selection.added < this.selection.k && cursor.next)
                         threshold = (this.selection.peek()!![0] as DoubleValue).value
 
                         /* Second phase: Use lower-bound to decide whether entry should be added. */
                         do {
-                            val signature = VAFSignature.fromEntry(cursor.key)
+                            val signature = VAFSignature.fromEntry(cursor.value)
                             if (signature.isInvalid() || this.bounds.lb(signature, threshold) < threshold) {
-                                do {
-                                    this.readAndOffer(LongBinding.compressedEntryToLong(cursor.value))
-                                } while (cursor.nextDup)
+                                this.readAndOffer(LongBinding.compressedEntryToLong(cursor.key))
                                 threshold = (this.selection.peek()!![0] as DoubleValue).value
                             }
-                        } while (cursor.nextNoDup)
+                        } while (cursor.next)
                     } catch (e: Throwable) {
                         LOGGER.error("VA-SSA Scan: Error while scanning VAF index: ${e.message}")
                     } finally {

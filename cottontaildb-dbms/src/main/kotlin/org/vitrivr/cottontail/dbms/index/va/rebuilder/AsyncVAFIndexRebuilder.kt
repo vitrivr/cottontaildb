@@ -71,7 +71,7 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
                 if (this.state != IndexRebuilderState.SCANNING) return false
                 val value = cursor.value()
                 if (value is RealVectorValue<*>) {
-                    if (!dataStore.put(this.tmpTx, this.newMarks!!.getSignature(value).toEntry(), cursor.key().toKey())) {
+                    if (!dataStore.put(this.tmpTx, cursor.key().toKey(), this.newMarks!!.getSignature(value).toEntry())) {
                         return false
                     }
 

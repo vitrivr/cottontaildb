@@ -49,7 +49,7 @@ class VAFIndexRebuilder(index: VAFIndex, context: TransactionContext): AbstractI
             while (cursor.hasNext()) {
                 val value = cursor.value()
                 if (value is RealVectorValue<*>) {
-                    if (!dataStore.put(this.context.xodusTx, marks.getSignature(value).toEntry(), cursor.key().toKey())) {
+                    if (!dataStore.put(this.context.xodusTx, cursor.key().toKey(), marks.getSignature(value).toEntry())) {
                         return false
                     }
 
