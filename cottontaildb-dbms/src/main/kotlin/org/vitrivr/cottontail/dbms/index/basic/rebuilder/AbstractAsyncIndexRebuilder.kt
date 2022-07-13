@@ -93,6 +93,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
 
             LOGGER.debug("Scanning index ${this.index.name} (${this.index.type}) completed!")
         } finally {
+            this.tmpTx.flush()
             this.rebuildLock.unlock()
         }
     }

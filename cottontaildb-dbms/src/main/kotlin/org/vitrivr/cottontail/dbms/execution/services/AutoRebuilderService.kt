@@ -150,42 +150,44 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                 return false
             }
 
-            /* Start rebuilding. */
-            try {
-                rebuilder.scan(transaction1)
-            } catch (e: Throwable) {
-                LOGGER.error("Index auto-rebuilding (SCAN) for $index failed due to exception: ${e.message}.")
-                return false
-            } finally {
-                transaction1.rollback()
-            }
+            rebuilder.use { r ->
+                /* Start rebuilding. */
+                try {
+                    r.scan(transaction1)
+                } catch (e: Throwable) {
+                    LOGGER.error("Index auto-rebuilding (SCAN) for $index failed due to exception: ${e.message}.")
+                    return false
+                } finally {
+                    transaction1.rollback()
+                }
 
-            /* Step 1b: Make sanity check to prevent obtaining an exclusive transaction unnecessarily. */
-            if (rebuilder.state != IndexRebuilderState.SCANNED) {
-                LOGGER.error("Index auto-rebuilding (SCAN) seems to have failed. Aborting...")
-                return false
-            }
+                /* Step 1b: Make sanity check to prevent obtaining an exclusive transaction unnecessarily. */
+                if (r.state != IndexRebuilderState.SCANNED) {
+                    LOGGER.error("Index auto-rebuilding (SCAN) seems to have failed. Aborting...")
+                    return false
+                }
 
-            /* Step 2: MERGE index (write). */
-            val transaction2 = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
-            try {
-                return if (rebuilder.state == IndexRebuilderState.SCANNED) {
-                    rebuilder.merge(transaction2)
-                    transaction2.commit()
-                    true
-                } else {
+                /* Step 2: MERGE index (write). */
+                val transaction2 = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+                try {
+                    return if (r.state == IndexRebuilderState.SCANNED) {
+                        r.merge(transaction2)
+                        transaction2.commit()
+                        true
+                    } else {
+                        transaction2.rollback()
+                        false
+                    }
+                } catch (e: Throwable) {
+                    when (e) {
+                        is DatabaseException.SchemaDoesNotExistException,
+                        is DatabaseException.EntityAlreadyExistsException,
+                        is DatabaseException.IndexDoesNotExistException -> LOGGER.warn("Index auto-rebuilding for $index failed because DBO no longer exists.")
+                        else -> LOGGER.error("Index auto-rebuilding (MERGE) for $index failed due to exception: ${e.message}.")
+                    }
                     transaction2.rollback()
-                    false
+                    return false
                 }
-            } catch (e: Throwable) {
-                when (e) {
-                    is DatabaseException.SchemaDoesNotExistException,
-                    is DatabaseException.EntityAlreadyExistsException,
-                    is DatabaseException.IndexDoesNotExistException -> LOGGER.warn("Index auto-rebuilding for $index failed because DBO no longer exists.")
-                    else -> LOGGER.error("Index auto-rebuilding (MERGE) for $index failed due to exception: ${e.message}.")
-                }
-                transaction2.rollback()
-                return false
             }
         }
     }
