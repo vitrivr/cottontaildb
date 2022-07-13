@@ -77,7 +77,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         override val supportsAsyncRebuild: Boolean = true
 
         /** True since [VAFIndex] supports partitioning. */
-        override val supportsPartitioning: Boolean = true
+        override val supportsPartitioning: Boolean = false
 
         /**
          * Opens a [VAFIndex] for the given [Name.IndexName] in the given [DefaultEntity].
