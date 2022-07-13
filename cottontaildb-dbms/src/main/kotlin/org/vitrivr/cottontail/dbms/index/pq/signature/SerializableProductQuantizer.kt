@@ -19,7 +19,7 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class SerializableProductQuantizer(val codebooks: Array<Array<DoubleArray>>): IndexStructCatalogueEntry() {
+data class SerializableProductQuantizer(val codebooks: Array<Array<DoubleArray>>): IndexStructCatalogueEntry() {
 
     /**
      * The [ComparableBinding] used to de-/serialize the [SerializableProductQuantizer].
@@ -101,5 +101,16 @@ class SerializableProductQuantizer(val codebooks: Array<Array<DoubleArray>>): In
             }
         }
         return 0
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is SerializableProductQuantizer) return false
+        if (!this.codebooks.contentDeepEquals(other.codebooks)) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return this.codebooks.contentDeepHashCode()
     }
 }

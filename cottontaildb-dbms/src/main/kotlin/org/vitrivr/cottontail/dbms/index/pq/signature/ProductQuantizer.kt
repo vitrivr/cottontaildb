@@ -15,9 +15,9 @@ import org.vitrivr.cottontail.utilities.math.clustering.KMeansClusterer
  * Roughly following Guo et al. 2015 - Quantization based Fast Inner Product Search
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.1
  */
-class ProductQuantizer constructor(val codebooks: Array<PQCodebook>) {
+data class ProductQuantizer constructor(val codebooks: Array<PQCodebook>) {
 
     companion object {
         /** Recommended number of subspaces according to [1]. */
@@ -133,6 +133,17 @@ class ProductQuantizer constructor(val codebooks: Array<PQCodebook>) {
         }
     })
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ProductQuantizer) return false
+        if (!this.codebooks.contentEquals(other.codebooks)) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return codebooks.contentHashCode()
+    }
+
     /**
      * A codebook that can be used to quantize a [VectorValue] (or more precisely, a subspace thereof)
      * to a learned centroid. Used for product quantization based index structures.
@@ -140,7 +151,7 @@ class ProductQuantizer constructor(val codebooks: Array<PQCodebook>) {
      * @author Ralph Gasser
      * @version 1.1.0
      */
-    class PQCodebook(val distance: VectorDistance<*>, val centroids: Array<VectorValue<*>>) {
+    data class PQCodebook(val distance: VectorDistance<*>, val centroids: Array<VectorValue<*>>) {
 
         init {
             require(this.centroids.all { it.logicalSize == this.distance.type.logicalSize }) { "Dimensionality of centroids and distance function do not match for PQ codebook." }
@@ -180,6 +191,25 @@ class ProductQuantizer constructor(val codebooks: Array<PQCodebook>) {
         fun distanceFrom(subvector: VectorValue<*>, centroidIndex: Int): Double {
             require(subvector.logicalSize == this.subspaceSize) { "Dimension mismatch between sub-vector and codebook." }
             return this.distance(subvector, this.centroids[centroidIndex])!!.value
+        }
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is PQCodebook) return false
+            if (this.distance.signature != other.distance.signature) return false
+            if (this.centroids.size != other.centroids.size) return false
+            for (i in 0 until this.centroids.size) {
+                for (j in 0 until this.centroids[i].logicalSize) {
+                    if (this.centroids[i][j] != other.centroids[i][j]) return false
+                }
+            }
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = this.distance.signature.hashCode()
+            result = 31 * result + this.centroids.contentHashCode()
+            return result
         }
     }
 }
