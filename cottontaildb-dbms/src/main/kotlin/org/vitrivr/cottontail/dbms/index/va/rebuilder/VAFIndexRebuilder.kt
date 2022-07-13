@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.index.va.rebuilder
 
-import jetbrains.exodus.env.Store
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
@@ -26,10 +25,9 @@ class VAFIndexRebuilder(index: VAFIndex, context: TransactionContext): AbstractI
     /**
      * Starts the index rebuilding process for this [VAFIndexRebuilder].
      *
-     * @param dataStore The [Store] backing the [VAFIndex]
      * @return True on success, false on failure.
      */
-    override fun rebuildInternal(dataStore: Store): Boolean {
+    override fun rebuildInternal(): Boolean {
         /* Read basic index properties. */
         val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
@@ -39,6 +37,7 @@ class VAFIndexRebuilder(index: VAFIndex, context: TransactionContext): AbstractI
         /* Tx objects required for index rebuilding. */
         val entityTx = this.context.getTx(this.index.parent) as EntityTx
         val columnTx = this.context.getTx(entityTx.columnForName(column)) as ColumnTx<*>
+        val dataStore = this.tryClearAndOpenStore() ?: return false
 
         /* Obtain new marks. */
         val marks = EquidistantVAFMarks(columnTx.statistics() as VectorValueStatistics<*>, config.marksPerDimension)
@@ -62,6 +61,6 @@ class VAFIndexRebuilder(index: VAFIndex, context: TransactionContext): AbstractI
         }
 
         /* Update stored VAFMarks. */
-        return IndexStructCatalogueEntry.write(this.index.name, marks, this.index.catalogue, context.xodusTx, EquidistantVAFMarks.Binding)
+        return IndexStructCatalogueEntry.write(this.index.name, marks, this.index.catalogue, this.context.xodusTx, EquidistantVAFMarks.Binding)
     }
 }

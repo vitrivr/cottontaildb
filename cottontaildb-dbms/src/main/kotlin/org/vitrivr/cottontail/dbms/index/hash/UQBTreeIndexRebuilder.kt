@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.dbms.index.hash
 
 import jetbrains.exodus.bindings.LongBinding
-import jetbrains.exodus.env.Store
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.column.ColumnTx
@@ -20,7 +19,7 @@ import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
  */
 class UQBTreeIndexRebuilder(index: UQBTreeIndex, context: TransactionContext): AbstractIndexRebuilder<UQBTreeIndex>(index, context) {
     @Suppress("UNCHECKED_CAST")
-    override fun rebuildInternal(dataStore: Store): Boolean {
+    override fun rebuildInternal(): Boolean {
         /* Read basic index properties. */
         val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name} (${this.index.type}). Could not read catalogue entry for index.")
@@ -30,6 +29,7 @@ class UQBTreeIndexRebuilder(index: UQBTreeIndex, context: TransactionContext): A
         val entityTx = context.getTx(this.index.parent) as EntityTx
         val columnTx = context.getTx(entityTx.columnForName(column)) as ColumnTx<*>
         val binding: XodusBinding<Value> = ValueSerializerFactory.xodus(columnTx.columnDef.type, columnTx.columnDef.nullable) as XodusBinding<Value>
+        val dataStore = this.tryClearAndOpenStore() ?: return false
 
         /* Iterate over entity and update index with entries. */
         columnTx.cursor().use { cursor ->

@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.index.lucene
 
-import jetbrains.exodus.env.Store
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.column.ColumnTx
@@ -20,11 +19,10 @@ class LuceneIndexRebuilder(index: LuceneIndex, context: TransactionContext): Abs
     /**
      * Starts the index rebuilding process for this [LuceneIndexRebuilder].
      *
-     * @param dataStore The [Store] backing the [LuceneIndex]
      * @return True on success, false on failure.
      */
     @Suppress("UNCHECKED_CAST")
-    override fun rebuildInternal(dataStore: Store): Boolean {
+    override fun rebuildInternal(): Boolean {
         /* Read basic index properties. */
         val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")

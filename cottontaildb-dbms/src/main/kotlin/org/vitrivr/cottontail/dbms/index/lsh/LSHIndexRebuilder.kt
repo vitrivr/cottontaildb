@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.index.lsh
 
-import jetbrains.exodus.env.Store
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.column.ColumnTx
@@ -20,10 +19,9 @@ class LSHIndexRebuilder(index: LSHIndex, context: TransactionContext): AbstractI
     /**
      * Performs the index rebuilding process for this [LSHIndexRebuilder].
      *
-     * @param dataStore The [TransactionContext] to execute the rebuild process in.
      * @return True on success, false on failure.
      */
-    override fun rebuildInternal(dataStore: Store): Boolean {
+    override fun rebuildInternal(): Boolean {
         /* Read basic index properties. */
         val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, context.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
@@ -33,6 +31,7 @@ class LSHIndexRebuilder(index: LSHIndex, context: TransactionContext): AbstractI
         /* Tx objects required for index rebuilding. */
         val entityTx = context.getTx(this.index.parent) as EntityTx
         val columnTx = context.getTx(entityTx.columnForName(column)) as ColumnTx<*>
+        val dataStore = this.tryClearAndOpenStore() ?: return false
 
         /* Generate a new LSHSignature for each entry in the entity and adds it to the index. */
         val generator = config.generator(columnTx.columnDef.type.logicalSize)

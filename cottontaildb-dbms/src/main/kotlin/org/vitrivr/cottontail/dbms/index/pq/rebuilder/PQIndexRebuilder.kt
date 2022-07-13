@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.index.pq.rebuilder
 
-import jetbrains.exodus.env.Store
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
@@ -31,10 +30,9 @@ class PQIndexRebuilder(index: PQIndex, context: TransactionContext): AbstractInd
     /**
      * Starts the index rebuilding process for this [PQIndexRebuilder].
      *
-     * @param dataStore The [Store] backing the [PQIndex]
      * @return True on success, false on failure.
      */
-    override fun rebuildInternal(dataStore: Store): Boolean {
+    override fun rebuildInternal(): Boolean {
         /* Read basic index properties. */
         val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
@@ -44,6 +42,7 @@ class PQIndexRebuilder(index: PQIndex, context: TransactionContext): AbstractInd
         /* Tx objects required for index rebuilding. */
         val entityTx = this.context.getTx(this.index.parent) as EntityTx
         val columnTx = this.context.getTx(entityTx.columnForName(column)) as ColumnTx<*>
+        val dataStore = this.tryClearAndOpenStore() ?: return false
 
         /* Obtain PQ data structure. */
         val type = columnTx.columnDef.type as Types.Vector<*,*>

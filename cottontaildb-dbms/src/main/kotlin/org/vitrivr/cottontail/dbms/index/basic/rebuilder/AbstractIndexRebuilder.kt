@@ -8,11 +8,9 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
-import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
-import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 
 /**
  * An abstract [IndexRebuilder] implementation.
@@ -24,7 +22,6 @@ import org.vitrivr.cottontail.dbms.index.va.VAFIndex
  */
 abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
                                                 final override val context: TransactionContext): IndexRebuilder<T> {
-
     companion object {
         /** [Logger] instance used by [AbstractIndexRebuilder]. */
         protected val LOGGER: Logger = LoggerFactory.getLogger(AbstractIndexRebuilder::class.java)
@@ -40,17 +37,16 @@ abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
         /* Sanity check. */
         require(context.xodusTx.isExclusive) { "Failed to rebuild index ${this.index.name} (${this.index.type}); rebuild operation requires exclusive transaction."}
 
-        VAFIndex.LOGGER.debug("Rebuilding index ${this.index.name} (${this.index.type}).")
+        LOGGER.debug("Rebuilding index ${this.index.name} (${this.index.type}).")
 
         /* Clear store and update state of index (* ---> DIRTY). */
-        val dataStore: Store = this.clearAndOpenStore()
         if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.DIRTY, context.xodusTx)) {
             LOGGER.error("Rebuilding index ${this.index.name} (${this.index.type}) failed because index state could not be changed to CLEAN!")
             return false
         }
 
         /* Execute rebuild operation*/
-        if (this.rebuildInternal(dataStore)) {
+        if (this.rebuildInternal()) {
             LOGGER.error("Rebuilding index ${this.index.name} (${this.index.type}) failed!")
             return false
         }
@@ -68,20 +64,21 @@ abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
     /**
      * Internal implementation of the actual re-indexing procedure.
      *
-     * @param dataStore The [Store] that contains the [Index] data.
      * @return True on success, false otherwise.
      */
-    protected abstract fun rebuildInternal(dataStore: Store): Boolean
+    protected abstract fun rebuildInternal(): Boolean
 
     /**
      * Clears and opens the data store associated with this [Index].
      *
      * @return [Store]
      */
-    private fun clearAndOpenStore(): Store {
+    protected fun tryClearAndOpenStore(): Store? {
         val storeName = this.index.name.storeName()
-        (this.index.catalogue as DefaultCatalogue).environment.truncateStore(storeName, this.context.xodusTx)
-        return (this.index.catalogue as DefaultCatalogue).environment.openStore(storeName, StoreConfig.USE_EXISTING, context.xodusTx, false)
-            ?: throw DatabaseException.DataCorruptionException("Data store for index ${this.index.name} is missing.")
+        if ((this.index.catalogue as DefaultCatalogue).environment.storeExists(storeName, this.context.xodusTx)) {
+            (this.index.catalogue as DefaultCatalogue).environment.truncateStore(storeName, this.context.xodusTx)
+            return (this.index.catalogue as DefaultCatalogue).environment.openStore(storeName, StoreConfig.USE_EXISTING, context.xodusTx, false)
+        }
+        return null
     }
 }
