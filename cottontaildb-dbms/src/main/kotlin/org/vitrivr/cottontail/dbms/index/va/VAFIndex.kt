@@ -27,11 +27,14 @@ import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.dbms.catalogue.Catalogue
+import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
@@ -49,9 +52,8 @@ import org.vitrivr.cottontail.utilities.selection.HeapSelection
 import kotlin.concurrent.withLock
 
 /**
- * An [AbstractIndex] structure for proximity based search (NNS / FNS) that uses a vector
- * approximation (VA) file ([1]). Can be used for all types of [RealVectorValue]s and all
- * Minkowski metrics (L1, L2 etc.).
+ * An [AbstractIndex] structure for proximity based search (NNS / FNS) that uses a vector approximation (VA) file ([1]). Can be used for all types of [RealVectorValue]s
+ * and all Minkowski metrics (L1, L2, Lp etc.).
  *
  * References:
  * [1] Weber, R. and Blott, S., 1997. An approximation based data structure for similarity search (No. 9141, p. 416). Technical Report 24, ESPRIT Project HERMES.
@@ -81,20 +83,21 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * Opens a [VAFIndex] for the given [Name.IndexName] in the given [DefaultEntity].
          *
          * @param name The [Name.IndexName] of the [VAFIndex].
-         * @param entity The [DefaultEntity] that holds the [VAFIndex].
+         * @param entity The [Entity] that holds the [VAFIndex].
          * @return The opened [VAFIndex]
          */
-        override fun open(name: Name.IndexName, entity: DefaultEntity): VAFIndex = VAFIndex(name, entity)
+        override fun open(name: Name.IndexName, entity: Entity): VAFIndex = VAFIndex(name, entity as DefaultEntity)
 
         /**
          * Initializes the [Store] for a [VAFIndex].
          *
          * @param name The [Name.IndexName] of the [VAFIndex].
-         * @param entity The [DefaultEntity.Tx] that executes the operation.
+         * @param catalogue [Catalogue] reference.
+         * @param context The [TransactionContext] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
-            val store = entity.dbo.catalogue.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES, entity.context.xodusTx, true)
+        override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
+            val store = (catalogue as DefaultCatalogue).environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize VAF index $name due to an exception: ${e.message}.")
@@ -105,11 +108,12 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * De-initializes the [Store] for associated with a [VAFIndex].
          *
          * @param name The [Name.IndexName] of the [VAFIndex].
-         * @param entity The [DefaultEntity.Tx] that executes the operation.
+         * @param catalogue [Catalogue] reference.
+         * @param context The [TransactionContext] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun deinitialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
-            entity.dbo.catalogue.environment.removeStore(name.storeName(), entity.context.xodusTx)
+        override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
+            (catalogue as DefaultCatalogue).environment.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {
             LOGGER.error("Failed to de-initialize VAF index $name due to an exception: ${e.message}.")

@@ -20,8 +20,11 @@ import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.dbms.catalogue.Catalogue
+import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
@@ -69,20 +72,21 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * Opens a [PQIndex] for the given [Name.IndexName] in the given [DefaultEntity].
          *
          * @param name The [Name.IndexName] of the [PQIndex].
-         * @param entity The [DefaultEntity] that holds the [PQIndex].
+         * @param entity The [Entity] that holds the [PQIndex].
          * @return The opened [PQIndex]
          */
-        override fun open(name: Name.IndexName, entity: DefaultEntity) = LSHIndex(name, entity)
+        override fun open(name: Name.IndexName, entity: Entity) = LSHIndex(name, entity as DefaultEntity)
 
         /**
          * Initializes the [Store] for a [LSHIndex].
          *
          * @param name The [Name.IndexName] of the [LSHIndex].
-         * @param entity The [DefaultEntity.Tx] that executes the operation.
+         * @param catalogue [Catalogue] reference.
+         * @param context The [TransactionContext] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
-            val store = entity.dbo.catalogue.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, entity.context.xodusTx, true)
+        override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
+            val store = (catalogue as DefaultCatalogue).environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize LSH index $name due to an exception: ${e.message}.")
@@ -93,11 +97,12 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * De-initializes the [Store] for associated with a [LSHIndex].
          *
          * @param name The [Name.IndexName] of the [LSHIndex].
-         * @param entity The [DefaultEntity.Tx] that executes the operation.
+         * @param catalogue [Catalogue] reference.
+         * @param context The [TransactionContext] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun deinitialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
-            entity.dbo.catalogue.environment.removeStore(name.storeName(), entity.context.xodusTx)
+        override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
+            (catalogue as DefaultCatalogue).environment.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {
             LOGGER.error("Failed to de-initialize LSH index $name due to an exception: ${e.message}.")

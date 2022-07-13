@@ -20,8 +20,11 @@ import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.catalogue.Catalogue
+import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
@@ -62,20 +65,20 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * Opens a [BTreeIndex] for the given [Name.IndexName] in the given [DefaultEntity].
          *
          * @param name The [Name.IndexName] of the [BTreeIndex].
-         * @param entity The [DefaultEntity] that holds the [BTreeIndex].
+         * @param entity The [Entity] that holds the [BTreeIndex].
          * @return The opened [LuceneIndex]
          */
-        override fun open(name: Name.IndexName, entity: DefaultEntity): BTreeIndex = BTreeIndex(name, entity)
+        override fun open(name: Name.IndexName, entity: Entity): BTreeIndex = BTreeIndex(name, entity as DefaultEntity)
 
         /**
          * Initializes the [Store] for a [BTreeIndex].
          *
-         * @param name The [Name.IndexName] of the [BTreeIndex].
-         * @param entity The [DefaultEntity.Tx] that executes the operation.
+         * @param catalogue [Catalogue] reference.
+         * @param context The [TransactionContext] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
-            val store = entity.dbo.catalogue.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, entity.context.xodusTx, true)
+        override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
+            val store = (catalogue as DefaultCatalogue).environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize BTREE index $name due to an exception: ${e.message}.")
@@ -86,11 +89,12 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * De-initializes the [Store] for associated with a [BTreeIndex].
          *
          * @param name The [Name.IndexName] of the [BTreeIndex].
-         * @param entity The [DefaultEntity.Tx] that executes the operation.
+         * @param catalogue [Catalogue] reference.
+         * @param context The [TransactionContext] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun deinitialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
-            entity.dbo.catalogue.environment.removeStore(name.storeName(), entity.context.xodusTx)
+        override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
+            (catalogue as DefaultCatalogue).environment.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {
             LOGGER.error("Failed to de-initialize BTREE index $name due to an exception: ${e.message}.")

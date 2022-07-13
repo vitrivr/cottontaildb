@@ -233,7 +233,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }
 
             /* Initialize index store entry. */
-            if (!type.descriptor.initialize(name, this)) {
+            if (!type.descriptor.initialize(name, this.dbo.catalogue, this.context)) {
                 throw DatabaseException.DataCorruptionException("CREATE index $name failed: Failed to initialize store.")
             }
 
@@ -264,7 +264,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                 ?: throw DatabaseException.IndexDoesNotExistException(name)
 
             /* De-initialize the index. */
-            if (!indexEntry.type.descriptor.deinitialize(name, this)) {
+            if (!indexEntry.type.descriptor.deinitialize(name, this.dbo.catalogue, this.context)) {
                 throw DatabaseException.DataCorruptionException("DROP index $name failed: Failed to de-initialize store.")
             }
 

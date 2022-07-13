@@ -2,7 +2,10 @@ package org.vitrivr.cottontail.dbms.index.basic
 
 import jetbrains.exodus.bindings.ComparableBinding
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 
 /**
  * An abstract description of an [Index].
@@ -22,31 +25,33 @@ interface IndexDescriptor<T: Index> {
     val supportsPartitioning: Boolean
 
     /**
-     * Tries to open an [Index] with the given [Name.IndexName] for the given [DefaultEntity].
+     * Tries to open an [Index] with the given [Name.IndexName] for the given [Entity].
      *
      * @param name The [Name.IndexName] of the [Index].
-     * @param entity The [DefaultEntity] to open the [Index] for.
+     * @param entity The [Entity] to open the [Index] for.
      * @return The opened [Index]
      */
-    fun open(name: Name.IndexName, entity: DefaultEntity): T
+    fun open(name: Name.IndexName, entity: Entity): T
 
     /**
-     * Initializes the necessary data structures for an [Index] with the given [Name.IndexName] and the given [DefaultEntity].
+     * Initializes the necessary data structures for an [Index] with the given [Name.IndexName] and the given [DefaultEntity.Tx].
      *
      * @param name The [Name.IndexName] of the [Index].
-     * @param entity The [DefaultEntity.Tx] to perform the transaction with.
+     * @param catalogue: [Catalogue] reference.
+     * @param context The [TransactionContext] to perform the transaction with.
      * @return true on success, false otherwise.
      */
-    fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean
+    fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean
 
     /**
-     * Deinitializes the data structures associated with an [Index] with the given [Name.IndexName] and the given [DefaultEntity].
+     * De-initializes the data structures associated with an [Index] with the given [Name.IndexName] and the given [DefaultEntity.Tx].
      *
      * @param name The [Name.IndexName] of the [Index].
-     * @param entity The [DefaultEntity.Tx] to perform the transaction with.
+     * @param catalogue: [Catalogue] reference.
+     * @param context The [TransactionContext] to perform the transaction with.
      * @return true on success, false otherwise.
      */
-    fun deinitialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean
+    fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean
 
     /**
      * Creates and returns a default [IndexConfig], optionally, initialized with the provided [parameters].

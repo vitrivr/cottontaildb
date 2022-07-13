@@ -33,7 +33,10 @@ import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.catalogue.Catalogue
+import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
@@ -75,21 +78,22 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * Opens a [LuceneIndex] for the given [Name.IndexName] in the given [DefaultEntity].
          *
          * @param name The [Name.IndexName] of the [LuceneIndex].
-         * @param entity The [DefaultEntity.Tx] that executes the operation.
+         * @param entity The [Entity] to open the [Index] for.
          * @return The opened [LuceneIndex]
          */
-        override fun open(name: Name.IndexName, entity: DefaultEntity): LuceneIndex = LuceneIndex(name, entity)
+        override fun open(name: Name.IndexName, entity: Entity): LuceneIndex = LuceneIndex(name, entity as DefaultEntity)
 
         /**
          * Initialize the [XodusDirectory] for a [LuceneIndex].
          *
          * @param name The [Name.IndexName] of the [LuceneIndex].
-         * @param entity The [DefaultEntity.Tx] that executes the operation.
+         * @param catalogue [Catalogue] reference.
+         * @param context The [TransactionContext] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean {
+        override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean {
             return try {
-                val directory = XodusDirectory(entity.dbo.catalogue.vfs, name.toString(), entity.context.xodusTx)
+                val directory = XodusDirectory((catalogue as DefaultCatalogue).vfs, name.toString(), context.xodusTx)
                 val config = IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE).setMergeScheduler(SerialMergeScheduler())
                 val writer = IndexWriter(directory, config)
                 writer.close()
@@ -105,11 +109,12 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * De-initializes the [XodusDirectory] for a [LuceneIndex].
          *
          * @param name The [Name.IndexName] of the [LuceneIndex].
-         * @param entity The [DefaultEntity] that holds the [LuceneIndex].
+         * @param catalogue [Catalogue] reference.
+         * @param context The [TransactionContext] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun deinitialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
-            val directory = XodusDirectory(entity.dbo.catalogue.vfs, name.toString(), entity.context.xodusTx)
+        override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
+            val directory = XodusDirectory((catalogue as DefaultCatalogue).vfs, name.toString(), context.xodusTx)
             for (file in directory.listAll()) {
                 directory.deleteFile(file)
             }

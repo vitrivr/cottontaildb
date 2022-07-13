@@ -186,8 +186,9 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
 
             /* Clears all indexes. */
             entry.indexes.forEach {
-                IndexStructCatalogueEntry.delete(it, this@DefaultSchema.catalogue, this.context.xodusTx)
-                this@DefaultSchema.catalogue.environment.truncateStore(it.storeName(), this.context.xodusTx)
+                val idx = IndexCatalogueEntry.read(it, this@DefaultSchema.catalogue, this.context.xodusTx)  ?: throw DatabaseException.IndexDoesNotExistException(it)
+                idx.type.descriptor.deinitialize(it, this@DefaultSchema.catalogue, this.context)
+                idx.type.descriptor.initialize(it, this@DefaultSchema.catalogue, this.context)
             }
 
             /* Clears all columns. */
