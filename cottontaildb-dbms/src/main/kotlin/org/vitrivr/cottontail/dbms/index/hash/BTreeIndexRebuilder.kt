@@ -37,7 +37,9 @@ class BTreeIndexRebuilder(index: BTreeIndex, context: TransactionContext): Abstr
             while (cursor.moveNext()) {
                 val keyRaw = binding.valueToEntry(cursor.value())
                 val tupleIdRaw = LongBinding.longToCompressedEntry(cursor.key())
-                return dataStore.put(this.context.xodusTx, keyRaw, tupleIdRaw)
+                if (!dataStore.put(this.context.xodusTx, keyRaw, tupleIdRaw)) {
+                    return false
+                }
             }
         }
 

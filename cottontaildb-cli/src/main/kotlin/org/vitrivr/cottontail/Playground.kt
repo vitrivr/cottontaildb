@@ -5,8 +5,6 @@ import io.grpc.ManagedChannelBuilder
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.basics.Distances
-import org.vitrivr.cottontail.client.language.basics.predicate.Expression
-import org.vitrivr.cottontail.client.language.basics.predicate.Predicate
 import org.vitrivr.cottontail.client.language.dql.Query
 
 /**

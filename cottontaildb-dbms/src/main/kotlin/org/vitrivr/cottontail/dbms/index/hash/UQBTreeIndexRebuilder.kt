@@ -36,7 +36,9 @@ class UQBTreeIndexRebuilder(index: UQBTreeIndex, context: TransactionContext): A
             while (cursor.moveNext()) {
                 val keyRaw = binding.valueToEntry(cursor.value())
                 val tupleIdRaw = LongBinding.longToCompressedEntry(cursor.key())
-                return dataStore.put(this.context.xodusTx, keyRaw, tupleIdRaw)
+                if (!dataStore.add(this.context.xodusTx, keyRaw, tupleIdRaw)) {
+                    return false
+                }
             }
         }
 
