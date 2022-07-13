@@ -18,7 +18,7 @@ import kotlin.time.measureTimedValue
  * @version 2.1.0
  */
 @ExperimentalTime
-class CreateIndexCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "create-index", help = "Creates an index on the given entity and rebuilds the newly created index. Usage: index create <schema>.<entity> <column> <index>") {
+class CreateIndexCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "create", help = "Creates an index on the given entity and rebuilds the newly created index. Usage: index create <schema>.<entity> <column> <index>") {
     /** The attribute that should be indexed. */
     private val attribute by argument(name = "column", help = "The name of the column to create the index for.")
 
