@@ -65,7 +65,6 @@ class IndexScanOperator(
             this@IndexScanOperator.fetch.first().first.context.update(record)
             emit(record)
             read += 1
-            LOGGER.debug("Read $read entries from ${this@IndexScanOperator.index.dbo.name}.")
         }
         cursor.close()
         LOGGER.debug("Read $read entries from ${this@IndexScanOperator.index.dbo.name}.")

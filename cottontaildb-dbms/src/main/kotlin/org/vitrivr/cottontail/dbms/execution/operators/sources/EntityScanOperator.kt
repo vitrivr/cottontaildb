@@ -50,7 +50,6 @@ class EntityScanOperator(groupId: GroupId, val entity: EntityTx, val fetch: List
             this@EntityScanOperator.fetch.first().first.context.update(next) /* Important: Make new record available to binding context. */
             emit(next)
             read += 1
-            LOGGER.debug("Read $read entries from ${this@EntityScanOperator.entity.dbo.name}.")
         }
         cursor.close()
         LOGGER.debug("Read $read entries from ${this@EntityScanOperator.entity.dbo.name}.")
