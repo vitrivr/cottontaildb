@@ -43,10 +43,10 @@ class PQDoubleVectorCodebookTest {
     private val distance = EuclideanDistance.DoubleVector(Types.DoubleVector(this.dimensions))
 
     /** The [PQIndexConfig] that is used for the tests. */
-    private val config = PQIndexConfig(this.distance.signature.name, 3000, this.numberOfClusters)
+    private val config = PQIndexConfig(this.distance.signature.name, this.numberOfClusters)
 
     /** The data to train the quantizer with. */
-    private val trainingdata = this.testdata.filter { this.random.nextDouble() <= ((log10(this.testdata.size.toDouble()) * 1000L) / this.testdata.size) }
+    private val trainingdata = this.testdata.filter { this.random.nextDouble() <= ((100.0 * log10(this.testdata.size.toDouble())) / this.testdata.size) }
 
     /** The [ProductQuantizer] that is used for the tests. */
     private val quantizer = ProductQuantizer.learnFromData(this.distance, this.trainingdata, this.config)

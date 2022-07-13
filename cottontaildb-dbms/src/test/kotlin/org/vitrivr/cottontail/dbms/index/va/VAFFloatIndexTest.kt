@@ -36,7 +36,7 @@ import kotlin.time.measureTime
  * This is a collection of test cases to test the correct behaviour of [VAFIndex] for [FloatVectorValue]s.
  *
  * @author Ralph Gasser
- * @param 1.3.1
+ * @param 1.4.0
  */
 @Suppress("UNCHECKED_CAST")
 class VAFFloatIndexTest : AbstractIndexTest() {
@@ -67,54 +67,53 @@ class VAFFloatIndexTest : AbstractIndexTest() {
     @MethodSource("kernels")
     @ExperimentalTime
     fun test(distance: Name.FunctionName) {
-
-
-
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
-        val k = 1000L
+        try {
+            val k = 1000L
+            val query = FloatVectorValueGenerator.random(this.indexColumn.type.logicalSize, this.random)
+            val function = this.catalogue.functions.obtain(Signature.Closed(distance, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Types.Double)) as VectorDistance<*>
+            val context = DefaultBindingContext()
+            val predicate = ProximityPredicate.NNS(column = this.indexColumn, k = k, distance = function, query = context.bind(query))
 
-        val query = FloatVectorValueGenerator.random(this.indexColumn.type.logicalSize, this.random)
-        val function = this.catalogue.functions.obtain(Signature.Closed(distance, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Types.Double)) as VectorDistance<*>
+            /* Obtain necessary transactions. */
+            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+            val schema = catalogueTx.schemaForName(this.schemaName)
+            val schemaTx = txn.getTx(schema) as SchemaTx
+            val entity = schemaTx.entityForName(this.entityName)
+            val entityTx = txn.getTx(entity) as EntityTx
+            val index = entityTx.indexForName(this.indexName)
+            val indexTx = txn.getTx(index) as IndexTx
 
-        val context = DefaultBindingContext()
-        val predicate = ProximityPredicate.NNS(column = this.indexColumn, k = k, distance = function, query = context.bind(query))
+            /* Fetch results through full table scan. */
 
-        /* Obtain necessary transactions. */
-        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
-        val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = txn.getTx(schema) as SchemaTx
-        val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = txn.getTx(entity) as EntityTx
-        val index = entityTx.indexForName(this.indexName)
-        val indexTx = txn.getTx(index) as IndexTx
-
-        /* Fetch results through full table scan. */
-        val bruteForceResults = HeapSelection(k, RecordComparator.SingleNonNullColumnComparator(predicate.distanceColumn, SortOrder.ASCENDING))
-        val bruteForceDuration = measureTime {
-            val cursor = entityTx.cursor(arrayOf(this.indexColumn))
-            cursor.forEach {
-                bruteForceResults.offer(StandaloneRecord(it.tupleId, arrayOf(this.indexColumn, predicate.distanceColumn), arrayOf(it[this.indexColumn], function(query, it[this.indexColumn]))))
+            val bruteForceResults = HeapSelection(k, RecordComparator.SingleNonNullColumnComparator(predicate.distanceColumn, SortOrder.ASCENDING))
+            val bruteForceDuration = measureTime {
+                entityTx.cursor(arrayOf(this.indexColumn)).use { cursor ->
+                    cursor.forEach {
+                        bruteForceResults.offer(StandaloneRecord(it.tupleId, arrayOf(this.indexColumn, predicate.distanceColumn), arrayOf(it[this.indexColumn], function(query, it[this.indexColumn]))))
+                    }
+                }
             }
-            cursor.close()
+
+            /* Fetch results through index. */
+            val indexResults = ArrayList<Record>(k.toInt())
+            val indexDuration = measureTime {
+                indexTx.filter(predicate).use { cursor ->
+                    cursor.forEach { indexResults.add(it) }
+                    cursor.close()
+                }
+            }
+
+            /* Compare results. */
+            for ((i, e) in indexResults.withIndex()) {
+                Assertions.assertEquals(bruteForceResults[i.toLong()].tupleId, e.tupleId)
+                Assertions.assertEquals(bruteForceResults[i.toLong()][predicate.distanceColumn], e[predicate.distanceColumn])
+            }
+
+            log("Test done for ${function.name} and d=${this.indexColumn.type.logicalSize}! VAF took $indexDuration, brute-force took $bruteForceDuration.")
+        } finally {
+            txn.rollback()
         }
-
-
-        /* Fetch results through index. */
-        val indexResults = ArrayList<Record>(k.toInt())
-        val indexDuration = measureTime {
-            val cursor = indexTx.filter(predicate)
-            cursor.forEach { indexResults.add(it) }
-            cursor.close()
-        }
-        txn.commit()
-
-        /* Compare results. */
-        for ((i, e) in indexResults.withIndex()) {
-            Assertions.assertEquals(bruteForceResults[i.toLong()].tupleId, e.tupleId)
-            Assertions.assertEquals(bruteForceResults[i.toLong()][predicate.distanceColumn], e[predicate.distanceColumn])
-        }
-
-        log("Test done for ${function.name} and d=${this.indexColumn.type.logicalSize}! VAF took $indexDuration, brute-force took $bruteForceDuration.")
     }
 
     override fun nextRecord(): StandaloneRecord {

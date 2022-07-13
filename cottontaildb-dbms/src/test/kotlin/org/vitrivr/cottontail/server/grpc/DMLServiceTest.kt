@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.client.language.basics.predicate.Expression
 import org.vitrivr.cottontail.client.language.ddl.CreateEntity
 import org.vitrivr.cottontail.client.language.ddl.CreateIndex
-import org.vitrivr.cottontail.client.language.ddl.OptimizeEntity
+import org.vitrivr.cottontail.client.language.ddl.RebuildIndex
 import org.vitrivr.cottontail.client.language.dml.BatchInsert
 import org.vitrivr.cottontail.client.language.dml.Delete
 import org.vitrivr.cottontail.client.language.dml.Insert
@@ -28,7 +28,6 @@ import org.vitrivr.cottontail.test.TestConstants.TEST_ENTITY_NAME
 import org.vitrivr.cottontail.test.TestConstants.TEST_SCHEMA
 import org.vitrivr.cottontail.test.TestConstants.TEST_VECTOR_ENTITY_NAME
 import org.vitrivr.cottontail.test.TestConstants.TWOD_COLUMN_NAME
-import org.vitrivr.cottontail.utilities.math.random.nextInt
 import kotlin.time.ExperimentalTime
 
 /**
@@ -239,7 +238,7 @@ class DMLServiceTest : AbstractClientTest() {
         val stringLength = 200
         var txId = client.begin()
         this.client.create(CreateEntity(entityName.fqn).column(STRING_COLUMN_NAME, Type.STRING).txId(txId))
-        this.client.create(CreateIndex(entityName.fqn, STRING_COLUMN_NAME, CottontailGrpc.IndexType.LUCENE).txId(txId))
+        this.client.create(CreateIndex(entityName.fqn, STRING_COLUMN_NAME, CottontailGrpc.IndexType.LUCENE).name("lucene-index").txId(txId))
         this.client.commit(txId)
 
         // we have an outer loop to check if optimization is the problem.
@@ -256,7 +255,7 @@ class DMLServiceTest : AbstractClientTest() {
                 this.client.insert(batch)
                 this.client.commit(txId)
             }
-            this.client.optimize(OptimizeEntity(entityName.fqn))
+            this.client.rebuild(RebuildIndex(entityName.index("lucene-index").fqn))
         }
         Assertions.assertEquals(repeatBatchInsert * batchCount, countElements(this.client, entityName)!!.toInt())
     }

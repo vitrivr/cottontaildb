@@ -144,8 +144,7 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
             val entity = schemaTx.entityForName(this.entityName)
             val entityTx = txn.getTx(entity) as EntityTx
             val index = entityTx.indexForName(this.indexName)
-            val rebuilder = index.newRebuilder(txn)
-            rebuilder.rebuild()
+            index.newRebuilder(txn).rebuild()
             txn.commit()
         } catch (e: Throwable) {
             txn.rollback()
@@ -192,26 +191,34 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
 
         /* Create entry. */
         val tx1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
-        val catalogueTx = tx1.getTx(this.catalogue) as CatalogueTx
-        val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = tx1.getTx(schema) as SchemaTx
-        val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = tx1.getTx(entity) as EntityTx
-        val preCount = entityTx.count()
-        entityTx.listIndexes().map {
-            val rebuilder = entityTx.indexForName(it).newRebuilder(tx1)
-            rebuilder.rebuild()
-        }
-        tx1.commit()
+        try {
+            val catalogueTx = tx1.getTx(this.catalogue) as CatalogueTx
+            val schema = catalogueTx.schemaForName(this.schemaName)
+            val schemaTx = tx1.getTx(schema) as SchemaTx
+            val entity = schemaTx.entityForName(this.entityName)
+            val entityTx = tx1.getTx(entity) as EntityTx
+            val preCount = entityTx.count()
+            entityTx.listIndexes().map {
+                val rebuilder = entityTx.indexForName(it).newRebuilder(tx1)
+                rebuilder.rebuild()
+            }
+            tx1.commit()
 
-        /* Test count. */
-        val tx2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
-        val countTx = tx2.getTx(entity) as EntityTx
-        val postCount = countTx.count()
-        if (postCount != preCount) {
-            Assertions.fail<Unit>("Optimizing caused elements to disappear")
+            /* Test count. */
+            val tx2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+            try {
+                val countTx = tx2.getTx(entity) as EntityTx
+                val postCount = countTx.count()
+                if (postCount != preCount) {
+                    Assertions.fail<Unit>("Optimizing caused elements to disappear")
+                }
+                tx2.commit()
+            } catch (e: Throwable) {
+                tx2.rollback()
+            }
+        } catch (e: Throwable) {
+            tx1.rollback()
         }
-        tx2.commit()
     }
 
     /**

@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.dbms.index.basic.IndexType
  * @author Ralph Gasser & Silvan Heller
  * @version 1.3.0
  */
-class LuceneIndexText : AbstractIndexTest() {
+class LuceneIndexTest : AbstractIndexTest() {
     override val columns: Array<ColumnDef<*>> = arrayOf(
         ColumnDef(this.entityName.column("id"), Types.Long),
         ColumnDef(this.entityName.column("feature"), Types.String)
