@@ -54,14 +54,14 @@ class PQIndexRebuilder(index: PQIndex, context: TransactionContext): AbstractInd
         columnTx.cursor().use { cursor ->
             while (cursor.moveNext()) {
                 val value = cursor.value()
-                if (value is VectorValue<*>) {
-                    val sig = quantizer.quantize(value)
-                    dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(sig), cursor.key().toKey())
+                if (value !is VectorValue<*> || !dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(quantizer.quantize(value)), cursor.key().toKey())) {
+                    return false
                 }
             }
         }
 
         /* Update stored ProductQuantizer. */
-        return IndexStructCatalogueEntry.write(this.index.name, quantizer.toSerializableProductQuantizer(), this.index.catalogue, context.xodusTx, SerializableProductQuantizer.Binding)
+        IndexStructCatalogueEntry.write(this.index.name, quantizer.toSerializableProductQuantizer(), this.index.catalogue, context.xodusTx, SerializableProductQuantizer.Binding)
+        return true
     }
 }

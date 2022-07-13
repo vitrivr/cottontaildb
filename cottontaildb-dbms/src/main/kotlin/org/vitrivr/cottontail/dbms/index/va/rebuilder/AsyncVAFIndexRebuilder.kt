@@ -88,11 +88,14 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
         val cursor = this.tmpDataStore.openCursor(this.tmpTx)
         while (cursor.next) {
             if (this.state != IndexRebuilderState.MERGING) return false
-            store.putRight(context2.xodusTx, cursor.key, cursor.value)
+            if (!store.put(context2.xodusTx, cursor.key, cursor.value)) {
+                return false
+            }
         }
 
         /* Update stored VAFMarks. */
-        return IndexStructCatalogueEntry.write(this.index.name, this.newMarks!!, this.index.catalogue, context2.xodusTx, EquidistantVAFMarks.Binding)
+        IndexStructCatalogueEntry.write(this.index.name, this.newMarks!!, this.index.catalogue, context2.xodusTx, EquidistantVAFMarks.Binding)
+        return true
     }
 
     /**

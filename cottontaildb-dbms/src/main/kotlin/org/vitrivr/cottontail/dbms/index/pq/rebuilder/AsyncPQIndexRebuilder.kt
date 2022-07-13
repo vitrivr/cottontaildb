@@ -85,12 +85,15 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
         this.tmpDataStore.openCursor(this.tmpTx).use { cursor ->
             while (cursor.next) {
                 if (this.state != IndexRebuilderState.MERGING) return false
-                store.put(context2.xodusTx, cursor.key, cursor.value)
+                if (!store.put(context2.xodusTx, cursor.key, cursor.value)) {
+                    return false
+                }
             }
         }
 
         /* Update stored ProductQuantizer. */
-        return IndexStructCatalogueEntry.write(this.index.name, this.newQuantizer!!.toSerializableProductQuantizer(), this.index.catalogue, context2.xodusTx, SerializableProductQuantizer.Binding)
+        IndexStructCatalogueEntry.write(this.index.name, this.newQuantizer!!.toSerializableProductQuantizer(), this.index.catalogue, context2.xodusTx, SerializableProductQuantizer.Binding)
+        return true
     }
 
     /**
