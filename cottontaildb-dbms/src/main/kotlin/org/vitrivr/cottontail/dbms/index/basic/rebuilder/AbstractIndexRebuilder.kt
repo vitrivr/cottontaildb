@@ -46,7 +46,7 @@ abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
         }
 
         /* Execute rebuild operation*/
-        if (this.rebuildInternal()) {
+        if (!this.rebuildInternal()) {
             LOGGER.error("Rebuilding index ${this.index.name} (${this.index.type}) failed!")
             return false
         }
