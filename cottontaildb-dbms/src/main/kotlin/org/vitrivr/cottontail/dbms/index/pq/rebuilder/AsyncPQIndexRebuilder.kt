@@ -67,13 +67,13 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
                     val sig = this.newQuantizer!!.quantize(value)
-                    if (!this.tmpDataStore.add(this.tmpTx, PQSignature.Binding.valueToEntry(sig), cursor.key().toKey())) {
+                    if (!this.tmpDataStore.put(this.tmpTx, PQSignature.Binding.valueToEntry(sig), cursor.key().toKey())) {
                         return false
                     }
 
                     /* Data is flushed every once in a while. */
                     if ((counter ++) % 1_000_000 == 0) {
-                        LOGGER.debug("Rebuilding index ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
+                        LOGGER.debug("Rebuilding index (SCAN) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
                         if (!this.tmpTx.flush()) {
                             return false
                         }
@@ -104,7 +104,7 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
 
                 /* Data is flushed every once in a while. */
                 if ((counter ++) % 1_000_000 == 0) {
-                    LOGGER.debug("Merging index ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
+                    LOGGER.debug("Rebuilding index (MERGE) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
                     if (!context2.xodusTx.flush()) {
                         return false
                     }
