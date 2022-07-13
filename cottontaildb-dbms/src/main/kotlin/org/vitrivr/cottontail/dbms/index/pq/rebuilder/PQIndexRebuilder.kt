@@ -43,6 +43,7 @@ class PQIndexRebuilder(index: PQIndex, context: TransactionContext): AbstractInd
         val entityTx = this.context.getTx(this.index.parent) as EntityTx
         val columnTx = this.context.getTx(entityTx.columnForName(column)) as ColumnTx<*>
         val dataStore = this.tryClearAndOpenStore() ?: return false
+        val count = columnTx.count()
 
         /* Obtain PQ data structure. */
         val type = columnTx.columnDef.type as Types.Vector<*,*>
@@ -51,11 +52,22 @@ class PQIndexRebuilder(index: PQIndex, context: TransactionContext): AbstractInd
         val quantizer = ProductQuantizer.learnFromData(distanceFunction, learningData, config)
 
         /* Iterate over column and update index with entries. */
+        var counter = 1
         columnTx.cursor().use { cursor ->
             while (cursor.moveNext()) {
                 val value = cursor.value()
-                if (value !is VectorValue<*> || !dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(quantizer.quantize(value)), cursor.key().toKey())) {
-                    return false
+                if (value is VectorValue<*>) {
+                    if (!dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(quantizer.quantize(value)), cursor.key().toKey())) {
+                        return false
+                    }
+
+                    /* Data is flushed every once in a while. */
+                    if ((counter ++) % 1_000_000 == 0) {
+                        LOGGER.debug("Rebuilding index ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
+                        if (!this.context.xodusTx.flush()) {
+                            return false
+                        }
+                    }
                 }
             }
         }

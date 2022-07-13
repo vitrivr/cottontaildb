@@ -24,7 +24,7 @@ abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
                                                 final override val context: TransactionContext): IndexRebuilder<T> {
     companion object {
         /** [Logger] instance used by [AbstractIndexRebuilder]. */
-        protected val LOGGER: Logger = LoggerFactory.getLogger(AbstractIndexRebuilder::class.java)
+        internal val LOGGER: Logger = LoggerFactory.getLogger(AbstractIndexRebuilder::class.java)
     }
 
     /**

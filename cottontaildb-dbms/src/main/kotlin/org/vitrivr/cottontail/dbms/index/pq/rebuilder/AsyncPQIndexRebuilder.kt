@@ -5,7 +5,6 @@ import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
-import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
@@ -50,6 +49,7 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
         /* Tx objects required for index rebuilding. */
         val entityTx = context1.getTx(this.index.parent) as EntityTx
         val columnTx = context1.getTx(entityTx.columnForName(column)) as ColumnTx<*>
+        val count = columnTx.count()
         this.indexedColumn = columnTx.columnDef
 
         /* Generate and obtain signature and distance function. */
@@ -60,13 +60,24 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
         this.newQuantizer = ProductQuantizer.learnFromData(distanceFunction, PQIndexRebuilderUtilites.acquireLearningData(columnTx, config), config)
 
         /* Iterate over entity and update index with entries. */
+        var counter = 1
         columnTx.cursor().use { cursor ->
             while (cursor.hasNext()) {
                 if (this.state != IndexRebuilderState.SCANNING) return false
                 val value = cursor.value()
-                if (value is RealVectorValue<*>) {
+                if (value is VectorValue<*>) {
                     val sig = this.newQuantizer!!.quantize(value)
-                    this.tmpDataStore.add(this.tmpTx, PQSignature.Binding.valueToEntry(sig), cursor.key().toKey())
+                    if (!this.tmpDataStore.add(this.tmpTx, PQSignature.Binding.valueToEntry(sig), cursor.key().toKey())) {
+                        return false
+                    }
+
+                    /* Data is flushed every once in a while. */
+                    if ((counter ++) % 1_000_000 == 0) {
+                        LOGGER.debug("Rebuilding index ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
+                        if (!this.tmpTx.flush()) {
+                            return false
+                        }
+                    }
                 }
             }
         }
@@ -82,11 +93,21 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
      * @return True on success, false otherwise.
      */
     override fun internalMerge(context2: TransactionContext, store: Store): Boolean {
+        val count = this.tmpDataStore.count(this.tmpTx)
         this.tmpDataStore.openCursor(this.tmpTx).use { cursor ->
+            var counter = 0
             while (cursor.next) {
                 if (this.state != IndexRebuilderState.MERGING) return false
                 if (!store.put(context2.xodusTx, cursor.key, cursor.value)) {
                     return false
+                }
+
+                /* Data is flushed every once in a while. */
+                if ((counter ++) % 1_000_000 == 0) {
+                    LOGGER.debug("Rebuilding index ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
+                    if (!context2.xodusTx.flush()) {
+                        return false
+                    }
                 }
             }
         }

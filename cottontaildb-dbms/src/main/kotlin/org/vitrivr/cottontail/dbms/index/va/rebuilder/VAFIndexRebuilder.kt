@@ -38,6 +38,7 @@ class VAFIndexRebuilder(index: VAFIndex, context: TransactionContext): AbstractI
         val entityTx = this.context.getTx(this.index.parent) as EntityTx
         val columnTx = this.context.getTx(entityTx.columnForName(column)) as ColumnTx<*>
         val dataStore = this.tryClearAndOpenStore() ?: return false
+        val count = columnTx.count()
 
         /* Obtain new marks. */
         val marks = EquidistantVAFMarks(columnTx.statistics() as VectorValueStatistics<*>, config.marksPerDimension)
@@ -47,14 +48,17 @@ class VAFIndexRebuilder(index: VAFIndex, context: TransactionContext): AbstractI
         columnTx.cursor().use { cursor ->
             while (cursor.hasNext()) {
                 val value = cursor.value()
-                if (value !is RealVectorValue<*> || !dataStore.put(this.context.xodusTx, marks.getSignature(value).toEntry(), cursor.key().toKey())) {
-                    return false
-                }
-
-                /* Data is flushed every once in a while. */
-                if ((counter ++) % 1_000_000 == 0) {
-                    if (!this.context.xodusTx.flush()) {
+                if (value is RealVectorValue<*>) {
+                    if (!dataStore.put(this.context.xodusTx, marks.getSignature(value).toEntry(), cursor.key().toKey())) {
                         return false
+                    }
+
+                    /* Data is flushed every once in a while. */
+                    if ((counter ++) % 1_000_000 == 0) {
+                        LOGGER.debug("Rebuilding index ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
+                        if (!this.context.xodusTx.flush()) {
+                            return false
+                        }
                     }
                 }
             }

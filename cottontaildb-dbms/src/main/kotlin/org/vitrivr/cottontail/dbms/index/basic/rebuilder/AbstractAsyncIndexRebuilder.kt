@@ -37,7 +37,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
 
     companion object {
         /** [Logger] instance used by [AbstractAsyncIndexRebuilder]. */
-        protected val LOGGER: Logger = LoggerFactory.getLogger(AbstractAsyncIndexRebuilder::class.java)
+        internal val LOGGER: Logger = LoggerFactory.getLogger(AbstractAsyncIndexRebuilder::class.java)
     }
 
     /** The [IndexRebuilderState] of this [AbstractAsyncIndexRebuilder] */
