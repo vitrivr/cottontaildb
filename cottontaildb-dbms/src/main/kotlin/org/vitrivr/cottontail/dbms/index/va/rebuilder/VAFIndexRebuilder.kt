@@ -47,8 +47,8 @@ class VAFIndexRebuilder(index: VAFIndex, context: TransactionContext): AbstractI
         columnTx.cursor().use { cursor ->
             while (cursor.hasNext()) {
                 val value = cursor.value()
-                if (value is RealVectorValue<*>) {
-                    dataStore.put(this.context.xodusTx, marks.getSignature(value).toEntry(), cursor.key().toKey())
+                if (value !is RealVectorValue<*> || !dataStore.put(this.context.xodusTx, marks.getSignature(value).toEntry(), cursor.key().toKey())) {
+                    return false
                 }
 
                 /* Data is flushed every once in a while. */
@@ -61,6 +61,7 @@ class VAFIndexRebuilder(index: VAFIndex, context: TransactionContext): AbstractI
         }
 
         /* Update stored VAFMarks. */
-        return IndexStructCatalogueEntry.write(this.index.name, marks, this.index.catalogue, this.context.xodusTx, EquidistantVAFMarks.Binding)
+        IndexStructCatalogueEntry.write(this.index.name, marks, this.index.catalogue, this.context.xodusTx, EquidistantVAFMarks.Binding)
+        return true
     }
 }
