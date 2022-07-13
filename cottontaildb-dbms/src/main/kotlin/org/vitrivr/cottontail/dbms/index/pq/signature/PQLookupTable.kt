@@ -3,13 +3,14 @@ package org.vitrivr.cottontail.dbms.index.pq.signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
+import kotlin.math.absoluteValue
 import kotlin.math.pow
 
 /**
  * A lookup table like data structure used by [PQIndex] to obtain approximate distances from [PQSignature]s
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 1.1.1
+ * @version 1.1.2
  */
 sealed class PQLookupTable(val data: Array<DoubleArray>) {
 
@@ -29,7 +30,7 @@ sealed class PQLookupTable(val data: Array<DoubleArray>) {
      */
     class Manhattan(data: Array<DoubleArray>): PQLookupTable(data) {
         override fun approximateDistance(signature: PQSignature): Double
-            = signature.cells.mapIndexed { i, c -> this.data[i][c] }.sum()
+            = signature.cells.mapIndexed { i, c -> this.data[i][c].absoluteValue }.sum()
     }
 
     /**
