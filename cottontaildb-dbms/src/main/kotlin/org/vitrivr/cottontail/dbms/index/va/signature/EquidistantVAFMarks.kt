@@ -66,7 +66,7 @@ class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, Ind
             is FloatVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
             is DoubleVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) {  statistics.max.data[it] }
             is IntVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
-            is LongVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }x
+            is LongVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
         },
         marksPerDimension
     )
