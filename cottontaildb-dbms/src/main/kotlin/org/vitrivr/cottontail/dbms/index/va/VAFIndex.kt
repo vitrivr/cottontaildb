@@ -189,8 +189,9 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             if (predicate !is ProximityPredicate) return Cost.INVALID
             if (predicate.column != this.columns[0]) return Cost.INVALID
             if (predicate.distance !is MinkowskiDistance<*>) return Cost.INVALID
-            return (Cost.DISK_ACCESS_READ * (0.9f + 0.1f * this.columns[0].type.physicalSize) +
-                    (Cost.MEMORY_ACCESS * 2.0f + Cost.FLOP) * 0.9f + predicate.cost * 0.1f) * this.count()
+            return (Cost.DISK_ACCESS_READ + Cost.DISK_ACCESS_READ  * this.columns[0].type.physicalSize * 0.1f + /* Access to all signatures + access to 10% of vectors. */
+                (Cost.MEMORY_ACCESS * 2.0f + Cost.FLOP) + predicate.cost * 0.1f) * this.count() +               /* Memory access + FLOPS for lower-bound estimate + distance calculation for 10% of vectors. */
+                Cost(memory = 2.0f * Double.SIZE_BYTES * predicate.k)                                           /* Memory for heap selection. */
         }
 
         /**
