@@ -326,6 +326,12 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
                 /** Internal [ColumnTx] used to access actual values. */
                 private val columnTx: ColumnTx<RealVectorValue<*>>
 
+                /** */
+                private val startKey = partition.first.toKey()
+
+                /** */
+                private val endKey = partition.last.toKey()
+
                 /** The [HeapSelection] use for finding the top k entries. */
                 private var selection = when (this.predicate) {
                     is ProximityPredicate.NNS -> HeapSelection(this.predicate.k, RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
@@ -405,31 +411,32 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
                     /* Initialize cursor. */
                     val subTx = this@Tx.context.xodusTx.readonlySnapshot
                     val cursor = this@Tx.dataStore.openCursor(subTx)
+                    var signaturesRead = 0
                     try {
-                        if (cursor.getSearchKey(partition.first.toKey()) == null) {
-                            return
-                        }
+                        if (cursor.getSearchKeyRange(this.startKey) == null) return
 
                         /* First phase: Just add entries until we have k-results. */
                         var threshold: Double
                         do {
                             this.readAndOffer(LongBinding.compressedEntryToLong(cursor.key))
-                        } while (this.selection.added < this.selection.k && cursor.next)
+                            signaturesRead++
+                        } while (this.selection.added < this.selection.k && cursor.next && cursor.key < this.endKey)
                         threshold = (this.selection.peek()!![0] as DoubleValue).value
 
                         /* Second phase: Use lower-bound to decide whether entry should be added. */
                         do {
                             val signature = VAFSignature.fromEntry(cursor.value)
-                            if (signature.isInvalid() || this.bounds.lb(signature, threshold) < threshold) {
+                            if (this.bounds.lb(signature, threshold) < threshold) {
                                 this.readAndOffer(LongBinding.compressedEntryToLong(cursor.key))
                                 threshold = (this.selection.peek()!![0] as DoubleValue).value
                             }
-                        } while (cursor.next)
+                            signaturesRead++
+                        } while (cursor.next && cursor.key < this.endKey)
                     } catch (e: Throwable) {
                         LOGGER.error("VA-SSA Scan: Error while scanning VAF index: ${e.message}")
                     } finally {
                         /* Log efficiency of VAF scan. */
-                        LOGGER.debug("VA-SSA Scan: Read ${this.selection.added} and skipped over ${(1.0 - this.selection.added.toDouble() / this@Tx.count()) * 100}% of entries.")
+                        LOGGER.debug("VA-SSA Scan: Read ${this.selection.added} and skipped over ${(1.0 - (this.selection.added.toDouble() / signaturesRead)) * 100}% of entries.")
 
                         /* Close Xodus cursor. */
                         cursor.close()
