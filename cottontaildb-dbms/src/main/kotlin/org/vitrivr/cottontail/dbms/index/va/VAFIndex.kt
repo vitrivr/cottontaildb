@@ -189,9 +189,20 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             if (predicate !is ProximityPredicate) return Cost.INVALID
             if (predicate.column != this.columns[0]) return Cost.INVALID
             if (predicate.distance !is MinkowskiDistance<*>) return Cost.INVALID
-            return (Cost.DISK_ACCESS_READ + Cost.DISK_ACCESS_READ  * this.columns[0].type.physicalSize * 0.1f + /* Access to all signatures + access to 10% of vectors. */
-                (Cost.MEMORY_ACCESS * 2.0f + Cost.FLOP) + predicate.cost * 0.1f) * this.count() +               /* Memory access + FLOPS for lower-bound estimate + distance calculation for 10% of vectors. */
-                Cost(memory = 2.0f * Double.SIZE_BYTES * predicate.k)                                           /* Memory for heap selection. */
+            return when (predicate) {
+                is ProximityPredicate.Scan -> Cost.INVALID
+                is ProximityPredicate.ENN -> Cost.INVALID
+                is ProximityPredicate.FNS -> {
+                    (Cost.DISK_ACCESS_READ + Cost.DISK_ACCESS_READ * this.columns[0].type.physicalSize * 0.1f + /* Access to all signatures + access to 10% of vectors. */
+                            (Cost.MEMORY_ACCESS * 2.0f + Cost.FLOP) + predicate.cost * 0.1f) * this.count() +   /* Memory access + FLOPS for lower-bound estimate + distance calculation for 10% of vectors. */
+                            Cost(memory = 2.0f * Double.SIZE_BYTES * predicate.k)                               /* Memory for heap selection. */
+                }
+                is ProximityPredicate.NNS ->{
+                    (Cost.DISK_ACCESS_READ + Cost.DISK_ACCESS_READ * this.columns[0].type.physicalSize * 0.1f + /* Access to all signatures + access to 10% of vectors. */
+                            (Cost.MEMORY_ACCESS * 2.0f + Cost.FLOP) + predicate.cost * 0.1f) * this.count() +   /* Memory access + FLOPS for lower-bound estimate + distance calculation for 10% of vectors. */
+                            Cost(memory = 2.0f * Double.SIZE_BYTES * predicate.k)                               /* Memory for heap selection. */
+                }
+            }
         }
 
         /**
@@ -210,8 +221,12 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @param predicate [Predicate] to check.
          * @return True if [Predicate] can be processed, false otherwise.
          */
-        override fun canProcess(predicate: Predicate): Boolean
-            = predicate is ProximityPredicate && predicate.column == this.columns[0] && predicate.distance is MinkowskiDistance
+        override fun canProcess(predicate: Predicate): Boolean {
+            if (predicate !is ProximityPredicate) return false
+            if (predicate.column != this.columns[0]) return false
+            if (predicate.distance !is MinkowskiDistance) return false
+            return predicate is ProximityPredicate.NNS || predicate is ProximityPredicate.FNS
+        }
 
         /**
          * Returns the map of [Trait]s this [VAFIndex] implements for the given [Predicate]s.
@@ -327,16 +342,18 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
                 /** Internal [ColumnTx] used to access actual values. */
                 private val columnTx: ColumnTx<RealVectorValue<*>>
 
-                /** */
+                /** The [TupleId] to start with. */
+
                 private val startKey = partition.first.toKey()
 
-                /** */
+                /** The [TupleId] to end at. */
                 private val endKey = partition.last.toKey()
 
                 /** The [HeapSelection] use for finding the top k entries. */
-                private var selection = when (this.predicate) {
+                private val selection = when (this.predicate) {
                     is ProximityPredicate.NNS -> HeapSelection(this.predicate.k, RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
                     is ProximityPredicate.FNS -> HeapSelection(this.predicate.k, RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.DESCENDING))
+                    else -> throw IllegalArgumentException("VAFIndex does only support NNS and FNS queries. This is a programmer's error!")
                 }
 
                 /** Cached in-memory version of the [EquidistantVAFMarks] used by this [Cursor]. */
