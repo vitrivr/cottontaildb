@@ -47,22 +47,26 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, val context: Bindin
      */
     override fun toFlow(context: TransactionContext): Flow<Record> = channelFlow {
         /* Collect incoming flows into dedicated HeapSelection objects (one per flow). */
-        val selection = HeapSelection(this@MergeLimitingHeapSortOperator.limit, this@MergeLimitingHeapSortOperator.comparator)
+        val incoming = this@MergeLimitingHeapSortOperator.parents
+        val globalSelection = HeapSelection(this@MergeLimitingHeapSortOperator.limit, this@MergeLimitingHeapSortOperator.comparator)
         val collected = AtomicLong(0L)
-        val jobs = this@MergeLimitingHeapSortOperator.parents.map { p ->
+        val jobs = incoming.map { op ->
             launch {
-                p.toFlow(context).collect {
+                val localSelection = HeapSelection(this@MergeLimitingHeapSortOperator.limit, this@MergeLimitingHeapSortOperator.comparator)
+                op.toFlow(context).collect {
                     collected.incrementAndGet()
-                    selection.offer(it)
+                    localSelection.offer(it)
+                }
+                for (i in 0 until localSelection.size) {
+                    globalSelection.offer(localSelection[i])
                 }
             }
         }
         jobs.forEach { it.join() } /* Wait for jobs to complete. */
         LOGGER.debug("Collection of ${collected.get()} records from ${jobs.size} partitions completed! ")
 
-        /* Emit sorted and limited values. */
-        for (i in 0 until selection.size) {
-            val rec = selection[i]
+        for (i in 0 until globalSelection.size) {
+            val rec = globalSelection[i]
             this@MergeLimitingHeapSortOperator.context.update(rec)
             send(rec)
         }
