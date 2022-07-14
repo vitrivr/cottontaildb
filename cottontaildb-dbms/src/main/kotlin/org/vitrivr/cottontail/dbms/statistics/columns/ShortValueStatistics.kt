@@ -17,9 +17,9 @@ import java.io.ByteArrayInputStream
  * A [ValueStatistics] implementation for [ShortValue]s.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-class ShortValueStatistics : AbstractValueStatistics<ShortValue>(Types.Short), RealValueStatistics<ShortValue> {
+class ShortValueStatistics : RealValueStatistics<ShortValue>(Types.Short) {
 
     /**
      * Xodus serializer for [ShortValueStatistics]

@@ -16,6 +16,11 @@ import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
  * @version 1.2.0
  */
 sealed class AbstractValueStatistics<T : Value>(override val type: Types<T>): ValueStatistics<T> {
+    companion object {
+        const val FRESH_KEY = "fresh"
+        const val ENTRIES_KEY = "entries"
+        const val NULL_ENTRIES_KEY = "null_entries"
+    }
 
     /** Flag indicating that this [AbstractValueStatistics] needs updating. */
     override var fresh: Boolean = true
@@ -92,6 +97,17 @@ sealed class AbstractValueStatistics<T : Value>(override val type: Types<T>): Va
         this.numberOfNullEntries = 0L
         this.numberOfNonNullEntries = 0L
     }
+
+    /**
+     * Creates a descriptive map of this [AbstractValueStatistics].
+     *
+     * @return Descriptive map of this [AbstractValueStatistics]
+     */
+    override fun about(): Map<String, String> = mapOf(
+        FRESH_KEY to this.fresh.toString(),
+        NULL_ENTRIES_KEY to this.numberOfNullEntries.toString(),
+        ENTRIES_KEY to (this.numberOfNullEntries + this.numberOfNonNullEntries).toString()
+    )
 
     /**
      * Estimates [Selectivity] of the given [BooleanPredicate.Atomic], i.e., the percentage of [org.vitrivr.cottontail.core.basics.Record]s that match it.

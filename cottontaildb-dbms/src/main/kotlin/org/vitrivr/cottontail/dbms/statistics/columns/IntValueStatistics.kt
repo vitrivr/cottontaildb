@@ -17,9 +17,9 @@ import java.lang.Integer.min
  * A [ValueStatistics] implementation for [IntValue]s.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-class IntValueStatistics : AbstractValueStatistics<IntValue>(Types.Int), RealValueStatistics<IntValue> {
+class IntValueStatistics : RealValueStatistics<IntValue>(Types.Int) {
 
     /**
      * Xodus serializer for [IntValueStatistics]

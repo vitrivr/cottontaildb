@@ -17,7 +17,7 @@ import java.lang.Double.min
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class DoubleValueStatistics : AbstractValueStatistics<DoubleValue>(Types.Double), RealValueStatistics<DoubleValue>{
+class DoubleValueStatistics : RealValueStatistics<DoubleValue>(Types.Double) {
 
     /**
      * Xodus serializer for [DoubleValueStatistics]
@@ -55,10 +55,6 @@ class DoubleValueStatistics : AbstractValueStatistics<DoubleValue>(Types.Double)
     /** Sum of all floats values in this [DoubleValueStatistics]. */
     override var sum: DoubleValue = DoubleValue.ZERO
         private set
-
-    /**  The arithmetic mean for the values seen by this [DoubleValueStatistics]. */
-    override val mean: DoubleValue
-        get() = DoubleValue(this.sum.value / this.numberOfNonNullEntries)
 
     /**
      * Updates this [DoubleValueStatistics] with an inserted [DoubleValue]

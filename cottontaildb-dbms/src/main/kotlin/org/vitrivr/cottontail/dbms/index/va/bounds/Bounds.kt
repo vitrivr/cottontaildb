@@ -13,8 +13,7 @@ import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
  * @version 1.1.0
  */
 sealed class Bounds {
-
-    /** */
+    /** Reference to the query vector. */
     protected abstract val query: DoubleArray
 
     /** [VAFSignature] for the query [RealVectorValue]. */

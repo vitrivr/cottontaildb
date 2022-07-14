@@ -13,9 +13,9 @@ import java.io.ByteArrayInputStream
  * A [ValueStatistics] implementation for [DoubleVectorValue]s.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-class DoubleVectorValueStatistics(logicalSize: Int) : AbstractValueStatistics<DoubleVectorValue>(Types.DoubleVector(logicalSize)), VectorValueStatistics<DoubleVectorValue> {
+class DoubleVectorValueStatistics(logicalSize: Int) : RealVectorValueStatistics<DoubleVectorValue>(Types.DoubleVector(logicalSize)) {
     /** Minimum value seen by this [DoubleVectorValueStatistics]. */
     override val min: DoubleVectorValue = DoubleVectorValue(DoubleArray(this.type.logicalSize) { Double.MAX_VALUE })
 

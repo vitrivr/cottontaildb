@@ -14,9 +14,9 @@ import java.lang.Long.min
  * A [ValueStatistics] implementation for [LongVectorValue]s.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-class LongVectorValueStatistics(logicalSize: Int) : AbstractValueStatistics<LongVectorValue>(Types.LongVector(logicalSize)), VectorValueStatistics<LongVectorValue> {
+class LongVectorValueStatistics(logicalSize: Int): RealVectorValueStatistics<LongVectorValue>(Types.LongVector(logicalSize)) {
     /** Minimum value seen by this [LongVectorValueStatistics]. */
     override val min: LongVectorValue = LongVectorValue(LongArray(this.type.logicalSize) { Long.MAX_VALUE })
 

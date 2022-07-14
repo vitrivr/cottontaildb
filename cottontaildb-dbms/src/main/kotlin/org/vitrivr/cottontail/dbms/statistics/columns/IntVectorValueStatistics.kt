@@ -15,9 +15,9 @@ import java.lang.Integer.min
  * A [ValueStatistics] implementation for [IntVectorValue]s.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-class IntVectorValueStatistics(logicalSize: Int) : AbstractValueStatistics<IntVectorValue>(Types.IntVector(logicalSize)), VectorValueStatistics<IntVectorValue> {
+class IntVectorValueStatistics(logicalSize: Int): RealVectorValueStatistics<IntVectorValue>(Types.IntVector(logicalSize)) {
     /** Minimum value seen by this [IntVectorValueStatistics]. */
     override val min: IntVectorValue = IntVectorValue(IntArray(this.type.logicalSize) { Int.MAX_VALUE })
 

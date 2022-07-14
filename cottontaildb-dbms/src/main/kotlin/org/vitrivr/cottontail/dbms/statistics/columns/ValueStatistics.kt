@@ -61,6 +61,13 @@ sealed interface ValueStatistics<T : Value> {
     fun update(old: T?, new: T?)
 
     /**
+     * Creates a descriptive map of this [ValueStatistics].
+     *
+     * @return Descriptive map of this [ValueStatistics]
+     */
+    fun about(): Map<String,String>
+
+    /**
      * Resets this [ValueStatistics] and sets all its values to the default value.
      */
     fun reset()

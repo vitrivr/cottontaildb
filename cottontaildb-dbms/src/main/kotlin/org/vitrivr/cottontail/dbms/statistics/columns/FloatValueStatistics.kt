@@ -17,9 +17,9 @@ import java.lang.Float.min
  * A [ValueStatistics] implementation for [FloatValue]s.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-class FloatValueStatistics : AbstractValueStatistics<FloatValue>(Types.Float), RealValueStatistics<FloatValue> {
+class FloatValueStatistics : RealValueStatistics<FloatValue>(Types.Float) {
 
     /**
      * Xodus serializer for [FloatValueStatistics]

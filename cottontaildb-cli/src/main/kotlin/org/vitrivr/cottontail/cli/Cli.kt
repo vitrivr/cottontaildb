@@ -294,6 +294,7 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                     }
                 }.subcommands(
                     AboutEntityCommand(this@Cli.client),
+                    EntityStatisticsCommand(this@Cli.client),
                     CreateEntityCommand(this@Cli.client),
                     DropEntityCommand(this@Cli.client),
                     TruncateEntityCommand(this@Cli.client),

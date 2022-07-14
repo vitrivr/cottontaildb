@@ -16,9 +16,9 @@ import java.lang.Long.min
  * A [ValueStatistics] implementation for [LongValue]s.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-class LongValueStatistics : AbstractValueStatistics<LongValue>(Types.Long), RealValueStatistics<LongValue> {
+class LongValueStatistics : RealValueStatistics<LongValue>(Types.Long) {
 
     /**
      * Xodus serializer for [LongValueStatistics]

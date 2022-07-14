@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.index.va.VAFIndexConfig
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
-import org.vitrivr.cottontail.dbms.statistics.columns.VectorValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.columns.RealVectorValueStatistics
 
 /**
  * An [AbstractIndexRebuilder] for the [VAFIndex].
@@ -41,7 +41,7 @@ class VAFIndexRebuilder(index: VAFIndex, context: TransactionContext): AbstractI
         val count = columnTx.count()
 
         /* Obtain new marks. */
-        val marks = EquidistantVAFMarks(columnTx.statistics() as VectorValueStatistics<*>, config.marksPerDimension)
+        val marks = EquidistantVAFMarks(columnTx.statistics() as RealVectorValueStatistics<*>, config.marksPerDimension)
 
         /* Iterate over entity and update index with entries. */
         var counter = 1

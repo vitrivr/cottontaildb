@@ -15,9 +15,9 @@ import java.lang.Float.min
  * A [ValueStatistics] implementation for [FloatVectorValue]s.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-class FloatVectorValueStatistics(logicalSize: Int) : AbstractValueStatistics<FloatVectorValue>(Types.FloatVector(logicalSize)), VectorValueStatistics<FloatVectorValue> {
+class FloatVectorValueStatistics(logicalSize: Int) : RealVectorValueStatistics<FloatVectorValue>(Types.FloatVector(logicalSize)) {
     /** Minimum value in this [FloatVectorValueStatistics]. */
     override val min: FloatVectorValue = FloatVectorValue(FloatArray(this.type.logicalSize) { Float.MAX_VALUE })
 

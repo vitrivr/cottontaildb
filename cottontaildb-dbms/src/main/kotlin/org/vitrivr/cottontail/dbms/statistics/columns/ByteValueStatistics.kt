@@ -16,9 +16,9 @@ import java.io.ByteArrayInputStream
  * A [ValueStatistics] implementation for [ByteValue]s.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-class ByteValueStatistics : AbstractValueStatistics<ByteValue>(Types.Byte), RealValueStatistics<ByteValue> {
+class ByteValueStatistics : RealValueStatistics<ByteValue>(Types.Byte) {
 
     /**
      * Xodus serializer for [ByteValueStatistics]

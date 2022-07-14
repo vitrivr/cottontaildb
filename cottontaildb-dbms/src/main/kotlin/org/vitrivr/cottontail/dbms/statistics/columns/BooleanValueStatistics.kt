@@ -15,6 +15,10 @@ import java.io.ByteArrayInputStream
  * @version 1.2.0
  */
 class BooleanValueStatistics: AbstractValueStatistics<BooleanValue>(Types.Boolean) {
+    companion object {
+        const val TRUE_ENTRIES_KEY = "true"
+        const val FALSE_ENTRIES_KEY = "false"
+    }
 
     /**
      * Xodus serializer for [BooleanValueStatistics]
@@ -93,6 +97,16 @@ class BooleanValueStatistics: AbstractValueStatistics<BooleanValue>(Types.Boolea
         this.numberOfTrueEntries = 0L
         this.numberOfFalseEntries = 0L
     }
+
+    /**
+     * Creates a descriptive map of this [BooleanValueStatistics].
+     *
+     * @return Descriptive map of this [BooleanValueStatistics]
+     */
+    override fun about(): Map<String, String> = super.about() + mapOf(
+        TRUE_ENTRIES_KEY to this.numberOfTrueEntries.toString(),
+        FALSE_ENTRIES_KEY to this.numberOfFalseEntries.toString(),
+    )
 
     /**
      * Copies this [BooleanValueStatistics] and returns it.

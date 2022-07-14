@@ -37,6 +37,13 @@ object ColumnSets {
         ColumnDef(Name.ColumnName("info"), Types.String, true)
     )
 
+    /** The columns returned by ABOUT ENTITY operation. */
+    val DDL_STATISTICS_COLUMNS: List<ColumnDef<*>> = listOf(
+        ColumnDef(Name.ColumnName("dbo"), Types.String, false),
+        ColumnDef(Name.ColumnName("statistic"), Types.String, false),
+        ColumnDef(Name.ColumnName("value"), Types.String, false),
+    )
+
     /** The columns returned by LIST LOCKS operation. */
     val DDL_LOCKS_COLUMNS: List<ColumnDef<*>> = listOf(
         ColumnDef(Name.ColumnName("dbo"), Types.String, false),

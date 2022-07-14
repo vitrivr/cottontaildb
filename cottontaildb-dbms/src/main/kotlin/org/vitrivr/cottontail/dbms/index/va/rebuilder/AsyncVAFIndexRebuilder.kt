@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.dbms.index.basic.rebuilder.IndexRebuilderState
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.index.va.VAFIndexConfig
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
-import org.vitrivr.cottontail.dbms.statistics.columns.VectorValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.columns.RealVectorValueStatistics
 
 /**
  * An [AbstractAsyncIndexRebuilder] that can be used to concurrently rebuild a [VAFIndex].
@@ -58,14 +58,14 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
         this.indexedColumn = columnTx.columnDef
 
         /* Generates new marks. */
-        this.newMarks = EquidistantVAFMarks(columnTx.statistics() as VectorValueStatistics<*>, config.marksPerDimension)
+        this.newMarks = EquidistantVAFMarks(columnTx.statistics() as RealVectorValueStatistics<*>, config.marksPerDimension)
 
         /* Creates temporary data store. */
         val dataStore = this.tmpEnvironment.openStore(this.index.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.tmpTx, true)
                 ?: throw DatabaseException.DataCorruptionException("Temporary data store for index ${this.index.name} could not be created.")
 
         /* Iterate over entity and update index with entries. */
-        var counter = 1
+        var counter = 0
         columnTx.cursor().use { cursor ->
             while (cursor.hasNext()) {
                 if (this.state != IndexRebuilderState.SCANNING) return false
@@ -76,7 +76,7 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
                     }
 
                     /* Data is flushed every once in a while. */
-                    if ((counter ++) % 1_000_000 == 0) {
+                    if ((++counter) % 1_000_000 == 0) {
                         LOGGER.debug("Rebuilding index (SCAN) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
                         if (!this.tmpTx.flush()) {
                             return false
@@ -99,7 +99,7 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
     override fun internalMerge(context2: TransactionContext, store: Store): Boolean {
         val count = this.tmpDataStore.count(this.tmpTx)
         this.tmpDataStore.openCursor(this.tmpTx).use {cursor ->
-            var counter = 1
+            var counter = 0
             while (cursor.next) {
                 if (this.state != IndexRebuilderState.MERGING) return false
                 if (!store.put(context2.xodusTx, cursor.key, cursor.value)) {
@@ -107,7 +107,7 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
                 }
 
                 /* Data is flushed every once in a while. */
-                if ((counter ++) % 1_000_000 == 0) {
+                if ((++counter) % 1_000_000 == 0) {
                     LOGGER.debug("Rebuilding index (MERGE) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
                     if (!context2.xodusTx.flush()) {
                         return false

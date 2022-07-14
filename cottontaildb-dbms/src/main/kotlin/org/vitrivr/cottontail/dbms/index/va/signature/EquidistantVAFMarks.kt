@@ -50,12 +50,12 @@ class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, Ind
     }
 
     /**
-     * Constructs [EquidistantVAFMarks] from the [VectorValueStatistics].
+     * Constructs [EquidistantVAFMarks] from the [RealVectorValueStatistics].
      *
      * @param statistics [VectorValueStatistics<*>] to construct [EquidistantVAFMarks] for.
      * @param marksPerDimension The number of marks per dimension.
      */
-    constructor(statistics: VectorValueStatistics<*>, marksPerDimension: Int): this(
+    constructor(statistics: RealVectorValueStatistics<*>, marksPerDimension: Int): this(
         when (statistics) {
             is FloatVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
             is DoubleVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) {  statistics.min.data[it] }
@@ -66,7 +66,7 @@ class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, Ind
             is FloatVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
             is DoubleVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) {  statistics.max.data[it] }
             is IntVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
-            is LongVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
+            is LongVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }x
         },
         marksPerDimension
     )
