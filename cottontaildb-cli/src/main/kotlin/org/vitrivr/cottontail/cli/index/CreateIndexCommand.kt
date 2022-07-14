@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.cli.index
 
 import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.options.associate
+import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.enum
 import io.grpc.StatusException
 import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
@@ -25,9 +27,15 @@ class CreateIndexCommand(client: SimpleClient) : AbstractEntityCommand(client, n
     /** The type of index to create. */
     private val index by argument(name = "index", help = "The type of index to create.").enum<IndexType>()
 
+    /** Index configuration parameters. */
+    private val configuration: Map<String, String> by option("-D", "--config").associate()
+
     override fun exec() {
         try {
-            val create = CreateIndex(this.entityName.fqn, this.attribute, this.index)
+            var create = CreateIndex(this.entityName.fqn, this.attribute, this.index)
+            for ((k,v) in this.configuration) {
+                create = create.param(k, v)
+            }
             val timedTable = measureTimedValue {
                 TabulationUtilities.tabulate(this.client.create(create))
             }

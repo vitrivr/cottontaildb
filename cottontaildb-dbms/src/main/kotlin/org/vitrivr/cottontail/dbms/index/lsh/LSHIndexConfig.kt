@@ -23,16 +23,16 @@ data class LSHIndexConfig(val distance: Name.FunctionName, val buckets: Int, val
 
     companion object {
         /** Configuration key for name of the distance function. */
-        const val KEY_DISTANCES = "distances"
+        const val KEY_DISTANCES = "lsh.distance"
 
         /** Configuration key for the number of stages. */
-        const val KEY_NUM_STAGES = "stages"
+        const val KEY_NUM_STAGES = "lsh.stages"
 
         /** Configuration key for the number of buckets. */
-        const val KEY_NUM_BUCKETS = "buckets"
+        const val KEY_NUM_BUCKETS = "lsh.buckets"
 
         /** Configuration key for the random number generator seed. */
-        const val KEY_SEED = "seed"
+        const val KEY_SEED = "lsh.seed"
 
         /** The [Name.FunctionName] of the default distance. */
         val DEFAULT_DISTANCE = CosineDistance.FUNCTION_NAME

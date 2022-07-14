@@ -22,13 +22,13 @@ data class PQIndexConfig(val distance: Name.FunctionName, val numCentroids: Int,
 
     companion object {
         /** Configuration key for the number of subspaces. */
-        const val KEY_DISTANCE = "distance"
+        const val KEY_DISTANCE = "pq.distance"
 
         /** Configuration key for the number of centroids. */
-        const val KEY_NUM_CENTROIDS = "num_centroids"
+        const val KEY_NUM_CENTROIDS = "pq.num.centroids"
 
         /** Configuration key for the number of centroids. */
-        const val KEY_SEED = "seed"
+        const val KEY_SEED = "pq.seed"
 
         /** DEfault value for the number of centroids as recommended by Jegou et al. */
         const val DEFAULT_CENTROIDS = 256

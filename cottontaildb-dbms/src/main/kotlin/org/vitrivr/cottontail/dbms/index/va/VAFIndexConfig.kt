@@ -14,7 +14,7 @@ import java.io.ByteArrayInputStream
  */
 data class VAFIndexConfig(val marksPerDimension: Int): IndexConfig<VAFIndex> {
     companion object {
-        const val KEY_MARKS_PER_DIMENSION = "marks_per_dimension"
+        const val KEY_MARKS_PER_DIMENSION = "vaf.marks.per.dimension"
     }
 
     /**

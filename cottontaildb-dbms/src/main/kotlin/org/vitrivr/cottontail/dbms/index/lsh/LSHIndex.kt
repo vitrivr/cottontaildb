@@ -33,7 +33,6 @@ import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignature
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignatureGenerator
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
-import org.vitrivr.cottontail.dbms.index.pq.signature.PQSignature
 import kotlin.concurrent.withLock
 
 /**
@@ -158,7 +157,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
      */
     private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
-        /** The Xodus [Store] used to store [PQSignature]s. */
+        /** The Xodus [Store] used to store [LSHSignature]s. */
         private val store: LSHDataStore = LSHDataStore.open(context.xodusTx, this@LSHIndex)
 
         /**

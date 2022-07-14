@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.index.basic
 
 import org.vitrivr.cottontail.dbms.index.hash.BTreeIndex
 import org.vitrivr.cottontail.dbms.index.hash.UQBTreeIndex
+import org.vitrivr.cottontail.dbms.index.ivfpq.IVFPQIndex
 import org.vitrivr.cottontail.dbms.index.lsh.LSHIndex
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
@@ -24,7 +25,9 @@ enum class IndexType(val descriptor: IndexDescriptor<*>) {
 
     VAF(VAFIndex), /* A vector approximation file (VAF) based index (for exact nearest neighbour search). */
 
-    PQ(PQIndex), /* A product quantization (PQ) based index (for approximate nearest neighbour search). */
+    PQ(PQIndex), /* A product quantization (PQ) based index for approximate nearest neighbour search. */
 
-    LSH(LSHIndex) /* A locality sensitive hashing (LSH) based index (for approximate nearest neighbour search). */
+    IVFPQ(IVFPQIndex), /* A product quantization (PQ) based index for billion scale approximate nearest neighbour search. */
+
+    LSH(LSHIndex) /* A locality sensitive hashing (LSH) based index for approximate nearest neighbour search. */
 }
