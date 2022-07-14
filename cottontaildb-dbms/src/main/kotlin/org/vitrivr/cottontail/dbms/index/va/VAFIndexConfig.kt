@@ -14,7 +14,7 @@ import java.io.ByteArrayInputStream
  */
 data class VAFIndexConfig(val marksPerDimension: Int): IndexConfig<VAFIndex> {
     companion object {
-        const val KEY_MARKS_PER_DIMENSION = "vaf.marks.per.dimension"
+        const val KEY_MARKS_PER_DIMENSION = "vaf.marks_per_dimension"
     }
 
     /**
@@ -30,4 +30,13 @@ data class VAFIndexConfig(val marksPerDimension: Int): IndexConfig<VAFIndex> {
             IntegerBinding.writeCompressed(output, `object`.marksPerDimension)
         }
     }
+
+    /**
+     * Converts this [VAFIndexConfig] to a [Map] of key-value pairs.
+     *
+     * @return [Map]
+     */
+    override fun toMap(): Map<String, String> = mapOf(
+        KEY_MARKS_PER_DIMENSION to this.marksPerDimension.toString(),
+    )
 }

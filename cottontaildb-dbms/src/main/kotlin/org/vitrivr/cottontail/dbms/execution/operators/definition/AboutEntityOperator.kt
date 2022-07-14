@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
 /**
- * An [Operator.SourceOperator] used during query execution. Retrieves information regarding entities.
+ * An [Operator.SourceOperator] used during query execution. Retrieves information about an entity.
  *
  * @author Ralph Gasser
  * @version 1.4.0
@@ -30,6 +30,7 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
     override fun toFlow(context: TransactionContext): Flow<Record> = flow {
         val schemaTxn = context.getTx(this@AboutEntityOperator.tx.schemaForName(this@AboutEntityOperator.name.schema())) as SchemaTx
         val entityTxn = context.getTx(schemaTxn.entityForName(this@AboutEntityOperator.name)) as EntityTx
+
         val columns = this@AboutEntityOperator.columns.toTypedArray()
         var rowId = 0L
 

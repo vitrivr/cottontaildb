@@ -16,4 +16,5 @@ object BTreeIndexConfig: IndexConfig<BTreeIndex>, ComparableBinding() {
     override fun writeObject(output: LightOutputStream, `object`: Comparable<BTreeIndexConfig>) {
         /* No op. */
     }
+    override fun toMap(): Map<String, String> = emptyMap()
 }

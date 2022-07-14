@@ -38,9 +38,9 @@ object ColumnSets {
     )
 
     /** The columns returned by ABOUT ENTITY operation. */
-    val DDL_STATISTICS_COLUMNS: List<ColumnDef<*>> = listOf(
+    val DDL_INTROSPECTION_COLUMNS: List<ColumnDef<*>> = listOf(
         ColumnDef(Name.ColumnName("dbo"), Types.String, false),
-        ColumnDef(Name.ColumnName("statistic"), Types.String, false),
+        ColumnDef(Name.ColumnName("key"), Types.String, false),
         ColumnDef(Name.ColumnName("value"), Types.String, false),
     )
 

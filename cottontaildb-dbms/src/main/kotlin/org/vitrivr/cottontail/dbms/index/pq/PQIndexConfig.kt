@@ -25,7 +25,7 @@ data class PQIndexConfig(val distance: Name.FunctionName, val numCentroids: Int,
         const val KEY_DISTANCE = "pq.distance"
 
         /** Configuration key for the number of centroids. */
-        const val KEY_NUM_CENTROIDS = "pq.num.centroids"
+        const val KEY_NUM_CENTROIDS = "pq.centroids"
 
         /** Configuration key for the number of centroids. */
         const val KEY_SEED = "pq.seed"
@@ -61,4 +61,15 @@ data class PQIndexConfig(val distance: Name.FunctionName, val numCentroids: Int,
         require(this.numCentroids <= Short.MAX_VALUE) { "PQIndex supports a maximum number of ${Short.MAX_VALUE} centroids." }
         require(this.distance in SUPPORTED_DISTANCES) { "PQIndex only support L1, L2, L2SQUARED, COSINE and INNERPRODUCT distance."}
     }
+
+    /**
+     * Converts this [PQIndexConfig] to a [Map] of key-value pairs.
+     *
+     * @return [Map]
+     */
+    override fun toMap(): Map<String, String> = mapOf(
+        KEY_DISTANCE to this.distance.simple,
+        KEY_NUM_CENTROIDS to this.numCentroids.toString(),
+        KEY_SEED to this.seed.toString(),
+    )
 }

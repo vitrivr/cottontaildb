@@ -22,7 +22,7 @@ import org.vitrivr.cottontail.dbms.schema.SchemaTx
  * @version 1.0.0
  */
 class EntityStatisticsOperator(private val tx: CatalogueTx, private val name: Name.EntityName) : Operator.SourceOperator() {
-    override val columns: List<ColumnDef<*>> = ColumnSets.DDL_STATISTICS_COLUMNS
+    override val columns: List<ColumnDef<*>> = ColumnSets.DDL_INTROSPECTION_COLUMNS
     override fun toFlow(context: TransactionContext): Flow<Record> = flow {
         val schemaTxn = context.getTx(this@EntityStatisticsOperator.tx.schemaForName(this@EntityStatisticsOperator.name.schema())) as SchemaTx
         val entityTxn = context.getTx(schemaTxn.entityForName(this@EntityStatisticsOperator.name)) as EntityTx

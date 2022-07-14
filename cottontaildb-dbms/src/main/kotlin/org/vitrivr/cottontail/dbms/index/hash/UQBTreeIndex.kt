@@ -101,8 +101,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
         /**
          * Generates and returns an empty [IndexConfig].
          */
-        override fun buildConfig(parameters: Map<String, String>): IndexConfig<UQBTreeIndex> = object :
-            IndexConfig<UQBTreeIndex> {}
+        override fun buildConfig(parameters: Map<String, String>): IndexConfig<UQBTreeIndex> = UQBTreeIndexConfig
 
         /**
          * Returns the [UQBTreeIndexConfig]

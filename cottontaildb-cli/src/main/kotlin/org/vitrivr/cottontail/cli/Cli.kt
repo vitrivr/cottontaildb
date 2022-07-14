@@ -24,6 +24,7 @@ import org.vitrivr.cottontail.cli.basics.AbstractSchemaCommand
 import org.vitrivr.cottontail.cli.benchmarks.AdaptiveIndexBenchmark
 import org.vitrivr.cottontail.cli.benchmarks.HighDimensionalIndexBenchmark
 import org.vitrivr.cottontail.cli.entity.*
+import org.vitrivr.cottontail.cli.index.AboutIndexCommand
 import org.vitrivr.cottontail.cli.index.CreateIndexCommand
 import org.vitrivr.cottontail.cli.index.DropIndexCommand
 import org.vitrivr.cottontail.cli.index.RebuildIndexCommand
@@ -320,6 +321,7 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                         )
                     }
                 }.subcommands(
+                    AboutIndexCommand(this@Cli.client),
                     CreateIndexCommand(this@Cli.client),
                     DropIndexCommand(this@Cli.client),
                     RebuildIndexCommand(this@Cli.client)

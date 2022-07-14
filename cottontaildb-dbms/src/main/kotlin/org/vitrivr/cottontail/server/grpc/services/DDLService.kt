@@ -154,6 +154,15 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
     }.single()
 
     /**
+     * gRPC endpoint for requesting details about a specific [Index].
+     */
+    override suspend fun indexDetails(request: CottontailGrpc.IndexDetailsMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, true) { ctx ->
+        val indexName = request.index.fqn()
+        ctx.assign(AboutIndexPhysicalOperatorNode(ctx.txn.getTx(this.catalogue) as CatalogueTx, indexName))
+        ctx.toOperatorTree()
+    }.single()
+
+    /**
      * gRPC endpoint for rebuilding a particular [Index]
      */
     override suspend fun rebuildIndex(request: CottontailGrpc.RebuildIndexMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->

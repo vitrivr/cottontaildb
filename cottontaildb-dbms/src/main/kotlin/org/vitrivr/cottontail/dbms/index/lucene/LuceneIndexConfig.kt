@@ -29,4 +29,13 @@ data class LuceneIndexConfig(val analyzer: LuceneAnalyzerType) : IndexConfig<Luc
             IntegerBinding.writeCompressed(output, `object`.analyzer.ordinal)
         }
     }
+
+    /**
+     * Converts this [LuceneIndexConfig] to a [Map] of key-value pairs.
+     *
+     * @return [Map]
+     */
+    override fun toMap(): Map<String, String> = mapOf(
+        KEY_ANALYZER_TYPE_KEY to this.analyzer.name,
+    )
 }

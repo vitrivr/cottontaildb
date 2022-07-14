@@ -76,4 +76,16 @@ data class LSHIndexConfig(val distance: Name.FunctionName, val buckets: Int, val
         require(this.stages > 0) { "LSHIndex requires at least a single stage." }
         require(this.distance in SUPPORTED_DISTANCES) { "LSHIndex only support COSINE and INNERPRODUCT distance."}
     }
+
+    /**
+     * Converts this [LSHIndexConfig] to a [Map] of key-value pairs.
+     *
+     * @return [Map]
+     */
+    override fun toMap(): Map<String, String> = mapOf(
+        KEY_DISTANCES to this.distance.simple,
+        KEY_NUM_STAGES to this.stages.toString(),
+        KEY_NUM_BUCKETS to this.buckets.toString(),
+        KEY_SEED to this.seed.toString()
+    )
 }

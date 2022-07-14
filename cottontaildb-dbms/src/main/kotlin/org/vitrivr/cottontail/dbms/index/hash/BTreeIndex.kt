@@ -104,7 +104,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         /**
          * Generates and returns an empty [IndexConfig].
          */
-        override fun buildConfig(parameters: Map<String, String>): IndexConfig<BTreeIndex> = object : IndexConfig<BTreeIndex> {}
+        override fun buildConfig(parameters: Map<String, String>): IndexConfig<BTreeIndex> = BTreeIndexConfig
 
         /**
          * Returns the [BTreeIndexConfig]
