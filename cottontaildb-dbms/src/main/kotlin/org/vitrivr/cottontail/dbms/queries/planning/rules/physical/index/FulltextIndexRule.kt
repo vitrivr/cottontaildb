@@ -8,7 +8,6 @@ import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
 import org.vitrivr.cottontail.dbms.index.basic.IndexTx
-import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNodeUtilities
@@ -41,7 +40,6 @@ object FulltextIndexRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean = node is FunctionPhysicalOperatorNode
         && node.function.function is FulltextScore
         && node.input is EntityScanPhysicalOperatorNode
-        && !ctx.hints.contains(QueryHint.NoIndex)
 
     /**
      * Applies this [FulltextIndexRule], transforming the execution of a [FulltextScore] function by an index scan.

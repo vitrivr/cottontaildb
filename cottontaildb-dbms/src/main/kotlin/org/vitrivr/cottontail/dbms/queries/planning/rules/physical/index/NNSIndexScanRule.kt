@@ -29,7 +29,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 object NNSIndexScanRule : RewriteRule {
 
     /**
-     * The [NNSIndexScanRule] can be applied to all [FunctionPhysicalOperatorNode]s of the [QueryHint.NoIndex] has not been set in the [QueryContext].
+     * The [NNSIndexScanRule] can be applied to all [FunctionPhysicalOperatorNode]s of the [QueryHint.IndexHint.None] has not been set in the [QueryContext].
      *
      * @param node The [OperatorNode] to check.
      * @param ctx The [QueryContext]
@@ -38,7 +38,7 @@ object NNSIndexScanRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean = node is FunctionPhysicalOperatorNode
         && node.function.function is VectorDistance<*>
         && node.input is EntityScanPhysicalOperatorNode
-        && !ctx.hints.contains(QueryHint.NoIndex)
+        && !ctx.hints.contains(QueryHint.IndexHint.None)
 
     /**
      * Applies this [NNSIndexScanRule] to the provided [OperatorNode].
@@ -72,7 +72,7 @@ object NNSIndexScanRule : RewriteRule {
                 val predicate = ProximityPredicate.NNS(physicalQueryColumn, limit.limit, function, vectorLiteral)
 
                 /* Extract index hint and search for candidate. */
-                val hint = ctx.hints.filterIsInstance<QueryHint.Index>().firstOrNull()
+                val hint = ctx.hints.filterIsInstance<QueryHint.IndexHint>().firstOrNull()
                 val candidate = if (hint != null) {
                     scan.entity.listIndexes().map {
                         scan.entity.context.getTx(scan.entity.indexForName(it)) as IndexTx

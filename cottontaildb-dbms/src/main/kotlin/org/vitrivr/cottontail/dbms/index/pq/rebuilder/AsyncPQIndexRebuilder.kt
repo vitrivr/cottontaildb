@@ -82,7 +82,7 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
             }
         }
 
-        return true
+        return this.tmpTx.flush()
     }
 
     /**

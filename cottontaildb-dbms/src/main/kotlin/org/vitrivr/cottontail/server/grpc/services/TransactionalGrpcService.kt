@@ -82,10 +82,12 @@ internal interface TransactionalGrpcService {
             hints.add(QueryHint.Parallelism(metadata.parallelHint.max))
         }
         if (metadata.hasIndexHint()) {
-            if (metadata.indexHint.disallow) {
-                hints.add(QueryHint.NoIndex)
-            } else {
-                hints.add(QueryHint.Index(metadata.indexHint.name, metadata.indexHint.type?.let { IndexType.valueOf(it.name) }))
+            if (metadata.indexHint.hasDisallow()) {
+                hints.add(QueryHint.IndexHint.None)
+            } else if (metadata.indexHint.hasName()) {
+                hints.add(QueryHint.IndexHint.Name(metadata.indexHint.name))
+            } else if (metadata.indexHint.hasType()) {
+                hints.add(QueryHint.IndexHint.Type(metadata.indexHint.type.let { IndexType.valueOf(it.name) }))
             }
         }
         if (metadata.hasPolicyHint()) {

@@ -28,7 +28,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 object BooleanIndexScanRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean = node is FilterPhysicalOperatorNode &&
         node.input is EntityScanPhysicalOperatorNode &&
-        !ctx.hints.contains(QueryHint.NoIndex)
+        !ctx.hints.contains(QueryHint.IndexHint.None)
 
     /**
      * Applies this [BooleanIndexScanRule] and tries to replace a [EntityScanPhysicalOperatorNode] followed by a [FilterLogicalOperatorNode]
@@ -42,7 +42,7 @@ object BooleanIndexScanRule : RewriteRule {
                 val normalizedPredicate = this.normalize(node.predicate, fetch)
 
                 /* Extract index hint and search for candidate. */
-                val hint = ctx.hints.filterIsInstance<QueryHint.Index>().firstOrNull()
+                val hint = ctx.hints.filterIsInstance<QueryHint.IndexHint>().firstOrNull()
                 val candidate = if (hint != null) {
                     parent.entity.listIndexes().map {
                         parent.entity.context.getTx(parent.entity.indexForName(it)) as IndexTx

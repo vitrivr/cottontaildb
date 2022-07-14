@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries
 
-import org.vitrivr.cottontail.dbms.index.basic.IndexType
+import org.vitrivr.cottontail.dbms.index.basic.Index
 import kotlin.math.abs
 
 /**
@@ -9,30 +9,40 @@ import kotlin.math.abs
  * @author Ralph Gasser
  * @version 1.1.0
  */
-interface QueryHint {
-    /**
-     * A [QueryHint] that instructs the query planner use no index.
-     */
-    object NoIndex: QueryHint
+sealed interface QueryHint {
 
     /**
-     * A [QueryHint] that instructs the query planner use a specific index
+     * A [QueryHint] that instructs the query execution engine to use / not use certain index structures.
      */
-    data class Index(val name: String? = null, val type: IndexType? = null): QueryHint {
+    sealed interface IndexHint: QueryHint {
+
         /**
-         * Checks if the provided [Index] matches thins [QueryHint.Index].
+         * Checks if the provided [Index] matches this [QueryHint.IndexHint].
          *
          * @param index The [Index] to check.
          * @return True on success, false otherwise.
          */
-        fun matches(index: org.vitrivr.cottontail.dbms.index.basic.Index): Boolean {
-            if (this.name != null && index.name.simple != this.name) {
-                return false
-            }
-            if (this.type != null && index.type != this.type) {
-                return false
-            }
-            return true
+        fun matches(index: Index): Boolean
+
+        /**
+         * A [QueryHint] that instructs the query planner use no index.
+         */
+        object None: IndexHint {
+            override fun matches(index: Index): Boolean = false
+        }
+
+        /**
+         * A [QueryHint] that instructs the query planner use a specific index
+         */
+        data class Name(val name: String): IndexHint {
+            override fun matches(index: Index): Boolean  = index.name.simple == this.name
+        }
+
+        /**
+         * A [QueryHint] that instructs the query planner use a specific [IndexType]
+         */
+        data class Type(val type: org.vitrivr.cottontail.dbms.index.basic.IndexType): IndexHint {
+            override fun matches(index: Index): Boolean = index.type == this.type
         }
     }
 
