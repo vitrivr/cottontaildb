@@ -28,7 +28,7 @@ interface CostPolicy: Comparator<NormalizedCost> {
     val speedupPerWorker: Float
 
     /** The non-parallelisable fraction of IO work. This is usually higher for HDDs than SSDs. */
-    val nonParallelisableIO: Float
+    val parallelisableIO: Float
 
     /**
      * Transforms the given [Cost] object into a cost score given this [CostPolicy].
@@ -62,9 +62,9 @@ interface CostPolicy: Comparator<NormalizedCost> {
     fun parallelisation(parallelisableCost: Cost, totalCost: Cost, pmax: Int): Int {
         if (pmax < 2) return 1
         if (parallelisableCost.cpu < 1.0f) return 1
-        val sp = this.wcpu * parallelisableCost.cpu + this.wio * parallelisableCost.io * this.nonParallelisableIO /* Parallelisable portion of the cost. */
-        val ss = this.wcpu * (totalCost.cpu - parallelisableCost.cpu) + this.wio *(totalCost.io - parallelisableCost.io * this.nonParallelisableIO) /* Serial portion of the cost. */
-        val ov = 0.01f * sp /* Overhead = 1% of the parallel cost. */
+        val sp = parallelisableCost.cpu + parallelisableCost.io * this.parallelisableIO /* Parallelisable portion of the cost. */
+        val ss = (totalCost.cpu - parallelisableCost.cpu) + (totalCost.io - parallelisableCost.io * this.parallelisableIO) /* Serial portion of the cost. */
+        val ov = 0.01f * parallelisableCost.cpu /* Overhead = 0.1% of the parallel cost. */
         var prevSpeedup = 0.0f
         for (p in 2 .. pmax) {
             val s = (ss + sp) / (ss + (sp / p) + p * ov)

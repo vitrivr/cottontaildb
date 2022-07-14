@@ -35,11 +35,12 @@ data class CostConfig(
      * The fraction of I/O cost Cottontail DB expects to be not parallelisable, e.g., due to limits on I/O bandwith.
      * This value is usually higher for HDDs than SSDs.
      */
-    override val nonParallelisableIO: Float = 0.6f
+    override val parallelisableIO: Float = 0.4f
+
 ) : CostPolicy {
     init {
         require(this.speedupPerWorker in 0.0f .. 1.0f) { "The speedup per worker must lie between 0.0 and 1.0 bit is ${this.speedupPerWorker}."}
-        require(this.nonParallelisableIO in 0.0f .. 1.0f) { "The fraction of non-parallelisable IO must lie between 0.0 and 1.0 bit is ${this.nonParallelisableIO}."}
+        require(this.parallelisableIO in 0.0f .. 1.0f) { "The fraction of non-parallelisable IO must lie between 0.0 and 1.0 bit is ${this.parallelisableIO}."}
         require( abs((this.wio + this.wcpu + this.wmemory + this.waccuracy) - 1.0f) < 1e-5 ) { "All cost weights must add-up to 1.0 but add up to ${this.wio + this.wcpu + this.wmemory + this.waccuracy}."}
     }
 }

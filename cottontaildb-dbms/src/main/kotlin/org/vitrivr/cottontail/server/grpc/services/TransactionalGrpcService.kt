@@ -97,7 +97,7 @@ internal interface TransactionalGrpcService {
                 metadata.policyHint.weightMemory,
                 metadata.policyHint.weightAccuracy,
                 this.catalogue.config.cost.speedupPerWorker, /* Setting inherited from global config. */
-                this.catalogue.config.cost.nonParallelisableIO /* Setting inherited from global config. */
+                this.catalogue.config.cost.parallelisableIO /* Setting inherited from global config. */
             )
         }
 
