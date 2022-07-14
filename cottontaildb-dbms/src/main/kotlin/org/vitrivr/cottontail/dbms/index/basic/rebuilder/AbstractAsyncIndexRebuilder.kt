@@ -49,7 +49,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     private val tmpPath = this.index.catalogue.config.temporaryDataFolder().resolve("${index.type.toString().lowercase()}-rebuild-${UUID.randomUUID()}")
 
     /** The temporary [Environment] used by this [AbstractAsyncIndexRebuilder]. */
-    protected val tmpEnvironment: Environment = Environments.newInstance(this.tmpPath.toFile(), this.index.catalogue.config.xodus.toEnvironmentConfig())
+    protected val tmpEnvironment: Environment = Environments.newInstance(this.tmpPath.toFile(), this.index.catalogue.config.xodus.toEnvironmentConfig().setGcUtilizationFromScratch(false))
 
     /** The Xodus [Transaction] object of the temporary environment. */
     protected val tmpTx: Transaction = this.tmpEnvironment.beginExclusiveTransaction()
@@ -135,6 +135,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
                 return
             }
 
+            LOGGER.debug("Merging index ${this.index.name} (${this.index.type}) completed!")
             this.state = IndexRebuilderState.MERGED
         } finally {
             this.rebuildLock.unlock()
@@ -257,7 +258,11 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
                         /* No op. */
                     }
                 }
+
+                LOGGER.debug("Asynchronous index rebuilder index ${this.index.name} (${this.index.type}) discarded!")
             }
+        } catch (e: Throwable) {
+            LOGGER.warn("Asynchronous index rebuilder for index ${this.index.name} (${this.index.type}) could not be discarded: ${e.message}")
         } finally {
             this.rebuildLock.unlock()
             this.asyncLock.unlock()

@@ -24,9 +24,6 @@ sealed interface ProximityPredicate: Predicate {
     /** The [VectorDistance] this [ProximityPredicate] evaluates. */
     val distance: VectorDistance<*>
 
-    /** The limiting predicate for this [ProximityPredicate]. */
-    val k: Long
-
     /** The [Binding] that represents the query vector. */
     val query: Binding
 
@@ -43,9 +40,18 @@ sealed interface ProximityPredicate: Predicate {
         get() = ColumnDef(Name.ColumnName(this.distance.name.simple), Types.Double, false, false)
 
     /**
+     * A [ProximityPredicate] that expresses a simple scan over distance values.
+     */
+    data class Scan(override val column: ColumnDef<*>, override val distance: VectorDistance<*>, override val query: Binding): ProximityPredicate {
+        override fun copy() = Scan(this.column, this.distance.copy(), this.query.copy())
+        override fun digest(): Long = 13L * this.hashCode()
+        override fun bind(context: BindingContext) = this.query.bind(context)
+    }
+
+    /**
      * A [ProximityPredicate] that expresses a k nearest neighbour search.
      */
-    data class NNS(override val column: ColumnDef<*>, override val k: Long, override val distance: VectorDistance<*>, override val query: Binding): ProximityPredicate {
+    data class NNS(override val column: ColumnDef<*>, val k: Long, override val distance: VectorDistance<*>, override val query: Binding): ProximityPredicate {
         override fun copy() = NNS(this.column, this.k, this.distance.copy(), this.query.copy())
         override fun digest(): Long = 13L * this.hashCode()
         override fun bind(context: BindingContext) = this.query.bind(context)
@@ -55,8 +61,17 @@ sealed interface ProximityPredicate: Predicate {
     /**
      * A [ProximityPredicate] that expresses a k farthest neighbour search.
      */
-    data class FNS(override val column: ColumnDef<*>, override val k: Long, override val distance: VectorDistance<*>, override val query: Binding): ProximityPredicate {
-        override fun copy() = NNS(this.column, this.k, this.distance.copy(), this.query.copy())
+    data class FNS(override val column: ColumnDef<*>, val k: Long, override val distance: VectorDistance<*>, override val query: Binding): ProximityPredicate {
+        override fun copy() = FNS(this.column, this.k, this.distance.copy(), this.query.copy())
+        override fun digest(): Long = 7L * this.hashCode()
+        override fun bind(context: BindingContext) = this.query.bind(context)
+    }
+
+    /**
+     * A [ProximityPredicate] that expresses a range search (εNN).
+     */
+    data class ENN(override val column: ColumnDef<*>, val eMin: DoubleValue, val eMax: DoubleValue, override val distance: VectorDistance<*>, override val query: Binding): ProximityPredicate {
+        override fun copy() = ENN(this.column, this.eMin, this.eMax, this.distance.copy(), this.query.copy())
         override fun digest(): Long = 7L * this.hashCode()
         override fun bind(context: BindingContext) = this.query.bind(context)
     }
