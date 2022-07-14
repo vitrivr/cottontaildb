@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.SelectPr
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntitySampleLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntityScanLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.transform.FetchLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.DeferFetchOnFetchRewriteRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.DeferFetchOnLogicalFetchRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.DeferFetchOnScanRewriteRule
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
@@ -69,7 +69,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
             /* Check DeferFetchOnFetchRewriteRule.canBeApplied and test output for null. */
             Assertions.assertFalse(DeferFetchOnScanRewriteRule.canBeApplied(sample0, ctx))
             Assertions.assertThrows(IllegalArgumentException::class.java) {
-                DeferFetchOnFetchRewriteRule.apply(sample0, ctx)
+                DeferFetchOnLogicalFetchRewriteRule.apply(sample0, ctx)
             }
         } finally {
             txn.rollback()

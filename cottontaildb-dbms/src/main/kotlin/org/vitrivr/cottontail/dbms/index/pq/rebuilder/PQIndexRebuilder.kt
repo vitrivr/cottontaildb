@@ -57,7 +57,7 @@ class PQIndexRebuilder(index: PQIndex, context: TransactionContext): AbstractInd
             while (cursor.moveNext()) {
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
-                    if (!dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(quantizer.quantize(value)), cursor.key().toKey())) {
+                    if (!dataStore.put(this.context.xodusTx, cursor.key().toKey(), PQSignature.Binding.valueToEntry(quantizer.quantize(value)))) {
                         return false
                     }
 

@@ -13,18 +13,18 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * @author Ralph Gasser
  * @version 1.2.0
  */
-object DeferFetchOnFetchRewriteRule: RewriteRule {
+object DeferFetchOnLogicalFetchRewriteRule: RewriteRule {
     /**
-     * The [DeferFetchOnFetchRewriteRule] can be applied to all [FetchLogicalOperatorNode]s.
+     * The [DeferFetchOnLogicalFetchRewriteRule] can be applied to all [FetchLogicalOperatorNode]s.
      *
      * @param node The [OperatorNode] to check.
      * @param ctx The [QueryContext]
-     * @return True if [DeferFetchOnFetchRewriteRule] can be applied to [node], false otherwise.
+     * @return True if [DeferFetchOnLogicalFetchRewriteRule] can be applied to [node], false otherwise.
      */
     override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean = node is FetchLogicalOperatorNode
 
     /**
-     * Apples this [DeferFetchOnFetchRewriteRule] to the provided [OperatorNode].
+     * Apples this [DeferFetchOnLogicalFetchRewriteRule] to the provided [OperatorNode].
      *
      * @param node The [OperatorNode] to check.
      * @param ctx The [QueryContext]

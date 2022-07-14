@@ -35,7 +35,7 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
 
     /** The input [OperatorNode.Logical]. */
     var input: Physical? = null
-        protected set(value) {
+        set(value) {
             require(value?.output == null) { "Cannot connect $value to $this: Output is already occupied!" }
             field?.output = null
             value?.output = this

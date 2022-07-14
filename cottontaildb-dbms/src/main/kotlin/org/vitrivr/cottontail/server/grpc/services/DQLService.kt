@@ -10,9 +10,11 @@ import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.*
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.BooleanIndexScanRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.FulltextIndexRule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanClass1Rule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanClass3Rule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.merge.LimitingSortMergeRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.CountPushdownRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnPhysicalFetchRewriteRule
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpcKt
@@ -35,9 +37,17 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
             LeftConjunctionOnSubselectRewriteRule,
             RightConjunctionOnSubselectRewriteRule,
             DeferFetchOnScanRewriteRule,
-            DeferFetchOnFetchRewriteRule
+            DeferFetchOnLogicalFetchRewriteRule
         ),
-        physicalRules = listOf(BooleanIndexScanRule, NNSIndexScanRule, FulltextIndexRule, CountPushdownRule, LimitingSortMergeRule),
+        physicalRules = listOf(
+            BooleanIndexScanRule,
+            NNSIndexScanClass1Rule,
+            NNSIndexScanClass3Rule,
+            FulltextIndexRule,
+            CountPushdownRule,
+            LimitingSortMergeRule,
+            DeferFetchOnPhysicalFetchRewriteRule
+        ),
         this.catalogue.config.cache.planCacheSize
     )
 

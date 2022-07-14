@@ -25,6 +25,13 @@ sealed interface QueryHint {
         fun matches(index: Index): Boolean
 
         /**
+         * A [QueryHint] that instructs the query planner use all available indexes.
+         */
+        object All: IndexHint {
+            override fun matches(index: Index): Boolean = true
+        }
+
+        /**
          * A [QueryHint] that instructs the query planner use no index.
          */
         object None: IndexHint {

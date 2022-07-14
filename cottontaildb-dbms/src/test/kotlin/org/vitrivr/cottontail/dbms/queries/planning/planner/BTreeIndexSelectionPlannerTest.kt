@@ -28,7 +28,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.*
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.BooleanIndexScanRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.FulltextIndexRule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanClass3Rule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.merge.LimitingSortMergeRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.CountPushdownRule
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
@@ -74,9 +74,9 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             LeftConjunctionOnSubselectRewriteRule,
             RightConjunctionOnSubselectRewriteRule,
             DeferFetchOnScanRewriteRule,
-            DeferFetchOnFetchRewriteRule
+            DeferFetchOnLogicalFetchRewriteRule
         ),
-        physicalRules = listOf(BooleanIndexScanRule, NNSIndexScanRule, FulltextIndexRule, CountPushdownRule, LimitingSortMergeRule),
+        physicalRules = listOf(BooleanIndexScanRule, NNSIndexScanClass3Rule, FulltextIndexRule, CountPushdownRule, LimitingSortMergeRule),
         this.catalogue.config.cache.planCacheSize
     )
 
@@ -128,7 +128,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
     fun testEqualsWithNoIndexHint() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
         try {
-            val ctx = DefaultQueryContext("test", this.catalogue, txn, setOf(QueryHint.NoIndex))
+            val ctx = DefaultQueryContext("test", this.catalogue, txn, setOf(QueryHint.IndexHint.None))
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
@@ -244,7 +244,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
     fun testInWithNoIndexHint() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
         try {
-            val ctx = DefaultQueryContext("test", this.catalogue, txn, setOf(QueryHint.NoIndex))
+            val ctx = DefaultQueryContext("test", this.catalogue, txn, setOf(QueryHint.IndexHint.None))
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx

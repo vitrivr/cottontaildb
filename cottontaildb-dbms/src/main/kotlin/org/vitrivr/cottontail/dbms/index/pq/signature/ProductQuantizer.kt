@@ -20,12 +20,6 @@ import org.vitrivr.cottontail.utilities.math.clustering.KMeansClusterer
 data class ProductQuantizer constructor(val codebooks: Array<PQCodebook>) {
 
     companion object {
-        /** Recommended number of subspaces according to [1]. */
-        private const val RECOMMENDED_NUMBER_OF_SUBSPACES = 8
-
-        /** The maximum number of subspaces. We cap this at 32 to limit the code length.  */
-        private const val MAXIMUM_NUMBER_OF_SUBSPACES = 32
-
         /**
          * Generates a new [ProductQuantizer] instance for the given [PQIndexConfig]and training data.
          *
@@ -38,19 +32,19 @@ data class ProductQuantizer constructor(val codebooks: Array<PQCodebook>) {
         fun learnFromData(distance: VectorDistance<*>, data: List<VectorValue<*>>, config: PQIndexConfig): ProductQuantizer {
             /* Determine logical size and perform some sanity checks. */
             val logicalSize = distance.type.logicalSize
-            val numSubspaces = numberOfSubspaces(logicalSize)
-            val dimensionsPerSubspace = logicalSize / numSubspaces
+            val subspaces = config.numberOfSubspaces(logicalSize)
+            val dimensionsPerSubspace = logicalSize / subspaces
 
             require(data.all { it.logicalSize == logicalSize }) { "Training of product quantizer not possible; dimensionality of training data and distance function don't match." }
-            require(logicalSize >= numSubspaces) { "Training of product quantizer not possible; logical size of data must be greater or equal to number of subspaces." }
-            require(dimensionsPerSubspace * numSubspaces == logicalSize) { "Training of product quantizer not possible; vector size of $logicalSize does not allow for equally spaced subspaces." }
+            require(logicalSize >= subspaces) { "Training of product quantizer not possible; logical size of data must be greater or equal to number of subspaces." }
+            require(dimensionsPerSubspace * subspaces == logicalSize) { "Training of product quantizer not possible; vector size of $logicalSize does not allow for equally spaced subspaces." }
 
             /* Prepare k-means clusterer. */
             val reshape = distance.copy(dimensionsPerSubspace)
             val clusterer = KMeansClusterer(config.numCentroids, reshape, JDKRandomGenerator(config.seed))
 
             /* Prepare codebooks. */
-            val codebooks = Array(numSubspaces) { j ->
+            val codebooks = Array(subspaces) { j ->
                 val subspaceData = data.map { v -> v.slice(j * dimensionsPerSubspace, dimensionsPerSubspace) }
                 val clusters = clusterer.cluster(subspaceData).map { it.center }.toTypedArray()
                 PQCodebook(reshape, clusters)
@@ -59,31 +53,11 @@ data class ProductQuantizer constructor(val codebooks: Array<PQCodebook>) {
             /* Return quantizer. */
             return ProductQuantizer(codebooks)
         }
-
-        /**
-         * Determines the number of subspaces for the given vector dimension (size).
-         *
-         * This method uses the recommendations given in [1] and starts with 8 subspaces and tries to find an adequate number given the vector's dimensionality.
-         *
-         * @param d The dimensionality of the vector.
-         * @return Number of subspaces to use.
-         */
-        fun numberOfSubspaces(d: Int): Int {
-            var subspaces = RECOMMENDED_NUMBER_OF_SUBSPACES
-            while (subspaces++ <= MAXIMUM_NUMBER_OF_SUBSPACES) {
-                if (d % subspaces == 0) return subspaces
-            }
-            /* We have to try lower; which will increase distance distortion. */
-            subspaces= RECOMMENDED_NUMBER_OF_SUBSPACES
-            while (subspaces-- > 1) {
-                if (d % subspaces == 0) return subspaces
-            }
-            return 1
-        }
     }
 
     /** The number of subspaces as defined in this [ProductQuantizer] implementation. */
-    private val numberOfSubspaces = this.codebooks.size
+    private val numberOfSubspaces
+        get() = this.codebooks.size
 
     /**
      * Quantizes the specified [VectorValue] into a [PQSignature], which is simply a concatenation

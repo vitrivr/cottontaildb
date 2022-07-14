@@ -68,7 +68,10 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
 
     /** The estimated output size of this [IndexScanPhysicalOperatorNode]. */
     override val outputSize: Long = when (this.predicate) {
-        is ProximityPredicate -> this.predicate.k
+        is ProximityPredicate.Scan -> this.index.count()
+        is ProximityPredicate.NNS -> this.predicate.k
+        is ProximityPredicate.FNS -> this.predicate.k
+        is ProximityPredicate.ENN -> this.index.count() / 2 /* TODO: This is a horrible estimate. */
         is BooleanPredicate -> {
             val selectivity = NaiveSelectivityCalculator.estimate(this.predicate, this.statistics)
             val entityTx = this.index.context.getTx(this.index.dbo.parent) as EntityTx

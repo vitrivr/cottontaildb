@@ -27,7 +27,7 @@ import org.vitrivr.cottontail.dbms.index.va.rebuilder.AsyncVAFIndexRebuilder
 
 class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex>(index) {
     /** The (temporary) Xodus [Store] used to store [PQSignature]s. */
-    private val tmpDataStore: Store = this.tmpEnvironment.openStore(this.index.name.storeName(), StoreConfig.WITH_DUPLICATES, this.tmpTx, true)
+    private val tmpDataStore: Store = this.tmpEnvironment.openStore(this.index.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.tmpTx, true)
         ?: throw DatabaseException.DataCorruptionException("Temporary data store for index ${this.index.name} could not be created.")
 
     /** Reference to [ProductQuantizer] used by this [AsyncPQIndexRebuilder] (only available after [IndexRebuilderState.INITIALIZED]). */
@@ -60,19 +60,19 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
         this.newQuantizer = ProductQuantizer.learnFromData(distanceFunction, PQIndexRebuilderUtilites.acquireLearningData(columnTx, config), config)
 
         /* Iterate over entity and update index with entries. */
-        var counter = 1
+        var counter = 0
         columnTx.cursor().use { cursor ->
             while (cursor.hasNext()) {
                 if (this.state != IndexRebuilderState.SCANNING) return false
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
                     val sig = this.newQuantizer!!.quantize(value)
-                    if (!this.tmpDataStore.put(this.tmpTx, PQSignature.Binding.valueToEntry(sig), cursor.key().toKey())) {
+                    if (!this.tmpDataStore.put(this.tmpTx, cursor.key().toKey(), PQSignature.Binding.valueToEntry(sig))) {
                         return false
                     }
 
                     /* Data is flushed every once in a while. */
-                    if ((counter ++) % 1_000_000 == 0) {
+                    if ((++counter) % 1_000_000 == 0) {
                         LOGGER.debug("Rebuilding index (SCAN) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
                         if (!this.tmpTx.flush()) {
                             return false
@@ -103,7 +103,7 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
                 }
 
                 /* Data is flushed every once in a while. */
-                if ((counter ++) % 1_000_000 == 0) {
+                if ((++counter) % 1_000_000 == 0) {
                     LOGGER.debug("Rebuilding index (MERGE) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
                     if (!context2.xodusTx.flush()) {
                         return false
@@ -129,7 +129,7 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
 
         /* If value is NULL, return true. NULL values are simply ignored by the PQIndex. */
         val sig = this.newQuantizer!!.quantize(value as VectorValue<*>)
-        return this.tmpDataStore.put(this.tmpTx, PQSignature.Binding.valueToEntry(sig), event.tupleId.toKey())
+        return this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), PQSignature.Binding.valueToEntry(sig))
     }
 
     /**
@@ -156,7 +156,7 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
         /* Generate signature and store it. */
         if (newValue != null) {
             val newSig = this.newQuantizer!!.quantize(newValue as VectorValue<*>)
-            return this.tmpDataStore.put(this.tmpTx, PQSignature.Binding.valueToEntry(newSig), event.tupleId.toKey())
+            return this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), PQSignature.Binding.valueToEntry(newSig))
         }
         return true
     }
@@ -168,10 +168,8 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
      * @return True on success, false otherwise.
      */
     override fun applyAsyncDelete(event: DataEvent.Delete): Boolean {
-        val oldValue = event.data[this.indexedColumn] ?: return true
-        val sig = this.newQuantizer!!.quantize(oldValue as VectorValue<*>)
         val cursor = this.tmpDataStore.openCursor(this.tmpTx)
-        if (cursor.getSearchBoth(PQSignature.Binding.valueToEntry(sig), event.tupleId.toKey())) {
+        if (cursor.getSearchKey(event.tupleId.toKey()) != null) {
             cursor.deleteCurrent()
         }
         cursor.close()

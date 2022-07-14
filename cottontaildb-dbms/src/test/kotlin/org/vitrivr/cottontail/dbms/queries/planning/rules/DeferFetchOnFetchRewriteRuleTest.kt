@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLo
 import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.SelectProjectionLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntityScanLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.transform.FetchLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.DeferFetchOnFetchRewriteRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.DeferFetchOnLogicalFetchRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.DeferFetchOnScanRewriteRule
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
@@ -47,7 +47,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
     )
 
     /**
-     * Makes a basic test whether [DeferFetchOnFetchRewriteRule.canBeApplied] works as expected and generates output accordingly.
+     * Makes a basic test whether [DeferFetchOnLogicalFetchRewriteRule.canBeApplied] works as expected and generates output accordingly.
      */
     @Test
     fun testNoMatch() {
@@ -65,9 +65,9 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
             SelectProjectionLogicalOperatorNode(scan0, this.columns.map { it.name })
 
             /* Check DeferFetchOnFetchRewriteRule.canBeApplied and test output for null. */
-            Assertions.assertFalse(DeferFetchOnFetchRewriteRule.canBeApplied(scan0, ctx))
+            Assertions.assertFalse(DeferFetchOnLogicalFetchRewriteRule.canBeApplied(scan0, ctx))
             Assertions.assertThrows(IllegalArgumentException::class.java) {
-                DeferFetchOnFetchRewriteRule.apply(scan0, ctx)
+                DeferFetchOnLogicalFetchRewriteRule.apply(scan0, ctx)
             }
         } finally {
             txn.rollback()
@@ -95,7 +95,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
             val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
             /* Step 1: Execute DeferFetchOnScanRewriteRule and make basic assertions. */
-            Assertions.assertFalse(DeferFetchOnFetchRewriteRule.canBeApplied(scan0, ctx))
+            Assertions.assertFalse(DeferFetchOnLogicalFetchRewriteRule.canBeApplied(scan0, ctx))
             Assertions.assertTrue(DeferFetchOnScanRewriteRule.canBeApplied(scan0, ctx))
             val result1 = DeferFetchOnScanRewriteRule.apply(scan0, ctx)
 
@@ -118,8 +118,8 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
             Assertions.assertTrue(scan1.columns == filter0.predicate.columns.toList()) /* Columns SCANNED should only contain the columns used by FILTER. */
 
             /* Step 2: Execute DeferFetchOnFetchRewriteRule and make basic assertions. */
-            Assertions.assertTrue(DeferFetchOnFetchRewriteRule.canBeApplied(result1.input!!, ctx))
-            val result2 = DeferFetchOnFetchRewriteRule.apply(result1.input!!, ctx)
+            Assertions.assertTrue(DeferFetchOnLogicalFetchRewriteRule.canBeApplied(result1.input!!, ctx))
+            val result2 = DeferFetchOnLogicalFetchRewriteRule.apply(result1.input!!, ctx)
 
             /* Check order: SCAN -> FILTER -> FETCH -> PROJECT. */
             Assertions.assertTrue(result2 is SelectProjectionLogicalOperatorNode)
@@ -164,9 +164,9 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
             val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
             /* Step 1: Execute DeferFetchOnFetchRewriteRule and make basic assertions. */
-            Assertions.assertTrue(DeferFetchOnFetchRewriteRule.canBeApplied(fetch0, ctx))
+            Assertions.assertTrue(DeferFetchOnLogicalFetchRewriteRule.canBeApplied(fetch0, ctx))
             Assertions.assertFalse(DeferFetchOnScanRewriteRule.canBeApplied(fetch0, ctx))
-            val result1 = DeferFetchOnFetchRewriteRule.apply(fetch0, ctx)
+            val result1 = DeferFetchOnLogicalFetchRewriteRule.apply(fetch0, ctx)
 
             /* Check order: SCAN -> FILTER -> PROJECT. */
             Assertions.assertTrue(result1 is SelectProjectionLogicalOperatorNode)
