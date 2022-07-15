@@ -11,7 +11,6 @@ import org.vitrivr.cottontail.dbms.index.pq.signature.ProductQuantizer
 import org.vitrivr.cottontail.test.TestConstants
 import java.util.*
 import kotlin.math.log10
-import kotlin.math.pow
 import kotlin.math.sqrt
 
 
@@ -42,7 +41,7 @@ class PQFloatVectorCodebookTest {
     private val distance = EuclideanDistance.FloatVector(Types.FloatVector(this.dimensions))
 
     /** The [PQIndexConfig] that is used for the tests. */
-    private val config = PQIndexConfig(this.distance.signature.name, this.numberOfClusters)
+    private val config = PQIndexConfig(this.distance.signature.name, this.numberOfClusters, 8)
 
     /** The data to train the quantizer with. */
     private val trainingdata = this.testdata.filter { this.random.nextDouble() <= (100.0 * (log10(this.testdata.size.toDouble())) / this.testdata.size) }
@@ -57,8 +56,8 @@ class PQFloatVectorCodebookTest {
     fun testSignatureSerialization() {
         for (t in this.testdata) {
             val signature = this.quantizer.quantize(t)
-            val serialized = PQSignature.Binding.valueToEntry(signature)
-            val signature2 = PQSignature.Binding.entryToValue(serialized)
+            val serialized = signature.toEntry()
+            val signature2 = PQSignature.fromEntry(serialized)
             Assertions.assertArrayEquals(signature.cells, signature2.cells)
         }
     }
@@ -73,7 +72,7 @@ class PQFloatVectorCodebookTest {
         val signature = this.quantizer.quantize(vector)
         val lat = this.quantizer.createLookupTable(vector)
         for ((i, l) in lat.data.withIndex()) {
-            l.forEach { d -> Assertions.assertTrue(d >= l[signature.cells[i]]) }
+            l.forEach { d -> Assertions.assertTrue(d >= l[signature.cells[i].toInt()]) }
         }
     }
 
@@ -86,7 +85,7 @@ class PQFloatVectorCodebookTest {
         val vector = this.testdata[index]
         val signature = this.quantizer.quantize(vector)
         val lat = this.quantizer.createLookupTable(vector)
-        Assertions.assertEquals(sqrt(signature.cells.mapIndexed { i, c -> lat.data[i][c].pow(2) }.sum()), lat.approximateDistance(signature))
+        Assertions.assertEquals(sqrt(signature.cells.mapIndexed { i, c -> lat.data[i][c.toInt()] }.sum()), lat.approximateDistance(signature))
     }
 
     /**

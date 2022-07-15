@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.dbms.index.pq
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
@@ -37,7 +36,7 @@ import kotlin.time.measureTime
  * This is a collection of test cases to test the correct behaviour of [PQIndex] for [DoubleVectorValue]s.
  *
  * @author Ralph Gasser
- * @param 1.3.0
+ * @param 1.4.0
  */
 @Suppress("UNCHECKED_CAST")
 class PQDoubleIndexTest : AbstractIndexTest() {
@@ -51,7 +50,7 @@ class PQDoubleIndexTest : AbstractIndexTest() {
     private val dimension = this.random.nextInt(128, 2048)
 
     /** The dimensionality of the test vector. Determined randomly.  */
-    private val numberOfClusters = this.random.nextInt(128, 256)
+    private val numberOfClusters =  512
 
     override val columns: Array<ColumnDef<*>> = arrayOf(
         ColumnDef(this.entityName.column("id"), Types.Long),
@@ -94,13 +93,13 @@ class PQDoubleIndexTest : AbstractIndexTest() {
     @ExperimentalTime
     fun test(distance: Name.FunctionName) {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
-        val k = (this.numberOfClusters * 0.25).toLong()
+        val k = 100
         val query = DoubleVectorValue(DoubleArray(this.indexColumn.type.logicalSize) {
             (this.counter % this.numberOfClusters) + this.random.nextDouble(-1.0, 1.0) /* Pre-clustered data. */
         })
         val function = this.catalogue.functions.obtain(Signature.Closed(distance, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Types.Double)) as VectorDistance<*>
         val context = DefaultBindingContext()
-        val predicate = ProximityPredicate.NNS(column = this.indexColumn, k = k, distance = function, query = context.bind(query))
+        val predicate = ProximityPredicate.Scan(column = this.indexColumn, distance = function, query = context.bind(query))
 
         /* Obtain necessary transactions. */
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
@@ -112,7 +111,7 @@ class PQDoubleIndexTest : AbstractIndexTest() {
         val indexTx = txn.getTx(index) as IndexTx
 
         /* Fetch results through full table scan. */
-        val bruteForceResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(k.toInt())
+        val bruteForceResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(k)
         val bruteForceDuration = measureTime {
             entityTx.cursor(arrayOf(this.indexColumn)).use { cursor ->
                 cursor.forEach {
@@ -125,25 +124,29 @@ class PQDoubleIndexTest : AbstractIndexTest() {
         }
 
         /* Fetch results through index. */
-        val indexResults = ArrayList<Record>(k.toInt())
+        val indexResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(k)
         val indexDuration = measureTime {
-           indexTx.filter(predicate).use { cursor ->
-               cursor.forEach { indexResults.add(it) }
-           }
+            indexTx.filter(predicate).use { cursor ->
+                cursor.forEach {  indexResults.offer(ComparablePair(it.tupleId, it[0] as DoubleValue)) }
+            }
         }
         txn.commit()
 
         /* Calculate an accuracy score for results (since this is an inexact index). */
-        var accuracy = 0.0f
-        for (i in 0 until k.toInt()) {
-            if (indexResults[i].tupleId == bruteForceResults[i].first) accuracy += 1.0f / (k + 1)
+        var recall = 0.0f
+        val bruteForceResultsList = bruteForceResults.toList()
+        val indexResultsList = indexResults.toList()
+        for (i in 0 until k) {
+            if (bruteForceResultsList.any { it.first ==  indexResultsList[i].first }) {
+                recall += 1.0f / (k + 1)
+            }
         }
 
         /* Since the data comes pre-clustered, accuracy should always be greater than 90%. */
-        Assertions.assertTrue(accuracy > 0.9f)
+        Assertions.assertTrue(recall > 0.9f)
         Assertions.assertTrue(bruteForceDuration > indexDuration)
 
-        log("Test done for ${function.name} and d=${this.indexColumn.type.logicalSize}! PQ took $indexDuration, brute-force took $bruteForceDuration. Accuracy: $accuracy")
+        log("Test done for ${function.name} and d=${this.indexColumn.type.logicalSize}! PQ took $indexDuration, brute-force took $bruteForceDuration. Recall: $recall")
     }
 
     /**

@@ -12,8 +12,6 @@ import org.vitrivr.cottontail.dbms.index.pq.signature.SerializableProductQuantiz
 import org.vitrivr.cottontail.test.TestConstants
 import java.lang.Math.floorDiv
 import java.util.*
-import kotlin.math.log10
-import kotlin.math.pow
 import kotlin.math.sqrt
 
 /**
@@ -30,7 +28,7 @@ class PQDoubleVectorCodebookTest {
     private val dimensions = this.random.nextInt(128, 2048)
 
     /** The number of clusters to use. */
-    private val numberOfClusters = this.random.nextInt(32, 64)
+    private val numberOfClusters = 256
 
     /** The random data to test on. The data comes pre-clustered, so that meaningful tests can be performed. */
     private val testdata = List(TestConstants.TEST_COLLECTION_SIZE) {i ->
@@ -43,10 +41,10 @@ class PQDoubleVectorCodebookTest {
     private val distance = EuclideanDistance.DoubleVector(Types.DoubleVector(this.dimensions))
 
     /** The [PQIndexConfig] that is used for the tests. */
-    private val config = PQIndexConfig(this.distance.signature.name, this.numberOfClusters)
+    private val config = PQIndexConfig(this.distance.signature.name, 256, 8)
 
     /** The data to train the quantizer with. */
-    private val trainingdata = this.testdata.filter { this.random.nextDouble() <= ((100.0 * log10(this.testdata.size.toDouble())) / this.testdata.size) }
+    private val trainingdata = this.testdata.filter { this.random.nextDouble() <= ((10.0 * this.numberOfClusters) / this.testdata.size) }
 
     /** The [ProductQuantizer] that is used for the tests. */
     private val quantizer = ProductQuantizer.learnFromData(this.distance, this.trainingdata, this.config)
@@ -58,8 +56,8 @@ class PQDoubleVectorCodebookTest {
     fun testSignatureSerialization() {
         for (t in this.testdata) {
             val signature = this.quantizer.quantize(t)
-            val serialized = PQSignature.Binding.valueToEntry(signature)
-            val signature2 = PQSignature.Binding.entryToValue(serialized)
+            val serialized = signature.toEntry()
+            val signature2 = PQSignature.fromEntry(serialized)
             Assertions.assertArrayEquals(signature.cells, signature2.cells)
         }
     }
@@ -91,7 +89,7 @@ class PQDoubleVectorCodebookTest {
         val signature = this.quantizer.quantize(vector)
         val lat = this.quantizer.createLookupTable(vector)
         for ((i, l) in lat.data.withIndex()) {
-            l.forEach { d -> Assertions.assertTrue(d >= l[signature.cells[i]]) }
+            l.forEach { d -> Assertions.assertTrue(d >= l[signature.cells[i].toInt()]) }
         }
     }
 
@@ -100,11 +98,17 @@ class PQDoubleVectorCodebookTest {
      */
     @Test
     fun testLookupTable() {
-        val index = this.random.nextInt(0, this.testdata.size)
-        val vector = this.testdata[index]
-        val signature = this.quantizer.quantize(vector)
-        val lat = this.quantizer.createLookupTable(vector)
-        Assertions.assertEquals(sqrt(signature.cells.mapIndexed { i, c -> lat.data[i][c].pow(2) }.sum()), lat.approximateDistance(signature))
+        val index1 = this.random.nextInt(0, this.testdata.size)
+        val index2 = this.random.nextInt(0, this.testdata.size)
+
+        /* Obtain to vectors. */
+        val vector1 = this.testdata[index1]
+        val vector2 = this.testdata[index2]
+
+        /* Test definition of lookup dable. */
+        val signature = this.quantizer.quantize(vector2)
+        val lat = this.quantizer.createLookupTable(vector1)
+        Assertions.assertEquals(sqrt(signature.cells.mapIndexed { i, c -> lat.data[i][c.toInt()] }.sum()), lat.approximateDistance(signature))
     }
 
     /**
