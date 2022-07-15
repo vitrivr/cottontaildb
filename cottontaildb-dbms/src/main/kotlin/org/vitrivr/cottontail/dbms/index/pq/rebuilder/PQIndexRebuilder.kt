@@ -15,7 +15,6 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
 import org.vitrivr.cottontail.dbms.index.pq.PQIndexConfig
-import org.vitrivr.cottontail.dbms.index.pq.signature.PQSignature
 import org.vitrivr.cottontail.dbms.index.pq.signature.ProductQuantizer
 import org.vitrivr.cottontail.dbms.index.pq.signature.SerializableProductQuantizer
 
@@ -57,7 +56,7 @@ class PQIndexRebuilder(index: PQIndex, context: TransactionContext): AbstractInd
             while (cursor.moveNext()) {
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
-                    if (!dataStore.put(this.context.xodusTx, cursor.key().toKey(), PQSignature.Binding.valueToEntry(quantizer.quantize(value)))) {
+                    if (!dataStore.put(this.context.xodusTx, cursor.key().toKey(), quantizer.quantize(value).toEntry())) {
                         return false
                     }
 

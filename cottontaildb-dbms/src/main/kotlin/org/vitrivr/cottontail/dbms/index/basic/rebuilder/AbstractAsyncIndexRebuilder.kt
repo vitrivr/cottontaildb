@@ -49,7 +49,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     private val tmpPath = this.index.catalogue.config.temporaryDataFolder().resolve("${index.type.toString().lowercase()}-rebuild-${UUID.randomUUID()}")
 
     /** The temporary [Environment] used by this [AbstractAsyncIndexRebuilder]. */
-    protected val tmpEnvironment: Environment = Environments.newInstance(this.tmpPath.toFile(), this.index.catalogue.config.xodus.toEnvironmentConfig().setGcUtilizationFromScratch(false))
+    protected val tmpEnvironment: Environment = Environments.newInstance(this.tmpPath.toFile(), this.index.catalogue.config.xodus.toEnvironmentConfig().setGcUtilizationFromScratch(false).setGcEnabled(false))
 
     /** The Xodus [Transaction] object of the temporary environment. */
     protected val tmpTx: Transaction = this.tmpEnvironment.beginExclusiveTransaction()
@@ -248,7 +248,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
 
                 /* Abort transaction and close environment. */
                 this.tmpTx.abort()
-                this.tmpEnvironment.close()
+                this.tmpEnvironment.clear()
 
                 /* Tries to cleanup the temporary environment. */
                 Files.walk(this.tmpPath).sorted(Comparator.reverseOrder()).forEach {

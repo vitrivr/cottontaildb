@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.index.pq.PQIndexConfig
 import java.util.*
-import kotlin.math.log10
 
 /**
  *
@@ -24,7 +23,7 @@ object PQIndexRebuilderUtilites {
         if (count == 0L) return emptyList()
         val random = JDKRandomGenerator(config.seed)
         val learningData = LinkedList<VectorValue<*>>()
-        val learningDataFraction = ((100.0 * log10(count.toDouble())) / count)
+        val learningDataFraction = ((10.0 * config.numCentroids) / count)
         txn.cursor().use { cursor ->
             while (cursor.hasNext()) {
                 if (random.nextDouble() <= learningDataFraction) {

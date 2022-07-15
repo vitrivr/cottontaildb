@@ -2,17 +2,22 @@ package org.vitrivr.cottontail.dbms.index.pq.signature
 
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
-import kotlin.math.absoluteValue
 import kotlin.math.pow
 
 /**
- * A lookup table like data structure used by [PQIndex] to obtain approximate distances from [PQSignature]s
+ * A lookup table like data structure used by [PQIndex] to obtain approximate distances from [PQSignature]s using the ADC algorithm outlined in [1].
+ *
+ * References:
+ * [1] Jegou, Herve, et al. "Product Quantization for Nearest Neighbor Search." IEEE Transactions on Pattern Analysis and Machine Intelligence. 2010.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 1.1.2
+ * @version 1.2.0
  */
-sealed class PQLookupTable(val data: Array<DoubleArray>) {
+sealed interface PQLookupTable {
+    /** The ADC lookup table. */
+    val data: Array<DoubleArray>
 
     /**
      * Calculates and returns the approximate distance for the given [PQSignature].
@@ -20,38 +25,71 @@ sealed class PQLookupTable(val data: Array<DoubleArray>) {
      * @param signature The [PQSignature] to calculate the distance for.
      * @return Approximate distance.
      */
-    abstract fun approximateDistance(signature: PQSignature): Double
+    fun approximateDistance(signature: PQSignature): Double
 
     /**
      * A [PQLookupTable] implementation for the [ManhattanDistance].
      *
-     * @param data The lookup-table data points.
+     * @param query The [VectorValue] to prepare [PQLookupTable] for.
+     * @param codebooks An [Array] of [ProductQuantizer.PQCodebook]s.
      * @return [PQLookupTable]
      */
-    class Manhattan(data: Array<DoubleArray>): PQLookupTable(data) {
-        override fun approximateDistance(signature: PQSignature): Double
-            = signature.cells.mapIndexed { i, c -> this.data[i][c].absoluteValue }.sum()
+    class Manhattan(query: VectorValue<*>, codebooks: Array<ProductQuantizer.PQCodebook>): PQLookupTable {
+        override val data = Array(codebooks.size) { i ->
+            val codebook = codebooks[i]
+            val subspaceQuery = query.slice(i * codebook.subspaceSize, codebook.subspaceSize)
+            DoubleArray(codebook.numberOfCentroids) { code -> codebook.distanceFrom(subspaceQuery, code) }
+        }
+        override fun approximateDistance(signature: PQSignature): Double {
+            var sum = 0.0
+            for ((i,c) in signature.cells.withIndex()) {
+                sum += this.data[i][c.toInt()]
+            }
+            return sum
+        }
     }
 
     /**
      * A [PQLookupTable] implementation for the [EuclideanDistance].
      *
-     * @param data The lookup-table data points.
+     * @param query The [VectorValue] to prepare [PQLookupTable] for.
+     * @param codebooks An [Array] of [ProductQuantizer.PQCodebook]s.
      * @return [PQLookupTable]
      */
-    class Euclidean(data: Array<DoubleArray>): PQLookupTable(data) {
-        override fun approximateDistance(signature: PQSignature): Double
-            = kotlin.math.sqrt(signature.cells.mapIndexed { i, c -> this.data[i][c].pow(2) }.sum())
+    class Euclidean(query: VectorValue<*>, codebooks: Array<ProductQuantizer.PQCodebook>): PQLookupTable {
+        override val data = Array(codebooks.size) { i ->
+            val codebook = codebooks[i]
+            val subspaceQuery = query.slice(i * codebook.subspaceSize, codebook.subspaceSize)
+            DoubleArray(codebook.numberOfCentroids) { code -> codebook.distanceFrom(subspaceQuery, code).pow(2) }
+        }
+        override fun approximateDistance(signature: PQSignature): Double {
+            var sum = 0.0
+            for ((i,c) in signature.cells.withIndex()) {
+                sum += this.data[i][c.toInt()]
+            }
+            return kotlin.math.sqrt(sum)
+        }
     }
 
     /**
      * A [PQLookupTable] implementation for the [SquaredEuclidean].
      *
-     * @param data The lookup-table data points.
+     * @param query The [VectorValue] to prepare [PQLookupTable] for.
+     * @param codebooks An [Array] of [ProductQuantizer.PQCodebook]s.
      * @return [PQLookupTable]
      */
-    class SquaredEuclidean(data: Array<DoubleArray>): PQLookupTable(data) {
-        override fun approximateDistance(signature: PQSignature): Double
-            = signature.cells.mapIndexed { i, c -> this.data[i][c].pow(2) }.sum()
+    class SquaredEuclidean(query: VectorValue<*>, codebooks: Array<ProductQuantizer.PQCodebook>): PQLookupTable {
+        override val data = Array(codebooks.size) { i ->
+            val codebook = codebooks[i]
+            val subspaceQuery = query.slice(i * codebook.subspaceSize, codebook.subspaceSize)
+            DoubleArray(codebook.numberOfCentroids) { code -> codebook.distanceFrom(subspaceQuery, code).pow(2) }
+        }
+        override fun approximateDistance(signature: PQSignature): Double {
+            var sum = 0.0
+            for ((i,c) in signature.cells.withIndex()) {
+                sum += this.data[i][c.toInt()]
+            }
+            return sum
+        }
     }
 }

@@ -67,7 +67,7 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
                     val sig = this.newQuantizer!!.quantize(value)
-                    if (!this.tmpDataStore.put(this.tmpTx, cursor.key().toKey(), PQSignature.Binding.valueToEntry(sig))) {
+                    if (!this.tmpDataStore.put(this.tmpTx, cursor.key().toKey(), sig.toEntry())) {
                         return false
                     }
 
@@ -129,7 +129,7 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
 
         /* If value is NULL, return true. NULL values are simply ignored by the PQIndex. */
         val sig = this.newQuantizer!!.quantize(value as VectorValue<*>)
-        return this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), PQSignature.Binding.valueToEntry(sig))
+        return this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), sig.toEntry())
     }
 
     /**
@@ -147,7 +147,7 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
         if (oldValue != null) {
             val oldSig = this.newQuantizer!!.quantize(oldValue as VectorValue<*>)
             val cursor = this.tmpDataStore.openCursor(this.tmpTx)
-            if (cursor.getSearchBoth(PQSignature.Binding.valueToEntry(oldSig), event.tupleId.toKey())) {
+            if (cursor.getSearchBoth(oldSig.toEntry(), event.tupleId.toKey())) {
                 cursor.deleteCurrent()
             }
             cursor.close()
@@ -156,7 +156,7 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
         /* Generate signature and store it. */
         if (newValue != null) {
             val newSig = this.newQuantizer!!.quantize(newValue as VectorValue<*>)
-            return this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), PQSignature.Binding.valueToEntry(newSig))
+            return this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), newSig.toEntry())
         }
         return true
     }

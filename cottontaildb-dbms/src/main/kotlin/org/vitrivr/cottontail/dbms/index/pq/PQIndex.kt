@@ -53,7 +53,7 @@ import kotlin.concurrent.withLock
  * Can be used for all type of [VectorValue]s and distance metrics.
  *
  * References:
- * [1] Guo, Ruiqi, et al. "Quantization based fast inner product search." Artificial Intelligence and Statistics. 2016.
+ * [1] Jegou, Herve, et al. "Product Quantization for Nearest Neighbor Search." IEEE Transactions on Pattern Analysis and Machine Intelligence. 2010.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 3.4.0
@@ -249,7 +249,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
             /* Extract value and return true if value is NULL (since NULL values are ignored). */
             val value = event.data[this@Tx.columns[0]] ?: return true
             val sig = this.quantizer.quantize(value as RealVectorValue<*>)
-            return this.dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(sig), event.tupleId.toKey())
+            return this.dataStore.put(this.context.xodusTx, event.tupleId.toKey(), sig.toEntry())
         }
 
         /**
@@ -268,7 +268,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
             if (oldValue != null) {
                 val oldSig = this.quantizer.quantize(oldValue as VectorValue<*>)
                 val cursor = this.dataStore.openCursor(this.context.xodusTx)
-                if (cursor.getSearchBoth(PQSignature.Binding.valueToEntry(oldSig), event.tupleId.toKey())) {
+                if (cursor.getSearchBoth(event.tupleId.toKey(), oldSig.toEntry())) {
                     cursor.deleteCurrent()
                 }
                 cursor.close()
@@ -277,7 +277,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
             /* Generate signature and store it. */
             if (newValue != null) {
                 val newSig = this.quantizer.quantize(newValue as VectorValue<*>)
-                return this.dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(newSig), event.tupleId.toKey())
+                return this.dataStore.put(this.context.xodusTx, event.tupleId.toKey(), newSig.toEntry())
             }
             return true
         }
@@ -293,7 +293,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
             val oldValue = event.data[this.columns[0]] ?: return true
             val sig = this.quantizer.quantize(oldValue as VectorValue<*>)
             val cursor = this.dataStore.openCursor(this.context.xodusTx)
-            if (cursor.getSearchBoth(PQSignature.Binding.valueToEntry(sig), event.tupleId.toKey())) {
+            if (cursor.getSearchBoth(event.tupleId.toKey(), sig.toEntry())) {
                 cursor.deleteCurrent()
             }
             cursor.close()
@@ -378,7 +378,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
                  * @return [TupleId]
                  */
                 override fun value(): Record {
-                    val signature = PQSignature.Binding.entryToValue(cursor.value)
+                    val signature = PQSignature.fromEntry(this.cursor.value)
                     val approximation = DoubleValue(this.lookupTable.approximateDistance(signature))
                     return StandaloneRecord(LongBinding.compressedEntryToLong(cursor.key), this.produces, arrayOf(approximation))
                 }

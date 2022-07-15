@@ -67,9 +67,9 @@ data class ProductQuantizer constructor(val codebooks: Array<PQCodebook>) {
      * @return The calculated [PQSignature]
      */
     fun quantize(vector: VectorValue<*>): PQSignature {
-        val ret = PQSignature(IntArray(this.numberOfSubspaces) { j ->
+        val ret = PQSignature(ShortArray(this.numberOfSubspaces) { j ->
             val codebook = this.codebooks[j]
-            codebook.quantize(vector.slice(j * codebook.subspaceSize, codebook.subspaceSize))
+            codebook.quantize(vector.slice(j * codebook.subspaceSize, codebook.subspaceSize)).toShort()
         })
         return ret
     }
@@ -80,18 +80,11 @@ data class ProductQuantizer constructor(val codebooks: Array<PQCodebook>) {
      * @param query The [VectorValue] to generate the [PQLookupTable] for.
      * @return The [PQLookupTable] for the given [VectorDistance].
      */
-    fun createLookupTable(query: VectorValue<*>): PQLookupTable {
-        val lat = Array(this.numberOfSubspaces) { j ->
-            val codebook = this.codebooks[j]
-            val subspaceQuery = query.slice(j * codebook.subspaceSize, codebook.subspaceSize)
-            DoubleArray(codebook.numberOfCentroids) { code -> codebook.distanceFrom(subspaceQuery, code) }
-        }
-        return when (this.codebooks.first().distance) {
-            is ManhattanDistance<*> -> PQLookupTable.Manhattan(lat)
-            is EuclideanDistance<*> -> PQLookupTable.Euclidean(lat)
-            is SquaredEuclideanDistance<*> -> PQLookupTable.SquaredEuclidean(lat)
-            else -> throw IllegalStateException("")
-        }
+    fun createLookupTable(query: VectorValue<*>): PQLookupTable = when (val value = this.codebooks.first().distance) {
+        is ManhattanDistance<*> -> PQLookupTable.Manhattan(query, this.codebooks)
+        is EuclideanDistance<*> -> PQLookupTable.Euclidean(query, this.codebooks)
+        is SquaredEuclideanDistance<*> -> PQLookupTable.SquaredEuclidean(query, this.codebooks)
+        else -> throw IllegalStateException("The distance function ${value.signature} us not supported for product quantization.")
     }
 
     /**
