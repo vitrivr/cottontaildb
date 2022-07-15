@@ -29,14 +29,6 @@ value class VAFSignature(val cells: ByteArray) {
     }
 
     /**
-     * Checks if this [VAFSignature] is invalid.
-     *
-     * @return True, if this [VAFSignature] is invalid, false otherwise.
-     */
-    fun isInvalid(): Boolean
-        = this.cells.size == 1 && this.cells[0] == Byte.MIN_VALUE
-
-    /**
      * Accessor for [VAFSignature].
      *
      * @param index The [index] to access.

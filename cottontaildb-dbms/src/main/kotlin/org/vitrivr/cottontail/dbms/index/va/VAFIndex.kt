@@ -1,20 +1,15 @@
 package org.vitrivr.cottontail.dbms.index.va
 
 import jetbrains.exodus.bindings.ComparableBinding
-import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.MinkowskiDistance
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.queries.nodes.traits.LimitTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
@@ -23,32 +18,23 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
-import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
-import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.basic.*
-import org.vitrivr.cottontail.dbms.index.va.bounds.Bounds
-import org.vitrivr.cottontail.dbms.index.va.bounds.L1Bounds
-import org.vitrivr.cottontail.dbms.index.va.bounds.L2Bounds
 import org.vitrivr.cottontail.dbms.index.va.rebuilder.AsyncVAFIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.va.rebuilder.VAFIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
-import org.vitrivr.cottontail.utilities.selection.HeapSelection
 import kotlin.concurrent.withLock
 
 /**
@@ -168,13 +154,13 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
     inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
         /** The [EquidistantVAFMarks] object used by this [VAFIndex.Tx]. */
-        private val marks: EquidistantVAFMarks by lazy {
+        internal val marks: EquidistantVAFMarks by lazy {
             IndexStructCatalogueEntry.read(this@VAFIndex.name, this@VAFIndex.catalogue, context.xodusTx, EquidistantVAFMarks.Binding)?:
                 throw DatabaseException.DataCorruptionException("Marks for VAF index ${this@VAFIndex.name} are missing.")
         }
 
         /** The Xodus [Store] used to store [VAFSignature]s. */
-        private val dataStore: Store by lazy {
+        internal val dataStore: Store by lazy {
             this@VAFIndex.catalogue.environment.openStore(this@VAFIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false) ?:
                 throw DatabaseException.DataCorruptionException("Store for VAF index ${this@VAFIndex.name} is missing.")
         }
@@ -264,6 +250,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          */
         override fun tryApply(event: DataEvent.Insert): Boolean {
             val value = event.data[this.columns[0]] ?: return true
+            VAFIndexCache.invalidate(this@VAFIndex.name)
 
             /* Obtain marks and add them. */
             return this.dataStore.add(this.context.xodusTx, event.tupleId.toKey(), this.marks.getSignature(value as RealVectorValue<*>).toEntry())
@@ -279,6 +266,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         override fun tryApply(event: DataEvent.Update): Boolean {
             val oldValue = event.data[this.columns[0]]?.first
             val newValue = event.data[this.columns[0]]?.second
+            VAFIndexCache.invalidate(this@VAFIndex.name)
 
             /* Obtain marks and update them. */
             return if (newValue is RealVectorValue<*>) { /* Case 1: New value is not null, i.e., update to new value. */
@@ -298,6 +286,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Delete): Boolean {
+            VAFIndexCache.invalidate(this@VAFIndex.name)
             return event.data[this.columns[0]] == null || this.dataStore.delete(this.context.xodusTx, event.tupleId.toKey())
         }
 
@@ -326,142 +315,8 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Iterator].
          */
-        @Suppress("UNCHECKED_CAST")
         override fun filter(predicate: Predicate, partition: LongRange) = this.txLatch.withLock {
-            object : Cursor<Record> {
-
-                /** Cast to [ProximityPredicate] (if such a cast is possible).  */
-                private val predicate = predicate as ProximityPredicate
-
-                /** [VectorValue] used for query. Must be prepared before using the [Iterator]. */
-                private val query: RealVectorValue<*>
-
-                /** The [Bounds] objects used for filtering. */
-                private val bounds: Bounds
-
-                /** Internal [ColumnTx] used to access actual values. */
-                private val columnTx: ColumnTx<RealVectorValue<*>>
-
-                /** The [TupleId] to start with. */
-
-                private val startKey = partition.first.toKey()
-
-                /** The [TupleId] to end at. */
-                private val endKey = partition.last.toKey()
-
-                /** The [HeapSelection] use for finding the top k entries. */
-                private val selection = when (this.predicate) {
-                    is ProximityPredicate.NNS -> HeapSelection(this.predicate.k, RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
-                    is ProximityPredicate.FNS -> HeapSelection(this.predicate.k, RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.DESCENDING))
-                    else -> throw IllegalArgumentException("VAFIndex does only support NNS and FNS queries. This is a programmer's error!")
-                }
-
-                /** Cached in-memory version of the [EquidistantVAFMarks] used by this [Cursor]. */
-                private val marks = this@Tx.marks
-
-                /** The columns produced by this [Cursor]. */
-                private val produces = this@Tx.columnsFor(predicate).toTypedArray()
-
-                /** The current [Cursor] position. */
-                private var position = -1L
-
-                init {
-                    /* Convert query vector. */
-                    val value = this.predicate.query.value
-                    check(value is RealVectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
-                    this.query = value
-
-                    /* Obtain Tx object for column. */
-                    val entityTx: EntityTx = this@Tx.context.getTx(this@VAFIndex.parent) as EntityTx
-                    this.columnTx = this@Tx.context.getTx(entityTx.columnForName(this@Tx.columns[0].name)) as ColumnTx<RealVectorValue<*>>
-
-                    /* Derive bounds object. */
-                    this.bounds = when (this.predicate.distance) {
-                        is ManhattanDistance<*> -> L1Bounds(this.query, this.marks)
-                        is EuclideanDistance<*>,
-                        is SquaredEuclideanDistance<*> -> L2Bounds(this.query, this.marks)
-                        else -> throw IllegalArgumentException("The ${this.predicate.distance} distance kernel is not supported by VAFIndex.")
-                    }
-                }
-
-                /**
-                 * Moves the internal cursor and return true, as long as new candidates appear.
-                 */
-                override fun moveNext(): Boolean {
-                    if (this.selection.added == 0L) this.prepareVASSA()
-                    return (++this.position) < this.selection.size
-                }
-
-                /**
-                 * Returns the current [TupleId] this [Cursor] is pointing to.
-                 *
-                 * @return [TupleId]
-                 */
-                override fun key(): TupleId = this.selection[this.position].tupleId
-
-                /**
-                 * Returns the current [Record] this [Cursor] is pointing to.
-                 *
-                 * @return [TupleId]
-                 */
-                override fun value(): Record = this.selection[this.position]
-
-                /**
-                 * Closes this [Cursor]
-                 */
-                override fun close() { }
-
-                /**
-                 * Reads the vector with the given [TupleId] and adds it to the [HeapSelection].
-                 *
-                 * @param tupleId The [TupleId] to read.
-                 */
-                private fun readAndOffer(tupleId: TupleId) {
-                    val value = this.columnTx.get(tupleId)
-                    val distance = this.predicate.distance(this.query, value)!!
-                    this.selection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))
-                }
-
-                /**
-                 * Prepares the result set using the [VAFIndex] and the VA-SSA algorithm described in [1].
-                 */
-                private fun prepareVASSA() {
-                    /* Initialize cursor. */
-                    val subTx = this@Tx.context.xodusTx.readonlySnapshot
-                    val cursor = this@Tx.dataStore.openCursor(subTx)
-                    var signaturesRead = 0
-                    try {
-                        if (cursor.getSearchKeyRange(this.startKey) == null) return
-
-                        /* First phase: Just add entries until we have k-results. */
-                        var threshold: Double
-                        do {
-                            this.readAndOffer(LongBinding.compressedEntryToLong(cursor.key))
-                            signaturesRead++
-                        } while (this.selection.added < this.selection.k && cursor.next && cursor.key < this.endKey)
-                        threshold = (this.selection.peek()!![0] as DoubleValue).value
-
-                        /* Second phase: Use lower-bound to decide whether entry should be added. */
-                        do {
-                            val signature = VAFSignature.fromEntry(cursor.value)
-                            if (this.bounds.lb(signature, threshold) < threshold) {
-                                this.readAndOffer(LongBinding.compressedEntryToLong(cursor.key))
-                                threshold = (this.selection.peek()!![0] as DoubleValue).value
-                            }
-                            signaturesRead++
-                        } while (cursor.next && cursor.key < this.endKey)
-                    } catch (e: Throwable) {
-                        LOGGER.error("VA-SSA Scan: Error while scanning VAF index: ${e.message}")
-                    } finally {
-                        /* Log efficiency of VAF scan. */
-                        LOGGER.debug("VA-SSA Scan: Read ${this.selection.added} and skipped over ${(1.0 - (this.selection.added.toDouble() / signaturesRead)) * 100}% of entries.")
-
-                        /* Close Xodus cursor. */
-                        cursor.close()
-                        subTx.abort()
-                    }
-                }
-            }
+            VAFCursor(partition, predicate, this, this.context)
         }
     }
 }
