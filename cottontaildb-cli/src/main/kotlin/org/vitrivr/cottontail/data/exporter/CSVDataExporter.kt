@@ -49,7 +49,7 @@ class CSVDataExporter(override val path: Path) : DataExporter {
                 Type.BOOLEAN_VECTOR -> encode(tuple.asBooleanVector(colName)?.toList())
                 Type.COMPLEX32_VECTOR,
                 Type.COMPLEX64_VECTOR -> encode((tuple[tuple.indexForName(colName)] as Array<Pair<*,*>>).map { encode(it.toList()) })
-                Type.BLOB -> Base64.encodeBase64String(tuple[tuple.indexForName(colName)] as ByteArray)
+                Type.BYTESTRING -> Base64.encodeBase64String(tuple[tuple.indexForName(colName)] as ByteArray)
                 Type.UNDEFINED -> "undefined"
             }
         }
