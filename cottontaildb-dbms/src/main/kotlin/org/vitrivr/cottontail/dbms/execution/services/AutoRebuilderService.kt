@@ -18,6 +18,7 @@ import org.vitrivr.cottontail.dbms.index.basic.IndexState
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.IndexRebuilderState
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 /**
@@ -29,8 +30,12 @@ import java.util.concurrent.TimeUnit
 class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionManager): TransactionObserver {
 
     companion object {
+        private const val MAX_INDEX_REBUILDING_RETRY = 3
         private val LOGGER = LoggerFactory.getLogger(AutoRebuilderService::class.java)
     }
+
+    /** Tracks failures for index rebuilding. */
+    private val failures = ConcurrentHashMap<Name.IndexName, Int>(10)
 
     /**
      * The [AutoRebuilderService] is only interested int [IndexEvent]s.
@@ -92,8 +97,21 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
             if (success) {
                 LOGGER.info("Index auto-rebuilding for $index completed (took ${end-start}ms).")
             } else {
-                LOGGER.warn("Index auto-rebuilding for $index failed (took ${end-start}ms). Re-scheduling the task...")
-                this@AutoRebuilderService.manager.executionManager.serviceWorkerPool.schedule(Task(this.index, this.type), 500L, TimeUnit.MILLISECONDS)
+                this.tryScheduleRetry()
+            }
+        }
+
+        /**
+         * Tries to schedule a another task if the task before has failed. This is repeated up to [MAX_INDEX_REBUILDING_RETRY] times.
+         */
+        private fun tryScheduleRetry() {
+            val failures = this@AutoRebuilderService.failures.compute(this.index) { _, v -> (v ?: 0) + 1 }
+            if (failures!! <= MAX_INDEX_REBUILDING_RETRY) {
+                LOGGER.warn("Index auto-rebuilding for $index failed $failures time(s). Re-scheduling the task...")
+                this@AutoRebuilderService.manager.executionManager.serviceWorkerPool.schedule(Task(this.index, this.type), 5000L, TimeUnit.MILLISECONDS)
+            } else {
+                LOGGER.error("Index auto-rebuilding for $index failed $failures time(s). Aborting...")
+                this@AutoRebuilderService.failures.remove(this.index)
             }
         }
 
@@ -111,7 +129,13 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                 val entity = schemaTx.entityForName(this.index.entity())
                 val entityTx = transaction.getTx(entity) as EntityTx
                 val index = entityTx.indexForName(this.index)
-                return index.newRebuilder(transaction).rebuild()
+                val ret = index.newRebuilder(transaction).rebuild()
+                if (ret) {
+                    transaction.commit()
+                } else {
+                    transaction.rollback()
+                }
+                return ret
             } catch (e: Throwable) {
                 when (e) {
                     is DatabaseException.SchemaDoesNotExistException,
@@ -119,6 +143,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                     is DatabaseException.IndexDoesNotExistException -> LOGGER.warn("Index auto-rebuilding for $index failed because DBO no longer exists.")
                     else -> LOGGER.error("Index auto-rebuilding for $index failed due to exception: ${e.message}.")
                 }
+                transaction.rollback()
                 return false
             }
         }
