@@ -20,18 +20,18 @@ import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractAsyncIndexRebui
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.IndexRebuilderState
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
 import org.vitrivr.cottontail.dbms.index.pq.PQIndexConfig
-import org.vitrivr.cottontail.dbms.index.pq.signature.PQSignature
-import org.vitrivr.cottontail.dbms.index.pq.signature.ProductQuantizer
-import org.vitrivr.cottontail.dbms.index.pq.signature.SerializableProductQuantizer
+import org.vitrivr.cottontail.dbms.index.pq.quantizer.SerializableSingleStageProductQuantizer
+import org.vitrivr.cottontail.dbms.index.pq.quantizer.SingleStageQuantizer
+import org.vitrivr.cottontail.dbms.index.pq.signature.SPQSignature
 import org.vitrivr.cottontail.dbms.index.va.rebuilder.AsyncVAFIndexRebuilder
 
 class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex>(index) {
-    /** The (temporary) Xodus [Store] used to store [PQSignature]s. */
+    /** The (temporary) Xodus [Store] used to store [SPQSignature]s. */
     private val tmpDataStore: Store = this.tmpEnvironment.openStore(this.index.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.tmpTx, true)
         ?: throw DatabaseException.DataCorruptionException("Temporary data store for index ${this.index.name} could not be created.")
 
-    /** Reference to [ProductQuantizer] used by this [AsyncPQIndexRebuilder] (only available after [IndexRebuilderState.INITIALIZED]). */
-    private var newQuantizer: ProductQuantizer? = null
+    /** Reference to [SingleStageQuantizer] used by this [AsyncPQIndexRebuilder] (only available after [IndexRebuilderState.INITIALIZED]). */
+    private var newQuantizer: SingleStageQuantizer? = null
 
     /** Reference to [ColumnDef] indexed by this [AsyncPQIndexRebuilder] (only available after [IndexRebuilderState.INITIALIZED]). */
     private var indexedColumn: ColumnDef<*>? = null
@@ -57,7 +57,7 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
         val distanceFunction: VectorDistance<*> = this.index.catalogue.functions.obtain(signature) as VectorDistance<*>
 
         /* Generates new product quantizer. */
-        this.newQuantizer = ProductQuantizer.learnFromData(distanceFunction, PQIndexRebuilderUtilites.acquireLearningData(columnTx, config), config)
+        this.newQuantizer = SingleStageQuantizer.learnFromData(distanceFunction, PQIndexRebuilderUtilites.acquireLearningData(columnTx, config.numCentroids, config.seed), config)
 
         /* Iterate over entity and update index with entries. */
         var counter = 0
@@ -113,7 +113,7 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
         }
 
         /* Update stored ProductQuantizer. */
-        IndexStructCatalogueEntry.write(this.index.name, this.newQuantizer!!.toSerializableProductQuantizer(), this.index.catalogue, context2.xodusTx, SerializableProductQuantizer.Binding)
+        IndexStructCatalogueEntry.write(this.index.name, this.newQuantizer!!.toSerializableProductQuantizer(), this.index.catalogue, context2.xodusTx, SerializableSingleStageProductQuantizer.Binding)
         return true
     }
 

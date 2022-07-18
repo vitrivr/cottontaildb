@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.index.pq.signature
+package org.vitrivr.cottontail.dbms.index.pq.quantizer
 
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.IntegerBinding
@@ -14,21 +14,21 @@ import org.xerial.snappy.Snappy
 import java.io.ByteArrayInputStream
 
 /**
- * A serializable version of a [ProductQuantizer].
+ * A serializable version of a [SingleStageQuantizer].
  *
  * @author Ralph Gasser
  * @version 1.0.0
  */
-data class SerializableProductQuantizer(val codebooks: Array<Array<DoubleArray>>): IndexStructCatalogueEntry() {
+data class SerializableSingleStageProductQuantizer(val codebooks: Array<Array<DoubleArray>>): IndexStructCatalogueEntry() {
 
     /**
-     * The [ComparableBinding] used to de-/serialize the [SerializableProductQuantizer].
+     * The [ComparableBinding] used to de-/serialize the [SerializableSingleStageProductQuantizer].
      */
     object Binding: ComparableBinding() {
-        override fun readObject(stream: ByteArrayInputStream): Comparable<SerializableProductQuantizer> {
+        override fun readObject(stream: ByteArrayInputStream): Comparable<SerializableSingleStageProductQuantizer> {
             val numberOfSubspaces = IntegerBinding.readCompressed(stream)
             val numberOfCentroids = IntegerBinding.readCompressed(stream)
-            return SerializableProductQuantizer(Array(numberOfSubspaces) {
+            return SerializableSingleStageProductQuantizer(Array(numberOfSubspaces) {
                 Array(numberOfCentroids) {
                     val bytes = stream.readNBytes(IntegerBinding.readCompressed(stream))
                     Snappy.uncompressDoubleArray(bytes)
@@ -36,8 +36,8 @@ data class SerializableProductQuantizer(val codebooks: Array<Array<DoubleArray>>
             })
         }
 
-        override fun writeObject(output: LightOutputStream, `object`: Comparable<SerializableProductQuantizer>) {
-            require(`object` is SerializableProductQuantizer) { "SerializableProductQuantizer.Binding can only be used to serialize instances of SerializableProductQuantizer." }
+        override fun writeObject(output: LightOutputStream, `object`: Comparable<SerializableSingleStageProductQuantizer>) {
+            require(`object` is SerializableSingleStageProductQuantizer) { "SerializableProductQuantizer.Binding can only be used to serialize instances of SerializableProductQuantizer." }
             IntegerBinding.writeCompressed(output, `object`.numberOfSubspaces)
             IntegerBinding.writeCompressed(output, `object`.numberOfCentroids)
             for (cb in `object`.codebooks) {
@@ -50,7 +50,7 @@ data class SerializableProductQuantizer(val codebooks: Array<Array<DoubleArray>>
         }
     }
 
-    /** The number of subspaces as defined in this [SerializableProductQuantizer]. */
+    /** The number of subspaces as defined in this [SerializableSingleStageProductQuantizer]. */
     val numberOfSubspaces
         get() = this.codebooks.size
 
@@ -63,16 +63,16 @@ data class SerializableProductQuantizer(val codebooks: Array<Array<DoubleArray>>
         get() = this.codebooks[0][0].size
 
     /**
-     * Converts this [SerializableProductQuantizer] to a [ProductQuantizer].
+     * Converts this [SerializableSingleStageProductQuantizer] to a [SingleStageQuantizer].
      *
-     * @param distance The [VectorDistance] to prepare the [ProductQuantizer] for.
-     * @return New [ProductQuantizer] instance
+     * @param distance The [VectorDistance] to prepare the [SingleStageQuantizer] for.
+     * @return New [SingleStageQuantizer] instance
      */
-    fun toProductQuantizer(distance: VectorDistance<*>): ProductQuantizer {
+    fun toProductQuantizer(distance: VectorDistance<*>): SingleStageQuantizer {
         val reshaped = distance.copy(this.dimensionsPerSubspace)
         val codebooks = Array(this.numberOfSubspaces) { i ->
-            ProductQuantizer.PQCodebook(reshaped, Array(this.numberOfCentroids) { j ->
-                when(distance.type) {
+            PQCodebook(reshaped, Array(this.numberOfCentroids) { j ->
+                when (distance.type) {
                     is Types.DoubleVector -> DoubleVectorValue(this.codebooks[i][j])
                     is Types.FloatVector -> FloatVectorValue(this.codebooks[i][j])
                     is Types.LongVector -> LongVectorValue(this.codebooks[i][j])
@@ -81,7 +81,7 @@ data class SerializableProductQuantizer(val codebooks: Array<Array<DoubleArray>>
                 }
             })
         }
-        return ProductQuantizer(codebooks)
+        return SingleStageQuantizer(codebooks)
     }
 
     /**
@@ -91,7 +91,7 @@ data class SerializableProductQuantizer(val codebooks: Array<Array<DoubleArray>>
      * @return -1, 0 or 1
      */
     override fun compareTo(other: IndexStructCatalogueEntry): Int {
-        if (other !is SerializableProductQuantizer) return -1
+        if (other !is SerializableSingleStageProductQuantizer) return -1
         for ((i, cb) in this.codebooks.withIndex()) {
             for ((j, ce) in cb.withIndex()) {
                 for ((k, d) in ce.withIndex()) {
@@ -105,7 +105,7 @@ data class SerializableProductQuantizer(val codebooks: Array<Array<DoubleArray>>
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is SerializableProductQuantizer) return false
+        if (other !is SerializableSingleStageProductQuantizer) return false
         if (!this.codebooks.contentDeepEquals(other.codebooks)) return false
         return true
     }

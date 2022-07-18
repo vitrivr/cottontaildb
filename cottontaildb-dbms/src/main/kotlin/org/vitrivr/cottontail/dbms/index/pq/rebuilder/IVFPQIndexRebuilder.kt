@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.index.pq.rebuilder
 
+import jetbrains.exodus.bindings.ShortBinding
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
@@ -7,27 +8,27 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
-import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
-import org.vitrivr.cottontail.dbms.index.pq.PQIndex
-import org.vitrivr.cottontail.dbms.index.pq.PQIndexConfig
-import org.vitrivr.cottontail.dbms.index.pq.quantizer.SerializableSingleStageProductQuantizer
-import org.vitrivr.cottontail.dbms.index.pq.quantizer.SingleStageQuantizer
+import org.vitrivr.cottontail.dbms.index.pq.IVFPQIndex
+import org.vitrivr.cottontail.dbms.index.pq.IVFPQIndexConfig
+import org.vitrivr.cottontail.dbms.index.pq.quantizer.MultiStageQuantizer
+import org.vitrivr.cottontail.dbms.index.pq.quantizer.SerializableMultiStageProductQuantizer
+import java.lang.Math.max
 
 /**
- * An [AbstractIndexRebuilder] for the [PQIndex].
+ * An [AbstractIndexRebuilder] for the [IVFPQIndex].
  *
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class PQIndexRebuilder(index: PQIndex, context: TransactionContext): AbstractIndexRebuilder<PQIndex>(index, context) {
+class IVFPQIndexRebuilder(index: IVFPQIndex, context: TransactionContext): AbstractIndexRebuilder<IVFPQIndex>(index, context) {
 
     /**
-     * Starts the index rebuilding process for this [PQIndexRebuilder].
+     * Starts the index rebuilding process for this [IVFPQIndexRebuilder].
      *
      * @return True on success, false on failure.
      */
@@ -35,7 +36,7 @@ class PQIndexRebuilder(index: PQIndex, context: TransactionContext): AbstractInd
         /* Read basic index properties. */
         val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
-        val config = entry.config as PQIndexConfig
+        val config = entry.config as IVFPQIndexConfig
         val column = entry.columns[0]
 
         /* Tx objects required for index rebuilding. */
@@ -47,8 +48,8 @@ class PQIndexRebuilder(index: PQIndex, context: TransactionContext): AbstractInd
         /* Obtain PQ data structure. */
         val type = columnTx.columnDef.type as Types.Vector<*,*>
         val distanceFunction = this.index.catalogue.functions.obtain(Signature.SemiClosed(config.distance, arrayOf(Argument.Typed(type), Argument.Typed(type)))) as VectorDistance<*>
-        val learningData = PQIndexRebuilderUtilites.acquireLearningData(columnTx, config.numCentroids, config.seed)
-        val quantizer = SingleStageQuantizer.learnFromData(distanceFunction, learningData, config)
+        val learningData = PQIndexRebuilderUtilites.acquireLearningData(columnTx, max(config.numCentroids, config.numCoarseCentroids), config.seed)
+        val quantizer = MultiStageQuantizer.learnFromData(distanceFunction, learningData, config)
 
         /* Iterate over column and update index with entries. */
         var counter = 0
@@ -56,7 +57,8 @@ class PQIndexRebuilder(index: PQIndex, context: TransactionContext): AbstractInd
             while (cursor.moveNext()) {
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
-                    if (!dataStore.put(this.context.xodusTx, cursor.key().toKey(), quantizer.quantize(value).toEntry())) {
+                    val signature = quantizer.quantize(cursor.key(), value)
+                    if (!dataStore.put(this.context.xodusTx, ShortBinding.shortToEntry(signature.first), signature.second.toEntry())) {
                         return false
                     }
 
@@ -72,7 +74,7 @@ class PQIndexRebuilder(index: PQIndex, context: TransactionContext): AbstractInd
         }
 
         /* Update stored ProductQuantizer. */
-        IndexStructCatalogueEntry.write(this.index.name, quantizer.toSerializableProductQuantizer(), this.index.catalogue, context.xodusTx, SerializableSingleStageProductQuantizer.Binding)
+        IndexStructCatalogueEntry.write(this.index.name, quantizer.toSerializableProductQuantizer(), this.index.catalogue, context.xodusTx, SerializableMultiStageProductQuantizer.Binding)
         return true
     }
 }

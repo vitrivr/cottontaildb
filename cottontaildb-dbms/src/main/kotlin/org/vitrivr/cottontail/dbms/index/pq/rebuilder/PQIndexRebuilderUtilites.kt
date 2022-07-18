@@ -4,8 +4,6 @@ import org.apache.commons.math3.random.JDKRandomGenerator
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.column.ColumnTx
-import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.index.pq.PQIndexConfig
 import java.util.*
 
 /**
@@ -15,15 +13,17 @@ object PQIndexRebuilderUtilites {
     /**
      * Collects and returns a subset of the available data for learning and training.
      *
-     * @param txn The [EntityTx] used to obtain the learning data.
+     * @param txn The [ColumnTx] used to obtain the learning data.
+     * @param centroids The planned number of centroids.
+     * @param seed The seed for the random number generator.
      * @return List of [Record]s used for learning.
      */
-    fun acquireLearningData(txn: ColumnTx<*>, config: PQIndexConfig): List<VectorValue<*>> {
+    fun acquireLearningData(txn: ColumnTx<*>, centroids: Int, seed: Int): List<VectorValue<*>> {
         val count = txn.count()
         if (count == 0L) return emptyList()
-        val random = JDKRandomGenerator(config.seed)
+        val random = JDKRandomGenerator(seed)
         val learningData = LinkedList<VectorValue<*>>()
-        val learningDataFraction = ((10.0 * config.numCentroids) / count)
+        val learningDataFraction = ((3.0 * centroids) / count)
         txn.cursor().use { cursor ->
             while (cursor.hasNext()) {
                 if (random.nextDouble() <= learningDataFraction) {
