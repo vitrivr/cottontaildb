@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
-import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
@@ -33,10 +32,7 @@ import org.vitrivr.cottontail.utilities.selection.HeapSelection
  * @version 1.0.0
  */
 @Suppress("UNCHECKED_CAST")
-class VAFCursor(val partition: LongRange, predicate: Predicate, val index: VAFIndex.Tx, val context: TransactionContext): Cursor<Record> {
-    /** Cast to [ProximityPredicate] (if such a cast is possible).  */
-    private val predicate = predicate as ProximityPredicate
-
+class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val index: VAFIndex.Tx, val context: TransactionContext): Cursor<Record> {
     /** [VectorValue] used for query. Must be prepared before using the [Iterator]. */
     private val query: RealVectorValue<*>
 

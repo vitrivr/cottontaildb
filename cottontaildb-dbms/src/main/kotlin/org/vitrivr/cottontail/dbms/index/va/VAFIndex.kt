@@ -316,6 +316,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return The resulting [Iterator].
          */
         override fun filter(predicate: Predicate, partition: LongRange) = this.txLatch.withLock {
+            require(predicate is ProximityPredicate) { "VAFIndex can only be used with a SCAN type proximity predicate. This is a programmer's error!" }
             VAFCursor(partition, predicate, this, this.context)
         }
     }
