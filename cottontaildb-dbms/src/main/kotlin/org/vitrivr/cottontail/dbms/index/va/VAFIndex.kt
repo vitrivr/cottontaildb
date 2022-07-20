@@ -250,7 +250,6 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          */
         override fun tryApply(event: DataEvent.Insert): Boolean {
             val value = event.data[this.columns[0]] ?: return true
-            VAFIndexCache.invalidate(this@VAFIndex.name)
 
             /* Obtain marks and add them. */
             return this.dataStore.add(this.context.xodusTx, event.tupleId.toKey(), this.marks.getSignature(value as RealVectorValue<*>).toEntry())
@@ -266,7 +265,6 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         override fun tryApply(event: DataEvent.Update): Boolean {
             val oldValue = event.data[this.columns[0]]?.first
             val newValue = event.data[this.columns[0]]?.second
-            VAFIndexCache.invalidate(this@VAFIndex.name)
 
             /* Obtain marks and update them. */
             return if (newValue is RealVectorValue<*>) { /* Case 1: New value is not null, i.e., update to new value. */
@@ -286,7 +284,6 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Delete): Boolean {
-            VAFIndexCache.invalidate(this@VAFIndex.name)
             return event.data[this.columns[0]] == null || this.dataStore.delete(this.context.xodusTx, event.tupleId.toKey())
         }
 
