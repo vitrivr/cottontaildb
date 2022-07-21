@@ -26,4 +26,5 @@ data class XodusConfig (
         .setEnvStoreGetCacheSize(this.storeGetCacheSize)
         .setTreeDupMaxPageSize(this.treeDupMaximumPageSize)
         .setTreeMaxPageSize(this.treeMaximumPageSize)
+        .setEnvMonitorTxnsExpirationTimeout(0)
 }
