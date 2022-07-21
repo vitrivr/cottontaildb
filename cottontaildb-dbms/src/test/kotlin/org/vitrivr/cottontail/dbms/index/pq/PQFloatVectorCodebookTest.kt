@@ -6,8 +6,9 @@ import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.dbms.index.pq.quantizer.SingleStageQuantizer
 import org.vitrivr.cottontail.dbms.index.pq.signature.PQSignature
-import org.vitrivr.cottontail.dbms.index.pq.signature.ProductQuantizer
+import org.vitrivr.cottontail.dbms.index.pq.signature.SPQSignature
 import org.vitrivr.cottontail.test.TestConstants
 import java.util.*
 import kotlin.math.log10
@@ -46,8 +47,8 @@ class PQFloatVectorCodebookTest {
     /** The data to train the quantizer with. */
     private val trainingdata = this.testdata.filter { this.random.nextDouble() <= (100.0 * (log10(this.testdata.size.toDouble())) / this.testdata.size) }
 
-    /** The [ProductQuantizer] that is used for the tests. */
-    private val quantizer = ProductQuantizer.learnFromData(this.distance, this.trainingdata, this.config)
+    /** The [SingleStageQuantizer] that is used for the tests. */
+    private val quantizer = SingleStageQuantizer.learnFromData(this.distance, this.trainingdata, this.config)
 
     /**
      * Tests serialization / deserialization of [PQSignature] objects.
@@ -57,7 +58,7 @@ class PQFloatVectorCodebookTest {
         for (t in this.testdata) {
             val signature = this.quantizer.quantize(t)
             val serialized = signature.toEntry()
-            val signature2 = PQSignature.fromEntry(serialized)
+            val signature2 = SPQSignature.fromEntry(serialized)
             Assertions.assertArrayEquals(signature.cells, signature2.cells)
         }
     }

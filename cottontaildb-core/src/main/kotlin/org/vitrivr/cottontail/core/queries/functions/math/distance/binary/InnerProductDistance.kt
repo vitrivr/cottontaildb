@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.core.queries.functions.math.distance.binary
 
+import jdk.incubator.vector.VectorOperators
+import jdk.incubator.vector.VectorSpecies
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Function
@@ -75,6 +77,11 @@ sealed class InnerProductDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): 
             return DoubleValue(1.0) - Complex64Value(real, imaginary).abs()
         }
         override fun copy(d: Int) = Complex64Vector(Types.Complex64Vector(d))
+
+        override fun vectorized(): VectorDistance<Complex64VectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 
     /**
@@ -95,6 +102,11 @@ sealed class InnerProductDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): 
             return Complex64Value(real, imaginary).abs()
         }
         override fun copy(d: Int) = Complex32Vector(Types.Complex32Vector(d))
+
+        override fun vectorized(): VectorDistance<Complex32VectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 
     /**
@@ -112,6 +124,11 @@ sealed class InnerProductDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): 
             return DoubleValue(dotp)
         }
         override fun copy(d: Int) = DoubleVector(Types.DoubleVector(d))
+
+        override fun vectorized(): VectorDistance<DoubleVectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 
     /**
@@ -124,11 +141,48 @@ sealed class InnerProductDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): 
             val query = arguments[1] as FloatVectorValue
             var dotp = 0.0
             for (i in 0 until this.d) {
-                dotp += query.data[i] * probing.data[i]
+                dotp += (query.data[i] * probing.data[i])
             }
             return DoubleValue(dotp)
         }
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
+
+        override fun vectorized(): VectorDistance<FloatVectorValue> {
+            return FloatVectorVectorized(type)
+        }
+    }
+
+    /**
+     * SIMD Implementation: [InnerProductDistance] for a [FloatVectorValue].
+     */
+    class FloatVectorVectorized(type: Types.Vector<FloatVectorValue,*>): InnerProductDistance<FloatVectorValue>(type) {
+        override val name: Name.FunctionName = FUNCTION_NAME
+        override fun invoke(vararg arguments: Value?): DoubleValue {
+            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
+            val probing = arguments[0] as FloatVectorValue
+            val query = arguments[1] as FloatVectorValue
+            var vectorSum = jdk.incubator.vector.FloatVector.zero(species)
+
+            //Vectorized calculation
+            for (i in 0 until species.loopBound(this.d) step species.length()) {
+                val vp = jdk.incubator.vector.FloatVector.fromArray(species, probing.data, i)
+                val vq = jdk.incubator.vector.FloatVector.fromArray(species, query.data, i)
+                vectorSum = vp.fma(vq, vectorSum)
+            }
+
+            var dotp = vectorSum.reduceLanes(VectorOperators.ADD)
+
+            for (i in species.loopBound(this.d) until this.d) {
+                dotp += (query.data[i] * probing.data[i])
+            }
+
+            return DoubleValue(dotp)
+        }
+        override fun copy(d: Int) = FloatVectorVectorized(Types.FloatVector(d))
+
+        override fun vectorized(): VectorDistance<FloatVectorValue> {
+            return this
+        }
     }
 
     /**
@@ -146,6 +200,11 @@ sealed class InnerProductDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): 
             return DoubleValue(dotp)
         }
         override fun copy(d: Int) = LongVector(Types.LongVector(d))
+
+        override fun vectorized(): VectorDistance<LongVectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 
     /**
@@ -158,10 +217,15 @@ sealed class InnerProductDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): 
             val query = arguments[1] as IntVectorValue
             var dotp = 0.0
             for (i in 0 until this.d) {
-                dotp += query.data[i] * probing.data[i]
+                dotp += (query.data[i] * probing.data[i])
             }
             return DoubleValue(dotp)
         }
         override fun copy(d: Int) = IntVector(Types.IntVector(d))
+
+        override fun vectorized(): VectorDistance<IntVectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 }

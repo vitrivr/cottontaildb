@@ -42,4 +42,11 @@ sealed class VectorDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>): Fun
      * @return Copy of this [VectorDistance]
      */
     abstract fun copy(d: Int): VectorDistance<T>
+
+    /**
+     * Returns the vectorized Version of the [VectorDistance].
+     *
+     * @return Vectorized [VectorDistance]
+     */
+    abstract fun vectorized(): VectorDistance<T>
 }

@@ -14,6 +14,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSInde
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanClass3Rule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.merge.LimitingSortMergeRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.CountPushdownRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.simd.FunctionVectorisationRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnPhysicalFetchRewriteRule
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpc
@@ -24,32 +25,22 @@ import kotlin.time.ExperimentalTime
  * Implementation of [DQLGrpc.DQLImplBase], the gRPC endpoint for querying data in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.3.1
+ * @version 2.4.0
  */
 @ExperimentalTime
 class DQLService(override val catalogue: Catalogue, override val manager: TransactionManager) : DQLGrpcKt.DQLCoroutineImplBase(), TransactionalGrpcService {
 
     /** [CottontailQueryPlanner] used to generate execution plans from a logical query plan. */
-    private val planner = CottontailQueryPlanner(
-        logicalRules = listOf(
-            LeftConjunctionRewriteRule,
-            RightConjunctionRewriteRule,
-            LeftConjunctionOnSubselectRewriteRule,
-            RightConjunctionOnSubselectRewriteRule,
-            DeferFetchOnScanRewriteRule,
-            DeferFetchOnLogicalFetchRewriteRule
-        ),
-        physicalRules = listOf(
-            BooleanIndexScanRule,
-            NNSIndexScanClass1Rule,
-            NNSIndexScanClass3Rule,
-            FulltextIndexRule,
-            CountPushdownRule,
-            LimitingSortMergeRule,
-            DeferFetchOnPhysicalFetchRewriteRule
-        ),
-        this.catalogue.config.cache.planCacheSize
-    )
+    private val planner: CottontailQueryPlanner
+
+    init {
+        val logical = listOf(LeftConjunctionRewriteRule, RightConjunctionRewriteRule, LeftConjunctionOnSubselectRewriteRule, RightConjunctionOnSubselectRewriteRule, DeferFetchOnScanRewriteRule, DeferFetchOnLogicalFetchRewriteRule)
+        val physical =  mutableListOf(BooleanIndexScanRule, NNSIndexScanClass1Rule, NNSIndexScanClass3Rule, FulltextIndexRule, CountPushdownRule, LimitingSortMergeRule, DeferFetchOnPhysicalFetchRewriteRule)
+        if (this.catalogue.config.execution.simd) {
+            physical += FunctionVectorisationRule(this.catalogue.config.execution.simdThreshold)
+        }
+        this.planner = CottontailQueryPlanner(logical, physical, this.catalogue.config.cache.planCacheSize)
+    }
 
     /**
      * gRPC endpoint for executing queries.

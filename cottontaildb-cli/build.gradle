@@ -22,7 +22,7 @@ dependencies {
 /* General application attributes. */
 application {
     applicationName = 'carrotli'
-    applicationDefaultJvmArgs = ["-Xms256M", "-Xmx1G"]
+    applicationDefaultJvmArgs = ["-Xms512M", "-Xmx1G"]
     mainClassName = 'org.vitrivr.cottontail.CarrotliKt'
 }
 

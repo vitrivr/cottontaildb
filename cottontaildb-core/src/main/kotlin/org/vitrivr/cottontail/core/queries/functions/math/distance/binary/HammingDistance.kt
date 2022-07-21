@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.core.queries.functions.math.distance.binary
 
+import jdk.incubator.vector.VectorOperators
+import jdk.incubator.vector.VectorSpecies
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Function
@@ -72,6 +74,11 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = DoubleVector(Types.DoubleVector(d))
+
+        override fun vectorized(): VectorDistance<DoubleVectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 
     /**
@@ -91,6 +98,44 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
+
+        override fun vectorized(): VectorDistance<FloatVectorValue> {
+            return FloatVectorVectorized(type)
+            //TODO @Colin("Not yet implemented")
+        }
+    }
+
+    /**
+     * SIMD Implementation: [HammingDistance] for a [FloatVectorValue].
+     */
+    class FloatVectorVectorized(type: Types.Vector<FloatVectorValue,*>): HammingDistance<FloatVectorValue>(type) {
+        override val name: Name.FunctionName = FUNCTION_NAME
+        override fun invoke(vararg arguments: Value?): DoubleValue {
+            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
+            val probing = arguments[0] as FloatVectorValue
+            val query = arguments[1] as FloatVectorValue
+            var sum = 0.0
+
+            //Vectorized calculation
+            for (i in 0 until species.loopBound(this.d) step species.length()) {
+                val vp = jdk.incubator.vector.FloatVector.fromArray(species, probing.data, i)
+                val vq = jdk.incubator.vector.FloatVector.fromArray(species, query.data, i)
+                sum += vp.compare(VectorOperators.NE, vq).trueCount()
+            }
+
+            // Scalar calculation for the remaining lanes, since SPECIES.loopBound(this.d) <= this.d
+            for (i in species.loopBound(this.d) until this.d) {
+                if (query.data[i] != probing.data[i]) {
+                    sum += 1.0
+                }
+            }
+            return DoubleValue(sum)
+        }
+        override fun copy(d: Int) = FloatVectorVectorized(Types.FloatVector(d))
+
+        override fun vectorized(): VectorDistance<FloatVectorValue> {
+            return this
+        }
     }
 
     /**
@@ -110,6 +155,11 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = LongVector(Types.LongVector(d))
+
+        override fun vectorized(): VectorDistance<LongVectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 
     /**
@@ -129,6 +179,11 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = IntVector(Types.IntVector(d))
+
+        override fun vectorized(): VectorDistance<IntVectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 
     /**
@@ -148,5 +203,10 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = BooleanVector(Types.BooleanVector(d))
+
+        override fun vectorized(): VectorDistance<BooleanVectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 }
