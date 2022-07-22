@@ -32,10 +32,10 @@ data class PQCodebook(val distance: VectorDistance<*>, val centroids: Array<Vect
      */
     fun quantize(vector: VectorValue<*>): Int {
         var smallestIndexSeen = 0
-        var smallestDistSeen = this.distance(vector, this.centroids[0])!!
+        var smallestDistSeen = this.distance(vector, this.centroids[0])!!.value
         for (i in 1 until this.centroids.size) {
-            val newDist = this.distance(vector, this.centroids[i])
-            if (newDist!!.value < smallestDistSeen.value) {
+            val newDist = this.distance(vector, this.centroids[i])!!.value
+            if (newDist < smallestDistSeen) {
                 smallestDistSeen = newDist
                 smallestIndexSeen = i
             }
