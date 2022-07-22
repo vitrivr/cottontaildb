@@ -1,8 +1,7 @@
 package org.vitrivr.cottontail.core.queries.functions.math.distance.binary
 
-import jdk.incubator.vector.VectorMask
+import jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
 import jdk.incubator.vector.VectorOperators
-import jdk.incubator.vector.VectorSpecies
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Function
@@ -147,10 +146,7 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
             return DoubleValue(sqrt(sum))
         }
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
-
-        override fun vectorized(): VectorDistance<FloatVectorValue> {
-            return FloatVectorVectorized(type)
-        }
+        override fun vectorized() = FloatVectorVectorized(type)
     }
 
     /**
@@ -159,18 +155,25 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
     class FloatVectorVectorized(type: Types.Vector<FloatVectorValue,*>): EuclideanDistance<FloatVectorValue>(type) {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
             val probing = (arguments[0] as FloatVectorValue).data
             val query = (arguments[1] as FloatVectorValue).data
-            var sum = jdk.incubator.vector.FloatVector.zero(species)
-            val mask: VectorMask<Float> = species.maskAll(true)
-            for (i in 0 until this.d step species.length()) {
-                val vp = jdk.incubator.vector.FloatVector.fromArray(species, probing, i, mask.indexInRange(i, this.d))
-                val vq = jdk.incubator.vector.FloatVector.fromArray(species, query, i, mask.indexInRange(i, this.d))
-                val diff = vp.sub(vq)
-                sum = sum.add(diff.mul(diff))
+
+            /* Vectorised distance calculation. */
+            var vectorSum = jdk.incubator.vector.FloatVector.zero(SPECIES_PREFERRED)
+            val bound = SPECIES_PREFERRED.loopBound(this.d)
+            for (i in 0 until bound step SPECIES_PREFERRED.length()) {
+                val vp = jdk.incubator.vector.FloatVector.fromArray(SPECIES_PREFERRED, probing, i)
+                val vq = jdk.incubator.vector.FloatVector.fromArray(SPECIES_PREFERRED, query, i)
+                vectorSum = vectorSum.add(vp.sub(vq).mul(vp.sub(vq)))
             }
-            return DoubleValue(sqrt(sum.reduceLanes(VectorOperators.ADD)))
+
+            /* Scalar version for remainder. */
+            var sum = vectorSum.reduceLanes(VectorOperators.ADD)
+            for (i in bound until this.d) {
+                sum += (query[i] - probing[i]).pow(2)
+            }
+
+            return DoubleValue(sqrt(sum))
         }
         override fun copy(d: Int) = FloatVectorVectorized(Types.FloatVector(d))
 
