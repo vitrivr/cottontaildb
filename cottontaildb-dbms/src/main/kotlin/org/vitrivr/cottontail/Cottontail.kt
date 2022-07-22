@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail
 
+import jdk.incubator.vector.FloatVector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.config.Config
@@ -35,6 +36,17 @@ fun main(args: Array<String>) {
     /* Try to start Cottontail DB */
     try {
         val config: Config = loadConfig(findConfigPathOrdered(args))
+
+        /* Check for SIMD support, if flag has been set. */
+        if (config.execution.simd) {
+            try {
+                FloatVector.SPECIES_PREFERRED
+            } catch (e: NoClassDefFoundError) {
+                System.err.println("Failed to start Cottontail DB due to error: No support for Java Vector API. Please unset 'execution.simd' flag in config.")
+                exitProcess(1)
+            }
+        }
+
         standalone(config)
     } catch (e: Throwable) {
         System.err.println("Failed to start Cottontail DB due to error:")
