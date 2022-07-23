@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.dbms.index.pq.PQIndexConfig
 import org.vitrivr.cottontail.dbms.index.pq.signature.PQLookupTable
 import org.vitrivr.cottontail.dbms.index.pq.signature.SPQSignature
 import org.vitrivr.cottontail.utilities.math.clustering.KMeansClusterer
-import java.util.stream.IntStream
 
 /**
  * Single-stage Product Quantizer (PQ) that can be used to quantize vectors to a codebook given a certain [VectorDistance].
@@ -72,10 +71,9 @@ data class SingleStageQuantizer constructor(val codebooks: Array<PQCodebook>) {
      * @return The calculated [SPQSignature]
      */
     fun quantize(vector: VectorValue<*>): SPQSignature {
-        val subspaces = ShortArray(this.numberOfSubspaces)
-        IntStream.range(0, subspaces.size).parallel().forEach { j ->
-            val codebook = this.codebooks[j]
-            subspaces[j] = codebook.quantize(vector.slice(j * codebook.subspaceSize, codebook.subspaceSize)).toShort()
+        val subspaces = ShortArray(this.numberOfSubspaces) {
+            val codebook = this.codebooks[it]
+            codebook.quantize(vector.slice(it * codebook.subspaceSize, codebook.subspaceSize)).toShort()
         }
         return SPQSignature(subspaces)
     }
