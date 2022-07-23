@@ -222,7 +222,10 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
             if (predicate.column != this.columns[0]) return Cost.INVALID
             if (predicate.distance.name != (this.config as PQIndexConfig).distance) return Cost.INVALID
             val count = this.count()
-            return Cost(count * this.config.subspaces * Cost.DISK_ACCESS_READ.io, count * (4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu) + predicate.cost.cpu)
+            return Cost(
+                Cost.DISK_ACCESS_READ.io * Short.SIZE_BYTES,
+                4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu
+            ) * count * this.quantizer.codebooks.size
         }
 
         /**
