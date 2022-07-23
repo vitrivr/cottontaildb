@@ -40,7 +40,7 @@ class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val
     private val bounds: Bounds
 
     /** Internal [ColumnTx] used to access actual values. */
-    private val columnTx: ColumnTx<RealVectorValue<*>>
+    private val columnCursor: Cursor<RealVectorValue<*>?>
 
     /** The [TupleId] to start with. */
     private val startKey = partition.first.toKey()
@@ -59,10 +59,11 @@ class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val
     private val marks = this.index.marks
 
     /** The columns produced by this [Cursor]. */
-    private val produces = this.index.columnsFor(predicate).toTypedArray()
+    private val produces = this.index.columnsFor(this.predicate).toTypedArray()
 
     /** The current [Cursor] position. */
     private var position = -1L
+
     init {
         /* Convert query vector. */
         val value = this.predicate.query.value
@@ -71,7 +72,7 @@ class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val
 
         /* Obtain Tx object for column. */
         val entityTx: EntityTx = this.context.getTx(this.index.dbo.parent) as EntityTx
-        this.columnTx = this.context.getTx(entityTx.columnForName(this.index.columns[0].name)) as ColumnTx<RealVectorValue<*>>
+        this.columnCursor = (this.context.getTx(entityTx.columnForName(this.index.columns[0].name)) as ColumnTx<RealVectorValue<*>>).cursor(partition)
 
         /* Derive bounds object. */
         this.bounds = when (this.predicate.distance) {
@@ -107,17 +108,20 @@ class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val
     /**
      * Closes this [Cursor]
      */
-    override fun close() { }
+    override fun close() {
+        this.columnCursor.close()
+    }
 
     /**
      * Reads the vector with the given [TupleId] and adds it to the [HeapSelection].
      *
      * @param tupleId The [TupleId] to read.
      */
-    private fun readAndOffer(tupleId: TupleId) {
-        val value = this.columnTx.get(tupleId)
+    private fun readAndOffer(tupleId: TupleId): Double {
+        require(this.columnCursor.moveTo(tupleId)) { "Column cursor failed to seek tuple with ID ${tupleId}."}
+        val value = this.columnCursor.value()
         val distance = this.predicate.distance(this.query, value)!!
-        this.selection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))
+        return (this.selection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
     }
 
     /**
@@ -127,7 +131,6 @@ class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val
         /* Initialize cursor. */
         val subTx = this.context.xodusTx.readonlySnapshot
         val cursor = this.index.dataStore.openCursor(subTx)
-        var signaturesRead = 0
         try {
             if (cursor.getSearchKeyRange(this.startKey) == null) return
 
@@ -135,26 +138,22 @@ class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val
             var threshold: Double
             do {
                 val tupleId = LongBinding.compressedEntryToLong(cursor.key)
-                this.readAndOffer(tupleId)
-                signaturesRead++
+                threshold = this.readAndOffer(tupleId)
             } while (this.selection.added < this.selection.k && cursor.next && cursor.key < this.endKey)
-            threshold = (this.selection.peek()!![0] as DoubleValue).value
 
             /* Second phase: Use lower-bound to decide whether entry should be added. */
             do {
                 val signature = VAFSignature.fromEntry(cursor.value)
                 if (this.bounds.lb(signature, threshold) < threshold) {
                     val tupleId = LongBinding.compressedEntryToLong(cursor.key)
-                    this.readAndOffer(tupleId)
-                    threshold = (this.selection.peek()!![0] as DoubleValue).value
+                    threshold = this.readAndOffer(tupleId)
                 }
-                signaturesRead++
             } while (cursor.next && cursor.key < this.endKey)
         } catch (e: Throwable) {
             VAFIndex.LOGGER.error("VA-SSA Scan: Error while scanning VAF index: ${e.message}")
         } finally {
             /* Log efficiency of VAF scan. */
-            VAFIndex.LOGGER.debug("VA-SSA Scan: Read ${this.selection.added} and skipped over ${(1.0 - (this.selection.added.toDouble() / signaturesRead)) * 100}% of entries.")
+            VAFIndex.LOGGER.debug("VA-SSA Scan: Read ${this.selection.added} and skipped over ${(1.0 - (this.selection.added.toDouble() / this.index.count())) * 100}% of entries.")
 
             /* Close Xodus cursor. */
             cursor.close()

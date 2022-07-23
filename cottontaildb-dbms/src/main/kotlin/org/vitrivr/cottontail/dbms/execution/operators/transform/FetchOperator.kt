@@ -2,10 +2,12 @@ package org.vitrivr.cottontail.dbms.execution.operators.transform
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onCompletion
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -35,19 +37,26 @@ class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: List<Pair
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val fetch = this.fetch.map { it.second }.toTypedArray()
         val columns = this.columns.toTypedArray()
+        val cursors = fetch.map {
+            (context.getTx(this@FetchOperator.entity.columnForName(it.name)) as ColumnTx<*>).cursor()
+        }
         val numberOfInputColumns = this.parent.columns.size
+        val bindingContext = this@FetchOperator.fetch.first().first.context
         return this.parent.toFlow(context).map { r ->
-            val fetched = this@FetchOperator.entity.read(r.tupleId, fetch)
             val values = Array(this.columns.size) {
                 if (it < numberOfInputColumns) {
                     r[it]
                 } else {
-                    fetched[it-numberOfInputColumns]
+                    val cursor = cursors[it-numberOfInputColumns]
+                    require(cursor.moveTo(r.tupleId)) { "TupleId ${r.tupleId} could not be obtained via cr"}
+                    cursor.value()
                 }
             }
             val rec = StandaloneRecord(r.tupleId, columns, values) /* New record is emitted. */
-            this@FetchOperator.fetch.first().first.context.update(rec)
+            bindingContext.update(rec)
             rec
+        }.onCompletion {
+            cursors.forEach { it.close() }
         }
     }
 }
