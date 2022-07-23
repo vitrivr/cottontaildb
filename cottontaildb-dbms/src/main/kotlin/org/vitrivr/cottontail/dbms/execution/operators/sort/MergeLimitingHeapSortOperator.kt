@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicLong
  * This is often used in parallelized proximity based queries.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.4.0
  */
 class MergeLimitingHeapSortOperator(parents: List<Operator>, val context: BindingContext, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, val limit: Long) : Operator.MergingPipelineOperator(parents) {
 
@@ -46,26 +46,39 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, val context: Bindin
      * @return [Flow] representing this [MergeLimitingHeapSortOperator]
      */
     override fun toFlow(context: TransactionContext): Flow<Record> = channelFlow {
-        /* Collect incoming flows into dedicated HeapSelection objects (one per flow). */
+
+        /* Prepare a global heap selection; this selection is large enough to accept [limit] entries from each partition to prevent concurrent sorting. */
         val incoming = this@MergeLimitingHeapSortOperator.parents
-        val globalSelection = HeapSelection(this@MergeLimitingHeapSortOperator.limit, this@MergeLimitingHeapSortOperator.comparator)
-        val collected = AtomicLong(0L)
+        val globalSelection = HeapSelection(
+            this@MergeLimitingHeapSortOperator.limit * incoming.size,
+            this@MergeLimitingHeapSortOperator.comparator
+        )
+        val globalCollected = AtomicLong(0L)
+
+        /*
+         * Collect incoming flows into a local HeapSelection object (one per flow to avoid contention).
+         *
+         * For pre-sorted and pre-limited input, the HeapSelection should incur only minimal overhead because
+         * sorting only kicks in if k entries have been added.
+         */
         val jobs = incoming.map { op ->
             launch {
                 val localSelection = HeapSelection(this@MergeLimitingHeapSortOperator.limit, this@MergeLimitingHeapSortOperator.comparator)
+                var localCollected = 0L
                 op.toFlow(context).collect {
-                    collected.incrementAndGet()
+                    localCollected += 1L
                     localSelection.offer(it)
                 }
                 for (i in 0 until localSelection.size) {
                     globalSelection.offer(localSelection[i])
                 }
+                globalCollected.addAndGet(localCollected)
             }
         }
         jobs.forEach { it.join() } /* Wait for jobs to complete. */
-        LOGGER.debug("Collection of ${collected.get()} records from ${jobs.size} partitions completed! ")
+        LOGGER.debug("Collection of ${globalCollected.get()} records from ${jobs.size} partitions completed! ")
 
-        for (i in 0 until globalSelection.size) {
+        for (i in 0 until this@MergeLimitingHeapSortOperator.limit) {
             val rec = globalSelection[i]
             this@MergeLimitingHeapSortOperator.context.update(rec)
             send(rec)
