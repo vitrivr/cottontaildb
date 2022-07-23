@@ -10,7 +10,7 @@ import kotlin.math.min
  * A data structure used for heap based sorting.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 class HeapSelection<T>(val k: Long, val comparator: Comparator<T>) {
 
@@ -38,8 +38,9 @@ class HeapSelection<T>(val k: Long, val comparator: Comparator<T>) {
      * Adds a new element to this [HeapSelection].
      *
      * @param element The element to add to this [HeapSelection].
+     * @return The smallest element in the heap.
      */
-    fun offer(element: T) = this.lock.write {
+    fun offer(element: T): T = this.lock.write {
         if ((this.added++) < this.k) {
             this.sorted = false
             this.heap.add(element)
@@ -52,6 +53,7 @@ class HeapSelection<T>(val k: Long, val comparator: Comparator<T>) {
                 siftDown(0, this.k - 1)
             }
         }
+        this.heap[0]
     }
 
     /**
