@@ -12,6 +12,7 @@ import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.utilities.selection.HeapSelection
+import java.lang.Long.min
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -78,7 +79,7 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, val context: Bindin
         jobs.forEach { it.join() } /* Wait for jobs to complete. */
         LOGGER.debug("Collection of ${globalCollected.get()} records from ${jobs.size} partitions completed! ")
 
-        for (i in 0 until this@MergeLimitingHeapSortOperator.limit) {
+        for (i in 0 until min(this@MergeLimitingHeapSortOperator.limit, globalSelection.size)) {
             val rec = globalSelection[i]
             this@MergeLimitingHeapSortOperator.context.update(rec)
             send(rec)
