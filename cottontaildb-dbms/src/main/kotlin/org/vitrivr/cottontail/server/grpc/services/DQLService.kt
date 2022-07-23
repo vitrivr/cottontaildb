@@ -7,7 +7,10 @@ import org.vitrivr.cottontail.dbms.execution.operators.system.ExplainQueryOperat
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
-import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.*
+import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.LeftConjunctionOnSubselectRewriteRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.LeftConjunctionRewriteRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.RightConjunctionOnSubselectRewriteRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.RightConjunctionRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.BooleanIndexScanRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.FulltextIndexRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanClass1Rule
@@ -15,7 +18,9 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSInde
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.merge.LimitingSortMergeRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.CountPushdownRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.simd.FunctionVectorisationRule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnPhysicalFetchRewriteRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnFetchRewriteRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnScanRewriteRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFunctionRewriteRule
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpcKt
@@ -34,8 +39,23 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
     private val planner: CottontailQueryPlanner
 
     init {
-        val logical = listOf(LeftConjunctionRewriteRule, RightConjunctionRewriteRule, LeftConjunctionOnSubselectRewriteRule, RightConjunctionOnSubselectRewriteRule, DeferFetchOnScanRewriteRule, DeferFetchOnLogicalFetchRewriteRule)
-        val physical =  mutableListOf(BooleanIndexScanRule, NNSIndexScanClass1Rule, NNSIndexScanClass3Rule, FulltextIndexRule, CountPushdownRule, LimitingSortMergeRule, DeferFetchOnPhysicalFetchRewriteRule)
+        val logical = listOf(
+            LeftConjunctionRewriteRule,
+            RightConjunctionRewriteRule,
+            LeftConjunctionOnSubselectRewriteRule,
+            RightConjunctionOnSubselectRewriteRule
+        )
+        val physical =  mutableListOf(
+            BooleanIndexScanRule,
+            NNSIndexScanClass1Rule,
+            NNSIndexScanClass3Rule,
+            FulltextIndexRule,
+            CountPushdownRule,
+            LimitingSortMergeRule,
+            DeferFetchOnScanRewriteRule,
+            DeferFetchOnFetchRewriteRule,
+            DeferFunctionRewriteRule
+        )
         if (this.catalogue.config.execution.simd) {
             physical += FunctionVectorisationRule(this.catalogue.config.execution.simdThreshold)
         }

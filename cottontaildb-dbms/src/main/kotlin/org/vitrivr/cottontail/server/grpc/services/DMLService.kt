@@ -6,11 +6,10 @@ import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
-import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.DeferFetchOnLogicalFetchRewriteRule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.DeferFetchOnScanRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.LeftConjunctionRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.RightConjunctionRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.BooleanIndexScanRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnScanRewriteRule
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DMLGrpc
 import org.vitrivr.cottontail.grpc.DMLGrpcKt
@@ -30,8 +29,7 @@ class DMLService(override val catalogue: Catalogue, override val manager: Transa
         logicalRules = listOf(
             LeftConjunctionRewriteRule,
             RightConjunctionRewriteRule,
-            DeferFetchOnScanRewriteRule,
-            DeferFetchOnLogicalFetchRewriteRule
+            DeferFetchOnScanRewriteRule
         ),
         physicalRules = listOf(BooleanIndexScanRule),
         this.catalogue.config.cache.planCacheSize

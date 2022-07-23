@@ -31,6 +31,8 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.Fulltex
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanClass3Rule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.merge.LimitingSortMergeRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.CountPushdownRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnFetchRewriteRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnScanRewriteRule
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
 /**
@@ -72,11 +74,17 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             LeftConjunctionRewriteRule,
             RightConjunctionRewriteRule,
             LeftConjunctionOnSubselectRewriteRule,
-            RightConjunctionOnSubselectRewriteRule,
-            DeferFetchOnScanRewriteRule,
-            DeferFetchOnLogicalFetchRewriteRule
+            RightConjunctionOnSubselectRewriteRule
         ),
-        physicalRules = listOf(BooleanIndexScanRule, NNSIndexScanClass3Rule, FulltextIndexRule, CountPushdownRule, LimitingSortMergeRule),
+        physicalRules = listOf(
+            BooleanIndexScanRule,
+            NNSIndexScanClass3Rule,
+            FulltextIndexRule,
+            CountPushdownRule,
+            LimitingSortMergeRule,
+            DeferFetchOnScanRewriteRule,
+            DeferFetchOnFetchRewriteRule
+        ),
         this.catalogue.config.cache.planCacheSize
     )
 
