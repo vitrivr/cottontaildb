@@ -51,21 +51,22 @@ class ExplainQueryOperator(private val candidates: Collection<OperatorNode.Physi
             this@ExplainQueryOperator.costPolicy.toScore(cost)
         }?.first ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for query. Maybe there is an index missing?")
         val columns = this.columns.toTypedArray()
-        val values = Array<Value?>(this@ExplainQueryOperator.columns.size) { null }
         return flow {
             val plan = enumerate(LinkedList(), emptyArray(), selected)
             var row = 0L
             for (p in plan) {
                 val node = p.second
-                values[0] = StringValue(p.first)
-                values[1] = StringValue(node.javaClass.simpleName)
-                values[2] = LongValue(node.outputSize)
-                values[3] = FloatValue(node.cost.cpu)
-                values[4] = FloatValue(node.cost.io)
-                values[5] = FloatValue(node.cost.memory)
-                values[6] = FloatValue(node.cost.accuracy)
-                values[7] = StringValue(node.traits.map { it.value.toString() }.joinToString(","))
-                values[8] = StringValue(node.toString())
+                val values = arrayOf<Value?>(
+                    StringValue(p.first),
+                    StringValue(node.javaClass.simpleName),
+                    LongValue(node.outputSize),
+                    FloatValue(node.cost.cpu),
+                    FloatValue(node.cost.io),
+                    FloatValue(node.cost.memory),
+                    FloatValue(node.cost.accuracy),
+                    StringValue(node.traits.map { it.value.toString() }.joinToString(",")),
+                    StringValue(node.toString())
+                )
                 emit(StandaloneRecord(row++, columns, values))
             }
         }
@@ -81,6 +82,7 @@ class ExplainQueryOperator(private val candidates: Collection<OperatorNode.Physi
     private fun enumerate(list: MutableList<Pair<String, OperatorNode.Physical>>, path: Array<Int>, vararg nodes: OperatorNode.Physical): List<Pair<String,OperatorNode.Physical>> {
         for ((index, node) in nodes.withIndex()) {
             val newPath = (path + index)
+            list.add(Pair(newPath.joinToString("."), node))
             when (node) {
                 is UnaryPhysicalOperatorNode -> this.enumerate(list, newPath, node.input ?: throw IllegalStateException("Encountered null node in physical operator node tree (node = $node). This is a programmer's error!"))
                 is BinaryPhysicalOperatorNode -> this.enumerate(list,
@@ -91,7 +93,6 @@ class ExplainQueryOperator(private val candidates: Collection<OperatorNode.Physi
                 is NAryPhysicalOperatorNode -> this.enumerate(list, newPath, *node.inputs.toTypedArray())
                 else -> { /* No op. */ }
             }
-            list.add(Pair(newPath.joinToString("."), node))
         }
         return list
     }
