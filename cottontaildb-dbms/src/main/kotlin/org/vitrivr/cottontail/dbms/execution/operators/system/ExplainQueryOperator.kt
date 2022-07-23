@@ -19,8 +19,8 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.BinaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.NAryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
+import java.util.*
 
 /**
  * An [Operator.SourceOperator] used during query execution. Used to explain queries
@@ -53,7 +53,7 @@ class ExplainQueryOperator(private val candidates: Collection<OperatorNode.Physi
         val columns = this.columns.toTypedArray()
         val values = Array<Value?>(this@ExplainQueryOperator.columns.size) { null }
         return flow {
-            val plan = enumerate(emptyArray(), selected)
+            val plan = enumerate(LinkedList(), emptyArray(), selected)
             var row = 0L
             for (p in plan) {
                 val node = p.second
@@ -78,20 +78,20 @@ class ExplainQueryOperator(private val candidates: Collection<OperatorNode.Physi
      * @param path An [Array] tracking the current depth of the execution plan.
      * @param nodes The [OperatorNode.Physical] to explain.
      */
-    private fun enumerate(path: Array<Int> = emptyArray(), vararg nodes: OperatorNode.Physical): List<Pair<String,OperatorNode.Physical>> {
-        val list = mutableListOf<Pair<String, OperatorNode.Physical>>()
+    private fun enumerate(list: MutableList<Pair<String, OperatorNode.Physical>>, path: Array<Int>, vararg nodes: OperatorNode.Physical): List<Pair<String,OperatorNode.Physical>> {
         for ((index, node) in nodes.withIndex()) {
             val newPath = (path + index)
             when (node) {
-                is NullaryPhysicalOperatorNode -> list += Pair(newPath.joinToString("."), node)
-                is UnaryPhysicalOperatorNode -> list += this.enumerate(newPath, node.input ?: throw IllegalStateException("Encountered null node in physical operator node tree (node = $node). This is a programmer's error!"))
-                is BinaryPhysicalOperatorNode -> list += this.enumerate(
+                is UnaryPhysicalOperatorNode -> this.enumerate(list, newPath, node.input ?: throw IllegalStateException("Encountered null node in physical operator node tree (node = $node). This is a programmer's error!"))
+                is BinaryPhysicalOperatorNode -> this.enumerate(list,
                     newPath,
                     node.left ?: throw IllegalStateException("Encountered null node in physical operator node tree (node = $node). This is a programmer's error!"),
                     node.right ?: throw IllegalStateException("Encountered null node in physical operator node tree (node = $node). This is a programmer's error!")
                 )
-                is NAryPhysicalOperatorNode -> list += this.enumerate(newPath, *node.inputs.toTypedArray())
+                is NAryPhysicalOperatorNode -> this.enumerate(list, newPath, *node.inputs.toTypedArray())
+                else -> { /* No op. */ }
             }
+            list.add(Pair(newPath.joinToString("."), node))
         }
         return list
     }
