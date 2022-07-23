@@ -74,7 +74,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
     inner class Tx constructor(context: TransactionContext) : AbstractTx(context), ColumnTx<T>, org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization  {
 
         /** Internal data [Store] reference. */
-        private val dataStore: Store = this@DefaultColumn.catalogue.environment.openStore(
+        internal val dataStore: Store = this@DefaultColumn.catalogue.environment.openStore(
             this@DefaultColumn.name.storeName(),
             StoreConfig.USE_EXISTING,
             this.context.xodusTx,
@@ -82,7 +82,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@DefaultColumn.name} is missing.")
 
         /** The internal [XodusBinding] reference used for de-/serialization. */
-        private val binding: XodusBinding<T> = ValueSerializerFactory.xodus(this@DefaultColumn.columnDef.type, this@DefaultColumn.nullable)
+        internal val binding: XodusBinding<T> = ValueSerializerFactory.xodus(this@DefaultColumn.columnDef.type, this@DefaultColumn.nullable)
 
         /** Internal reference to the [ValueStatistics] for this [DefaultColumn]. */
         @Suppress("UNCHECKED_CAST")
@@ -275,69 +275,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
          * @return [Cursor]
          */
         override fun cursor(partition: LongRange): Cursor<T?> = this.txLatch.withLock {
-            object : Cursor<T?> {
-
-                /** The per-[Cursor] [XodusBinding] instance. */
-                private val binding: XodusBinding<T> = ValueSerializerFactory.xodus(this@DefaultColumn.columnDef.type, this@DefaultColumn.nullable)
-
-                /** Creates a read-only snapshot of the enclosing Tx. */
-                private val subTransaction = this@Tx.context.xodusTx.readonlySnapshot
-
-                /** Internal [Cursor] used for iteration. */
-                private val cursor: jetbrains.exodus.env.Cursor = this@Tx.dataStore.openCursor(this.subTransaction)
-
-                /** The [TupleId] this [Cursor] is currently pointing to. -1L is equivalent to BOF. */
-                private var tupleId: TupleId = -1L
-
-                /** The [TupleId] this [Cursor] is currently pointing to. -1L is equivalent to BOF. */
-                private var value: T? = null
-
-                /** Flag indicating, that data must be read from store. */
-                private var dirty: Boolean = true
-
-                /**
-                 * Tries to move this [Cursor] to the next entry.
-                 *
-                 * @return True on success, false otherwise,
-                 */
-                override fun moveNext(): Boolean {
-                    check(!this.subTransaction.isFinished) { "Cursor cannot be moved because associated transaction has completed!" }
-                    this.dirty = if (this.tupleId == BOC) {
-                        if (partition.first == BOC) return false
-                        this.cursor.getSearchKeyRange(partition.first.toKey()) != null
-                    } else {
-                        this.cursor.next
-                    }
-                    if (this.dirty) {
-                        this.tupleId = LongBinding.compressedEntryToLong(this.cursor.key)
-                    }
-                    return this.dirty && this.tupleId <= partition.last
-                }
-
-                /**
-                 *
-                 */
-                override fun key(): TupleId = this.tupleId
-
-                /**
-                 *
-                 */
-                override fun value(): T? {
-                    if (this.dirty) {
-                        this.value = this.binding.entryToValue(this.cursor.value)
-                        this.dirty = false
-                    }
-                    return this.value
-                }
-
-                /**
-                 * Closes this [Cursor] and invalidates the associated sub transaction.
-                 */
-                override fun close() {
-                    this.cursor.close()
-                    this.subTransaction.abort()
-                }
-            }
+            DefaultColumnCursor(partition, this, this.context)
         }
 
         /**

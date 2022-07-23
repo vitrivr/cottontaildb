@@ -305,33 +305,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return [Cursor]
          */
         override fun cursor(columns: Array<ColumnDef<*>>, partition: LongRange) = this.txLatch.withLock {
-            object : Cursor<Record> {
-
-                /** The wrapped [Cursor] to iterate over columns. */
-                private val cursors: Array<Cursor<out Value?>> = Array(columns.size) {
-                    (this@Tx.context.getTx(this@Tx.columns[columns[it].name] ?: throw IllegalStateException("Column ${columns[it]} missing in transaction.")) as ColumnTx<*>).cursor(partition)
-                }
-
-                /**
-                 * Returns the [TupleId] this [Cursor] is currently pointing to.
-                 */
-                override fun key(): TupleId = this.cursors[0].key()
-
-                /**
-                 * Returns the [Record] this [Cursor] is currently pointing to.
-                 */
-                override fun value(): Record = StandaloneRecord(this.cursors[0].key(), columns, Array(columns.size) { this.cursors[it].value() })
-
-                /**
-                 * Tries to move this [Cursor]. Returns true on success and false otherwise.
-                 */
-                override fun moveNext(): Boolean = this.cursors.all { it.moveNext() }
-
-                /**
-                 * Closes this [Cursor].
-                 */
-                override fun close() = this.cursors.forEach { it.close() }
-            }
+            DefaultEntityCursor(columns, partition, this, this.context)
         }
 
         /**
