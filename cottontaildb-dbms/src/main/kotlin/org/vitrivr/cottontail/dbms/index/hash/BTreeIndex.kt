@@ -11,6 +11,7 @@ import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
@@ -216,7 +217,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          */
         override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> = this.txLatch.withLock {
             require(predicate is BooleanPredicate) { "BTree index can only process boolean predicates." }
-            emptyMap()
+            mapOf(NotPartitionableTrait to NotPartitionableTrait)
         }
 
         /**
@@ -307,7 +308,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @return The resulting [Cursor].
          */
         override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> {
-            throw UnsupportedOperationException("The NonUniqueHashIndex does not support ranged filtering!")
+            throw UnsupportedOperationException("BTreeIndex does not support ranged filtering!")
         }
     }
 }
