@@ -17,7 +17,6 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
@@ -33,7 +32,6 @@ import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
-import java.util.*
 import kotlin.concurrent.withLock
 
 /**
@@ -144,10 +142,10 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
 
         /** The internal [XodusBinding] reference used for de-/serialization. */
         @Suppress("UNCHECKED_CAST")
-        private val binding: XodusBinding<Value> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable) as XodusBinding<Value>
+        internal val binding: XodusBinding<Value> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable) as XodusBinding<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
-        private val dataStore: Store = this@BTreeIndex.catalogue.environment.openStore(this@BTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
+        internal val dataStore: Store = this@BTreeIndex.catalogue.environment.openStore(this@BTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@BTreeIndex.name} is missing.")
 
         /**
@@ -283,63 +281,21 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * Performs a lookup through this [BTreeIndex.Tx] and returns a [Iterator] of all [Record]s that match the [Predicate].
          * Only supports [BooleanPredicate.Atomic]s.
          *
-         * The [Iterator] is not thread safe!
+         * The [Cursor] is not thread safe!
          *
          * @param predicate The [Predicate] for the lookup
-         * @return The resulting [Iterator]
+         * @return The resulting [Cursor]
          */
         override fun filter(predicate: Predicate) = this.txLatch.withLock {
-            object : Cursor<Record> {
-                /** A [Queue] with values that should be queried. */
-                private val queryValueQueue: Queue<Value> = LinkedList()
-
-                /** Internal cursor used for navigation. */
-                private val subTransaction = this@Tx.context.xodusTx.readonlySnapshot
-
-                /** Internal cursor used for navigation. */
-                private val cursor: jetbrains.exodus.env.Cursor
-
-                /* Perform initial sanity checks. */
-                init {
-                    require(predicate is BooleanPredicate.Atomic) { "NonUniqueHashIndex.filter() does only support Atomic.Literal boolean predicates." }
-                    require(!predicate.not) { "NonUniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
-                    when (predicate.operator) {
-                        is ComparisonOperator.In -> this.queryValueQueue.addAll((predicate.operator as ComparisonOperator.In).right.mapNotNull { it.value })
-                        is ComparisonOperator.Binary.Equal -> this.queryValueQueue.add((predicate.operator as ComparisonOperator.Binary.Equal).right.value ?: throw IllegalArgumentException("UniqueHashIndex.filter() does not support NULL operands."))
-                        else -> throw IllegalArgumentException("UniqueHashIndex.filter() does only support EQUAL and IN operators.")
-                    }
-
-                    /** Initialize cursor. */
-                    this.cursor = this@Tx.dataStore.openCursor(this.subTransaction)
-                }
-
-                override fun moveNext(): Boolean {
-                    /* Check for an existing duplicate for the current cursor. */
-                    try {
-                        if (this.cursor.nextDup) return true
-                    } catch (e: IllegalStateException) {
-                        /* Note: Cursors has not been initialized; this is the case for the first call OR when getSearchKey doesn't return a result. */
-                    }
-
-                    /* Now update cursor and check again. */
-                    var nextQueryValue = this.queryValueQueue.poll()
-                    while (nextQueryValue != null) {
-                        if (this.cursor.getSearchKey(this@Tx.binding.valueToEntry(nextQueryValue)) != null) {
-                            return true
-                        }
-                        nextQueryValue = this.queryValueQueue.poll()
-                    }
-                    return false
-                }
-
-                override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.value)
-
-                override fun value(): Record = StandaloneRecord(this.key(), this@Tx.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.key)))
-
-                override fun close() {
-                    this.cursor.close()
-                    this.subTransaction.abort()
-                }
+            require(predicate is BooleanPredicate.Atomic) { "BTreeIndex.filter() does only support BooleanPredicate.Atomic boolean predicates." }
+            when(predicate.operator) {
+                is ComparisonOperator.Binary.Equal -> BTreeIndexCursor.Equals(predicate, this, this.context)
+                is ComparisonOperator.Binary.Greater -> BTreeIndexCursor.Greater(predicate, this, this.context)
+                is ComparisonOperator.Binary.GreaterEqual -> BTreeIndexCursor.GreaterEqual(predicate, this, this.context)
+                is ComparisonOperator.Binary.Less -> BTreeIndexCursor.Less(predicate, this, this.context)
+                is ComparisonOperator.Binary.LessEqual -> BTreeIndexCursor.LessEqual(predicate, this, this.context)
+                is ComparisonOperator.In -> BTreeIndexCursor.In(predicate, this, this.context)
+                else -> throw IllegalArgumentException("BTreeIndex.filter() does only support =,>=,<=,>,< and IN operators.")
             }
         }
 
