@@ -49,4 +49,17 @@ sealed class VectorDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>): Fun
      * @return Vectorized [VectorDistance]
      */
     abstract fun vectorized(): VectorDistance<T>
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is VectorDistance<*>) return false
+        if (other.name != this.name) return false
+        if (other.type != this.type) return false
+        return true
+    }
+
+
+    override fun hashCode(): Int {
+        val result = this.name.hashCode()
+        return 31 * result + this.type.hashCode()
+    }
 }
