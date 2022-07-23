@@ -73,7 +73,7 @@ class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, v
      *
      * @return Copy of this [FetchPhysicalOperatorNode].
      */
-    override fun copy() = FetchPhysicalOperatorNode(entity = this.entity, fetch = this.fetch)
+    override fun copy() = FetchPhysicalOperatorNode(entity = this.entity, fetch = this.fetch.map { it.first.copy() to it.second })
 
     /**
      * Converts this [FetchPhysicalOperatorNode] to a [FetchOperator].
