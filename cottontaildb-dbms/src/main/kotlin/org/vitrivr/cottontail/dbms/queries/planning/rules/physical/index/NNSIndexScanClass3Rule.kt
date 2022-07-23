@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index
 
+import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
@@ -89,8 +90,12 @@ object NNSIndexScanClass3Rule : RewriteRule {
                     val produces = candidate.columnsFor(predicate)
                     val distanceColumn = predicate.distanceColumn
                     if (produces.contains(predicate.distanceColumn)) {
-                        var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, candidate, predicate, listOf(Pair(node.out.copy(), distanceColumn)))
-                        val newFetch = scan.fetch.filter { !produces.contains(it.second) && it != predicate.column }
+                        val fetch = mutableListOf<Pair<Binding.Column,ColumnDef<*>>>(node.out.copy() to distanceColumn)
+                        if (produces.contains(predicate.column)) {
+                            fetch.add(scan.fetch.filter { it.second == predicate.column }.map { it.first.copy() to it.second }.single())
+                        }
+                        var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, candidate, predicate, fetch)
+                        val newFetch = scan.fetch.filter { !produces.contains(it.second) }
                         if (newFetch.isNotEmpty()) {
                             p = FetchPhysicalOperatorNode(p, scan.entity, newFetch)
                         }
