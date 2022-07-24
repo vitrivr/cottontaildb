@@ -99,7 +99,7 @@ object NNSIndexScanClass3Rule : RewriteRule {
                         if (newFetch.isNotEmpty()) {
                             p = FetchPhysicalOperatorNode(p, scan.entity, newFetch)
                         }
-                        return node.output?.copyWithOutput(p) ?: p
+                        return limit.output?.copyWithOutput(p) ?: p
                     }
                 }
             }
