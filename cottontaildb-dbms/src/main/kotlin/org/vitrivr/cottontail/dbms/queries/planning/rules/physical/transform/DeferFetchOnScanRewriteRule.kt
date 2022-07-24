@@ -47,16 +47,16 @@ object DeferFetchOnScanRewriteRule: RewriteRule {
                 /* Remove required elements from candidate list. */
                 candidates.removeAll(required)
                 if (candidates.isEmpty()) return null
+            }
 
-                /* Defer if end of tree is reached or expected number of output elements decreases. */
-                if (next.outputSize < prev!!.outputSize) {
-                    var p = next.copyWithInputs().base.first().output!!.copyWithOutput(EntityScanPhysicalOperatorNode(originalGroupId, node.entity, node.fetch.filter { !candidates.contains(it) }))
-                    if (next.output != null) {
-                        p = FetchPhysicalOperatorNode(p, node.entity, candidates.map { it.first to it.second })
-                        p = next.output?.copyWithOutput(p) ?: p
-                    }
-                    return p
+            /* Defer if end of tree is reached or expected number of output elements decreases. */
+            if (next.outputSize < prev!!.outputSize) {
+                var p = next.copyWithInputs().base.first().output!!.copyWithOutput(EntityScanPhysicalOperatorNode(originalGroupId, node.entity, node.fetch.filter { !candidates.contains(it) }))
+                if (next.output != null) {
+                    p = FetchPhysicalOperatorNode(p, node.entity, candidates.map { it.first to it.second })
+                    p = next.output?.copyWithOutput(p) ?: p
                 }
+                return p
             }
 
             /* Move to next nodes. */
