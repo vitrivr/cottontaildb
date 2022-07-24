@@ -5,6 +5,7 @@ import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
@@ -178,16 +179,16 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             return when (predicate) {
                 is ProximityPredicate.Scan -> Cost.INVALID
                 is ProximityPredicate.ENN -> Cost.INVALID
-                is ProximityPredicate.FNS -> {
-                    (Cost.DISK_ACCESS_READ + Cost.DISK_ACCESS_READ * this.columns[0].type.physicalSize * 0.1f + /* Access to all signatures + access to 10% of vectors. */
-                            (Cost.MEMORY_ACCESS * 2.0f + Cost.FLOP) + predicate.cost * 0.1f) * this.count() +   /* Memory access + FLOPS for lower-bound estimate + distance calculation for 10% of vectors. */
-                            Cost(memory = 2.0f * Double.SIZE_BYTES * predicate.k)                               /* Memory for heap selection. */
-                }
-                is ProximityPredicate.NNS ->{
-                    (Cost.DISK_ACCESS_READ + Cost.DISK_ACCESS_READ * this.columns[0].type.physicalSize * 0.1f + /* Access to all signatures + access to 10% of vectors. */
-                            (Cost.MEMORY_ACCESS * 2.0f + Cost.FLOP) + predicate.cost * 0.1f) * this.count() +   /* Memory access + FLOPS for lower-bound estimate + distance calculation for 10% of vectors. */
-                            Cost(memory = 2.0f * Double.SIZE_BYTES * predicate.k)                               /* Memory for heap selection. */
-                }
+                is ProximityPredicate.FNS -> Cost(
+                    Cost.DISK_ACCESS_READ.io * this.columns[0].type.physicalSize * 0.1f,
+                    (Cost.MEMORY_ACCESS.memory * 2.0f + Cost.FLOP.cpu) * this.columns[0].type.logicalSize + predicate.cost.cpu * 0.1f,
+                    (Long.SIZE_BYTES + Double.SIZE_BYTES + this.columns[0].type.physicalSize).toFloat() * predicate.k
+                )
+                is ProximityPredicate.NNS -> Cost(
+                    Cost.DISK_ACCESS_READ.io * this.columns[0].type.physicalSize * 0.1f,
+                    (Cost.MEMORY_ACCESS.memory * 2.0f + Cost.FLOP.cpu) * this.columns[0].type.logicalSize + predicate.cost.cpu * 0.1f,
+                    (Long.SIZE_BYTES + Double.SIZE_BYTES + this.columns[0].type.physicalSize).toFloat() * predicate.k
+                )
             }
         }
 
@@ -312,9 +313,15 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Iterator].
          */
-        override fun filter(predicate: Predicate, partition: LongRange) = this.txLatch.withLock {
+        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> = this.txLatch.withLock {
             require(predicate is ProximityPredicate) { "VAFIndex can only be used with a SCAN type proximity predicate. This is a programmer's error!" }
-            VAFCursor(partition, predicate, this, this.context)
+            val cached = VAFIndexCache.get(this@VAFIndex.name, partition)
+            if (cached != null) {
+                return VAFCacheCursor(partition, predicate, this, this.context, cached)
+            } else {
+                VAFIndexCache.initialize(this@VAFIndex.name, partition)
+                return VAFCursor(partition, predicate, this, this.context)
+            }
         }
     }
 }
