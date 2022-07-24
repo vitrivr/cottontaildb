@@ -42,19 +42,10 @@ object BooleanIndexScanRule : RewriteRule {
                 val normalizedPredicate = this.normalize(node.predicate, fetch)
 
                 /* Extract index hint and search for candidate. */
-                val hint = ctx.hints.filterIsInstance<QueryHint.IndexHint>().firstOrNull()
-                val candidate = if (hint != null) {
-                    parent.entity.listIndexes().map {
-                        parent.entity.context.getTx(parent.entity.indexForName(it)) as IndexTx
-                    }.find {
-                        it.state != IndexState.DIRTY && hint.matches(it.dbo) && it.canProcess(normalizedPredicate)
-                    }
-                } else {
-                    parent.entity.listIndexes().map {
-                        parent.entity.context.getTx(parent.entity.indexForName(it)) as IndexTx
-                    }.find {
-                        it.state != IndexState.DIRTY && it.canProcess(normalizedPredicate)
-                    }
+                val candidate = parent.entity.listIndexes().map {
+                    parent.entity.context.getTx(parent.entity.indexForName(it)) as IndexTx
+                }.find {
+                    it.state != IndexState.DIRTY && it.canProcess(normalizedPredicate)
                 }
 
                 if (candidate != null) {
