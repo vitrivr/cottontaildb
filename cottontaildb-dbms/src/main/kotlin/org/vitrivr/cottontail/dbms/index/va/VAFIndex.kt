@@ -315,13 +315,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          */
         override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> = this.txLatch.withLock {
             require(predicate is ProximityPredicate) { "VAFIndex can only be used with a SCAN type proximity predicate. This is a programmer's error!" }
-            val cached = VAFIndexCache.get(this@VAFIndex.name, partition)
-            if (cached != null) {
-                return VAFCacheCursor(partition, predicate, this, this.context, cached)
-            } else {
-                VAFIndexCache.initialize(this@VAFIndex.name, partition)
-                return VAFCursor(partition, predicate, this, this.context)
-            }
+            return VAFCursor(partition, predicate, this, this.context)
         }
     }
 }
