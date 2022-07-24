@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
@@ -111,10 +112,26 @@ sealed class AbstractValueStatistics<T : Value>(override val type: Types<T>): Va
 
     /**
      * Estimates [Selectivity] of the given [BooleanPredicate.Atomic], i.e., the percentage of [org.vitrivr.cottontail.core.basics.Record]s that match it.
-     * Defaults to [Selectivity.DEFAULT_SELECTIVITY] but can be overridden by concrete implementations.
+     * Defaults to [Selectivity.DEFAULT] but can be overridden by concrete implementations.
      *
      * @param predicate [BooleanPredicate.Atomic] To estimate [Selectivity] for.
      * @return [Selectivity] estimate.
      */
-    override fun estimateSelectivity(predicate: BooleanPredicate.Atomic): Selectivity = Selectivity.DEFAULT_SELECTIVITY
+    override fun estimateSelectivity(predicate: BooleanPredicate.Atomic): Selectivity = when(val operator = predicate.operator){
+        /* This can actually be calculated exactly. */
+        is ComparisonOperator.IsNull -> if (predicate.not) {
+            Selectivity(this.numberOfNonNullEntries.toFloat() / this.numberOfEntries.toFloat())
+        } else {
+            Selectivity(this.numberOfNullEntries.toFloat() / this.numberOfEntries.toFloat())
+        }
+
+        /* Assumption: All elements in IN are matches. */
+        is ComparisonOperator.In -> if (predicate.not) {
+            Selectivity((this.numberOfEntries - operator.right.size).toFloat() / this.numberOfEntries.toFloat())
+        } else {
+            Selectivity(operator.right.size / this.numberOfEntries.toFloat())
+        }
+
+        else -> Selectivity.DEFAULT
+    }
 }

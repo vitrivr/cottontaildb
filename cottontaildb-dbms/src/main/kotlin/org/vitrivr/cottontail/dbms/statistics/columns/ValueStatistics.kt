@@ -81,7 +81,7 @@ sealed interface ValueStatistics<T : Value> {
 
     /**
      * Estimates [Selectivity] of the given [BooleanPredicate.Atomic], i.e., the percentage of [org.vitrivr.cottontail.core.basics.Record]s that match it.
-     * Defaults to [Selectivity.DEFAULT_SELECTIVITY] but can be overridden by concrete implementations.
+     * Defaults to [Selectivity.DEFAULT] but can be overridden by concrete implementations.
      *
      * @param predicate [BooleanPredicate.Atomic] To estimate [Selectivity] for.
      * @return [Selectivity] estimate.
