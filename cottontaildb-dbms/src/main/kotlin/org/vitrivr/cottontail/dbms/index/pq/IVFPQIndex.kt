@@ -111,7 +111,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          */
         override fun buildConfig(parameters: Map<String, String>): IndexConfig<IVFPQIndex> = IVFPQIndexConfig(
             parameters[IVFPQIndexConfig.KEY_DISTANCE]?.let { Name.FunctionName(it) } ?: EuclideanDistance.FUNCTION_NAME,
-            parameters[IVFPQIndexConfig.KEY_NUM_CENTROIDS]?.toInt() ?: IVFPQIndexConfig.DEFAULT_COARSE_CENTROIDS,
+            parameters[IVFPQIndexConfig.KEY_NUM_COARSE_CENTROIDS]?.toInt() ?: IVFPQIndexConfig.DEFAULT_COARSE_CENTROIDS,
             parameters[IVFPQIndexConfig.KEY_NUM_CENTROIDS]?.toInt() ?: IVFPQIndexConfig.DEFAULT_CENTROIDS,
             parameters[PQIndexConfig.KEY_NUM_SUBSPACES]?.toInt() ?: IVFPQIndexConfig.DEFAULT_SUBSPACES,
             parameters[IVFPQIndexConfig.KEY_SEED]?.toInt() ?: System.currentTimeMillis().toInt()
@@ -197,8 +197,10 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
             if (predicate !is ProximityPredicate.Scan) return Cost.INVALID
             if (predicate.column != this.columns[0]) return Cost.INVALID
             if (predicate.distance.name != (this.config as IVFPQIndexConfig).distance) return Cost.INVALID
-            val count = this.count()
-            return Cost(count * this.config.numSubspace * Cost.DISK_ACCESS_READ.io, count * (4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu) + predicate.cost.cpu)
+            return (Cost(
+                Cost.DISK_ACCESS_READ.io * Short.SIZE_BYTES,
+                4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu
+            ) / this.quantizer.coarse.centroids.size.toFloat()) * this.quantizer.fine.size
         }
 
         /**

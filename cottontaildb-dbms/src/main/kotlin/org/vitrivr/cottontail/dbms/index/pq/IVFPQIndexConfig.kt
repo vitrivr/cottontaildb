@@ -45,8 +45,6 @@ class IVFPQIndexConfig(val distance: Name.FunctionName, val numCoarseCentroids: 
         /** Configuration key for the number of centroids. */
         const val KEY_SEED = "ivfpq.seed"
 
-
-
         /** Set of supported distances. */
         val SUPPORTED_DISTANCES: Set<Name.FunctionName> = setOf(ManhattanDistance.FUNCTION_NAME, EuclideanDistance.FUNCTION_NAME, SquaredEuclideanDistance.FUNCTION_NAME, CosineDistance.FUNCTION_NAME)
     }
