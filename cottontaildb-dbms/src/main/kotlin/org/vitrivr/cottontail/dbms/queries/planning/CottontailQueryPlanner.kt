@@ -81,9 +81,8 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         for (d in decomposition) {
             val stage1 = this.optimizeLogical(d.value, context).map { it.implement() }
             val stage2 = stage1.flatMap { this.optimizePhysical(it, context) }
-            val executable = stage2.filter { it.executable }
-            val normalized = NormalizedCost.normalize(executable.map { it.totalCost })
-            val candidate = executable.zip(normalized).minByOrNull { (_, cost) ->
+            val normalized = NormalizedCost.normalize(stage2.map { it.totalCost })
+            val candidate = stage2.zip(normalized).minByOrNull { (_, cost) ->
                 context.costPolicy.toScore(cost)
             }?.first ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for expression: $logical.")
             candidates[d.key] = candidate
@@ -213,7 +212,9 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
                     val result = rule.apply(pointer, ctx)
                     if (result is OperatorNode.Physical) {
                         explore.enqueue(result)
-                        candidates.enqueue(result)
+                        if (result.executable) {
+                            candidates.enqueue(result)
+                        }
                     }
                 }
             }
