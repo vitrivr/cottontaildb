@@ -57,7 +57,7 @@ sealed interface ComparisonOperator: BindableNode, NodeWithCost {
 
         /** The cost of evaluating a [Binary]. */
         override val cost: Cost
-            get() = Cost.MEMORY_ACCESS * 2
+            get() = Cost.MEMORY_ACCESS * 5
 
         /**
          * Copies this [Binary], creating a new [Binary] that is initially bound to the same [Binding]s.
