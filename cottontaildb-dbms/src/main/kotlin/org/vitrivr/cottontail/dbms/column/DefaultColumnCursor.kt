@@ -27,17 +27,17 @@ class DefaultColumnCursor<T: Value>(private val partition: LongRange, private va
     private val cursor: jetbrains.exodus.env.Cursor = this.tx.dataStore.openCursor(this.subTransaction)
 
     /** The [TupleId] to start with. */
-    private val startKey = partition.first.toKey()
+    private val startKey = this.partition.first.toKey()
 
     /** The [TupleId] to end at. */
-    private val endKey = partition.last.toKey()
+    private val endKey = this.partition.last.toKey()
 
     /** Flag indicating, that data must be read from store. */
     private val boc = AtomicBoolean(false)
 
     init {
-        if (this.cursor.getSearchKeyRange(startKey) != null) {
-            AtomicBoolean(true)
+        if (this.cursor.getSearchKeyRange(this.startKey) != null) {
+            this.boc.set(true)
         }
     }
 
@@ -47,7 +47,7 @@ class DefaultColumnCursor<T: Value>(private val partition: LongRange, private va
      * @return True on success, false otherwise,
      */
     override fun moveNext(): Boolean
-        = this.boc.compareAndSet(true, false) || (this.cursor.next && this.cursor.key < this.endKey)
+        = (this.boc.compareAndExchange(true, false) || (this.cursor.key < this.endKey && this.cursor.next))
 
     /**
      * Tries to move this [Cursor] to the previous [TupleId].
@@ -69,14 +69,12 @@ class DefaultColumnCursor<T: Value>(private val partition: LongRange, private va
     /**
      * Returns the [TupleId] this [DefaultColumnCursor] is currently pointing to.
      */
-    override fun key(): TupleId
-        = LongBinding.compressedEntryToLong(this.cursor.key)
+    override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
 
     /**
      * Returns the [Value] this [DefaultColumnCursor] is currently pointing to.
      */
-    override fun value(): T?
-        = this.binding.entryToValue(this.cursor.value)
+    override fun value(): T? = this.binding.entryToValue(this.cursor.value)
 
     /**
      * Closes this [DefaultColumnCursor] and invalidates the associated sub transaction.
