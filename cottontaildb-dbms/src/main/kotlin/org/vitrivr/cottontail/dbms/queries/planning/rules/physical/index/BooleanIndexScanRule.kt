@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
 import org.vitrivr.cottontail.dbms.index.basic.IndexTx
-import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
@@ -27,8 +26,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  */
 object BooleanIndexScanRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean = node is FilterPhysicalOperatorNode &&
-        node.input is EntityScanPhysicalOperatorNode &&
-        !ctx.hints.contains(QueryHint.IndexHint.None)
+        node.input is EntityScanPhysicalOperatorNode
 
     /**
      * Applies this [BooleanIndexScanRule] and tries to replace a [EntityScanPhysicalOperatorNode] followed by a [FilterLogicalOperatorNode]
