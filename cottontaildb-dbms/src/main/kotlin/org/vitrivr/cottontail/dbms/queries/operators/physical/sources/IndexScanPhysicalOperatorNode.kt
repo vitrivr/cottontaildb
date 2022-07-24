@@ -26,6 +26,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysica
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.LimitPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
+import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
 
 /**
  * A [IndexScanPhysicalOperatorNode] that represents a predicated lookup using an [AbstractIndex].
@@ -61,43 +62,12 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
     override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
 
     /** Cost estimation for [IndexScanPhysicalOperatorNode]s is delegated to the [Index]. */
-    override val cost: Cost = this.index.costFor(this.predicate)
-
-    /** Returns [Map] of [Trait]s for this [IndexScanOperator], which is derived directly from the [Index]*/
-    override val traits: Map<TraitType<*>, Trait>
-
-    /** The estimated output size of this [IndexScanPhysicalOperatorNode]. */
-    override val outputSize: Long = when (this.predicate) {
-        is ProximityPredicate.Scan -> this.index.count()
-        is ProximityPredicate.NNS -> this.predicate.k
-        is ProximityPredicate.FNS -> this.predicate.k
-        is ProximityPredicate.ENN -> this.index.count() / 2 /* TODO: This is a horrible estimate. */
-        is BooleanPredicate -> {
-            val selectivity = NaiveSelectivityCalculator.estimate(this.predicate, this.statistics)
-            val entityTx = this.index.context.getTx(this.index.dbo.parent) as EntityTx
-            selectivity(entityTx.count())
-        }
+    override val cost: Cost by lazy {
+        this.index.costFor(this.predicate) * this.outputSize
     }
 
-    init {
-        val entityTx = this.index.context.getTx(this.index.dbo.parent) as EntityTx
-        val columns = mutableListOf<ColumnDef<*>>()
-        val physicalColumns = mutableListOf<ColumnDef<*>>()
-        val indexProduces = this.index.columnsFor(this.predicate)
-        val entityProduces = entityTx.listColumns()
-        for ((binding, physical) in this.fetch) {
-            require(indexProduces.contains(physical)) { "The given column $physical is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
-
-            /* Populate list of columns. */
-            columns.add(binding.column)
-            physicalColumns.add(physical)
-
-            /* Populate statistics. */
-            if (!this.statistics.containsKey(binding.column) && entityProduces.contains(physical)) {
-                this.statistics[binding.column] = (this.index.context.getTx(entityTx.columnForName(physical.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
-            }
-        }
-
+    /** Returns [Map] of [Trait]s for this [IndexScanOperator], which is derived directly from the [Index]*/
+    override val traits: Map<TraitType<*>, Trait> by lazy {
         val indexTraits = this.index.traitsFor(this.predicate)
         val traits = mutableMapOf<TraitType<*>,Trait>()
         for ((type, trait) in indexTraits) {
@@ -113,7 +83,43 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
                 else -> traits[type] = trait
             }
         }
-        this.traits = traits
+        traits
+    }
+
+    /** The estimated output size of this [IndexScanPhysicalOperatorNode]. */
+    override val outputSize: Long by lazy {
+        when (this.predicate) {
+            is ProximityPredicate.Scan -> this.index.count()
+            is ProximityPredicate.NNS -> this.predicate.k
+            is ProximityPredicate.FNS -> this.predicate.k
+            is ProximityPredicate.ENN -> Selectivity.DEFAULT(this.index.count())
+            is BooleanPredicate -> {
+                val entityTx = this.index.context.getTx(this.index.dbo.parent) as EntityTx
+                NaiveSelectivityCalculator.estimate(this.predicate, this.statistics)(entityTx.count())
+            }
+        }
+    }
+
+    init {
+        val entityTx = this.index.context.getTx(this.index.dbo.parent) as EntityTx
+        val columns = mutableListOf<ColumnDef<*>>()
+        val physicalColumns = mutableListOf<ColumnDef<*>>()
+        val indexProduces = this.index.columnsFor(this.predicate)
+        val entityProduces = entityTx.listColumns()
+
+        /* Produce statistics. */
+        for ((binding, physical) in this.fetch) {
+            require(indexProduces.contains(physical)) { "The given column $physical is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
+
+            /* Populate list of columns. */
+            columns.add(binding.column)
+            physicalColumns.add(physical)
+
+            /* Populate statistics. */
+            if (!this.statistics.containsKey(binding.column) && entityProduces.contains(physical)) {
+                this.statistics[binding.column] = (this.index.context.getTx(entityTx.columnForName(physical.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
+            }
+        }
 
         /* Initialize local fields. */
         this.columns = columns
