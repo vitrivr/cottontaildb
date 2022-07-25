@@ -63,7 +63,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
 
     /** Cost estimation for [IndexScanPhysicalOperatorNode]s is delegated to the [Index]. */
     override val cost: Cost by lazy {
-        this.index.costFor(this.predicate) * this.outputSize
+        this.index.costFor(this.predicate)
     }
 
     /** Returns [Map] of [Trait]s for this [IndexScanOperator], which is derived directly from the [Index]*/

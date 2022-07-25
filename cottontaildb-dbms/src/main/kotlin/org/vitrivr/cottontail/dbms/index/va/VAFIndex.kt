@@ -176,17 +176,14 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             if (predicate !is ProximityPredicate) return Cost.INVALID
             if (predicate.column != this.columns[0]) return Cost.INVALID
             if (predicate.distance !is MinkowskiDistance<*>) return Cost.INVALID
+            val signatureRead = this.count()
+            val fullRead = 0.1f * signatureRead /* Assumption: Only 10% of values are read --> see paper. */
             return when (predicate) {
                 is ProximityPredicate.Scan -> Cost.INVALID
                 is ProximityPredicate.ENN -> Cost.INVALID
-                is ProximityPredicate.FNS -> Cost(
-                    Cost.DISK_ACCESS_READ.io * this.columns[0].type.physicalSize * 0.1f,
-                    (Cost.MEMORY_ACCESS.memory * 2.0f + Cost.FLOP.cpu) * this.columns[0].type.logicalSize + predicate.cost.cpu * 0.1f,
-                    (Long.SIZE_BYTES + Double.SIZE_BYTES + this.columns[0].type.physicalSize).toFloat() * predicate.k
-                )
-                is ProximityPredicate.NNS -> Cost(
-                    Cost.DISK_ACCESS_READ.io * this.columns[0].type.physicalSize * 0.1f,
-                    (Cost.MEMORY_ACCESS.memory * 2.0f + Cost.FLOP.cpu) * this.columns[0].type.logicalSize + predicate.cost.cpu * 0.1f,
+                is ProximityPredicate.KLimitedSearch -> Cost(
+                    Cost.DISK_ACCESS_READ.io * this.columns[0].type.logicalSize * signatureRead + Cost.DISK_ACCESS_READ.io * this.columns[0].type.physicalSize * fullRead,
+                    (Cost.MEMORY_ACCESS.memory * 2.0f + Cost.FLOP.cpu) * this.columns[0].type.logicalSize * signatureRead + predicate.cost.cpu * fullRead,
                     (Long.SIZE_BYTES + Double.SIZE_BYTES + this.columns[0].type.physicalSize).toFloat() * predicate.k
                 )
             }

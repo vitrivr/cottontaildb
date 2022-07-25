@@ -49,19 +49,25 @@ sealed interface ProximityPredicate: Predicate {
     }
 
     /**
+     * A k-limited [ProximityPredicate]
+     */
+    sealed interface KLimitedSearch: ProximityPredicate {
+        val k: Long
+    }
+
+    /**
      * A [ProximityPredicate] that expresses a k nearest neighbour search.
      */
-    data class NNS(override val column: ColumnDef<*>, val k: Long, override val distance: VectorDistance<*>, override val query: Binding): ProximityPredicate {
+    data class NNS(override val column: ColumnDef<*>, override val k: Long, override val distance: VectorDistance<*>, override val query: Binding): KLimitedSearch {
         override fun copy() = NNS(this.column, this.k, this.distance.copy(), this.query.copy())
         override fun digest(): Long = 13L * this.hashCode()
         override fun bind(context: BindingContext) = this.query.bind(context)
-
     }
 
     /**
      * A [ProximityPredicate] that expresses a k farthest neighbour search.
      */
-    data class FNS(override val column: ColumnDef<*>, val k: Long, override val distance: VectorDistance<*>, override val query: Binding): ProximityPredicate {
+    data class FNS(override val column: ColumnDef<*>, override val k: Long, override val distance: VectorDistance<*>, override val query: Binding): KLimitedSearch {
         override fun copy() = FNS(this.column, this.k, this.distance.copy(), this.query.copy())
         override fun digest(): Long = 7L * this.hashCode()
         override fun bind(context: BindingContext) = this.query.bind(context)

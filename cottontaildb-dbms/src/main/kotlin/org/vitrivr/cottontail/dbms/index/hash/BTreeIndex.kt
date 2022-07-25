@@ -23,17 +23,21 @@ import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
+import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
+import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
 import kotlin.concurrent.withLock
+import kotlin.math.log10
 
 /**
  * Represents an [AbstractIndex] in the Cottontail DB data model, that uses a persistent [HashMap]
@@ -228,10 +232,15 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          */
         override fun costFor(predicate: Predicate): Cost = this.txLatch.withLock {
             if (predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not) return Cost.INVALID
-            return when (val operator = predicate.operator) {
-                is ComparisonOperator.Binary.Equal -> Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
-                is ComparisonOperator.Binary.Like -> Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
-                is ComparisonOperator.In -> Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat()) * operator.right.size
+            val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
+            val statistics = this.columns.associateWith { (this.context.getTx(entityTx.columnForName(it.name)) as ColumnTx<*>).statistics() }
+            val selectivity = NaiveSelectivityCalculator.estimate(predicate, statistics)
+            val count = this.count()                /* Number of entries. */
+            val countOut = selectivity(count)       /* Number of entries actually selected (comparison still required). */
+            val search = log10(count.toFloat())     /* Overhead for search into the index. */
+            return when (predicate.operator) {
+                is ComparisonOperator.Binary,
+                is ComparisonOperator.In -> Cost.DISK_ACCESS_READ * (search + countOut) + predicate.cost * countOut
                 else -> Cost.INVALID
             }
         }
