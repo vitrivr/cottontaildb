@@ -13,6 +13,7 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
+import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
@@ -183,7 +184,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          * @return Map of [Trait]s for this [PQIndex]
          */
         override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> = when (predicate) {
-            is ProximityPredicate.Scan -> mutableMapOf()
+            is ProximityPredicate.Scan -> mapOf(NotPartitionableTrait to NotPartitionableTrait)
             else -> throw IllegalArgumentException("Unsupported predicate for high-dimensional index. This is a programmer's error!")
         }
 
