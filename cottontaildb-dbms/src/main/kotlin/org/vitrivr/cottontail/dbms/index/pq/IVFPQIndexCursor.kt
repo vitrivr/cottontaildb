@@ -56,7 +56,7 @@ class IVFPQIndexCursor(val predicate: ProximityPredicate.Scan, val index: IVFPQI
         for (c in coarse.centroids.indices) {
             selection.offer(ComparablePair(c, this.coarse.distanceFrom(this.predicate.query.value as RealVectorValue<*>, c)))
         }
-        this.queue = java.util.ArrayDeque(nprobe)
+        this.queue = ArrayDeque(nprobe)
         for (i in 0 until selection.size) {
             this.queue.offer(selection[i].first.toShort())
         }

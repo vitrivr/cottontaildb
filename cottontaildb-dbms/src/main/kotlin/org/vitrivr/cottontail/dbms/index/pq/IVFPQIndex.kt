@@ -197,11 +197,16 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
             if (predicate !is ProximityPredicate.Scan) return Cost.INVALID
             if (predicate.column != this.columns[0]) return Cost.INVALID
             if (predicate.distance.name != (this.config as IVFPQIndexConfig).distance) return Cost.INVALID
-            return (Cost(
-                Cost.DISK_ACCESS_READ.io * Short.SIZE_BYTES,
-                4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu
-            ) / this.quantizer.coarse.centroids.size.toFloat()) * this.quantizer.fine.size
+            val numberOfCoarseCentroids = this.config.numCoarseCentroids
+            val nprobe = numberOfCoarseCentroids / 32
+            val count = Math.floorDiv(this.count(), numberOfCoarseCentroids) * nprobe
+            return Cost(
+                io = Cost.DISK_ACCESS_READ.io * Short.SIZE_BYTES,
+                cpu = 4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu,
+                accuracy = 0.1f
+            ) * this.quantizer.fine.size * count
         }
+
 
         /**
          * Returns the number of entries in this [VAFIndex].
