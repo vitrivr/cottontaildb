@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.simd
 
+import org.vitrivr.cottontail.core.queries.functions.VectorisableFunction
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
@@ -18,13 +19,13 @@ class FunctionVectorisationRule(val threshold: Int) : RewriteRule {
     node.function.function is VectorDistance<*>
 
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
-        if (node is FunctionPhysicalOperatorNode && node.function.function is VectorDistance<*>) {
+        if (node is FunctionPhysicalOperatorNode && node.function.function is VectorisableFunction<*>) {
             val input = node.input?.copy() ?: return null
             val out = node.out
-            val bindFunction = out.context.bind((node.function.function as VectorDistance<*>).vectorized(), node.function.arguments)
+            val bindFunction = out.context.bind((node.function.function as VectorisableFunction<*>).vectorized(), node.function.arguments)
 
             // Provisional heuristic
-            if ((node.function.function as VectorDistance<*>).type.logicalSize >= this.threshold) {
+            if ((node.function.function as VectorisableFunction<*>).vectorSize >= this.threshold) {
                 val p = FunctionPhysicalOperatorNode(input, bindFunction, out)
                 return node.output?.copyWithOutput(p) ?: p
             }
