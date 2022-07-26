@@ -57,7 +57,7 @@ sealed class HaversineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vec
 
     /** The [Cost] of applying this [HaversineDistance]. */
     override val cost: Cost
-        get() = (Cost.FLOP * 27.0f + Cost.MEMORY_ACCESS * 22.0f) * this.d
+        get() = (Cost.FLOP * 27.0f + Cost.MEMORY_ACCESS * 22.0f) * this.vectorSize
 
     /**
      * Calculates the haversine distance between two points a, b.
@@ -88,11 +88,6 @@ sealed class HaversineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vec
             return DoubleValue(haversine(query.data[0], query.data[1], probing.data[0], probing.data[1]))
         }
         override fun copy(d: Int) = DoubleVector(Types.DoubleVector(d))
-
-        override fun vectorized(): VectorDistance<DoubleVectorValue> {
-            return this
-            //TODO @Colin("Not yet implemented")
-        }
     }
 
     /**
@@ -106,10 +101,6 @@ sealed class HaversineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vec
             return DoubleValue(haversine(query.data[0].toDouble(), query.data[1].toDouble(), probing.data[0].toDouble(), probing.data[1].toDouble()))
         }
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
-
-        override fun vectorized(): VectorDistance<FloatVectorValue> {
-            return this
-        }
     }
 
     /**
@@ -123,11 +114,6 @@ sealed class HaversineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vec
             return DoubleValue(haversine(query.data[0].toDouble(), query.data[1].toDouble(), probing.data[0].toDouble(), probing.data[1].toDouble()))
         }
         override fun copy(d: Int) = LongVector(Types.LongVector(d))
-
-        override fun vectorized(): VectorDistance<LongVectorValue> {
-            return this
-            //TODO @Colin("Not yet implemented")
-        }
     }
 
     /**
@@ -141,10 +127,5 @@ sealed class HaversineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vec
             return DoubleValue(haversine(query.data[0].toDouble(), query.data[1].toDouble(), probing.data[0].toDouble(), probing.data[1].toDouble()))
         }
         override fun copy(d: Int) = IntVector(Types.IntVector(d))
-
-        override fun vectorized(): VectorDistance<IntVectorValue> {
-            return this
-            //TODO @Colin("Not yet implemented")
-        }
     }
 }

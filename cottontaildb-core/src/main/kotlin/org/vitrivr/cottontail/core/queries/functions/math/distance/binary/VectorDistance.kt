@@ -22,7 +22,7 @@ sealed class VectorDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>): Fun
     abstract val name: Name.FunctionName
 
     /** The dimensionality of this [VectorDistance]. */
-    val d: Int
+    val vectorSize: Int
         get() = this.type.logicalSize
 
     /** Signature of a [VectorDistance] is defined by the argument type it accepts. */
@@ -34,7 +34,7 @@ sealed class VectorDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>): Fun
      *
      * @return Copy of this [VectorDistance]
      */
-    override fun copy(): VectorDistance<T> = copy(this.d)
+    override fun copy(): VectorDistance<T> = copy(this.vectorSize)
 
     /**
      * Creates a reshaped copy of this [VectorDistance].
@@ -42,13 +42,6 @@ sealed class VectorDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>): Fun
      * @return Copy of this [VectorDistance]
      */
     abstract fun copy(d: Int): VectorDistance<T>
-
-    /**
-     * Returns the vectorized Version of the [VectorDistance].
-     *
-     * @return Vectorized [VectorDistance]
-     */
-    abstract fun vectorized(): VectorDistance<T>
 
     override fun equals(other: Any?): Boolean {
         if (other !is VectorDistance<*>) return false
