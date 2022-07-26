@@ -9,14 +9,13 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.*
+import org.vitrivr.cottontail.core.values.types.RealValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
 import org.vitrivr.cottontail.dbms.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
-import kotlin.math.min
 
 /**
  * An [Operator.PipelineOperator] used during query execution. It tracks the MIN (minimum) value it
@@ -26,7 +25,7 @@ import kotlin.math.min
  * Only produces a single [Record]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.5.0
  */
 class MinProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : Operator.PipelineOperator(parent) {
 
@@ -53,43 +52,30 @@ class MinProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : O
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [MinProjectionOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
-        val parentFlow = this.parent.toFlow(context)
-        val columns = this.columns.toTypedArray()
-        return flow {
-            /* Prepare holder of type double, which can hold all types of values and collect incoming flow */
-            val min = this@MinProjectionOperator.parentColumns.map { Double.MAX_VALUE }.toTypedArray()
-            parentFlow.onEach {
-                this@MinProjectionOperator.parentColumns.forEachIndexed { i, c ->
-                    min[i] = when (val value = it[c]) {
-                        is ByteValue -> min(min[i], value.value.toDouble())
-                        is ShortValue -> min(min[i], value.value.toDouble())
-                        is IntValue -> min(min[i], value.value.toDouble())
-                        is LongValue -> min(min[i], value.value.toDouble())
-                        is FloatValue -> min(min[i], value.value.toDouble())
-                        is DoubleValue -> min(min[i], value.value)
-                        null -> min[i]
-                        else -> throw ExecutionException.OperatorExecutionException(this@MinProjectionOperator, "The provided column $c cannot be used for a MIN projection. ")
-                    }
-                }
-            }.collect()
+    @Suppress("UNCHECKED_CAST")
+    override fun toFlow(context: TransactionContext): Flow<Record> = flow {
+        val parentFlow = this@MinProjectionOperator.parent.toFlow(context)
+        val columns = this@MinProjectionOperator.columns.toTypedArray()
 
-            /* Convert to original value type. */
-            val results = Array<Value?>(min.size) {
-                val column = this@MinProjectionOperator.parentColumns[it]
-                when (column.type) {
-                    Types.Boolean -> ByteValue(min[it])
-                    Types.Short -> ShortValue(min[it])
-                    Types.Int -> IntValue(min[it])
-                    Types.Long -> LongValue(min[it])
-                    Types.Float -> FloatValue(min[it])
-                    Types.Double -> DoubleValue(min[it])
-                    else -> throw ExecutionException.OperatorExecutionException(this@MinProjectionOperator, "The provided column $column cannot be used for a MIN projection.")
-                }
+        /* Prepare holder of type double, which can hold all types of values and collect incoming flow */
+        val results: Array<RealValue<*>> = this@MinProjectionOperator.parentColumns.map {
+            when(it.type) {
+                is Types.Byte -> ByteValue.MAX_VALUE
+                is Types.Short -> ShortValue.MAX_VALUE
+                is Types.Int -> IntValue.MAX_VALUE
+                is Types.Long -> LongValue.MAX_VALUE
+                is Types.Float -> FloatValue.MAX_VALUE
+                is Types.Double -> DoubleValue.MAX_VALUE
+                else -> throw IllegalArgumentException("Column $it is not supported by the MinProjectionOperator. This is a programmer's error!")
             }
+        }.toTypedArray()
+        parentFlow.onEach { r ->
+            for (i in results.indices) {
+                results[i] = RealValue.min(results[i], r[i + 1] as RealValue<*>)
+            }
+        }.collect()
 
-            /** Emit record. */
-            emit(StandaloneRecord(0L, columns, results))
-        }
+        /** Emit record. */
+        emit(StandaloneRecord(0L, columns, results as Array<Value?>))
     }
 }
