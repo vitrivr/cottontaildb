@@ -42,12 +42,13 @@ class EntityScanOperator(groupId: GroupId, val entity: EntityTx, val fetch: List
         val partition = this@EntityScanOperator.entity.partitionFor(this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)
         var read = 0
         val cursor = this@EntityScanOperator.entity.cursor(fetch, partition)
+        val bindingContext = this@EntityScanOperator.fetch.first().first.context
         while (cursor.moveNext()) {
             val next = cursor.value() as StandaloneRecord
             for ((i, c) in columns.withIndex()) { /* Replace column designations. */
                 next.columns[i] = c
             }
-            this@EntityScanOperator.fetch.first().first.context.update(next) /* Important: Make new record available to binding context. */
+            bindingContext.update(next) /* Important: Make new record available to binding context. */
             emit(next)
             read += 1
         }
