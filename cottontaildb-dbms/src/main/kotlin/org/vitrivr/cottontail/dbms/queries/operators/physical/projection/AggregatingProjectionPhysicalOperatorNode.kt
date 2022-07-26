@@ -42,7 +42,7 @@ class AggregatingProjectionPhysicalOperatorNode(input: Physical? = null, type: P
 
     init {
         /* Sanity check. */
-        require(this.type in arrayOf(Projection.MIN, Projection.MAX, Projection.MAX, Projection.SUM)) {
+        require(this.type in arrayOf(Projection.MIN, Projection.MAX, Projection.MAX, Projection.SUM, Projection.MEAN)) {
             "Projection of type ${this.type} cannot be used with instances of AggregatingProjectionPhysicalOperatorNode."
         }
     }
