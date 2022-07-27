@@ -54,7 +54,7 @@ object DeferFetchOnScanRewriteRule: RewriteRule {
                 if (candidates.size == node.fetch.size) {
                     candidates.removeFirst()
                 }
-                var p = next.copyWithExistingInput().base.first().output!!.copyWithOutput(EntityScanPhysicalOperatorNode(originalGroupId, node.entity, node.fetch.filter { !candidates.contains(it) }))
+                var p = next.copyWithExistingInput().base.first().output!!.copyWithOutput(EntityScanPhysicalOperatorNode(originalGroupId, node.entity, node.fetch.filter { !candidates.contains(it) })).root
                 if (next.output != null) {
                     p = FetchPhysicalOperatorNode(p, node.entity, candidates.map { it.first to it.second })
                     p = next.output?.copyWithOutput(p) ?: p

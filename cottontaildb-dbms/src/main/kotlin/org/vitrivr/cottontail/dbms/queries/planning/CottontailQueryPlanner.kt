@@ -44,13 +44,16 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
             return this.planCache[digest]!!
         }
 
-        /* Stage 1: Logical query planning (decomposition takes place during this step). */
-        val stage1 = this.optimizeLogical(logical, context)
+        /* Decomposes the tree into subtrees based on group. */
+        val decomposition = this.decompose(logical)
 
-        /* Stage 2: Physical query planning. */
+        /* Stage 1: Logical query planning for each group. */
+        val stage1 = decomposition.map {(groupId, plan) -> groupId to this.optimizeLogical(plan, context) }.toMap()
+
+        /* Stage 2: Physical query planning for each group. */
         val stage2 = stage1.map {(groupId, plans) -> groupId to plans.flatMap { this.optimizePhysical(it.implement(), context) } }.toMap()
 
-        /* Generate candidate plans. */
+        /* Generate candidate plans per group. */
         val candidates = stage2.map { (groupId, plans) ->
             val normalized = NormalizedCost.normalize(plans.map { it.totalCost })
             val candidate = plans.zip(normalized).minByOrNull { (_, cost) -> context.costPolicy.toScore(cost) }
@@ -82,10 +85,13 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         val logical = context.logical
         require(logical != null) { QueryException.QueryPlannerException("Cannot perform query planning for a QueryContext that doesn't have a logical query plan.") }
 
-        /* Stage 1: Logical query planning (decomposition takes place during this step). */
-        val stage1 = this.optimizeLogical(logical, context)
+        /* Decomposes the tree into subtrees based on group. */
+        val decomposition = this.decompose(logical)
 
-        /* Stage 2: Physical query planning. */
+        /* Stage 1: Logical query planning for each group. */
+        val stage1 = decomposition.map {(groupId, plan) -> groupId to this.optimizeLogical(plan, context) }.toMap()
+
+        /* Stage 2: Physical query planning for each group. */
         val stage2 = stage1.map {(groupId, plans) -> groupId to plans.flatMap { this.optimizePhysical(it.implement(), context) } }.toMap()
 
         /* Generate candidate plans. */
@@ -97,18 +103,52 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
     }
 
     /**
+     * Decomposes the given [OperatorNode.Logical], i.e., splits the tree into a sub-tree per group.
+     * This is a preparation for query optimisation.
+     *
+     * @param operator [OperatorNode.Logical] That should be decomposed.
+     */
+    private fun decompose(operator: OperatorNode.Logical): Map<Int, OperatorNode.Logical> {
+        val decomposition = Int2ObjectLinkedOpenHashMap<OperatorNode.Logical>()
+        decomposition[operator.groupId] = operator.copyWithExistingGroupInput()
+        var next: OperatorNode.Logical? = operator
+        while (next != null) {
+            when (next) {
+                is NullaryLogicalOperatorNode -> return decomposition
+                is UnaryLogicalOperatorNode -> {
+                    next = next.input
+                }
+
+                is BinaryLogicalOperatorNode -> {
+                    decomposition.putAll(this.decompose(next.right.copyWithExistingInput()))
+                    next = next.left
+                }
+
+                is NAryLogicalOperatorNode -> {
+                    next.inputs.drop(1).forEach { decomposition.putAll(this.decompose(it.copyWithExistingInput())) }
+                    next = next.inputs.first()
+                }
+            }
+        }
+        return decomposition
+    }
+
+    /**
      * Composes a decomposition [Map] into a [OperatorNode.Physical], i.e., splits the tree into a sub-tree per group.
      * This is a preparation for query optimisation.
      *
      * @param decomposition The decomposition [Map] that should be recomposed.
      */
     private fun compose(startAt: OperatorNode.Physical, decomposition: Map<GroupId, OperatorNode.Physical>): OperatorNode.Physical {
-        return when (startAt) {
-            is NullaryPhysicalOperatorNode -> return startAt.root
-            is UnaryPhysicalOperatorNode -> compose(startAt.input, decomposition)
-            is BinaryPhysicalOperatorNode -> startAt.copyWithNewInput(compose(startAt.left, decomposition), compose(decomposition[startAt.right.groupId]!!, decomposition))
-            is NAryPhysicalOperatorNode -> startAt.copyWithNewInput(compose(startAt.inputs.first(), decomposition), *startAt.inputs.drop(1).map { compose(decomposition[it.groupId]!!, decomposition) }.toTypedArray())
-        }
+        var next: OperatorNode.Physical = startAt
+        do {
+            next = when (next) {
+                is NullaryPhysicalOperatorNode -> return next.root
+                is UnaryPhysicalOperatorNode -> next.input
+                is BinaryPhysicalOperatorNode ->  next.copyWithNewInput(next.left.copyWithExistingInput(), compose(decomposition[next.right.groupId]!!, decomposition)).left
+                is NAryPhysicalOperatorNode -> next.copyWithNewInput(next.inputs[0].copyWithExistingInput(), *next.inputs.drop(1).map { compose(decomposition[it.groupId]!!, decomposition) }.toTypedArray()).inputs[0]
+            }
+        } while (true)
     }
 
     /**
@@ -117,9 +157,8 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
      * @param operator The [OperatorNode.Logical] that should be optimized. Optimization starts from the given node, regardless of whether it is root or not.
      * @param ctx The [QueryContext] used for optimization.
      */
-    private fun optimizeLogical(operator: OperatorNode.Logical, ctx: QueryContext): Map<GroupId,List<OperatorNode.Logical>> {
+    private fun optimizeLogical(operator: OperatorNode.Logical, ctx: QueryContext): List<OperatorNode.Logical> {
         /* List of candidates, objects to explore and digests */
-        val map = Int2ObjectLinkedOpenHashMap<List<OperatorNode.Logical>>()
         val candidates = MemoizingOperatorList(operator)
         val explore = MemoizingOperatorList(operator)
 
@@ -139,16 +178,8 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
 
             /* Add all inputs to operators that need further exploration. */
             when (pointer) {
-                is NAryLogicalOperatorNode -> {
-                    explore.enqueue(pointer.inputs.first())
-                    for (i in 1 until pointer.inputs.size) {
-                        map += this.optimizeLogical(pointer.inputs[i].copyWithExistingInput(), ctx)
-                    }
-                }
-                is BinaryLogicalOperatorNode -> {
-                    explore.enqueue(pointer.left)
-                    map += this.optimizeLogical(pointer.right.copyWithExistingInput(), ctx)
-                }
+                is NAryLogicalOperatorNode -> explore.enqueue(pointer.inputs.first())
+                is BinaryLogicalOperatorNode -> explore.enqueue(pointer.left)
                 is UnaryLogicalOperatorNode -> explore.enqueue(pointer.input)
                 is NullaryLogicalOperatorNode -> { /* No op. */ }
             }
@@ -158,8 +189,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         }
 
         /** Add candidates for group to list. */
-        map[operator.groupId] = candidates.toList()
-        return map
+        return candidates.toList()
     }
 
     /**

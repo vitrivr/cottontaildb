@@ -3,7 +3,10 @@ package org.vitrivr.cottontail.dbms.queries.operators.basics
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.dbms.queries.operators.physical.PlaceholderPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import java.io.PrintStream
 
@@ -34,33 +37,37 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
         this.left.base + this.right.base
     }
 
-    /** The [totalCost] of a [BinaryPhysicalOperatorNode] is always the sum of its own and its input cost. */
+    /** The [totalCost] of a [BinaryPhysicalOperatorNode] is always the sum of its own and its input cost. Can be overridden!*/
     final override val totalCost: Cost by lazy {
         this.left.totalCost + this.right.totalCost + this.cost
     }
 
-    /** By default, [BinaryPhysicalOperatorNode]s are executable if both their inputs are executable. */
+    /** By default, [BinaryPhysicalOperatorNode]s are executable if both their inputs are executable. Can be overridden! */
     override val executable: Boolean by lazy {
         this.left.executable && this.right.executable
     }
 
-    /** By default, the [BinaryPhysicalOperatorNode] outputs the physical [ColumnDef] of its left input. */
+    /** By default, the [BinaryPhysicalOperatorNode] outputs the physical [ColumnDef] of its left input. Can be overridden! */
     override val physicalColumns: List<ColumnDef<*>>
         get() = this.left.physicalColumns
 
-    /** By default, the [BinaryPhysicalOperatorNode] outputs the [ColumnDef] of its left input. */
+    /** By default, the [BinaryPhysicalOperatorNode] outputs the [ColumnDef] of its left input. Can be overridden! */
     override val columns: List<ColumnDef<*>>
         get() = this.left.columns
 
-    /** By default, the output size of a [UnaryPhysicalOperatorNode] is the same as its left input's output size. */
+    /** By default, the [BinaryPhysicalOperatorNode] inherits its [Trait]s from its left input. Can be overridden! */
+    override val traits: Map<TraitType<*>, Trait>
+        get() = this.left.traits
+
+    /** By default, the output size of a [UnaryPhysicalOperatorNode] is the same as its left input's output size. Can be overridden! */
     override val outputSize: Long
         get() = this.left.outputSize
 
-    /** By default, a [BinaryPhysicalOperatorNode]'s has no specific requirements. */
+    /** By default, a [BinaryPhysicalOperatorNode]'s has no specific requirements. Can be overridden! */
     override val requires: List<ColumnDef<*>>
         get() = emptyList()
 
-    /** By default, a [BinaryPhysicalOperatorNode]'s statistics are retained from its left input. */
+    /** By default, a [BinaryPhysicalOperatorNode]'s statistics are retained from its left input. Can be overridden! */
     override val statistics: Map<ColumnDef<*>,ValueStatistics<*>>
         get() = this.left.statistics
 
@@ -84,8 +91,12 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
      * @return Copy of this [BinaryPhysicalOperatorNode] with its output.
      */
     final override fun copyWithOutput(vararg input: Physical): BinaryPhysicalOperatorNode {
-        require(input.size == 2) { "The input arity for BinaryPhysicalOperatorNode.copyWithOutput() must be 2 but is ${input.size}. This is a programmer's error!"}
-        val copy = this.copyWithNewInput(*input)
+        val copy = when (input.size) {
+            2 -> this.copyWithNewInput(input[0], input[1])
+            1 -> this.copyWithNewInput(input[0], PlaceholderPhysicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns))
+            0-> this.copyWithNewInput(PlaceholderPhysicalOperatorNode(this.left.groupId, this.left.columns, this.left.physicalColumns), PlaceholderPhysicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns))
+            else -> throw IllegalArgumentException("The input arity for BinaryPhysicalOperatorNode.copyWithOutput() must be smaller or equal to 2 but is ${input.size}. This is a programmer's error!")
+        }
         this.output?.copyWithOutput(copy)
         return copy
     }
@@ -104,9 +115,10 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
      * @param replacements The input [OperatorNode.Physical] that act as replacement for the remaining inputs. Can be empty!
      * @return Copy of this [BinaryPhysicalOperatorNode].
      */
-    final override fun copyWithExistingGroupInput(vararg replacements: Physical): BinaryPhysicalOperatorNode {
-        require(replacements.size == 1) { "The input arity for BinaryPhysicalOperatorNode.copyWithGroupInputs() must be 1 but is ${replacements.size}. This is a programmer's error!"}
-        return this.copyWithNewInput(this.left.copyWithExistingInput(), replacements[0])
+    final override fun copyWithExistingGroupInput(vararg replacements: Physical): BinaryPhysicalOperatorNode = when (replacements.size) {
+        1 -> this.copyWithNewInput(this.left.copyWithExistingGroupInput(), replacements[0])
+        0 -> this.copyWithNewInput(this.left.copyWithExistingGroupInput(), PlaceholderPhysicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns))
+        else -> throw IllegalArgumentException("The input arity for BinaryPhysicalOperatorNode.copyWithGroupInputs() must be smaller or equal to 1 but is ${replacements.size}. This is a programmer's error!")
     }
 
     /**

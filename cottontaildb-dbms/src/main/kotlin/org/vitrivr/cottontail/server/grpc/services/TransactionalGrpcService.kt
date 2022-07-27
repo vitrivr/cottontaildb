@@ -189,7 +189,7 @@ internal interface TransactionalGrpcService {
      *  exception will contain all the information about this [DefaultQueryContext].
      *
      *  @param e The [Throwable] to convert.
-     *  @param execution Flag indicating whether error occured during execution.
+     *  @param execution Flag indicating whether error occurred during execution.
      */
     fun DefaultQueryContext.toStatusException(e: Throwable, execution: Boolean): StatusException {
         val text = if (execution) {

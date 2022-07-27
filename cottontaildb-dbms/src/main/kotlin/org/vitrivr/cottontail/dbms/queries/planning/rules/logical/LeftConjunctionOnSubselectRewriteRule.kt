@@ -4,6 +4,7 @@ import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.PlaceholderLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterOnSubSelectLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
@@ -44,7 +45,7 @@ object LeftConjunctionOnSubselectRewriteRule : RewriteRule {
         require(node is FilterOnSubSelectLogicalOperatorNode) { "Called LeftConjunctionOnSubselectRewriteRule.apply() with node of type ${node.javaClass.simpleName}. This is a programmer's error!"}
         require(node.predicate is BooleanPredicate.Compound.And) { "Called LeftConjunctionOnSubselectRewriteRule.apply() with node a predicate that is not a conjunction. This is a programmer's error!" }
 
-        val parent = node.inputs[0].copyWithExistingInput()
+        val parent = node.left.copyWithExistingInput()
         val p1HasSubselect = node.predicate.p1.atomics.any { a ->
             val op = a.operator
             op is ComparisonOperator.In && op.right.any { !it.static }
@@ -55,13 +56,13 @@ object LeftConjunctionOnSubselectRewriteRule : RewriteRule {
         }
 
         val p1Filter = if (p1HasSubselect) {
-            FilterOnSubSelectLogicalOperatorNode(node.predicate.p1, parent)
+            FilterOnSubSelectLogicalOperatorNode(node.predicate.p1, parent, PlaceholderLogicalOperatorNode(node.right.groupId, node.right.columns, node.right.physicalColumns))
         } else {
             FilterLogicalOperatorNode(parent, node.predicate.p1)
         }
 
         val p2Filter = if (p2HasSubselect) {
-            FilterOnSubSelectLogicalOperatorNode(node.predicate.p2, p1Filter)
+            FilterOnSubSelectLogicalOperatorNode(node.predicate.p2, p1Filter, PlaceholderLogicalOperatorNode(node.right.groupId, node.right.columns, node.right.physicalColumns))
         } else {
             FilterLogicalOperatorNode(p1Filter, node.predicate.p2)
         }

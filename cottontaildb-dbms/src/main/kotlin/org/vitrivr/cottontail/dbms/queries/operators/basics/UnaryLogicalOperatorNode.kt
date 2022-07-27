@@ -83,7 +83,7 @@ abstract class UnaryLogicalOperatorNode(val input: Logical): OperatorNode.Logica
      */
     final override fun copyWithExistingGroupInput(vararg replacements: Logical): UnaryLogicalOperatorNode {
         require(replacements.isEmpty()) { "The input arity for UnaryLogicalOperatorNode.copyWithGroupInputs() must be 0 but is ${replacements.size}. This is a programmer's error!" }
-        return this.copyWithExistingInput()
+        return this.copyWithNewInput(this.input.copyWithExistingGroupInput())
     }
 
     /**

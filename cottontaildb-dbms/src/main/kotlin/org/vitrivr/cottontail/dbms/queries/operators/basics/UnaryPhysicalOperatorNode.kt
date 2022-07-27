@@ -113,7 +113,7 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
      */
     final override fun copyWithExistingGroupInput(vararg replacements: Physical): UnaryPhysicalOperatorNode {
         require(replacements.isEmpty()) { "The input arity for UnaryPhysicalOperatorNode.copyWithGroupInputs() must be 0 but is ${replacements.size}. This is a programmer's error!" }
-        return this.copyWithExistingInput()
+        return this.copyWithNewInput(this.input.copyWithExistingGroupInput())
     }
 
     /**

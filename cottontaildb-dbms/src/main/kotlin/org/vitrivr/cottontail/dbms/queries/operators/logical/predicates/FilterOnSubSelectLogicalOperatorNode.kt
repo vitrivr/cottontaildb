@@ -2,11 +2,8 @@ package org.vitrivr.cottontail.dbms.queries.operators.logical.predicates
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
-import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.dbms.queries.operators.basics.BinaryLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.basics.NAryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.predicates.FilterOnSubSelectPhysicalOperatorNode
 
@@ -19,7 +16,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.predicates.FilterO
  * @author Ralph Gasser
  * @version 2.3.0
  */
-class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, vararg inputs: Logical) : NAryLogicalOperatorNode(*inputs) {
+class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, left: Logical, right: Logical) : BinaryLogicalOperatorNode(left, right) {
 
     companion object {
         private const val NODE_NAME = "Filter"
@@ -29,19 +26,12 @@ class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, vara
     override val name: String
         get() = NODE_NAME
 
-    /** The [inputArity] of a [FilterOnSubSelectLogicalOperatorNode] depends on the [BooleanPredicate]. */
-    override val inputArity: Int = this.inputs.size
-
     /** The [FilterOnSubSelectLogicalOperatorNode] requires all [ColumnDef]s used in the [BooleanPredicate]. */
     override val requires: List<ColumnDef<*>> = this.predicate.columns.toList()
 
-    /** The [FilterOnSubSelectLogicalOperatorNode] inherits its traits from its left most input. */
-    override val traits: Map<TraitType<*>, Trait>
-        get() = super.inputs[0].traits
-
-    /** The [FilterOnSubSelectLogicalOperatorNode] depends on all but the first [inputs]. */
+    /** The [FilterOnSubSelectLogicalOperatorNode] depends on all but the right input. */
     override val dependsOn: Array<GroupId> by lazy {
-        this.inputs.drop(1).map { it.groupId }.toTypedArray()
+        arrayOf(this.right.groupId)
     }
 
     /**
@@ -51,7 +41,8 @@ class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, vara
      * @return Copy of this [FilterOnSubSelectLogicalOperatorNode]
      */
     override fun copyWithNewInput(vararg input: Logical): FilterOnSubSelectLogicalOperatorNode {
-        return FilterOnSubSelectLogicalOperatorNode(inputs = input, predicate = this.predicate.copy())
+        require(input.size == 2) { "The input arity for FilterOnSubSelectLogicalOperatorNode.copyWithNewInpu() must be 2 but is ${input.size}. This is a programmer's error!"}
+        return FilterOnSubSelectLogicalOperatorNode(left = input[0], right = input[1], predicate = this.predicate.copy())
     }
 
     /**
@@ -59,7 +50,7 @@ class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, vara
      *
      * @return [FilterOnSubSelectPhysicalOperatorNode]
      */
-    override fun implement() = FilterOnSubSelectPhysicalOperatorNode(inputs = this.inputs.map { it.implement() }.toTypedArray(), predicate = this.predicate)
+    override fun implement() = FilterOnSubSelectPhysicalOperatorNode(left = this.left.implement(), right = this.right.implement(), predicate = this.predicate)
 
     /** Generates and returns a [String] representation of this [FilterOnSubSelectLogicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.predicate}]"

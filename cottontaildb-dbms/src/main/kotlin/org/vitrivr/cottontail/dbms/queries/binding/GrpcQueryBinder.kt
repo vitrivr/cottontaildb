@@ -67,7 +67,6 @@ object GrpcQueryBinder {
      * @return [OperatorNode.Logical]
      * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
      */
-    @Suppress("UNCHECKED_CAST")
     fun bind(query: CottontailGrpc.Query, context: DefaultQueryContext): OperatorNode.Logical {
         /* Parse SELECT-clause (projection); this clause is important because of aliases. */
         val projection = if (query.hasProjection()) { query.projection } else { DEFAULT_PROJECTION }
@@ -334,17 +333,17 @@ object GrpcQueryBinder {
      * @return The resulting [BooleanPredicate].
      */
     private fun parseAndBindBooleanPredicate(input: OperatorNode.Logical, where: CottontailGrpc.Where, context: DefaultQueryContext): OperatorNode.Logical {
-        val subqueries = mutableListOf<OperatorNode.Logical>()
+        val subquery = mutableListOf<OperatorNode.Logical>()
         val predicate = when (where.predicateCase) {
-            CottontailGrpc.Where.PredicateCase.ATOMIC -> parseAndBindAtomicBooleanPredicate(input, where.atomic, context, subqueries)
-            CottontailGrpc.Where.PredicateCase.COMPOUND -> parseAndBindCompoundBooleanPredicate(input, where.compound, context, subqueries)
+            CottontailGrpc.Where.PredicateCase.ATOMIC -> parseAndBindAtomicBooleanPredicate(input, where.atomic, context, subquery)
+            CottontailGrpc.Where.PredicateCase.COMPOUND -> parseAndBindCompoundBooleanPredicate(input, where.compound, context, subquery)
             CottontailGrpc.Where.PredicateCase.PREDICATE_NOT_SET -> throw QueryException.QuerySyntaxException("WHERE clause without a predicate is invalid!")
             null -> throw QueryException.QuerySyntaxException("WHERE clause without a predicate is invalid!")
         }
 
         /* Generate FilterLogicalNodeExpression and return it. */
-        return if (subqueries.isNotEmpty()) {
-            FilterOnSubSelectLogicalOperatorNode(predicate, input, *subqueries.toTypedArray())
+        return if (subquery.isNotEmpty()) {
+            FilterOnSubSelectLogicalOperatorNode(predicate, input, subquery.first())
         } else {
             FilterLogicalOperatorNode(input, predicate)
         }
