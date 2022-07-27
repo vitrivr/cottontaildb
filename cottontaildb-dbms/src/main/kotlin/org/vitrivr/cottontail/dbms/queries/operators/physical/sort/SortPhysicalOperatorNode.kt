@@ -12,16 +12,17 @@ import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.sort.HeapSortOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
 
 /**
  * A [UnaryPhysicalOperatorNode] that represents sorting the input by a set of specified [ColumnDef]s. Internally,
  * a heap sort algorithm is applied for sorting.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.3.0
  */
-class SortPhysicalOperatorNode(input: Physical? = null, val sortOn: List<Pair<ColumnDef<*>, SortOrder>>) : UnaryPhysicalOperatorNode(input) {
+class SortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<ColumnDef<*>, SortOrder>>) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Order"
@@ -60,27 +61,22 @@ class SortPhysicalOperatorNode(input: Physical? = null, val sortOn: List<Pair<Co
     }
 
     /**
-     * Creates and returns a copy of this [SortPhysicalOperatorNode] without any children or parents.
+     * Creates and returns a copy of this [SortPhysicalOperatorNode] using the given parents as input.
      *
+     * @param input The [OperatorNode.Physical]s that act as input.
      * @return Copy of this [SortPhysicalOperatorNode].
      */
-    override fun copy() = SortPhysicalOperatorNode(sortOn = this.sortOn)
+    override fun copyWithNewInput(vararg input: Physical): SortPhysicalOperatorNode {
+        require(input.size == 1) { "The input arity for SortPhysicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
+        return SortPhysicalOperatorNode(input = input[0], sortOn = this.sortOn)
+    }
 
     /**
      * Converts this [SortPhysicalOperatorNode] to a [HeapSortOperator].
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): Operator = HeapSortOperator(
-        this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
-        this.sortOn,
-        if (this.outputSize > Integer.MAX_VALUE) {
-            Integer.MAX_VALUE
-            /** TODO: This case requires special handling. */
-        } else {
-            this.outputSize.toInt()
-        }
-    )
+    override fun toOperator(ctx: QueryContext): Operator = HeapSortOperator(this.input.toOperator(ctx), this.sortOn, this.outputSize.coerceAtMost(Integer.MAX_VALUE.toLong()).toInt())
 
     /** Generates and returns a [String] representation of this [SortPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.name} ${it.second}" }}]"

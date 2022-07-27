@@ -4,16 +4,17 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.management.DeleteOperator
-import org.vitrivr.cottontail.dbms.queries.operators.logical.UnaryLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.management.DeletePhysicalOperatorNode
 
 /**
  * A [DeleteLogicalOperatorNode] that formalizes a DELETE operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.2.1
+ * @version 2.3.0
  */
-class DeleteLogicalOperatorNode(input: Logical? = null, val entity: EntityTx) : UnaryLogicalOperatorNode(input) {
+class DeleteLogicalOperatorNode(input: Logical, val entity: EntityTx) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Delete"
@@ -30,18 +31,22 @@ class DeleteLogicalOperatorNode(input: Logical? = null, val entity: EntityTx) : 
     override val requires: List<ColumnDef<*>> = emptyList()
 
     /**
-     * Creates and returns a copy of this [DeleteLogicalOperatorNode] without any children or parents.
+     * Creates a copy of this [DeleteLogicalOperatorNode].
      *
-     * @return Copy of this [DeleteLogicalOperatorNode].
+     * @param input The new input [OperatorNode.Logical]
+     * @return Copy of this [DeleteLogicalOperatorNode]
      */
-    override fun copy() = DeleteLogicalOperatorNode(entity = this.entity)
+    override fun copyWithNewInput(vararg input: Logical): DeleteLogicalOperatorNode {
+        require(input.size == 1) { "The input arity for DeleteLogicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
+        return DeleteLogicalOperatorNode(input = input[0], entity = this.entity)
+    }
 
     /**
      * Returns a [DeletePhysicalOperatorNode] representation of this [DeleteLogicalOperatorNode]
      *
      * @return [DeletePhysicalOperatorNode]
      */
-    override fun implement() = DeletePhysicalOperatorNode(this.input?.implement(), this.entity)
+    override fun implement() = DeletePhysicalOperatorNode(this.input.implement(), this.entity)
 
     override fun toString(): String = "${super.toString()}[${this.entity.dbo.name}]"
 

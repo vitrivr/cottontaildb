@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.queries.operators
+package org.vitrivr.cottontail.dbms.queries.operators.basics
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
@@ -21,7 +21,7 @@ import java.io.PrintStream
  * [OperatorNode]s allow for reasoning and transformation of the execution plan during query optimization and are manipulated by the query planner.
  *
  * @author Ralph Gasser
- * @version 2.6.0
+ * @version 2.8.0
  */
 sealed class OperatorNode : NodeWithTrait {
     /** The arity of this [OperatorNode], i.e., the number of parents or inputs allowed. */
@@ -29,6 +29,9 @@ sealed class OperatorNode : NodeWithTrait {
 
     /** Internal group identifier used for plan enumeration. Can be null for disconnected [OperatorNode]s. */
     abstract val groupId: GroupId
+
+    /** Array of [GroupId]s this [OperatorNode] depends on. */
+    abstract val dependsOn: Array<GroupId>
 
     /** Internal [depth] index of this [OperatorNode] in the [OperatorNode] tree. Counting starts from [root], which is 0. */
     abstract val depth: Int
@@ -47,13 +50,6 @@ sealed class OperatorNode : NodeWithTrait {
 
     /** The [ColumnDef]s required by this [OperatorNode] in order to be able to function. */
     abstract val requires: List<ColumnDef<*>>
-
-    /**
-     * Creates and returns a copy of this [OperatorNode] without any children or parents.
-     *
-     * @return Copy of this [OperatorNode].
-     */
-    abstract override fun copy(): OperatorNode
 
     /**
      * Prints this [OperatorNode] tree to the given [PrintStream].
@@ -76,11 +72,8 @@ sealed class OperatorNode : NodeWithTrait {
      * [OperatorNode.Logical]s are purely abstract and cannot be executed directly. They belong to the
      * first phase of the query optimization process, in which the canonical input [OperatorNode.Logical]
      * are transformed into equivalent representations of [OperatorNode.Logical]s.
-     *
-     * @author Ralph Gasser
-     * @version 2.6.0
      */
-    abstract class Logical : OperatorNode() {
+    sealed class Logical : OperatorNode() {
 
         /** The [OperatorNode.Logical] that receives the results produced by this [OperatorNode.Logical] as input. May be null, which makes this [OperatorNode.Logical] the root of the tree. */
         var output: Logical? = null
@@ -97,26 +90,11 @@ sealed class OperatorNode : NodeWithTrait {
         override val executable: Boolean = false
 
         /**
-         * Creates and returns a copy of this [OperatorNode.Logical] without any children or parents.
-         *
-         * @return Copy of this [OperatorNode.Logical].
-         */
-        abstract override fun copy(): Logical
-
-        /**
          * Creates and returns a copy of this [OperatorNode.Logical] using the given parents as input.
          *
          * @return Copy of this [OperatorNode.Logical].
          */
-        abstract fun copy(vararg input: Logical): Logical
-
-        /**
-         * Creates and returns a copy of this [OperatorNode.Logical] and all its inputs that belong to the same [GroupId],
-         * up and until the base of the tree.
-         *
-         * @return Copy of this [OperatorNode.Logical].
-         */
-        abstract fun copyWithGroupInputs(): Logical
+        abstract fun copyWithNewInput(vararg input: Logical): Logical
 
         /**
          * Creates and returns a copy of this [OperatorNode.Logical] and all its inputs up and until the base of the tree,
@@ -124,7 +102,15 @@ sealed class OperatorNode : NodeWithTrait {
          *
          * @return Copy of this [OperatorNode.Logical].
          */
-        abstract fun copyWithInputs(): Logical
+        abstract fun copyWithExistingInput(): Logical
+
+        /**
+         * Creates and returns a copy of this [OperatorNode.Logical] and all inputs that belong to the same [GroupId], up and until the base of the tree.
+         *
+         * @param replacements The input [OperatorNode.Logical] that act as replacement for the remaining inputs. Can be empty!
+         * @return Copy of this [OperatorNode.Logical].
+         */
+        abstract fun copyWithExistingGroupInput(vararg replacements: Logical): Logical
 
         /**
          * Creates and returns a copy of this [OperatorNode.Logical] with its output reaching down to the [root] of the tree.
@@ -153,12 +139,9 @@ sealed class OperatorNode : NodeWithTrait {
      * As opposed to [OperatorNode.Logical]s, [OperatorNode.Physical]s are associated concrete implementations
      * and a cost model that allows the query planner to select the optimal plan.
      *
-     * @author Ralph Gasser
-     * @version 2.6.0
-     *
      * @see OperatorNode
      */
-    abstract class Physical : OperatorNode(), NodeWithCost {
+    sealed class Physical : OperatorNode(), NodeWithCost {
 
         /** The [OperatorNode.Logical] that receives the results produced by this [OperatorNode.Logical] as input. May be null, which makes this [OperatorNode.Logical] the root of the tree. */
         var output: Physical? = null
@@ -169,7 +152,7 @@ sealed class OperatorNode : NodeWithTrait {
             get() = this.output?.root ?: this
 
         /** The base of this [OperatorNode], i.e., the starting point(s) in terms of operation. Depending on the tree structure, multiple bases may exist. */
-        abstract val base: Collection<Physical>
+        abstract val base: List<Physical>
 
         /** Map containing all [ValueStatistics] about the [ColumnDef]s processed in this [OperatorNode.Physical]. */
         abstract val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
@@ -191,33 +174,27 @@ sealed class OperatorNode : NodeWithTrait {
         override val executable: Boolean = true
 
         /**
-         * Creates and returns a copy of this [OperatorNode.Physical] without any children or parents.
+         * Creates and returns a copy of this [OperatorNode.Physical]. Furthermore, connects the provided [input] to the copied [OperatorNode.Physical]s.
          *
+         * @param input The [Physical]s that act as input. Replacement takes place based on the [GroupId]
          * @return Copy of this [OperatorNode.Physical].
          */
-        abstract override fun copy(): Physical
+        abstract fun copyWithNewInput(vararg input: Physical): Physical
 
         /**
-         * Creates and returns a copy of this [OperatorNode.Physical] using the given parents as input.
+         * Creates and returns a copy of this [OperatorNode.Physical] including all its inputs reaching up to the [base] of the tree.
          *
-         * @return Copy of this [OperatorNode.Physical].
+         * @return Deep copy of this [OperatorNode.Physical].
          */
-        abstract fun copy(vararg input: Physical): Physical
+        abstract fun copyWithExistingInput(): Physical
 
         /**
-         * Creates and returns a copy of this [OperatorNode.Physical] with all its inputs reaching up to the [base] of the tree.
+         * Creates and returns a copy of this [OperatorNode.Physical] and all inputs that belong to the same [GroupId], up and until the base of the tree.
          *
+         * @param replacements The input [OperatorNode.Physical] that act as replacement for the remaining inputs. Can be empty!
          * @return Copy of this [OperatorNode.Physical].
          */
-        abstract fun copyWithInputs(): Physical
-
-        /**
-         * Creates and returns a copy of this [OperatorNode.Physical] and all its inputs that belong to the same [GroupId],
-         * up and until the base of the tree.
-         *
-         * @return Copy of this [OperatorNode.Physical].
-         */
-        abstract fun copyWithGroupInputs(): Physical
+        abstract fun copyWithExistingGroupInput(vararg replacements: Physical): Physical
 
         /**
          * Creates and returns a copy of this [OperatorNode.Physical] with all its outputs reaching down to the [root] of the tree.

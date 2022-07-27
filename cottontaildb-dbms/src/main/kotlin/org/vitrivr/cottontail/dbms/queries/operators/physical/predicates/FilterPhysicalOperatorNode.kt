@@ -7,7 +7,8 @@ import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.dbms.execution.operators.predicates.FilterOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
 import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
 
@@ -17,7 +18,7 @@ import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
  * @author Ralph Gasser
  * @version 2.3.0
  */
-class FilterPhysicalOperatorNode(input: Physical? = null, val predicate: BooleanPredicate) : UnaryPhysicalOperatorNode(input) {
+class FilterPhysicalOperatorNode(input: Physical, val predicate: BooleanPredicate) : UnaryPhysicalOperatorNode(input) {
     companion object {
         private const val NODE_NAME = "Filter"
     }
@@ -35,20 +36,24 @@ class FilterPhysicalOperatorNode(input: Physical? = null, val predicate: Boolean
 
     /** The estimated output size of this [FilterOnSubSelectPhysicalOperatorNode]. Calculated based on [Selectivity] estimates. */
     override val outputSize: Long by lazy {
-        NaiveSelectivityCalculator.estimate(this.predicate, this.statistics).invoke(this.input?.outputSize ?: 0)
+        NaiveSelectivityCalculator.estimate(this.predicate, this.statistics).invoke(this.input.outputSize)
     }
 
     /** The [Cost] of this [FilterPhysicalOperatorNode]. */
     override val cost: Cost by lazy {
-        this.predicate.cost * (this.input?.outputSize ?: 0)
+        this.predicate.cost * this.input.outputSize
     }
 
     /**
-     * Creates and returns a copy of this [FilterPhysicalOperatorNode] without any children or parents.
+     * Creates and returns a copy of this [FilterPhysicalOperatorNode] using the given parents as input.
      *
+     * @param input The [OperatorNode.Physical]s that act as input.
      * @return Copy of this [FilterPhysicalOperatorNode].
      */
-    override fun copy() = FilterPhysicalOperatorNode(predicate = this.predicate.copy())
+    override fun copyWithNewInput(vararg input: Physical): FilterPhysicalOperatorNode {
+        require(input.size == 1) { "The input arity for FilterPhysicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
+        return FilterPhysicalOperatorNode(input = input[0], predicate = this.predicate.copy())
+    }
 
     /**
      * Converts this [FilterPhysicalOperatorNode] to a [FilterOperator].
@@ -60,8 +65,7 @@ class FilterPhysicalOperatorNode(input: Physical? = null, val predicate: Boolean
         this.predicate.bind(ctx.bindings)
 
         /* Generate and return FilterOperator. */
-        val input = this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
-        return FilterOperator(input, this.predicate)
+        return FilterOperator(this.input.toOperator(ctx), this.predicate)
     }
 
     /** Generates and returns a [String] representation of this [FilterPhysicalOperatorNode]. */

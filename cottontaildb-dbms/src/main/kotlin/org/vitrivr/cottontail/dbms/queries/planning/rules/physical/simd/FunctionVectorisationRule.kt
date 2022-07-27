@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.simd
 import org.vitrivr.cottontail.core.queries.functions.VectorisableFunction
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.function.FunctionPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 
@@ -20,7 +20,7 @@ class FunctionVectorisationRule(val threshold: Int) : RewriteRule {
 
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         if (node is FunctionPhysicalOperatorNode && node.function.function is VectorisableFunction<*>) {
-            val input = node.input?.copy() ?: return null
+            val input = node.input.copyWithExistingInput()
             val out = node.out
             val bindFunction = out.context.bind((node.function.function as VectorisableFunction<*>).vectorized(), node.function.arguments)
 

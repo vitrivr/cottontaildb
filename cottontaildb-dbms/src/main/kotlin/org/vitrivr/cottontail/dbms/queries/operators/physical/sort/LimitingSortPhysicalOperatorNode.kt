@@ -7,11 +7,10 @@ import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.sort.LimitingHeapSortOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergeLimitingSortPhysicalOperatorNode
 import kotlin.math.min
 
@@ -20,9 +19,9 @@ import kotlin.math.min
  * top K entries. This is semantically equivalent to a ORDER BY XY LIMIT Z. Internally, a heap sort algorithm is employed for sorting.
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 2.4.0
  */
-class LimitingSortPhysicalOperatorNode(input: Physical? = null, val sortOn: List<Pair<ColumnDef<*>, SortOrder>>, val limit: Long) : UnaryPhysicalOperatorNode(input) {
+class LimitingSortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<ColumnDef<*>, SortOrder>>, val limit: Long) : UnaryPhysicalOperatorNode(input) {
     companion object {
         private const val NODE_NAME = "OrderAndLimit"
     }
@@ -38,17 +37,18 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, val sortOn: List
     override val outputSize: Long = min(super.outputSize, this.limit)
 
     /** The [Cost] incurred by this [SortPhysicalOperatorNode]. */
-    override val cost: Cost
-        get() = Cost(
-            cpu = 2 * (this.input?.outputSize ?: 0) * this.sortOn.size * Cost.MEMORY_ACCESS.cpu,
+    override val cost: Cost by lazy {
+        Cost(
+            cpu = 2 * this.sortOn.size * Cost.MEMORY_ACCESS.cpu,
             memory = (this.columns.sumOf {
                 if (it.type == Types.String) {
                     this.statistics[it]!!.avgWidth * Char.SIZE_BYTES
                 } else {
                     it.type.physicalSize
                 }
-            } * this.outputSize).toFloat()
-        )
+            }).toFloat()
+        ) * this.outputSize
+    }
 
     /** The [LimitingSortPhysicalOperatorNode] overwrites/sets the [OrderTrait] and the [LimitTrait].  */
     override val traits: Map<TraitType<*>, Trait>
@@ -64,11 +64,15 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, val sortOn: List
     }
 
     /**
-     * Creates and returns a copy of this [LimitingSortPhysicalOperatorNode] without any children or parents.
+     * Creates and returns a copy of this [LimitingSortPhysicalOperatorNode] using the given parents as input.
      *
+     * @param input The [OperatorNode.Physical]s that act as input.
      * @return Copy of this [LimitingSortPhysicalOperatorNode].
      */
-    override fun copy() = LimitingSortPhysicalOperatorNode(sortOn = this.sortOn, limit = this.limit)
+    override fun copyWithNewInput(vararg input: Physical): LimitingSortPhysicalOperatorNode {
+        require(input.size == 1) { "The input arity for SkipPhysicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
+        return LimitingSortPhysicalOperatorNode(input = input[0], sortOn = this.sortOn, limit = this.limit)
+    }
 
     /**
      * For this operator, there is a dedicated, [MergeLimitingSortPhysicalOperatorNode] that acts as a drop-in replacement,
@@ -79,8 +83,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, val sortOn: List
      * @return [OperatorNode.Physical] operator at the based of the new query plan.
      */
     override fun tryPartition(policy: CostPolicy, max: Int): Physical? {
-        val input = this.input ?: throw IllegalStateException("Tried to propagate call to tryPartition() to an absent input. This is a programmer's error!")
-        return if (!input.hasTrait(NotPartitionableTrait)) {
+        return if (!this.input.hasTrait(NotPartitionableTrait)) {
             val partitions = policy.parallelisation(this.parallelizableCost, this.totalCost, max)
             if (partitions <= 1) return null
             val inbound = (0 until partitions).map { input.partition(partitions, it) }
@@ -88,7 +91,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, val sortOn: List
             val merge = MergeLimitingSortPhysicalOperatorNode(*inbound.toTypedArray(), sortOn = this.sortOn, limit = this.limit)
             outbound?.copyWithOutput(merge) ?: merge
         } else {
-            this.input?.tryPartition(policy, max)
+            this.input.tryPartition(policy, max)
         }
     }
 
@@ -97,10 +100,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, val sortOn: List
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): Operator {
-        val input = this.input ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
-        return LimitingHeapSortOperator(input.toOperator(ctx), this.sortOn, this.limit)
-    }
+    override fun toOperator(ctx: QueryContext) = LimitingHeapSortOperator(this.input.toOperator(ctx), this.sortOn, this.limit)
 
     /** Generates and returns a [String] representation of this [SortPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.name} ${it.second}" }},${this.limit}]"

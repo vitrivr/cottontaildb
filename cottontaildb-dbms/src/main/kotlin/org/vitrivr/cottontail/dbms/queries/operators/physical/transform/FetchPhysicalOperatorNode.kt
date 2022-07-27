@@ -11,7 +11,8 @@ import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.transform.FetchOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 
 /**
@@ -24,7 +25,7 @@ import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
  * @version 2.4.0
  */
 @Suppress("UNCHECKED_CAST")
-class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>) : UnaryPhysicalOperatorNode(input) {
+class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Fetch"
@@ -47,14 +48,15 @@ class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, v
         get() = super.statistics + this.localStatistics
 
     /** The [Cost] of a [FetchPhysicalOperatorNode]. */
-    override val cost: Cost
-        get() = (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf { (b, _) ->
+    override val cost: Cost by lazy {
+        (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf { (b, _) ->
             if (b.type == Types.String) {
                 this.localStatistics[b.column]!!.avgWidth * Char.SIZE_BYTES
             } else {
                 b.type.physicalSize
             }
-        }
+        } * 10.0f /* Random access cost is more expensive. */
+    }
 
     /** Local reference to entity statistics. */
     private val localStatistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
@@ -69,11 +71,15 @@ class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, v
     }
 
     /**
-     * Creates and returns a copy of this [FetchPhysicalOperatorNode] without any children or parents.
+     * Creates and returns a copy of this [FetchPhysicalOperatorNode] using the given parents as input.
      *
+     * @param input The [OperatorNode.Physical]s that act as input.
      * @return Copy of this [FetchPhysicalOperatorNode].
      */
-    override fun copy() = FetchPhysicalOperatorNode(entity = this.entity, fetch = this.fetch.map { it.first.copy() to it.second })
+    override fun copyWithNewInput(vararg input: Physical): FetchPhysicalOperatorNode {
+        require(input.size == 1) { "The input arity for FetchPhysicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
+        return FetchPhysicalOperatorNode(input = input[0], entity = this.entity, fetch = this.fetch.map { it.first.copy() to it.second })
+    }
 
     /**
      * Converts this [FetchPhysicalOperatorNode] to a [FetchOperator].
@@ -85,8 +91,7 @@ class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, v
         this.fetch.forEach { it.first.bind(ctx.bindings) }
 
         /* Generate and return FetchOperator. */
-        val input = this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
-        return FetchOperator(input, this.entity, this.fetch)
+        return FetchOperator(this.input.toOperator(ctx), this.entity, this.fetch)
     }
 
     /** Generates and returns a [String] representation of this [FetchPhysicalOperatorNode]. */

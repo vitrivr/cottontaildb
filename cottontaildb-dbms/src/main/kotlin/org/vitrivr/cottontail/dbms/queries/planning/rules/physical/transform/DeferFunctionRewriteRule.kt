@@ -1,17 +1,18 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform
 
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.BinaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.NAryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.BinaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.NAryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.function.FunctionPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 
 /**
+ * A [RewriteRule] that defers execution of a [FunctionPhysicalOperatorNode]. This can be beneficial in presence of, e.g., s,k-selections.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.2.1
  */
 object DeferFunctionRewriteRule: RewriteRule {
     /**
@@ -37,7 +38,7 @@ object DeferFunctionRewriteRule: RewriteRule {
         /* Check for early abort; if next node requires all candidates. */
         val originalGroupId = node.groupId
         var next: OperatorNode.Physical? = node.output
-        var copy: OperatorNode.Physical = node.input!!.copyWithInputs()
+        var copy: OperatorNode.Physical = node.input.copyWithExistingInput()
 
         /* Check if we encounter a node that requires this column; if so defer function invocation. */
         while (next != null && next.groupId == originalGroupId) {
@@ -45,7 +46,7 @@ object DeferFunctionRewriteRule: RewriteRule {
                 return if (next == node.output) {
                     null
                 } else {
-                    next.copyWithOutput(node.copy(copy))
+                    next.copyWithOutput(node.copyWithNewInput(copy))
                 }
             }
 
@@ -65,25 +66,9 @@ object DeferFunctionRewriteRule: RewriteRule {
      * @return [OperatorNode] that is the new current.
      */
     private fun append(current: OperatorNode.Physical, next: OperatorNode.Physical): OperatorNode.Physical = when (next) {
-        is UnaryPhysicalOperatorNode -> {
-            val p = next.copy()
-            p.input = current
-            p
-        }
-        is BinaryPhysicalOperatorNode -> {
-            val p = next.copy()
-            p.left = current
-            p.right = next.right?.copyWithInputs()
-            p
-        }
-        is NAryPhysicalOperatorNode -> {
-            val p = next.copy()
-            p.addInput(current)
-            for (it in next.inputs.drop(1)) {
-                p.addInput(it.copyWithInputs())
-            }
-            p
-        }
-        else -> throw IllegalArgumentException("Encountered unsupported node during execution of DeferredFetchRewriteRule.")
+        is UnaryPhysicalOperatorNode ->  next.copyWithNewInput(current)
+        is BinaryPhysicalOperatorNode -> next.copyWithNewInput(current, next.right.copyWithExistingInput())
+        is NAryPhysicalOperatorNode -> next.copyWithNewInput(current, *next.inputs.drop(1).map { it.copyWithExistingInput() }.toTypedArray())
+        else -> throw IllegalArgumentException("Encountered an unsupported node during execution of DeferredFetchRewriteRule.")
     }
 }

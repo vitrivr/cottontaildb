@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.predicates
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
@@ -10,8 +11,8 @@ import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.predicates.FilterOnSubselectOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.logical.BinaryLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.NAryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.BinaryLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.NAryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
 import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
 
@@ -22,7 +23,7 @@ import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
  * the execution of one or many sub-queries.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.4.0
  */
 class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, vararg inputs: Physical) : NAryPhysicalOperatorNode(*inputs) {
     companion object {
@@ -52,12 +53,17 @@ class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, var
     override val traits: Map<TraitType<*>, Trait>
         get() = super.inputs[0].traits
 
+    /** The [FilterOnSubSelectPhysicalOperatorNode] depends on all but the first [inputs]. */
+    override val dependsOn: Array<GroupId> by lazy {
+        this.inputs.drop(1).map { it.groupId }.toTypedArray()
+    }
+
     /**
      * Creates and returns a copy of this [FilterOnSubSelectPhysicalOperatorNode] without any children or parents.
      *
      * @return Copy of this [FilterOnSubSelectPhysicalOperatorNode].
      */
-    override fun copy() = FilterOnSubSelectPhysicalOperatorNode(predicate = this.predicate.copy())
+    override fun copyWithNewInput(vararg input: Physical) = FilterOnSubSelectPhysicalOperatorNode(inputs = input, predicate = this.predicate.copy())
 
     /**
      * Converts this [FilterOnSubSelectPhysicalOperatorNode] to a [FilterOnSubselectOperator].

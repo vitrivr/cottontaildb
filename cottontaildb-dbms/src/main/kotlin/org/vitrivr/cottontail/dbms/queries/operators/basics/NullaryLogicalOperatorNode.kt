@@ -1,23 +1,28 @@
-package org.vitrivr.cottontail.dbms.queries.operators.logical
+package org.vitrivr.cottontail.dbms.queries.operators.basics
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
+import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.nodes.CopyableNode
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 
 /**
  * An abstract [OperatorNode.Logical] implementation that has no input.
  *
  * @author Ralph Gasser
- * @version 2.7.0
+ * @version 2.9.0
  */
-abstract class NullaryLogicalOperatorNode: OperatorNode.Logical() {
+abstract class NullaryLogicalOperatorNode: OperatorNode.Logical(), CopyableNode {
     /** Input arity of [NullaryLogicalOperatorNode] is always zero. */
     final override val inputArity: Int = 0
 
     /** A [NullaryLogicalOperatorNode] is always the root of a tree and thus has the index 0. */
     final override val depth: Int = 0
+
+    /** A [NullaryLogicalOperatorNode] does not depend on any other [GroupId]. */
+    final override val dependsOn: Array<GroupId>
+        get() = arrayOf(this.groupId)
 
     /** The [base] of a [NullaryLogicalOperatorNode] is always itself. */
     final override val base: Collection<Logical>
@@ -44,8 +49,19 @@ abstract class NullaryLogicalOperatorNode: OperatorNode.Logical() {
      * @param input The [OperatorNode.Logical]s that act as input to this [NullaryLogicalOperatorNode].
      * @return Copy of this [NullaryLogicalOperatorNode] with new input.
      */
-    final override fun copy(vararg input: Logical): NullaryLogicalOperatorNode {
-        require(input.isEmpty()) { "Cannot provide input for NullaryPhysicalOperatorNode." }
+    final override fun copyWithNewInput(vararg input: Logical): NullaryLogicalOperatorNode {
+        require(input.isEmpty()) { "The input arity for NullaryLogicalOperatorNode.copy() must be 0 but is ${input.size}. This is a programmer's error!"}
+        return this.copy()
+    }
+
+    /**
+     * Creates and returns a copy of this [NullaryLogicalOperatorNode].
+     *
+     * @param replacements The list of replacements. Must be empty!
+     * @return Copy of this [OperatorNode.Logical].
+     */
+    final override fun copyWithExistingGroupInput(vararg replacements: Logical): NullaryLogicalOperatorNode {
+        require(replacements.isEmpty()) { "The input arity for NullaryLogicalOperatorNode.copyWithExistingGroupInput() must be 0 but is ${replacements.size}. This is a programmer's error!"}
         return this.copy()
     }
 
@@ -54,14 +70,7 @@ abstract class NullaryLogicalOperatorNode: OperatorNode.Logical() {
      *
      * @return Copy of this [OperatorNode.Logical].
      */
-    final override fun copyWithGroupInputs(): NullaryLogicalOperatorNode = this.copy()
-
-    /**
-     * Creates and returns a copy of this [NullaryLogicalOperatorNode].
-     *
-     * @return Copy of this [OperatorNode.Logical].
-     */
-    final override fun copyWithInputs(): NullaryLogicalOperatorNode = this.copy()
+    final override fun copyWithExistingInput(): NullaryLogicalOperatorNode = this.copy()
 
     /**
      * Creates and returns a copy of this [NullaryLogicalOperatorNode] with its output reaching down to the [root] of the tree.

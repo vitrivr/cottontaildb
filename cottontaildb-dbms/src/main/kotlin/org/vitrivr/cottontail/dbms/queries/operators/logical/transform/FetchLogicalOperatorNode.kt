@@ -4,7 +4,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.queries.operators.logical.UnaryLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhysicalOperatorNode
 
 /**
@@ -15,9 +15,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhy
  * that involve pruning the result set (e.g. filters or nearest neighbour search).
  *
  * @author Ralph Gasser
- * @version 2.4.0
+ * @version 2.5.0
  */
-class FetchLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>) : UnaryLogicalOperatorNode(input) {
+class FetchLogicalOperatorNode(input: Logical, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Fetch"
@@ -36,18 +36,22 @@ class FetchLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val
         get() = super.columns + this.fetch.map { it.first.column }
 
     /**
-     * Creates and returns a copy of this [LimitLogicalOperatorNode] without any children or parents.
+     * Creates a copy of this [FetchLogicalOperatorNode].
      *
-     * @return Copy of this [LimitLogicalOperatorNode].
+     * @param input The new input [Logical]
+     * @return Copy of this [FetchLogicalOperatorNode]
      */
-    override fun copy() = FetchLogicalOperatorNode(entity = this.entity, fetch = this.fetch)
+    override fun copyWithNewInput(vararg input: Logical): FetchLogicalOperatorNode {
+        require(input.size == 1) { "The input arity for FetchLogicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
+        return FetchLogicalOperatorNode(input = input[0], entity = this.entity, fetch = this.fetch)
+    }
 
     /**
      * Returns a [FetchPhysicalOperatorNode] representation of this [FetchLogicalOperatorNode]
      *
      * @return [FetchPhysicalOperatorNode]
      */
-    override fun implement(): Physical = FetchPhysicalOperatorNode(this.input?.implement(), this.entity, this.fetch)
+    override fun implement(): Physical = FetchPhysicalOperatorNode(this.input.implement(), this.entity, this.fetch)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

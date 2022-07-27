@@ -7,15 +7,16 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.execution.operators.transform.SkipOperator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
 
 /**
  * A [UnaryPhysicalOperatorNode] that represents the application of a SKIP clause on the result.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.3.0
  */
-class SkipPhysicalOperatorNode(input: Physical? = null, val skip: Long) : UnaryPhysicalOperatorNode(input) {
+class SkipPhysicalOperatorNode(input: Physical, val skip: Long) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Skip"
@@ -37,19 +38,24 @@ class SkipPhysicalOperatorNode(input: Physical? = null, val skip: Long) : UnaryP
     override val traits: Map<TraitType<*>, Trait>
         get() = super.traits + listOf(NotPartitionableTrait to NotPartitionableTrait)
 
+
     /**
-     * Creates and returns a copy of this [SkipPhysicalOperatorNode] without any children or parents.
+     * Creates and returns a copy of this [SkipPhysicalOperatorNode] using the given parents as input.
      *
+     * @param input The [OperatorNode.Physical]s that act as input.
      * @return Copy of this [SkipPhysicalOperatorNode].
      */
-    override fun copy() = SkipPhysicalOperatorNode(skip = this.skip)
+    override fun copyWithNewInput(vararg input: Physical): SkipPhysicalOperatorNode {
+        require(input.size == 1) { "The input arity for SkipPhysicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
+        return SkipPhysicalOperatorNode(input = input[0], skip = this.skip)
+    }
 
     /**
      * Converts this [SkipPhysicalOperatorNode] to a [SkipOperator].
      *
      * @param ctx The [TransactionContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = SkipOperator(this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"), this.skip)
+    override fun toOperator(ctx: QueryContext) = SkipOperator(this.input.toOperator(ctx), this.skip)
 
     /** Generates and returns a [String] representation of this [SkipPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.skip}]"

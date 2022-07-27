@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.merge
 
+import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
@@ -7,7 +8,8 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.transform.MergeOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.physical.NAryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.NAryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 
 /**
  * An [NAryPhysicalOperatorNode] that represents the merging of inputs from different strands of execution.
@@ -18,7 +20,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.NAryPhysicalOperat
  * [BindingContext] instances.
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 2.4.0
  */
 class MergePhysicalOperatorNode(vararg inputs: Physical): NAryPhysicalOperatorNode(*inputs) {
 
@@ -36,17 +38,22 @@ class MergePhysicalOperatorNode(vararg inputs: Physical): NAryPhysicalOperatorNo
     override val parallelizableCost: Cost
         get() = this.inputs.map { it.totalCost }.reduce {c1, c2 -> c1 + c2}
 
+    /** The [MergePhysicalOperatorNode] depends on all its [GroupId]s. */
+    override val dependsOn: Array<GroupId> by lazy {
+        inputs.map { it.groupId }.toTypedArray()
+    }
+
+    /**
+     * Creates and returns a copy of this [MergePhysicalOperatorNode] using the given parents as input.
+     *
+     * @param input The [OperatorNode.Physical]s that act as input.
+     * @return Copy of this [MergePhysicalOperatorNode].
+     */
+    override fun copyWithNewInput(vararg input: Physical): NAryPhysicalOperatorNode = MergePhysicalOperatorNode(*input)
+
     /* The [MergePhysicalOperator] eliminates all traits from the incoming nodes. */
     override val traits: Map<TraitType<*>, Trait>
         get() = emptyMap()
-
-    /**
-     * Creates and returns a copy of this [MergePhysicalOperatorNode] without any children or parents.
-     *
-     * @return Copy of this [MergePhysicalOperatorNode].
-     */
-    override fun copy() = MergePhysicalOperatorNode()
-
 
     /**
      * Converts this [MergePhysicalOperatorNode] to a [MergeOperator].

@@ -9,17 +9,17 @@ import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.dbms.execution.operators.transform.LimitOperator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
 import kotlin.math.min
 
 /**
  * A [UnaryPhysicalOperatorNode] that represents the application of a LIMIT clause on the result.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.3.0
  */
-class LimitPhysicalOperatorNode(input: Physical? = null, val limit: Long) : UnaryPhysicalOperatorNode(input) {
+class LimitPhysicalOperatorNode(input: Physical, val limit: Long) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Limit"
@@ -40,12 +40,17 @@ class LimitPhysicalOperatorNode(input: Physical? = null, val limit: Long) : Unar
     /** No partitioning can take place after a [LimitPhysicalOperatorNode] has been introduced. */
     override val traits: Map<TraitType<*>, Trait>
         get() = super.traits + listOf(NotPartitionableTrait to NotPartitionableTrait)
+
     /**
-     * Creates and returns a copy of this [LimitPhysicalOperatorNode] without any children or parents.
+     * Creates and returns a copy of this [LimitPhysicalOperatorNode] using the given parents as input.
      *
+     * @param input The [OperatorNode.Physical]s that act as input.
      * @return Copy of this [LimitPhysicalOperatorNode].
      */
-    override fun copy() = LimitPhysicalOperatorNode(limit = this.limit)
+    override fun copyWithNewInput(vararg input: Physical): LimitPhysicalOperatorNode {
+        require(input.size == 1) { "The input arity for LimitPhysicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
+        return LimitPhysicalOperatorNode(input = input[0], limit = this.limit)
+    }
 
     /**
      * Tries to create a partitioned version of this [LimitOperator] and its parents.
@@ -57,14 +62,11 @@ class LimitPhysicalOperatorNode(input: Physical? = null, val limit: Long) : Unar
      */
     override fun tryPartition(policy: CostPolicy, max: Int): Physical? {
         require(max > 1) { "Expected number of partitions to be greater than one but encountered $max." }
-        val input = this.input ?: throw IllegalStateException("Tried to propagate call to tryPartition to an absent input. This is a programmer's error!")
-
         /** Check: If no materialization takes places upstream, cost must be adjusted by LIMIT. */
-        if (!input.hasTrait(MaterializedTrait)) {
-            val partitions = policy.parallelisation((this.parallelizableCost / input.outputSize) * this.limit, (this.parallelizableCost / input.outputSize) * this.limit, max)
+        if (!this.input.hasTrait(MaterializedTrait)) {
+            val partitions = policy.parallelisation((this.parallelizableCost / this.input.outputSize) * this.limit, (this.parallelizableCost / this.input.outputSize) * this.limit, max)
             if (partitions <= 1) return null
         }
-
         return super.tryPartition(policy, max)
     }
 
@@ -73,7 +75,7 @@ class LimitPhysicalOperatorNode(input: Physical? = null, val limit: Long) : Unar
      *
      * @param ctx The [TransactionContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = LimitOperator(this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"), this.limit)
+    override fun toOperator(ctx: QueryContext) = LimitOperator(this.input.toOperator(ctx), this.limit)
 
     /** Generates and returns a [String] representation of this [LimitPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.limit}]"

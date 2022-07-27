@@ -7,35 +7,39 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.function.FunctionOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
 
 /**
  * A [UnaryPhysicalOperatorNode] that represents the execution of a [Function] to generate some [ColumnDef].
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Binding.Function, val out: Binding.Column) : UnaryPhysicalOperatorNode(input) {
+class FunctionPhysicalOperatorNode(input: Physical, val function: Binding.Function, val out: Binding.Column) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Function"
     }
 
     /** The column produced by this [FunctionPhysicalOperatorNode] is determined by the [Function]'s signature. */
-    override val columns: List<ColumnDef<*>>
-        get() = (this.input?.columns ?: emptyList()) + this.out.column
+    override val columns: List<ColumnDef<*>> by lazy {
+        this.input.columns + this.out.column
+    }
 
     /** The [FunctionPhysicalOperatorNode] requires all [ColumnDef] used in the [Function]. */
-    override val requires: List<ColumnDef<*>>
-        get() = this.function.requiredColumns()
+    override val requires: List<ColumnDef<*>> by lazy {
+        this.function.requiredColumns()
+    }
 
     /** The [Cost] of a [FunctionPhysicalOperatorNode]. */
-    override val cost: Cost
-        get() = this.function.cost * this.outputSize
+    override val cost: Cost by lazy {
+        this.function.cost * this.outputSize
+    }
 
     /** [FunctionPhysicalOperatorNode] can only be executed if [Function] can be executed. */
     override val executable: Boolean
-        get() = super.executable && this.function.function.executable
+        get() = super.executable && this.function.executable
 
     /** Human-readable name of this [FunctionPhysicalOperatorNode]. */
     override val name: String
@@ -44,9 +48,13 @@ class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Bindin
     /**
      * Creates a copy of this [FunctionPhysicalOperatorNode].
      *
+     * @param input The new input [OperatorNode.Physical]
      * @return Copy of this [FunctionPhysicalOperatorNode]
      */
-    override fun copy() = FunctionPhysicalOperatorNode(function = this.function.copy(), out = this.out.copy())
+    override fun copyWithNewInput(vararg input: Physical): UnaryPhysicalOperatorNode {
+        require(input.size == 1) { "The input arity for FunctionPhysicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
+        return FunctionPhysicalOperatorNode(input = input[0], function = this.function.copy(), out = this.out.copy())
+    }
 
     /**
      * Converts this [FunctionPhysicalOperatorNode] to a [FunctionOperator].
@@ -59,8 +67,7 @@ class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Bindin
         this.out.bind(ctx.bindings)
 
         /* Convert input and append FunctionOperator. */
-        val input = this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
-        return FunctionOperator(input, this.function, this.out)
+        return FunctionOperator(this.input.toOperator(ctx), this.function, this.out)
     }
 
     /**
@@ -84,6 +91,4 @@ class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Bindin
 
     /** Generates and returns a [String] representation of this [FunctionOperator]. */
     override fun toString() =  "${super.toString()}[${this.function.function.signature} -> ${this.out.column.name}]"
-
-
 }

@@ -1,28 +1,23 @@
-package org.vitrivr.cottontail.dbms.queries.operators.physical
+package org.vitrivr.cottontail.dbms.queries.operators.basics
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.logical.NAryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import java.io.PrintStream
-import java.util.*
 
 /**
  * An abstract [OperatorNode.Physical] implementation that has multiple [OperatorNode.Physical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.7.0
+ * @version 2.8.0
  */
 abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.Physical() {
 
-    /** The inputs to this [NAryLogicalOperatorNode]. The first input belongs to the same group. */
-    private val _inputs: MutableList<Physical> = LinkedList<Physical>()
-    val inputs: List<Physical>
-        get() = Collections.unmodifiableList(this._inputs)
+    /** The inputs to this [NAryPhysicalOperatorNode]. The first input belongs to the same group. */
+    val inputs: List<Physical> = inputs.toList()
 
     /** A [NAryPhysicalOperatorNode]'s index is always the [depth] of its first input + 1. */
     final override var depth: Int = 0
@@ -37,71 +32,50 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
         get() = this.inputs.firstOrNull()?.groupId ?: 0
 
     /** The [base] of a [NAryPhysicalOperatorNode] is the sum of its input's bases. */
-    final override val base: Collection<Physical>
-        get() = this.inputs.flatMap { it.base }
+    final override val base: List<Physical> by lazy {
+        this.inputs.flatMap { it.base }
+    }
 
     /** The input arity of a [NAryPhysicalOperatorNode] depends on the number of inputs. */
     final override val inputArity: Int
         get() = this.inputs.size
 
     /** The [totalCost] of a [NAryPhysicalOperatorNode] is the sum of its own and its input cost. */
-    final override val totalCost: Cost
-        get() {
-            var cost = this.cost
-            for (i in inputs) {
-                cost += i.totalCost
-            }
-            return cost
+    final override val totalCost: Cost by lazy {
+        var cost = this.cost
+        for (i in inputs) {
+            cost += i.totalCost
         }
+        cost
+    }
 
-    /** By default, a [NAryPhysicalOperatorNode]'s requirements are empty. */
+    /** By default, a [NAryPhysicalOperatorNode]'s requirements are empty. Can be overridden! */
     override val requires: List<ColumnDef<*>>
         get() =  emptyList()
 
-    /** [NAryPhysicalOperatorNode]s are executable if all their inputs are executable. */
+    /** [NAryPhysicalOperatorNode]s are executable if all their inputs are executable.  Can be overridden! */
     override val executable: Boolean
         get() = (this.inputs.size == this.inputArity) && this.inputs.all { it.executable }
 
-    /** By default, the [NAryPhysicalOperatorNode] outputs the physical [ColumnDef] of its input. */
+    /** By default, the [NAryPhysicalOperatorNode] outputs the physical [ColumnDef] of its input.  Can be overridden! */
     override val physicalColumns: List<ColumnDef<*>>
         get() = (this.inputs.firstOrNull()?.physicalColumns ?: emptyList())
 
-    /** By default, the [NAryPhysicalOperatorNode] outputs the [ColumnDef] of its input. */
+    /** By default, the [NAryPhysicalOperatorNode] outputs the [ColumnDef] of its input.  Can be overridden! */
     override val columns: List<ColumnDef<*>>
         get() = (this.inputs.firstOrNull()?.columns ?: emptyList())
 
-    /** By default, a [NAryPhysicalOperatorNode]'s statistics are retained. */
+    /** By default, a [NAryPhysicalOperatorNode]'s statistics are retained.  Can be overridden! */
     override val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
         get() = this.inputs.firstOrNull()?.statistics ?: emptyMap()
 
-    /** By default, a [NAryPhysicalOperatorNode]'s parallelizable costs are [Cost.ZERO]. */
+    /** By default, a [NAryPhysicalOperatorNode]'s parallelizable costs are [Cost.ZERO].  Can be overridden! */
     override val parallelizableCost: Cost
         get() = Cost.ZERO
 
     init {
-        inputs.forEach { this.addInput(it) }
+        this.inputs.forEach { it.output = this }
     }
-
-    /**
-     * Adds a [OperatorNode.Physical] to the list of inputs.
-     *
-     * @param input [OperatorNode.Physical] that should be added as input.
-     */
-    fun addInput(input: Physical) {
-        require(input.output == null) { "Cannot connect $input to $this: Output is already occupied!" }
-        if (this._inputs.size == 0) {
-            this.depth = input.depth + 1
-        }
-        this._inputs.add(input)
-        input.output = this
-    }
-
-    /**
-     * Creates and returns a copy of this [NAryPhysicalOperatorNode] without any input or output.
-     *
-     * @return Copy of this [NAryPhysicalOperatorNode].
-     */
-    abstract override fun copy(): NAryPhysicalOperatorNode
 
     /**
      * Creates and returns a copy of this [NAryPhysicalOperatorNode] using the provided nodes as input.
@@ -109,12 +83,7 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
      * @param input The [OperatorNode.Physical]s that act as input to this [NAryPhysicalOperatorNode].
      * @return Copy of this [NAryPhysicalOperatorNode] with new input.
      */
-    final override fun copy(vararg input: Physical): NAryPhysicalOperatorNode {
-        require(input.size <= this.inputArity) { "Cannot provide more than ${this.inputArity} inputs for ${this.javaClass.simpleName}." }
-        val copy = this.copy()
-        input.forEach { copy.addInput(it) }
-        return copy
-    }
+    abstract override fun copyWithNewInput(vararg input: Physical): NAryPhysicalOperatorNode
 
     /**
      * Creates and returns a copy of this [NAryPhysicalOperatorNode] and its entire output [OperatorNode.Physical] tree using the provided nodes as input.
@@ -123,8 +92,9 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
      * @return Copy of this [NAryPhysicalOperatorNode] with its output.
      */
     final override fun copyWithOutput(vararg input: Physical): Physical {
-        val copy = this.copy(*input)
-        return (this.output?.copyWithOutput(copy) ?: copy).root
+        val copy = this.copyWithNewInput(*input)
+        this.output?.copyWithOutput(copy)
+        return copy
     }
 
     /**
@@ -132,13 +102,9 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
      *
      * @return Copy of this [NAryPhysicalOperatorNode].
      */
-    final override fun copyWithGroupInputs(): NAryPhysicalOperatorNode {
-        val copy = this.copy()
-        val input = this.inputs.firstOrNull()?.copyWithGroupInputs()
-        if (input != null) {
-            copy.addInput(input)
-        }
-        return copy
+    final override fun copyWithExistingGroupInput(vararg replacements: Physical): NAryPhysicalOperatorNode {
+        require(replacements.size == this.inputArity - 1) { "The input arity for NAryPhysicalOperatorNode.copyWithGroupInputs() must be (${this.inputArity -1}) but is ${replacements.size}. This is a programmer's error!"}
+        return this.copyWithNewInput(this.inputs.first().copyWithExistingInput(), *replacements)
     }
 
     /**
@@ -146,10 +112,8 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
      *
      * @return Copy of this [NAryPhysicalOperatorNode].
      */
-    final override fun copyWithInputs(): NAryPhysicalOperatorNode {
-        val copy = this.copy()
-        this.inputs.forEach { copy.addInput(it.copyWithInputs()) }
-        return copy
+    final override fun copyWithExistingInput(): NAryPhysicalOperatorNode {
+        return this.copyWithNewInput(*this.inputs.map { it.copyWithExistingInput() }.toTypedArray())
     }
 
     /**

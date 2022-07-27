@@ -35,7 +35,7 @@ data class CostConfig(
      * The fraction of I/O cost Cottontail DB expects to be not parallelisable, e.g., due to limits on I/O bandwith.
      * This value is usually higher for HDDs than SSDs.
      */
-    override val parallelisableIO: Float = 0.4f
+    override val parallelisableIO: Float = 0.75f
 
 ) : CostPolicy {
     init {

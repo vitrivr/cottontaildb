@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform
 
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.BinaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.NAryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.BinaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.NAryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanClass1Rule
@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSInde
  * This is sometimes necessary, because certain replacements may generate unnecessary fetches (e.g. [NNSIndexScanClass1Rule])
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 object DeferFetchOnFetchRewriteRule: RewriteRule {
     /**
@@ -41,7 +41,7 @@ object DeferFetchOnFetchRewriteRule: RewriteRule {
         /* Copy tree up and until the fetch operation; append reduced FetchLogicalOperatorNode if not fetching of all nodes can be deferred. */
         val candidates = node.fetch.map { it.first to it.second }.toMutableList()
         val originalGroupId = node.groupId
-        var copy: OperatorNode.Physical = node.input!!.copyWithInputs()
+        var copy: OperatorNode.Physical = node.input.copyWithExistingInput()
 
         /* Check for early abort; if next node requires all candidates. */
         if (candidates.all { node.output?.requires?.contains(it.first.column) == true }) {
@@ -83,25 +83,9 @@ object DeferFetchOnFetchRewriteRule: RewriteRule {
      * @return [OperatorNode] that is the new current.
      */
     private fun append(current: OperatorNode.Physical, next: OperatorNode.Physical): OperatorNode.Physical = when (next) {
-        is UnaryPhysicalOperatorNode -> {
-            val p = next.copy()
-            p.input = current
-            p
-        }
-        is BinaryPhysicalOperatorNode -> {
-            val p = next.copy()
-            p.left = current
-            p.right = next.right?.copyWithInputs()
-            p
-        }
-        is NAryPhysicalOperatorNode -> {
-            val p = next.copy()
-            p.addInput(current)
-            for (it in next.inputs.drop(1)) {
-                p.addInput(it.copyWithInputs())
-            }
-            p
-        }
-        else -> throw IllegalArgumentException("Encountered unsupported node during execution of DeferredFetchRewriteRule.")
+        is UnaryPhysicalOperatorNode ->  next.copyWithNewInput(current)
+        is BinaryPhysicalOperatorNode -> next.copyWithNewInput(current, next.right.copyWithExistingInput())
+        is NAryPhysicalOperatorNode -> next.copyWithNewInput(current, *next.inputs.drop(1).map { it.copyWithExistingInput() }.toTypedArray())
+        else -> throw IllegalArgumentException("Encountered an unsupported node during execution of DeferredFetchRewriteRule.")
     }
 }

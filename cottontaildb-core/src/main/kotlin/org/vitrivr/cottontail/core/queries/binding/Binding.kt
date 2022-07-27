@@ -4,6 +4,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.nodes.BindableNode
+import org.vitrivr.cottontail.core.queries.nodes.CopyableNode
 import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Types
@@ -13,9 +14,9 @@ import org.vitrivr.cottontail.core.values.types.Value
  * This class acts as a level of indirection for [Value]'s used during query planning, optimization and execution.
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
-sealed interface Binding: BindableNode, NodeWithCost {
+sealed interface Binding: BindableNode, CopyableNode, NodeWithCost {
 
     /** The bound [Value]. */
     val value: Value?
@@ -103,6 +104,9 @@ sealed interface Binding: BindableNode, NodeWithCost {
             get() = this.function.cost + this.arguments.map { it.cost }.reduce { c1, c2 -> c1 + c2}
         override val static: Boolean
             get() = false
+        val executable: Boolean
+            get() = this.function.executable
+
         override fun copy() = Function(this.bindingIndex, this.function.copy(), this.arguments.map { it.copy() }, this.context)
         override fun bind(context: BindingContext) {
             this.context = context

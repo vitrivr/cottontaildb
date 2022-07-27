@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform
 
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntityScanPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
@@ -51,7 +51,10 @@ object DeferFetchOnScanRewriteRule: RewriteRule {
 
             /* Defer if end of tree is reached or expected number of output elements decreases. */
             if (next.outputSize < prev!!.outputSize) {
-                var p = next.copyWithInputs().base.first().output!!.copyWithOutput(EntityScanPhysicalOperatorNode(originalGroupId, node.entity, node.fetch.filter { !candidates.contains(it) }))
+                if (candidates.size == node.fetch.size) {
+                    candidates.removeFirst()
+                }
+                var p = next.copyWithExistingInput().base.first().output!!.copyWithOutput(EntityScanPhysicalOperatorNode(originalGroupId, node.entity, node.fetch.filter { !candidates.contains(it) }))
                 if (next.output != null) {
                     p = FetchPhysicalOperatorNode(p, node.entity, candidates.map { it.first to it.second })
                     p = next.output?.copyWithOutput(p) ?: p
@@ -65,6 +68,6 @@ object DeferFetchOnScanRewriteRule: RewriteRule {
         }
 
         /* This usually only happens for count(*) or exists (*) queries. */
-        return prev!!.copyWithInputs().base.first().output!!.copyWithOutput(EntityScanPhysicalOperatorNode(originalGroupId, node.entity, node.fetch.filter { !candidates.contains(it) }))
+        return prev!!.copyWithExistingInput().base.first().output!!.copyWithOutput(EntityScanPhysicalOperatorNode(originalGroupId, node.entity, node.fetch.filter { !candidates.contains(it) }))
     }
 }

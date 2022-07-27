@@ -16,10 +16,7 @@ import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.BinaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.NAryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.*
 import java.util.*
 
 /**
@@ -79,19 +76,15 @@ class ExplainQueryOperator(private val candidates: Collection<OperatorNode.Physi
      * @param path An [Array] tracking the current depth of the execution plan.
      * @param nodes The [OperatorNode.Physical] to explain.
      */
-    private fun enumerate(list: MutableList<Pair<String, OperatorNode.Physical>>, path: Array<Int>, vararg nodes: OperatorNode.Physical): List<Pair<String,OperatorNode.Physical>> {
+    private fun enumerate(list: MutableList<Pair<String, OperatorNode.Physical>>, path: Array<Int>, vararg nodes: OperatorNode.Physical): List<Pair<String, OperatorNode.Physical>> {
         for ((index, node) in nodes.withIndex()) {
             val newPath = (path + index)
             list.add(Pair(newPath.joinToString("."), node))
             when (node) {
-                is UnaryPhysicalOperatorNode -> this.enumerate(list, newPath, node.input ?: throw IllegalStateException("Encountered null node in physical operator node tree (node = $node). This is a programmer's error!"))
-                is BinaryPhysicalOperatorNode -> this.enumerate(list,
-                    newPath,
-                    node.left ?: throw IllegalStateException("Encountered null node in physical operator node tree (node = $node). This is a programmer's error!"),
-                    node.right ?: throw IllegalStateException("Encountered null node in physical operator node tree (node = $node). This is a programmer's error!")
-                )
+                is NullaryPhysicalOperatorNode -> { /* No op. */ }
+                is UnaryPhysicalOperatorNode -> this.enumerate(list, newPath, node.input)
+                is BinaryPhysicalOperatorNode -> this.enumerate(list, newPath, node.left, node.right)
                 is NAryPhysicalOperatorNode -> this.enumerate(list, newPath, *node.inputs.toTypedArray())
-                else -> { /* No op. */ }
             }
         }
         return list

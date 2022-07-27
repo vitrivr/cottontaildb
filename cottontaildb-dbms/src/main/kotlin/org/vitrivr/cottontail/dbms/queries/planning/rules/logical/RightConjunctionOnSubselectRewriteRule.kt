@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.planning.rules.logical
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterOnSubSelectLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
@@ -45,7 +45,7 @@ object RightConjunctionOnSubselectRewriteRule : RewriteRule {
         require(node is FilterOnSubSelectLogicalOperatorNode) { "Called RightConjunctionOnSubselectRewriteRule.apply() with node of type ${node.javaClass.simpleName}. This is a programmer's error!"}
         require(node.predicate is BooleanPredicate.Compound.And) { "Called RightConjunctionOnSubselectRewriteRule.apply() with node a predicate that is not a conjunction. This is a programmer's error!" }
 
-        val parent = node.inputs[0].copyWithInputs()
+        val parent = node.inputs[0].copyWithExistingInput()
         val p1HasSubselect = node.predicate.p1.atomics.any { a ->
             val op = a.operator
             op is ComparisonOperator.In && op.right.any { !it.static }

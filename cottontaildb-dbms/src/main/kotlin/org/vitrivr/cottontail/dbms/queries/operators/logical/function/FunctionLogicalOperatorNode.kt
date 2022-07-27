@@ -3,7 +3,8 @@ package org.vitrivr.cottontail.dbms.queries.operators.logical.function
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.functions.Function
-import org.vitrivr.cottontail.dbms.queries.operators.logical.UnaryLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.function.FunctionPhysicalOperatorNode
 
@@ -11,17 +12,18 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.function.FunctionP
  * A [UnaryLogicalOperatorNode] that represents the execution of a [Function] that is manifested in an additional [ColumnDef].
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-class FunctionLogicalOperatorNode(input: Logical? = null, val function: Binding.Function, val out: Binding.Column) : UnaryLogicalOperatorNode(input) {
+class FunctionLogicalOperatorNode(input: Logical, val function: Binding.Function, val out: Binding.Column) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Function"
     }
 
     /** The column produced by this [FunctionLogicalOperatorNode] is determined by the [Function]'s signature. */
-    override val columns: List<ColumnDef<*>>
-        get() = (this.input?.columns ?: emptyList()) + this.out.column
+    override val columns: List<ColumnDef<*>> by lazy {
+        this.input.columns + this.out.column
+    }
 
     /** The [FunctionLogicalOperatorNode] requires all [ColumnDef] used in the [Function]. */
     override val requires: List<ColumnDef<*>>
@@ -36,18 +38,22 @@ class FunctionLogicalOperatorNode(input: Logical? = null, val function: Binding.
         get() = NODE_NAME
 
     /**
-     * Creates and returns a copy of this [FunctionLogicalOperatorNode] without any children or parents.
+     * Creates a copy of this [FunctionLogicalOperatorNode].
      *
-     * @return Copy of this [FunctionLogicalOperatorNode].
+     * @param input The new input [OperatorNode.Logical]
+     * @return Copy of this [FunctionLogicalOperatorNode]
      */
-    override fun copy() = FunctionLogicalOperatorNode(function = this.function.copy(), out = this.out.copy())
+    override fun copyWithNewInput(vararg input: Logical): FunctionLogicalOperatorNode {
+        require(input.size == 1) { "The input arity for FunctionLogicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
+        return FunctionLogicalOperatorNode(input = input[0], function = this.function.copy(), out = this.out.copy())
+    }
 
     /**
      * Returns a [FunctionPhysicalOperatorNode] representation of this [FunctionLogicalOperatorNode]
      *
      * @return [FunctionPhysicalOperatorNode]
      */
-    override fun implement() = FunctionPhysicalOperatorNode(this.input?.implement(), this.function, this.out)
+    override fun implement() = FunctionPhysicalOperatorNode(this.input.implement(), this.function, this.out)
 
     /**
      * Compares this [FunctionLogicalOperatorNode] to the given [Object] and returns true if they're equal and false otherwise.

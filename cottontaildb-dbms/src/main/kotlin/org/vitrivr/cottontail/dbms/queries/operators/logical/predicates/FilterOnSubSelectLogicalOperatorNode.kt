@@ -1,11 +1,13 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.predicates
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.dbms.queries.operators.logical.BinaryLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.logical.NAryLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.BinaryLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.NAryLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.predicates.FilterOnSubSelectPhysicalOperatorNode
 
 /**
@@ -15,7 +17,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.predicates.FilterO
  * the execution of one or many sub-queries.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.3.0
  */
 class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, vararg inputs: Logical) : NAryLogicalOperatorNode(*inputs) {
 
@@ -37,19 +39,27 @@ class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, vara
     override val traits: Map<TraitType<*>, Trait>
         get() = super.inputs[0].traits
 
+    /** The [FilterOnSubSelectLogicalOperatorNode] depends on all but the first [inputs]. */
+    override val dependsOn: Array<GroupId> by lazy {
+        this.inputs.drop(1).map { it.groupId }.toTypedArray()
+    }
+
     /**
-     * Creates and returns a copy of this [FilterOnSubSelectLogicalOperatorNode] without any children or parents.
+     * Creates a copy of this [FilterOnSubSelectLogicalOperatorNode].
      *
-     * @return Copy of this [FilterOnSubSelectLogicalOperatorNode].
+     * @param input The new input [OperatorNode.Logical]
+     * @return Copy of this [FilterOnSubSelectLogicalOperatorNode]
      */
-    override fun copy() = FilterOnSubSelectLogicalOperatorNode(predicate = this.predicate)
+    override fun copyWithNewInput(vararg input: Logical): FilterOnSubSelectLogicalOperatorNode {
+        return FilterOnSubSelectLogicalOperatorNode(inputs = input, predicate = this.predicate.copy())
+    }
 
     /**
      * Returns a [FilterOnSubSelectPhysicalOperatorNode] representation of this [FilterOnSubSelectLogicalOperatorNode]
      *
      * @return [FilterOnSubSelectPhysicalOperatorNode]
      */
-    override fun implement() = FilterOnSubSelectPhysicalOperatorNode(this.predicate, *this.inputs.map { it.implement() }.toTypedArray())
+    override fun implement() = FilterOnSubSelectPhysicalOperatorNode(inputs = this.inputs.map { it.implement() }.toTypedArray(), predicate = this.predicate)
 
     /** Generates and returns a [String] representation of this [FilterOnSubSelectLogicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.predicate}]"

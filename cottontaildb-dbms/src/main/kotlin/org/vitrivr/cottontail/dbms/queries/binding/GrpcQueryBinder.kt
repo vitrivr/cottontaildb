@@ -20,7 +20,7 @@ import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.function.FunctionLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.management.DeleteLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.management.InsertLogicalOperatorNode
@@ -333,7 +333,7 @@ object GrpcQueryBinder {
      *
      * @return The resulting [BooleanPredicate].
      */
-    private fun parseAndBindBooleanPredicate(input:OperatorNode.Logical, where: CottontailGrpc.Where, context: DefaultQueryContext): OperatorNode.Logical {
+    private fun parseAndBindBooleanPredicate(input: OperatorNode.Logical, where: CottontailGrpc.Where, context: DefaultQueryContext): OperatorNode.Logical {
         val subqueries = mutableListOf<OperatorNode.Logical>()
         val predicate = when (where.predicateCase) {
             CottontailGrpc.Where.PredicateCase.ATOMIC -> parseAndBindAtomicBooleanPredicate(input, where.atomic, context, subqueries)
@@ -450,7 +450,7 @@ object GrpcQueryBinder {
             }
             ComparisonOperator.Between(left, rightLower, rightUpper)
         }
-        CottontailGrpc.ComparisonOperator.IN -> ComparisonOperator.In(left, right.filterIsInstance<Binding.Literal>().toMutableList())
+        CottontailGrpc.ComparisonOperator.IN -> ComparisonOperator.In(left, right.toMutableList())
         CottontailGrpc.ComparisonOperator.UNRECOGNIZED -> throw QueryException.QuerySyntaxException("Operator $operator is not a valid comparison operator for a boolean predicate!")
     }
 
