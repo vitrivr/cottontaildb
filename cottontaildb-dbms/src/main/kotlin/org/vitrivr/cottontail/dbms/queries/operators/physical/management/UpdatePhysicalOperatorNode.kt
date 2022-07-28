@@ -1,7 +1,9 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.management
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
@@ -38,9 +40,8 @@ class UpdatePhysicalOperatorNode(input: Physical, val entity: EntityTx, val valu
     override val outputSize: Long = 1L
 
     /** The [Cost] of this [UpdatePhysicalOperatorNode]. */
-    override val cost: Cost by lazy {
-        ((Cost.DISK_ACCESS_WRITE + Cost.MEMORY_ACCESS) * (this.input.columns.sumOf { this.statistics[it]!!.avgWidth })) * (this.input.outputSize )
-    }
+    context(BindingContext,Record)    override val cost: Cost
+        get() = ((Cost.DISK_ACCESS_WRITE + Cost.MEMORY_ACCESS) * (this.input.columns.sumOf { this.statistics[it]!!.avgWidth })) * (this.input.outputSize )
 
     /** The [UpdatePhysicalOperatorNode] cannot be partitioned. */
     override val traits: Map<TraitType<*>, Trait> = mapOf(NotPartitionableTrait to NotPartitionableTrait)
@@ -61,7 +62,7 @@ class UpdatePhysicalOperatorNode(input: Physical, val entity: EntityTx, val valu
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = UpdateOperator(this.input.toOperator(ctx), this.entity, this.values.map { it.first to it.second.value })
+     override fun toOperator(ctx: QueryContext) = UpdateOperator(this.input.toOperator(ctx), this.entity, this.values.map { it.first to it.second }, ctx)
 
     override fun toString(): String = "${super.toString()}[${this.values.map { it.first.name }.joinToString(",")}]"
 

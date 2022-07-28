@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -62,7 +61,7 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
         /* Obtain statistics costs and  */
         var estimatedInsertSize = 0
         this.entity.listColumns().forEach { columnDef ->
-            val statistic = (this.entity.context.getTx(this.entity.columnForName(columnDef.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
+            val statistic = this.entity.columnForName(columnDef.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
             this.statistics[columnDef] = statistic
             estimatedInsertSize += if (columnDef.type == Types.String) {
                 statistic.avgWidth * Char.SIZE_BYTES  /* GA: This is not a good cost estimate for empty tables but we don't really need a better one. */
@@ -86,7 +85,7 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): Operator = InsertOperator(this.groupId, this.entity, this.records)
+    override fun toOperator(ctx: QueryContext): Operator = InsertOperator(this.groupId, this.entity, this.records, ctx)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

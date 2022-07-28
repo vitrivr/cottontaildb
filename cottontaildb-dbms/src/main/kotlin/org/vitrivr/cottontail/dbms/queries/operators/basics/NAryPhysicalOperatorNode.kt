@@ -1,10 +1,13 @@
 package org.vitrivr.cottontail.dbms.queries.operators.basics
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
+import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import java.io.PrintStream
 
@@ -41,13 +44,14 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
         get() = this.inputs.size
 
     /** The [totalCost] of a [NAryPhysicalOperatorNode] is the sum of its own and its input cost. */
-    final override val totalCost: Cost by lazy {
-        var cost = this.cost
-        for (i in inputs) {
-            cost += i.totalCost
+    context(BindingContext,Record)    final override val totalCost: Cost
+        get() {
+            var cost = this.cost
+            for (i in inputs) {
+                cost += i.totalCost
+            }
+            return cost
         }
-        cost
-    }
 
     /** By default, a [NAryPhysicalOperatorNode]'s requirements are empty. Can be overridden! */
     override val requires: List<ColumnDef<*>>
@@ -70,6 +74,7 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
         get() = this.inputs.firstOrNull()?.statistics ?: emptyMap()
 
     /** By default, a [NAryPhysicalOperatorNode]'s parallelizable costs are [Cost.ZERO].  Can be overridden! */
+    context(PlaceholderRecord,BindingContext)
     override val parallelizableCost: Cost
         get() = Cost.ZERO
 
@@ -91,7 +96,7 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
      * @param input The [OperatorNode.Physical]s that act as input.
      * @return Copy of this [NAryPhysicalOperatorNode] with its output.
      */
-    final override fun copyWithOutput(vararg input: Physical): Physical {
+    final override fun copyWithOutput(vararg input: Physical): NAryPhysicalOperatorNode {
         val copy = this.copyWithNewInput(*input)
         this.output?.copyWithOutput(copy)
         return copy
@@ -121,7 +126,7 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
      *
      * Must be overridden in order to support partitioning.
      */
-    override fun tryPartition(policy: CostPolicy, max: Int): Physical? = null
+    override fun tryPartition(ctx: QueryContext, max: Int): Physical? = null
 
     /**
      * By default, [NAryPhysicalOperatorNode] cannot be partitioned and hence calling this method throws an exception.

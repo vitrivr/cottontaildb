@@ -56,11 +56,11 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn)
-            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getTx(schema) as SchemaTx
+            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getTx(entity) as EntityTx
+            val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
 
             /* Prepare simple scan with projection. */
             val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, this.columns.map { ctx.bindings.bind(it) to it })
@@ -84,11 +84,11 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn)
-            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getTx(schema) as SchemaTx
+            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getTx(entity) as EntityTx
+            val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
 
             /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
             val context = DefaultBindingContext()
@@ -120,8 +120,8 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
             Assertions.assertTrue(scan1.columns == filter0.predicate.columns.toList()) /* Columns SCANNED should only contain the columns used by FILTER. */
 
             /* Step 2: Execute DeferFetchOnFetchRewriteRule and make basic assertions. */
-            Assertions.assertTrue(DeferFetchOnFetchRewriteRule.canBeApplied(result1.input!!, ctx))
-            val result2 = DeferFetchOnFetchRewriteRule.apply(result1.input!!, ctx)
+            Assertions.assertTrue(DeferFetchOnFetchRewriteRule.canBeApplied(result1.input, ctx))
+            val result2 = DeferFetchOnFetchRewriteRule.apply(result1.input, ctx)
 
             /* Check order: SCAN -> FILTER -> FETCH -> PROJECT. */
             Assertions.assertTrue(result2 is SelectProjectionPhysicalOperatorNode)
@@ -149,11 +149,11 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn)
-            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getTx(schema) as SchemaTx
+            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getTx(entity) as EntityTx
+            val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
             /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
             val context = DefaultBindingContext()
             val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, listOf(
@@ -191,11 +191,11 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
     override fun populateDatabase() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
-            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getTx(schema) as SchemaTx
+            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getTx(entity) as EntityTx
+            val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
 
             /* Insert data and track how many entries have been stored for the test later. */
             entityTx.insert(StandaloneRecord(1L, this.columns.toTypedArray(), arrayOf(LongValue(1L), DoubleValue(0.0), StringValue("test"), IntValue(1), BooleanValue(true))))

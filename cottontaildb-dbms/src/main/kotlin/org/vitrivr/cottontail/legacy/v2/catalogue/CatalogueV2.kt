@@ -11,8 +11,8 @@ import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.*
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.legacy.v2.schema.SchemaV2
 import java.nio.file.Files
@@ -98,12 +98,12 @@ class CatalogueV2(override val config: Config) : Catalogue {
     }
 
     /**
-     * Creates and returns a new [CatalogueV2.Tx] for the given [TransactionContext].
+     * Creates and returns a new [CatalogueV2.Tx] for the given [QueryContext].
      *
-     * @param context The [TransactionContext] to create the [CatalogueV2.Tx] for.
+     * @param context The [QueryContext] to create the [CatalogueV2.Tx] for.
      * @return New [CatalogueV2.Tx]
      */
-    override fun newTx(context: TransactionContext): Tx = Tx(context)
+    override fun newTx(context: QueryContext): Tx = Tx(context)
 
     /**
      * Closes the [CatalogueV2] and all objects contained within.
@@ -119,7 +119,7 @@ class CatalogueV2(override val config: Config) : Catalogue {
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    inner class Tx(context: TransactionContext) : AbstractTx(context), CatalogueTx {
+    inner class Tx(context: QueryContext) : AbstractTx(context), CatalogueTx {
 
         /** Reference to the [CatalogueV2] this [CatalogueTx] belongs to. */
         override val dbo: CatalogueV2
@@ -127,7 +127,7 @@ class CatalogueV2(override val config: Config) : Catalogue {
 
         /** Checks if DBO is still open. */
         init {
-            if (this@CatalogueV2.closed) throw TransactionException.DBOClosed(this.context.txId, this@CatalogueV2)
+            if (this@CatalogueV2.closed) throw TransactionException.DBOClosed(this.context.txn.txId, this@CatalogueV2)
         }
 
         /**

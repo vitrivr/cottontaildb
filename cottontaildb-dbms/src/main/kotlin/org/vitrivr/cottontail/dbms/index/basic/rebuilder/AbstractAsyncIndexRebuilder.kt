@@ -16,6 +16,7 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import java.nio.file.Files
 import java.util.*
 import java.util.concurrent.locks.ReentrantLock
@@ -72,11 +73,11 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     private val asyncLock = ReentrantLock()
 
     /**
-     * Scans the data necessary for this [AbstractAsyncIndexRebuilder]. Usually, this takes place within an existing [TransactionContext].
+     * Scans the data necessary for this [AbstractAsyncIndexRebuilder]. Usually, this takes place within an existing [QueryContext].
      *
-     * @param context1 The [TransactionContext] to perform the SCAN in.
+     * @param context1 The [QueryContext] to perform the SCAN in.
      */
-    override fun scan(context1: TransactionContext) {
+    override fun scan(context1: QueryContext) {
         this.rebuildLock.lock()
         try {
             require(this.state == IndexRebuilderState.INITIALIZED) { "Cannot perform SCAN with index builder because it is in the wrong state."}
@@ -99,22 +100,22 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     }
 
     /**
-     * Merges this [AbstractAsyncIndexRebuilder] with its [Index] using the given [TransactionContext].
+     * Merges this [AbstractAsyncIndexRebuilder] with its [Index] using the given [QueryContext].
      *
-     * @param context2 The [TransactionContext] to perform the MERGE in.
+     * @param context2 The [QueryContext] to perform the MERGE in.
      */
-    override fun merge(context2: TransactionContext) {
+    override fun merge(context2: QueryContext) {
         this.rebuildLock.lock()
         try {
             /* Sanity check. */
             require(this.state  == IndexRebuilderState.SCANNED) { "Cannot perform MERGE with index builder because it is in the wrong state."}
-            require(context2.xodusTx.isExclusive) { "Failed to rebuild index ${this.index.name} (${this.index.type}); merge operation requires exclusive transaction."}
+            require(context2.txn.xodusTx.isExclusive) { "Failed to rebuild index ${this.index.name} (${this.index.type}); merge operation requires exclusive transaction."}
 
             LOGGER.debug("Merging index ${this.index.name} (${this.index.type}).")
 
             /* Clear store and update state of index (* ---> DIRTY). */
-            val dataStore: Store = this.clearAndOpenStore(context2)
-            if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.DIRTY, context2.xodusTx)) {
+            val dataStore: Store = this.clearAndOpenStore(context2.txn)
+            if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.DIRTY, context2.txn.xodusTx)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because index state could not be changed to DIRTY!")
                 return
@@ -129,7 +130,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
             }
 
             /* Update state of index (DIRTY ---> CLEAN). */
-            if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.CLEAN, context2.xodusTx)) {
+            if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.CLEAN, context2.txn.xodusTx)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because index state could not be changed to CLEAN!")
                 return
@@ -145,19 +146,19 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     /**
      * Internal scan method that is being executed when executing the SCAN stage of this [AbstractAsyncIndexRebuilder].
      *
-     * @param context1 The [TransactionContext] to execute the SCAN stage in.
+     * @param context1 The [QueryContext] to execute the SCAN stage in.
      * @return True on success, false otherwise.
      */
-    abstract fun internalScan(context1: TransactionContext): Boolean
+    abstract fun internalScan(context1: QueryContext): Boolean
 
     /**
      * Internal merge method that is being executed when executing the MERGE stage of this [AbstractAsyncIndexRebuilder].
      *
-     * @param context2 The [TransactionContext] to execute the MERGE stage in.
+     * @param context2 The [QueryContext] to execute the MERGE stage in.
      * @param store The [Store] to merge data into.
      * @return True on success, false otherwise.
      */
-    abstract fun internalMerge(context2: TransactionContext, store: Store): Boolean
+    abstract fun internalMerge(context2: QueryContext, store: Store): Boolean
 
     /**
      * Internal method that applies a [DataEvent.Insert] from an external transaction to this [AbstractAsyncIndexRebuilder].

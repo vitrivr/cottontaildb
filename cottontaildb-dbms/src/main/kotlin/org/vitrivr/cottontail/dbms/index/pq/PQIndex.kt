@@ -28,7 +28,6 @@ import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
@@ -40,6 +39,7 @@ import org.vitrivr.cottontail.dbms.index.pq.rebuilder.AsyncPQIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.pq.rebuilder.PQIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.pq.signature.SPQSignature
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import kotlin.concurrent.withLock
 
 /**
@@ -139,18 +139,19 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [PQIndex].
      *
-     * @param context The [TransactionContext] to create this [IndexTx] for.
+     * @param context The [QueryContext] to create this [IndexTx] for.
      * @return [Tx]
      */
-    override fun newTx(context: TransactionContext): IndexTx = Tx(context)
+    override fun newTx(context: QueryContext): IndexTx
+        = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
 
     /**
      * Opens and returns a new [PQIndexRebuilder] object that can be used to rebuild with this [PQIndex].
      *
-     * @param context The [TransactionContext] to create [PQIndexRebuilder] for.
+     * @param context The [QueryContext] to create [PQIndexRebuilder] for.
      * @return [PQIndexRebuilder]
      */
-    override fun newRebuilder(context: TransactionContext) = PQIndexRebuilder(this, context)
+    override fun newRebuilder(context: QueryContext) = PQIndexRebuilder(this, context)
 
     /**
      * Opens and returns a new [AsyncPQIndexRebuilder] object that can be used to rebuild with this [PQIndex].
@@ -162,7 +163,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
     /**
      * A [IndexTx] that affects this [AbstractIndex].
      */
-    inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
+    inner class Tx(context: QueryContext) : AbstractIndex.Tx(context) {
 
         /** The [VectorDistance] function employed by this [PQIndex]. */
         internal val distanceFunction: VectorDistance<*> by lazy {
@@ -172,13 +173,13 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
 
         /** The [SingleStageQuantizer] used by this [PQIndex.Tx] instance. */
         internal val quantizer: SingleStageQuantizer by lazy {
-            val serializable = IndexStructCatalogueEntry.read<SerializableSingleStageProductQuantizer>(this@PQIndex.name, this@PQIndex.catalogue, context.xodusTx, SerializableSingleStageProductQuantizer.Binding)?:
+            val serializable = IndexStructCatalogueEntry.read<SerializableSingleStageProductQuantizer>(this@PQIndex.name, this@PQIndex.catalogue, this.context.txn.xodusTx, SerializableSingleStageProductQuantizer.Binding)?:
                 throw DatabaseException.DataCorruptionException("ProductQuantizer for PQ index ${this@PQIndex.name} is missing.")
             serializable.toProductQuantizer(this.distanceFunction)
         }
 
         /** The Xodus [Store] used to store [SPQSignature]s. */
-        internal val dataStore: Store = this@PQIndex.catalogue.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
+        internal val dataStore: Store = this@PQIndex.catalogue.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@PQIndex.name} is missing.")
 
         /**
@@ -235,7 +236,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
          * @return Number of entries in this [VAFIndex]
          */
         override fun count(): Long  = this.txLatch.withLock {
-            this.dataStore.count(this.context.xodusTx)
+            this.dataStore.count(this.context.txn.xodusTx)
         }
 
         /**
@@ -249,7 +250,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
             /* Extract value and return true if value is NULL (since NULL values are ignored). */
             val value = event.data[this@Tx.columns[0]] ?: return true
             val sig = this.quantizer.quantize(value as RealVectorValue<*>)
-            return this.dataStore.put(this.context.xodusTx, event.tupleId.toKey(), sig.toEntry())
+            return this.dataStore.put(this.context.txn.xodusTx, event.tupleId.toKey(), sig.toEntry())
         }
 
         /**
@@ -267,7 +268,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
             /* Remove signature to tuple ID mapping. */
             if (oldValue != null) {
                 val oldSig = this.quantizer.quantize(oldValue as VectorValue<*>)
-                val cursor = this.dataStore.openCursor(this.context.xodusTx)
+                val cursor = this.dataStore.openCursor(this.context.txn.xodusTx)
                 if (cursor.getSearchBoth(event.tupleId.toKey(), oldSig.toEntry())) {
                     cursor.deleteCurrent()
                 }
@@ -277,7 +278,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
             /* Generate signature and store it. */
             if (newValue != null) {
                 val newSig = this.quantizer.quantize(newValue as VectorValue<*>)
-                return this.dataStore.put(this.context.xodusTx, event.tupleId.toKey(), newSig.toEntry())
+                return this.dataStore.put(this.context.txn.xodusTx, event.tupleId.toKey(), newSig.toEntry())
             }
             return true
         }
@@ -292,7 +293,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
         override fun tryApply(event: DataEvent.Delete): Boolean {
             val oldValue = event.data[this.columns[0]] ?: return true
             val sig = this.quantizer.quantize(oldValue as VectorValue<*>)
-            val cursor = this.dataStore.openCursor(this.context.xodusTx)
+            val cursor = this.dataStore.openCursor(this.context.txn.xodusTx)
             if (cursor.getSearchBoth(event.tupleId.toKey(), sig.toEntry())) {
                 cursor.deleteCurrent()
             }
@@ -312,7 +313,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
          */
         @Suppress("UNCHECKED_CAST")
         override fun filter(predicate: Predicate): Cursor<Record> = this.txLatch.withLock {
-            val entityTx = this.context.getTx(this@PQIndex.parent) as EntityTx
+            val entityTx = this@PQIndex.parent.newTx(this.context)
             filter(predicate,entityTx.smallestTupleId() .. entityTx.largestTupleId())
         }
 
@@ -325,7 +326,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
          */
         override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> = this.txLatch.withLock {
             require(predicate is ProximityPredicate.Scan) { "PQIndex can only be used with a SCAN type proximity predicate. This is a programmer's error!" }
-            PQIndexCursor(partition, predicate, this, this.context)
+            PQIndexCursor(partition, predicate, this)
         }
     }
 }

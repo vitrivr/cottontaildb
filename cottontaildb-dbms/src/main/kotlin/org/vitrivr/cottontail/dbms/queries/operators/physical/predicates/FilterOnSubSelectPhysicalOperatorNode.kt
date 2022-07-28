@@ -1,9 +1,13 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.predicates
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
@@ -41,24 +45,32 @@ class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, lef
         get() = super.executable && this.predicate.atomics.none { it.operator is ComparisonOperator.Binary.Match }
 
     /** The estimated output size of this [FilterOnSubSelectPhysicalOperatorNode]. Calculated based on [Selectivity] estimates. */
-    override val outputSize: Long by lazy {
-        NaiveSelectivityCalculator.estimate(this.predicate, this.statistics).invoke(this.left.outputSize)
-    }
+    context(BindingContext,Record)
+    override val outputSize: Long
+        get() = NaiveSelectivityCalculator
+            .estimate(this@FilterOnSubSelectPhysicalOperatorNode.predicate, this@FilterOnSubSelectPhysicalOperatorNode.statistics)
+            .invoke(this@FilterOnSubSelectPhysicalOperatorNode.left.outputSize)
 
     /** The [Cost] of this [FilterOnSubSelectPhysicalOperatorNode]. */
-    override val cost: Cost by lazy {
-        this.predicate.cost * (this.left.outputSize) + this.right.cost
-    }
+    context(BindingContext,Record)
+    override val cost: Cost
+        get() = this.predicate.cost * (this.left.outputSize) + this.right.cost
 
     /** The [Cost] of this [FilterOnSubSelectPhysicalOperatorNode]. */
-    override val parallelizableCost: Cost by lazy {
-        this.left.parallelizableCost * 0.1f + this.right.parallelizableCost
-    }
+    context(BindingContext,Record)
+    override val parallelizableCost: Cost
+        get() = this.left.parallelizableCost * 0.1f + this.right.parallelizableCost
 
     /** The [FilterOnSubSelectPhysicalOperatorNode] depends on all but the left input. */
     override val dependsOn: Array<GroupId> by lazy {
         arrayOf(this.right.groupId)
     }
+
+    /**
+     *
+     */
+    override val traits: Map<TraitType<*>, Trait>
+        get() = super.traits + mapOf(NotPartitionableTrait to NotPartitionableTrait)
 
     /**
      * Creates and returns a copy of this [FilterOnSubSelectPhysicalOperatorNode] without any children or parents.
@@ -67,28 +79,35 @@ class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, lef
      */
     override fun copyWithNewInput(vararg input: Physical): FilterOnSubSelectPhysicalOperatorNode {
         require(input.size == 2) { "The input arity for FilterOnSubSelectPhysicalOperatorNode.copyWithNewInpu() must be 2 but is ${input.size}. This is a programmer's error!"}
-        return FilterOnSubSelectPhysicalOperatorNode(left = input[0], right = input[1], predicate = this.predicate.copy())
+        return FilterOnSubSelectPhysicalOperatorNode(left = input[0], right = input[1], predicate = this.predicate)
     }
 
+    /**
+     * The [FilterOnSubSelectPhysicalOperatorNode] simply propagates the call up to both branches of the tree.
+     *
+     * @param ctx [QueryContext] to partition with.
+     * @param max The maximum amount of parallelism
+     */
+    override fun tryPartition(ctx: QueryContext, max: Int): Physical? {
+        val left = this.left.tryPartition(ctx, max)
+        val right = this.right.tryPartition(ctx, max)
+        return if (left != null && right != null) {
+            this.copyWithOutput(left, right)
+        } else if (left != null) {
+            this.copyWithOutput(left, this.right.copyWithExistingInput())
+        } else if (right != null) {
+            this.copyWithOutput(this.left.copyWithExistingInput(),  right)
+        } else {
+            null
+        }
+    }
 
     /**
      * Converts this [FilterOnSubSelectPhysicalOperatorNode] to a [FilterOnSubselectOperator].
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): Operator {
-        /* Bind predicate to context. */
-        this.predicate.bind(ctx.bindings)
-
-        /* Generate and return FilterOnSubselectOperator. */
-        return FilterOnSubselectOperator(this.left.toOperator(ctx), this.right.toOperator(ctx), this.predicate)
-    }
-
-    override fun tryPartition(policy: CostPolicy, max: Int): Physical? = null
-
-    override fun partition(partitions: Int, p: Int): Physical {
-        TODO("Not yet implemented")
-    }
+    override fun toOperator(ctx: QueryContext): Operator = FilterOnSubselectOperator(this.left.toOperator(ctx), this.right.toOperator(ctx), this.predicate, ctx)
 
     /** Generates and returns a [String] representation of this [FilterOnSubSelectPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.predicate}]"

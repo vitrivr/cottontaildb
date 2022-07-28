@@ -15,5 +15,5 @@ import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOpera
  */
 class CreateSchemaPhysicalOperatorNode(val tx: CatalogueTx, val schemaName: Name.SchemaName): DataDefinitionPhysicalOperatorNode("CreateSchema") {
     override fun copy(): NullaryPhysicalOperatorNode = CreateSchemaPhysicalOperatorNode(this.tx, this.schemaName)
-    override fun toOperator(ctx: QueryContext): Operator = CreateSchemaOperator(this.tx, this.schemaName)
+    override fun toOperator(ctx: QueryContext): Operator = CreateSchemaOperator(this.tx, this.schemaName, ctx)
 }

@@ -8,10 +8,10 @@ import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.DBOVersion
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.legacy.v1.schema.SchemaV1
 import java.nio.file.Files
@@ -98,12 +98,12 @@ class CatalogueV1(override val config: Config) : Catalogue {
     }
 
     /**
-     * Creates and returns a new [CatalogueV1.Tx] for the given [TransactionContext].
+     * Creates and returns a new [CatalogueV1.Tx] for the given [QueryContext].
      *
-     * @param context The [TransactionContext] to create the [CatalogueV1.Tx] for.
+     * @param context The [QueryContext] to create the [CatalogueV1.Tx] for.
      * @return New [CatalogueV1.Tx]
      */
-    override fun newTx(context: TransactionContext): CatalogueTx = Tx(context)
+    override fun newTx(context: QueryContext): CatalogueTx = Tx(context)
 
     /**
      * Closes the [CatalogueV1] and all objects contained within.
@@ -120,7 +120,7 @@ class CatalogueV1(override val config: Config) : Catalogue {
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    inner class Tx(context: TransactionContext) : AbstractTx(context), CatalogueTx {
+    inner class Tx(context: QueryContext) : AbstractTx(context), CatalogueTx {
 
         /** Reference to the [CatalogueV1] this [CatalogueTx] belongs to. */
         override val dbo: Catalogue

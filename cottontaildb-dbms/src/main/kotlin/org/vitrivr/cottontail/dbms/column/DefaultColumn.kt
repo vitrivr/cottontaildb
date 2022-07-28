@@ -16,9 +16,9 @@ import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.events.ColumnEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
@@ -48,12 +48,13 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         get() = DBOVersion.V3_0
 
     /**
-     * Creates and returns a new [DefaultColumn.Tx] for the given [TransactionContext].
+     * Creates and returns a new [DefaultColumn.Tx] for the given [QueryContext].
      *
-     * @param context The [TransactionContext] to create the [DefaultColumn.Tx] for.
+     * @param context The [QueryContext] to create the [DefaultColumn.Tx] for.
      * @return New [DefaultColumn.Tx]
      */
-    override fun newTx(context: TransactionContext): ColumnTx<T> = Tx(context)
+    override fun newTx(context: QueryContext): ColumnTx<T>
+        = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
 
     override fun equals(other: Any?): Boolean {
         if (other !is DefaultColumn<*>) return false
@@ -71,13 +72,19 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
     /**
      * A [Tx] that affects this [DefaultColumn].
      */
-    inner class Tx constructor(context: TransactionContext) : AbstractTx(context), ColumnTx<T>, org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization  {
+    inner class Tx constructor(context: QueryContext) : AbstractTx(context), ColumnTx<T>, org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization  {
+
+
+        init {
+            /* Cache this Tx for future use. */
+            context.txn.cacheTxForDBO(this)
+        }
 
         /** Internal data [Store] reference. */
         internal val dataStore: Store = this@DefaultColumn.catalogue.environment.openStore(
             this@DefaultColumn.name.storeName(),
             StoreConfig.USE_EXISTING,
-            this.context.xodusTx,
+            this.context.txn.xodusTx,
             false
         ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@DefaultColumn.name} is missing.")
 
@@ -86,7 +93,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
 
         /** Internal reference to the [ValueStatistics] for this [DefaultColumn]. */
         @Suppress("UNCHECKED_CAST")
-        private var statistics: ValueStatistics<T> = (StatisticsCatalogueEntry.read(this@DefaultColumn.name, this@DefaultColumn.catalogue, this.context.xodusTx)?.statistics
+        private var statistics: ValueStatistics<T> = (StatisticsCatalogueEntry.read(this@DefaultColumn.name, this@DefaultColumn.catalogue, this.context.txn.xodusTx)?.statistics
             ?: throw DatabaseException.DataCorruptionException("Failed to PUT value from ${this@DefaultColumn.name}: Reading column statistics failed.")) as ValueStatistics<T>
 
         /** Reference to [Column] this [Tx] belongs to. */
@@ -111,7 +118,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             cursor.close()
 
             /* Update statistics entry.*/
-            if (StatisticsCatalogueEntry.write(newEntry, this@DefaultColumn.catalogue, this.context.xodusTx)) {
+            if (StatisticsCatalogueEntry.write(newEntry, this@DefaultColumn.catalogue, this.context.txn.xodusTx)) {
                 this.statistics = newEntry.statistics as ValueStatistics<T>
                 this.updateStatistics = false
             }
@@ -132,14 +139,13 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
          * @return [TupleId] The smallest [TupleId] held by the [Column] backing this [ColumnTx].
          */
         override fun smallestTupleId(): TupleId = this.txLatch.withLock {
-            val cursor = this.dataStore.openCursor(this.context.xodusTx)
-            val ret = if (cursor.next) {
-                LongBinding.compressedEntryToLong(cursor.key)
-            } else {
-                BOC
+            this.dataStore.openCursor(this.context.txn.xodusTx).use {
+                if (it.next) {
+                    LongBinding.compressedEntryToLong(it.key)
+                } else {
+                    BOC
+                }
             }
-            cursor.close()
-            ret
         }
 
         /**
@@ -148,14 +154,13 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
          * @return [TupleId] The largest [TupleId] held by the [Column] backing this [Tx].
          */
         override fun largestTupleId(): TupleId = this.txLatch.withLock {
-            val cursor = this.dataStore.openCursor(this.context.xodusTx)
-            val ret = if (cursor.last) {
-                LongBinding.compressedEntryToLong(cursor.key)
-            } else {
-                BOC
+            this.dataStore.openCursor(this.context.txn.xodusTx).use {
+                if (it.last) {
+                    LongBinding.compressedEntryToLong(it.key)
+                } else {
+                    BOC
+                }
             }
-            cursor.close()
-            ret
         }
 
         /**
@@ -163,7 +168,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
          *
          * @return Number of entries in this [DefaultColumn].
          */
-        override fun count(): Long  = this.txLatch.withLock { this.dataStore.count(this.context.xodusTx) }
+        override fun count(): Long  = this.txLatch.withLock { this.dataStore.count(this.context.txn.xodusTx) }
 
         /**
          * Returns true if the [Column] underpinning this [ColumnTx] contains the given [TupleId] and false otherwise.
@@ -176,7 +181,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
          * @return True if entry exists, false otherwise,
          */
         override fun contains(tupleId: TupleId): Boolean = this.txLatch.withLock {
-            this.dataStore.get(this.context.xodusTx, tupleId.toKey()) != null
+            this.dataStore.get(this.context.txn.xodusTx, tupleId.toKey()) != null
         }
 
         /**
@@ -187,7 +192,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
          * @throws DatabaseException If the tuple with the desired ID is invalid.
          */
         override fun get(tupleId: TupleId): T? = this.txLatch.withLock {
-            val ret = this.dataStore.get(this.context.xodusTx, tupleId.toKey()) ?: throw java.lang.IllegalArgumentException("Tuple $tupleId does not exist on column ${this@DefaultColumn.name}.")
+            val ret = this.dataStore.get(this.context.txn.xodusTx, tupleId.toKey()) ?: throw java.lang.IllegalArgumentException("Tuple $tupleId does not exist on column ${this@DefaultColumn.name}.")
             return this.binding.entryToValue(ret)
         }
 
@@ -201,7 +206,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         override fun add(tupleId: TupleId, value: T?): Boolean = this.txLatch.withLock {
             val rawTuple = tupleId.toKey()
             val valueRaw = this.binding.valueToEntry(value)
-            if (!this.dataStore.add(this.context.xodusTx, rawTuple, valueRaw)) {
+            if (!this.dataStore.add(this.context.txn.xodusTx, rawTuple, valueRaw)) {
                 throw DatabaseException.DataCorruptionException("Failed to ADD tuple $tupleId to column ${this@DefaultColumn.name}.")
             }
             this.updateStatistics = true
@@ -222,11 +227,11 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             /* Read existing value. */
             val rawTuple = tupleId.toKey()
             val valueRaw = this.binding.valueToEntry(value)
-            val existingRaw = this.dataStore.get(this.context.xodusTx, rawTuple) ?: throw IllegalArgumentException("Cannot update tuple $tupleId because it does not exist.")
+            val existingRaw = this.dataStore.get(this.context.txn.xodusTx, rawTuple) ?: throw IllegalArgumentException("Cannot update tuple $tupleId because it does not exist.")
             val existing = this.binding.entryToValue(existingRaw)
 
             /* Perform PUT and update statistics. */
-            if (!this.dataStore.put(this.context.xodusTx, rawTuple, valueRaw)) {
+            if (!this.dataStore.put(this.context.txn.xodusTx, rawTuple, valueRaw)) {
                 throw DatabaseException.DataCorruptionException("Failed to PUT tuple $tupleId to column ${this@DefaultColumn.name}.")
             }
             this.updateStatistics = true
@@ -245,11 +250,11 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         override fun delete(tupleId: TupleId): T? = this.txLatch.withLock {
             /* Read existing value. */
             val rawTuple = tupleId.toKey()
-            val existingRaw = this.dataStore.get(this.context.xodusTx, rawTuple) ?: throw IllegalArgumentException("Cannot DELETE tuple $tupleId because it does not exist.")
+            val existingRaw = this.dataStore.get(this.context.txn.xodusTx, rawTuple) ?: throw IllegalArgumentException("Cannot DELETE tuple $tupleId because it does not exist.")
             val existing = this.binding.entryToValue(existingRaw)
 
             /* Delete entry and update statistics. */
-            if (!this.dataStore.delete(this.context.xodusTx, rawTuple)) {
+            if (!this.dataStore.delete(this.context.txn.xodusTx, rawTuple)) {
                 throw DatabaseException.DataCorruptionException("Failed to DELETE tuple $tupleId to column ${this@DefaultColumn.name}.")
             }
             this.updateStatistics = true
@@ -284,13 +289,13 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         override fun beforeCommit() {
             /* Update statistics if there have been changes. */
             if (this.updateStatistics) {
-                val entry = StatisticsCatalogueEntry.read(this@DefaultColumn.name, this@DefaultColumn.catalogue, this.context.xodusTx)
+                val entry = StatisticsCatalogueEntry.read(this@DefaultColumn.name, this@DefaultColumn.catalogue, this.context.txn.xodusTx)
                     ?: throw DatabaseException.DataCorruptionException("Failed to finalize transaction for column ${this@DefaultColumn.name}: Reading column statistics failed.")
-                StatisticsCatalogueEntry.write(entry.copy(statistics = this.statistics), this@DefaultColumn.catalogue, this.context.xodusTx)
+                StatisticsCatalogueEntry.write(entry.copy(statistics = this.statistics), this@DefaultColumn.catalogue, this.context.txn.xodusTx)
 
                 /* If statistics are no longer fresh, then issue event. */
                 if (!this.statistics.fresh) {
-                    this.context.signalEvent(ColumnEvent.Stale(this@DefaultColumn.name))
+                    this.context.txn.signalEvent(ColumnEvent.Stale(this@DefaultColumn.name))
                 }
             }
         }

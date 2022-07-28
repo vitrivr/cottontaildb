@@ -17,5 +17,5 @@ import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
 class EntityStatisticsPhysicalOperatorNode(val tx: CatalogueTx, val entityName: Name.EntityName): DataDefinitionPhysicalOperatorNode("EntityStatistics") {
     override val columns: List<ColumnDef<*>> = ColumnSets.DDL_INTROSPECTION_COLUMNS
     override fun copy() = EntityStatisticsPhysicalOperatorNode(this.tx, this.entityName)
-    override fun toOperator(ctx: QueryContext) = EntityStatisticsOperator(this.tx, this.entityName)
+    override fun toOperator(ctx: QueryContext) = EntityStatisticsOperator(this.tx, this.entityName, ctx)
 }

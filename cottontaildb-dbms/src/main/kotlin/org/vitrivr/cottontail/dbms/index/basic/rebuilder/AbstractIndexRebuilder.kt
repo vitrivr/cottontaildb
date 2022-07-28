@@ -4,13 +4,12 @@ import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * An abstract [IndexRebuilder] implementation.
@@ -21,7 +20,7 @@ import org.vitrivr.cottontail.dbms.index.basic.IndexState
  * @version 1.0.0
  */
 abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
-                                                final override val context: TransactionContext): IndexRebuilder<T> {
+                                                final override val context: QueryContext): IndexRebuilder<T> {
     companion object {
         /** [Logger] instance used by [AbstractIndexRebuilder]. */
         internal val LOGGER: Logger = LoggerFactory.getLogger(AbstractIndexRebuilder::class.java)
@@ -35,12 +34,12 @@ abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
     @Synchronized
     override fun rebuild(): Boolean {
         /* Sanity check. */
-        require(context.xodusTx.isExclusive) { "Failed to rebuild index ${this.index.name} (${this.index.type}); rebuild operation requires exclusive transaction."}
+        require(this.context.txn.xodusTx.isExclusive) { "Failed to rebuild index ${this.index.name} (${this.index.type}); rebuild operation requires exclusive transaction."}
 
         LOGGER.debug("Rebuilding index ${this.index.name} (${this.index.type}).")
 
         /* Clear store and update state of index (* ---> DIRTY). */
-        if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.DIRTY, context.xodusTx)) {
+        if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.DIRTY, this.context.txn.xodusTx)) {
             LOGGER.error("Rebuilding index ${this.index.name} (${this.index.type}) failed because index state could not be changed to CLEAN!")
             return false
         }
@@ -52,7 +51,7 @@ abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
         }
 
         /* Update state of index (DIRTY ---> CLEAN). */
-        if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.CLEAN, context.xodusTx)) {
+        if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.CLEAN, this.context.txn.xodusTx)) {
             LOGGER.error("Rebuilding index ${this.index.name} (${this.index.type}) failed because index state could not be changed to CLEAN!")
             return false
         }
@@ -75,9 +74,9 @@ abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
      */
     protected fun tryClearAndOpenStore(): Store? {
         val storeName = this.index.name.storeName()
-        if ((this.index.catalogue as DefaultCatalogue).environment.storeExists(storeName, this.context.xodusTx)) {
-            (this.index.catalogue as DefaultCatalogue).environment.truncateStore(storeName, this.context.xodusTx)
-            return (this.index.catalogue as DefaultCatalogue).environment.openStore(storeName, StoreConfig.USE_EXISTING, context.xodusTx, false)
+        if ((this.index.catalogue as DefaultCatalogue).environment.storeExists(storeName, this.context.txn.xodusTx)) {
+            (this.index.catalogue as DefaultCatalogue).environment.truncateStore(storeName, this.context.txn.xodusTx)
+            return (this.index.catalogue as DefaultCatalogue).environment.openStore(storeName, StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
         }
         return null
     }

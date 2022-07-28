@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.statistics.selectivity
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 
@@ -21,7 +22,8 @@ object NaiveSelectivityCalculator {
      * @param predicate The [BooleanPredicate] to evaluate.
      * @param statistics The map of [ValueStatistics] to use in the calculation.
      */
-    fun estimate(predicate: BooleanPredicate, statistics: Map<ColumnDef<*>,ValueStatistics<*>>): Selectivity = when (predicate) {
+    context(org.vitrivr.cottontail.core.basics.Record, BindingContext)
+    fun estimate(predicate: BooleanPredicate, statistics: Map<ColumnDef<*>,ValueStatistics<*>>) = when (predicate) {
         is BooleanPredicate.Atomic -> estimateAtomicReference(predicate, statistics)
         is BooleanPredicate.Compound -> estimateCompoundSelectivity(predicate, statistics)
     }
@@ -32,6 +34,7 @@ object NaiveSelectivityCalculator {
      * @param predicate The [BooleanPredicate.Atomic] to evaluate.
      * @param statistics The map of [ValueStatistics] to use in the calculation.
      */
+    context(org.vitrivr.cottontail.core.basics.Record, BindingContext)
     private fun estimateAtomicReference(predicate: BooleanPredicate.Atomic, statistics: Map<ColumnDef<*>,ValueStatistics<*>>): Selectivity {
         val left = predicate.operator.left
         return if (left is Binding.Column) {
@@ -51,6 +54,7 @@ object NaiveSelectivityCalculator {
      * @param predicate The [BooleanPredicate.Compound] to evaluate.
      * @param statistics The map of [ValueStatistics] to use in the calculation.
      */
+    context(org.vitrivr.cottontail.core.basics.Record, BindingContext)
     private fun estimateCompoundSelectivity(predicate: BooleanPredicate.Compound, statistics: Map<ColumnDef<*>,ValueStatistics<*>>): Selectivity {
         val pp1 = estimate(predicate.p1, statistics)
         val pp2 = estimate(predicate.p2, statistics)

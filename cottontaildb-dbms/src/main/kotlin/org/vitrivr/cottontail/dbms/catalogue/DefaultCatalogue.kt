@@ -14,12 +14,13 @@ import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.dbms.catalogue.entries.*
 import org.vitrivr.cottontail.dbms.catalogue.entries.MetadataEntry.Companion.METADATA_ENTRY_DB_VERSION
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.functions.initialize
-import org.vitrivr.cottontail.dbms.general.*
+import org.vitrivr.cottontail.dbms.general.AbstractTx
+import org.vitrivr.cottontail.dbms.general.DBO
+import org.vitrivr.cottontail.dbms.general.DBOVersion
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.concurrent.withLock
@@ -137,12 +138,13 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
     }
 
     /**
-     * Creates and returns a new [DefaultCatalogue.Tx] for the given [TransactionContext].
+     * Creates and returns a new [DefaultCatalogue.Tx] for the given [QueryContext].
      *
-     * @param context The [TransactionContext] to create the [DefaultCatalogue.Tx] for.
+     * @param context The [QueryContext] to create the [DefaultCatalogue.Tx] for.
      * @return New [DefaultCatalogue.Tx]
      */
-    override fun newTx(context: TransactionContext): Tx = Tx(context)
+    override fun newTx(context: QueryContext): CatalogueTx
+        = context.txn.getCachedTxForDBO(this) ?: Tx(context)
 
     /**
      * Closes the [DefaultCatalogue] and all objects contained within.
@@ -166,7 +168,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    inner class Tx(context: TransactionContext) : AbstractTx(context), CatalogueTx {
+    inner class Tx(context: QueryContext) : AbstractTx(context), CatalogueTx {
 
         /** Reference to the [DefaultCatalogue] this [CatalogueTx] belongs to. */
         override val dbo: DefaultCatalogue
@@ -178,9 +180,9 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          * @return [List] of all [Name.SchemaName].
          */
         override fun listSchemas(): List<Name.SchemaName> = this.txLatch.withLock {
-            val store = SchemaCatalogueEntry.store(this@DefaultCatalogue, this.context.xodusTx)
+            val store = SchemaCatalogueEntry.store(this@DefaultCatalogue, this.context.txn.xodusTx)
             val list = mutableListOf<Name.SchemaName>()
-            store.openCursor(this.context.xodusTx).forEach {
+            store.openCursor(this.context.txn.xodusTx).forEach {
                 val entry = SchemaCatalogueEntry.entryToObject(this.value) as SchemaCatalogueEntry
                 list.add(entry.name)
             }
@@ -193,7 +195,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          * @param name [Name.SchemaName] to obtain the [Schema] for.
          */
         override fun schemaForName(name: Name.SchemaName): Schema = this.txLatch.withLock {
-            if (!SchemaCatalogueEntry.exists(name, this@DefaultCatalogue, this.context.xodusTx)) {
+            if (!SchemaCatalogueEntry.exists(name, this@DefaultCatalogue, this.context.txn.xodusTx)) {
                 throw DatabaseException.SchemaDoesNotExistException(name)
             }
             return DefaultSchema(name, this@DefaultCatalogue)
@@ -206,10 +208,10 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          */
         override fun createSchema(name: Name.SchemaName): Schema = this.txLatch.withLock {
             /* Check if schema exists! */
-            if (SchemaCatalogueEntry.exists(name, this@DefaultCatalogue, this.context.xodusTx)) throw DatabaseException.SchemaAlreadyExistsException(name)
+            if (SchemaCatalogueEntry.exists(name, this@DefaultCatalogue, this.context.txn.xodusTx)) throw DatabaseException.SchemaAlreadyExistsException(name)
 
             /* Write schema! */
-            SchemaCatalogueEntry.write(SchemaCatalogueEntry(name), this@DefaultCatalogue, this.context.xodusTx)
+            SchemaCatalogueEntry.write(SchemaCatalogueEntry(name), this@DefaultCatalogue, this.context.txn.xodusTx)
             return DefaultSchema(name, this@DefaultCatalogue)
         }
 
@@ -220,16 +222,16 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          */
         override fun dropSchema(name: Name.SchemaName) = this.txLatch.withLock {
             /* Check if schema exists! */
-            if (!SchemaCatalogueEntry.exists(name, this@DefaultCatalogue, this.context.xodusTx)) {
+            if (!SchemaCatalogueEntry.exists(name, this@DefaultCatalogue, this.context.txn.xodusTx)) {
                 throw DatabaseException.SchemaDoesNotExistException(name)
             }
 
             /* Obtain schema Tx and drop all entities contained in schema. */
-            val schemaTx = this.context.getTx(DefaultSchema(name, this@DefaultCatalogue)) as SchemaTx
+            val schemaTx = DefaultSchema(name, this@DefaultCatalogue).newTx(this.context)
             schemaTx.listEntities().forEach { schemaTx.dropEntity(it) }
 
             /* Remove schema from catalogue. */
-            SchemaCatalogueEntry.delete(name, this@DefaultCatalogue, this.context.xodusTx)
+            SchemaCatalogueEntry.delete(name, this@DefaultCatalogue, this.context.txn.xodusTx)
             Unit
         }
     }

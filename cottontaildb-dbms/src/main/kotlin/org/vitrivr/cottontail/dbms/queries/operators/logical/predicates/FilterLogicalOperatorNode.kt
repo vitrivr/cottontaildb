@@ -33,7 +33,7 @@ class FilterLogicalOperatorNode(input: Logical, val predicate: BooleanPredicate)
      */
     override fun copyWithNewInput(vararg input: Logical): FilterLogicalOperatorNode {
         require(input.size == 1) { "The input arity for UpdateLogicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
-        return FilterLogicalOperatorNode(input = input[0], predicate = this.predicate.copy())
+        return FilterLogicalOperatorNode(input = input[0], predicate = this.predicate)
     }
 
     /**

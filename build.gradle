@@ -44,7 +44,7 @@ subprojects {
     compileKotlin {
         kotlinOptions.jvmTarget = "1.8"
         kotlinOptions {
-            freeCompilerArgs = ["-Xinline-classes"]
+            freeCompilerArgs = ["-Xinline-classes", "-Xcontext-receivers"]
         }
     }
     compileTestKotlin {
@@ -71,12 +71,12 @@ subprojects {
     }
 
     /* Important warnings that are currently missing simply because there are too many: "cast", "rawtypes". Ideally, "all" should be used in the future. */
-    def enabledWarnings = ["-Xlint:deprecation", "-Xlint:empty", "-Xlint:overrides", "-Xlint:serial", "-Xlint:static", "-Xlint:unchecked", "-Xlint:varargs"]
+    def compilerOptions = ["-Xlint:deprecation", "-Xlint:empty", "-Xlint:overrides", "-Xlint:serial", "-Xlint:static", "-Xlint:unchecked", "-Xlint:varargs"]
     compileJava {
         options.encoding = 'UTF-8'
-        options.compilerArgs += enabledWarnings
+        options.compilerArgs += compilerOptions
     }
-    compileTestJava.options.compilerArgs += enabledWarnings
+    compileTestJava.options.compilerArgs += compilerOptions
 
     /* Common dependencies. */
     dependencies {

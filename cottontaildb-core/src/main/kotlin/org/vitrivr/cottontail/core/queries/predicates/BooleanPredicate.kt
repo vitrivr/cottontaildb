@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.utilities.extensions.toDouble
  * @see Record
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 3.0.0
  */
 sealed interface BooleanPredicate : Predicate {
     /** The [Atomic]s that make up this [BooleanPredicate]. */
@@ -27,22 +27,14 @@ sealed interface BooleanPredicate : Predicate {
     /**
      * Returns true, if this [BooleanPredicate] returns true in its current configuration, and false otherwise.
      */
+    context(Record, BindingContext)
     fun isMatch(): Boolean
 
     /**
-     * Returns the matching score, if the provided [Record]. Score of 0.0 equates to a non-match,
-     * while 1.0 equates to a full match.
-     *
-     * @param record The [Record] that should be checked against the predicate.
+     * Returns the matching score, if the provided [Record]. Score of 0.0 equates to a non-match, while 1.0 equates to a full match.
      */
-    fun score(record: Record): Double
-
-    /**
-     * Copies this [BooleanPredicate], creating a new [BooleanPredicate] that is initially bound to the same [Binding]s.
-     *
-     * @return Copy of this [BooleanPredicate]
-     */
-    override fun copy(): BooleanPredicate
+    context(Record, BindingContext)
+    fun score(): Double
 
     /**
      * An atomic [BooleanPredicate] that compares the column of a [Record] to a provided value, a set of provided values or another column.
@@ -98,30 +90,17 @@ sealed interface BooleanPredicate : Predicate {
         /**
          * Checks if the provided [Record] matches this [Atomic] and assigns a score if so.
          *
-         * @param record The [Record] to check.
          * @return Matching score.
          */
-        override fun score(record: Record): Double = this.isMatch().toDouble()
-
-        /**
-         * Creates a copy of this [Atomic].
-         *
-         * @return Copy of this [Atomic]
-         */
-        override fun copy(): Atomic = Atomic(this.operator.copy(), this.not)
-
-        /**
-         * Binds all [Binding]s contained in this [BooleanPredicate.Atomic] to the new [BindingContext].
-         *
-         * @param context The new [BindingContext] to bind [Binding]s to.
-         */
-        override fun bind(context: BindingContext) = this.operator.bind(context)
+        context(Record, BindingContext)
+        override fun score(): Double = this.isMatch().toDouble()
 
         /**
          * Checks if the provided [Record] matches this [Atomic] and returns true or false respectively.
          *
          * @return true if [Record] matches this [Atomic], false otherwise.
          */
+        context(Record, BindingContext)
         override fun isMatch(): Boolean =
             (!this.not && this.operator.match()) || (this.not && !this.operator.match())
 
@@ -188,16 +167,6 @@ sealed interface BooleanPredicate : Predicate {
             get() = this.p1.columns + this.p2.columns
 
         /**
-         * Binds all [Binding]s contained in this [BooleanPredicate.Compound] to the new [BindingContext].
-         *
-         * @param context The new [BindingContext] to bind [Binding]s to.
-         */
-        override fun bind(context: BindingContext) {
-            this.p1.bind(context)
-            this.p2.bind(context)
-        }
-
-        /**
          * A compound [BooleanPredicate] that connects two other [BooleanPredicate]s through a logical AND or OR connection.
          *
          * @author Ralph Gasser
@@ -206,25 +175,20 @@ sealed interface BooleanPredicate : Predicate {
         data class And(override val p1: BooleanPredicate, override val p2: BooleanPredicate) : Compound {
 
             /**
-             * Creates a copy of this [And].
-             *
-             * @return Copy of this [And]
-             */
-            override fun copy(): And = And(this.p1.copy(), this.p2.copy())
-
-            /**
              * Checks if the provided [Record] matches this [Compound] and returns true or false respectively.
              *
              * @return true if [Record] matches this [Compound], false otherwise.
              */
+            context(Record, BindingContext)
             override fun isMatch(): Boolean = this.p1.isMatch() && this.p2.isMatch()
+
             /**
              * Checks if the provided [Record] matches this [Compound] and returns a score.
              *
-             * @param record The [Record] to check.
              * @return true if [Record] matches this [Atomic], false otherwise.
              */
-            override fun score(record: Record): Double = (p1.isMatch() && p2.isMatch()).toDouble()
+            context(Record, BindingContext)
+            override fun score(): Double = (p1.isMatch() && p2.isMatch()).toDouble()
 
             /**
              * Calculates and returns the digest for this [BooleanPredicate.Compound]
@@ -246,25 +210,19 @@ sealed interface BooleanPredicate : Predicate {
         data class Or(override val p1: BooleanPredicate, override val p2: BooleanPredicate) : Compound {
 
             /**
-             * Creates a copy of this [Or].
-             *
-             * @return Copy of this [Or]
-             */
-            override fun copy(): Or = Or(this.p1.copy(), this.p2.copy())
-
-            /**
              * Checks if the provided [Record] matches this [Compound] and returns true or false respectively.
              *
              * @return true if [Record] matches this [Compound], false otherwise.
              */
+            context(Record, BindingContext)
             override fun isMatch(): Boolean = this.p1.isMatch() || this.p2.isMatch()
             /**
              * Checks if the provided [Record] matches this [Compound] and returns a score.
              *
-             * @param record The [Record] to check.
              * @return true if [Record] matches this [Atomic], false otherwise.
              */
-            override fun score(record: Record): Double = ((p1.isMatch() || p2.isMatch()).toDouble() / 2.0)
+            context(Record, BindingContext)
+            override fun score(): Double = ((p1.isMatch() || p2.isMatch()).toDouble() / 2.0)
 
             /**
              * Calculates and returns the digest for this [BooleanPredicate.Compound]

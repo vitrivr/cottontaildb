@@ -79,13 +79,13 @@ class VAFFloatIndexTest : AbstractIndexTest() {
             val predicate = ProximityPredicate.NNS(column = this.indexColumn, k = k, distance = function, query = context.bind(query))
 
             /* Obtain necessary transactions. */
-            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getTx(schema) as SchemaTx
+            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getTx(entity) as EntityTx
+            val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
             val index = entityTx.indexForName(this.indexName)
-            val indexTx = txn.getTx(index) as IndexTx
+            val indexTx = txn.getCachedTxForDBO(index) as IndexTx
 
             /* Fetch results through full table scan. */
 

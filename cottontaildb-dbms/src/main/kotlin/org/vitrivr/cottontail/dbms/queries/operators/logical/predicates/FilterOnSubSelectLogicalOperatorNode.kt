@@ -42,7 +42,7 @@ class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, left
      */
     override fun copyWithNewInput(vararg input: Logical): FilterOnSubSelectLogicalOperatorNode {
         require(input.size == 2) { "The input arity for FilterOnSubSelectLogicalOperatorNode.copyWithNewInpu() must be 2 but is ${input.size}. This is a programmer's error!"}
-        return FilterOnSubSelectLogicalOperatorNode(left = input[0], right = input[1], predicate = this.predicate.copy())
+        return FilterOnSubSelectLogicalOperatorNode(left = input[0], right = input[1], predicate = this.predicate)
     }
 
     /**

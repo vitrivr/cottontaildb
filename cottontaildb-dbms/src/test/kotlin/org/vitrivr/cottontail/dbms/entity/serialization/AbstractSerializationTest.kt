@@ -66,11 +66,11 @@ abstract class AbstractSerializationTest: AbstractEntityTest() {
         /* Start testing. */
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
-            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getTx(schema) as SchemaTx
+            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getTx(entity) as EntityTx
+            val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
             repeat(TestConstants.TEST_COLLECTION_SIZE) {
                 val reference = this.nextRecord(it)
                 val retrieved = entityTx.read((it + 1).toLong(), this.columns)
@@ -94,11 +94,11 @@ abstract class AbstractSerializationTest: AbstractEntityTest() {
 
         /* Start inserting. */
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
-        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+        val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
         val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = txn.getTx(schema) as SchemaTx
+        val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
         val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = txn.getTx(entity) as EntityTx
+        val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
 
         /* Insert data and track how many entries have been stored for the test later. */
         repeat(TestConstants.TEST_COLLECTION_SIZE) {

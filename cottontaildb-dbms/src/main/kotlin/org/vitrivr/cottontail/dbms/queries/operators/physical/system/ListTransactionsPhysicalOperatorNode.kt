@@ -27,6 +27,6 @@ class ListTransactionsPhysicalOperatorNode(val manager: TransactionManager): Nul
     override val physicalColumns: List<ColumnDef<*>>
         get() = emptyList()
     override val cost: Cost = Cost.ZERO
-    override fun toOperator(ctx: QueryContext) = ListTransactionsOperator(this.manager)
+    override fun toOperator(ctx: QueryContext) = ListTransactionsOperator(this.manager, ctx)
     override fun copy() = ListTransactionsPhysicalOperatorNode(this.manager)
 }

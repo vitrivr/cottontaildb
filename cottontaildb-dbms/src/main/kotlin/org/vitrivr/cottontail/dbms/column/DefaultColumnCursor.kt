@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.toKey
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -15,13 +15,13 @@ import java.util.concurrent.atomic.AtomicBoolean
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class DefaultColumnCursor<T: Value>(private val partition: LongRange, private val tx: DefaultColumn<T>.Tx, private val context: TransactionContext): Cursor<T?> {
+class DefaultColumnCursor<T: Value>(private val partition: LongRange, private val tx: DefaultColumn<T>.Tx, private val context: QueryContext): Cursor<T?> {
 
     /** The per-[Cursor] [XodusBinding] instance. */
     private val binding: XodusBinding<T> = this.tx.binding
 
     /** Creates a read-only snapshot of the enclosing Tx. */
-    private val subTransaction = this.context.xodusTx.readonlySnapshot
+    private val subTransaction = this.context.txn.xodusTx.readonlySnapshot
 
     /** Internal [Cursor] used for iteration. */
     private val cursor: jetbrains.exodus.env.Cursor = this.tx.dataStore.openCursor(this.subTransaction)

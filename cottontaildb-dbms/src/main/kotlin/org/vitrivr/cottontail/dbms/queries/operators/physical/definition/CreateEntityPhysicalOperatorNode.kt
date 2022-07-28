@@ -16,5 +16,5 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  */
 class CreateEntityPhysicalOperatorNode(private val tx: CatalogueTx, private val entityName: Name.EntityName, private val cols: Array<ColumnDef<*>>) : DataDefinitionPhysicalOperatorNode("CreateEntity") {
     override fun copy(): CreateEntityPhysicalOperatorNode = CreateEntityPhysicalOperatorNode(this.tx, this.entityName, this.cols)
-    override fun toOperator(ctx: QueryContext): Operator = CreateEntityOperator(this.tx, this.entityName, this.cols)
+    override fun toOperator(ctx: QueryContext): Operator = CreateEntityOperator(this.tx, this.entityName, this.cols, ctx)
 }

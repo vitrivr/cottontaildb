@@ -19,5 +19,5 @@ class CreateIndexPhysicalOperatorNode(
     private val indexColumns: List<Name.ColumnName>,
     private val params: Map<String, String>) : DataDefinitionPhysicalOperatorNode("CreateIndex") {
     override fun copy() = CreateIndexPhysicalOperatorNode(this.tx, this.indexName, this.type, this.indexColumns, this.params)
-    override fun toOperator(ctx: QueryContext) = CreateIndexOperator(this.tx, this.indexName, this.type, this.indexColumns, this.params)
+    override fun toOperator(ctx: QueryContext) = CreateIndexOperator(this.tx, this.indexName, this.type, this.indexColumns, this.params, ctx)
 }

@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
 
 /**
@@ -25,9 +25,9 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
  * single [Record]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 2.0.0
  */
-class MaxProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : Operator.PipelineOperator(parent) {
+class MaxProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
 
     /** [MaxProjectionOperator] does act as a pipeline breaker. */
     override val breaker: Boolean = true
@@ -49,12 +49,11 @@ class MaxProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : O
     /**
      * Converts this [CountProjectionOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [CountProjectionOperator]
      */
     @Suppress("UNCHECKED_CAST")
-    override fun toFlow(context: TransactionContext): Flow<Record> = flow {
-        val parentFlow = this@MaxProjectionOperator.parent.toFlow(context)
+    override fun toFlow(): Flow<Record> = flow {
+        val incoming = this@MaxProjectionOperator.parent.toFlow()
         val columns = this@MaxProjectionOperator.columns.toTypedArray()
 
         /* Prepare holder of type double, which can hold all types of values and collect incoming flow */
@@ -69,7 +68,7 @@ class MaxProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : O
                 else -> throw IllegalArgumentException("Column $it is not supported by t he MaxProjectionOperator. This is a programmer's error!")
             }
         }.toTypedArray()
-        parentFlow.onEach { r ->
+        incoming.onEach { r ->
             for (i in results.indices) {
                 results[i] = RealValue.max(results[i], r[i + 1] as RealValue<*>)
             }

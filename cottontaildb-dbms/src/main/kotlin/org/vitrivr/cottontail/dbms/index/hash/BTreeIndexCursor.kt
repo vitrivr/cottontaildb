@@ -4,11 +4,11 @@ import jetbrains.exodus.bindings.LongBinding
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
+import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -18,9 +18,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  * @author Ralph Gasser
  * @version 1.0.0
  */
-sealed class BTreeIndexCursor(val predicate: BooleanPredicate.Atomic, val index: BTreeIndex.Tx, val context: TransactionContext) : Cursor<Record> {
+sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index: BTreeIndex.Tx) : Cursor<Record> {
     /** Internal cursor used for navigation. */
-    protected val subTransaction = this.context.xodusTx.readonlySnapshot
+    protected val subTransaction = this.index.context.txn.xodusTx.readonlySnapshot
 
     /** Internal cursor used for navigation. */
     protected val cursor: jetbrains.exodus.env.Cursor
@@ -30,8 +30,14 @@ sealed class BTreeIndexCursor(val predicate: BooleanPredicate.Atomic, val index:
 
     /* Perform initial sanity checks. */
     init {
-        require(!predicate.not) { "NonUniqueHashIndex.filter() does not support negated statements." }
         this.cursor = this.index.dataStore.openCursor(this.subTransaction)
+        with(PlaceholderRecord) {
+            with(this@BTreeIndexCursor.index.context.bindings) {
+                if (this@BTreeIndexCursor.initialize()) {
+                    this@BTreeIndexCursor.boc.compareAndExchange(false, true)
+                }
+            }
+        }
     }
 
     override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.value)
@@ -42,44 +48,32 @@ sealed class BTreeIndexCursor(val predicate: BooleanPredicate.Atomic, val index:
         this.subTransaction.abort()
     }
 
+    context(BindingContext,Record)    protected abstract fun initialize(): Boolean
 
     /**
      * A [BTreeIndexCursor] variant to evaluate  [ComparisonOperator.Binary.Equal] operators.
      */
-    class Equals(predicate: BooleanPredicate.Atomic, index: BTreeIndex.Tx, context: TransactionContext): BTreeIndexCursor(predicate, index, context) {
-        /* Perform initial sanity checks. */
-        init {
-            require(predicate.operator is ComparisonOperator.Binary.Equal) { "BTreeIndexCursor.Equals does only support the EQUAL operator." }
-
-            /** Initialize cursor. */
-            if (this.cursor.getSearchKey(this.index.binding.valueToEntry((predicate.operator as ComparisonOperator.Binary.Equal).right.value)) != null) {
-                this.boc.compareAndExchange(false, true)
-            }
-        }
-
-        override fun moveNext(): Boolean
-            = (this.boc.compareAndExchange(true, false) || (this.cursor.nextDup))
+    class Equals(operator: ComparisonOperator.Binary.Equal, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.Binary.Equal>(operator, index) {
+        context(Record, BindingContext) override
+        fun initialize(): Boolean = this@Equals.cursor.getSearchKey(this@Equals.index.binding.valueToEntry(this.operator.right.getValue())) != null
+        override fun moveNext(): Boolean = (this.boc.compareAndExchange(true, false) || (this.cursor.nextDup))
     }
 
     /**
      * A [BTreeIndexCursor] variant to evaluate  [ComparisonOperator.In] operators.
      */
-    class In(predicate: BooleanPredicate.Atomic, index: BTreeIndex.Tx, context: TransactionContext): BTreeIndexCursor(predicate, index, context) {
+    class In(operator: ComparisonOperator.In, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.In>(operator, index) {
 
         /** Internal list of query values for IN predicate. */
         private val queryValueQueue = LinkedList<Value>()
-
-        init {
-            require(predicate.operator is ComparisonOperator.In) { "BTreeIndexCursor.In does only support the IN operator." }
-
-            this.queryValueQueue.addAll((predicate.operator as ComparisonOperator.In).right.mapNotNull { it.value })
-
-            while (queryValueQueue.size > 0) {
-                if (this.cursor.getSearchKey(this.index.binding.valueToEntry(this.queryValueQueue.poll())) != null) {
-                    this.boc.compareAndExchange(false, true)
-                    break
+        context(Record, BindingContext) override fun initialize(): Boolean {
+            this.queryValueQueue.addAll(this.operator.right.mapNotNull { it.getValue() })
+            while (this.queryValueQueue.size > 0) {
+                if (this@In.cursor.getSearchKey(this@In.index.binding.valueToEntry(this@In.queryValueQueue.poll())) != null) {
+                    return true
                 }
             }
+            return false
         }
 
         override fun moveNext(): Boolean {
@@ -96,16 +90,8 @@ sealed class BTreeIndexCursor(val predicate: BooleanPredicate.Atomic, val index:
     /**
      * A [BTreeIndexCursor] variant to evaluate  [ComparisonOperator.Binary.GreaterEqual] operators.
      */
-    class GreaterEqual(predicate: BooleanPredicate.Atomic, index: BTreeIndex.Tx, context: TransactionContext): BTreeIndexCursor(predicate, index, context) {
-        init {
-            require(predicate.operator is ComparisonOperator.Binary.GreaterEqual) { "BTreeIndexCursor.Greater does only support the >= operator." }
-
-            /** Initialize cursor. */
-            if (this.cursor.getSearchKeyRange(this.index.binding.valueToEntry((predicate.operator as ComparisonOperator.Binary.GreaterEqual).right.value)) != null) {
-                this.boc.compareAndExchange(false, true)
-            }
-        }
-
+    class GreaterEqual(operator: ComparisonOperator.Binary.GreaterEqual, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.Binary.GreaterEqual>(operator, index) {
+        context(BindingContext,Record)        override fun initialize(): Boolean = this.cursor.getSearchKeyRange(this.index.binding.valueToEntry(this.operator.right.getValue())) != null
         override fun moveNext(): Boolean
                 = (this.boc.compareAndExchange(true, false) || (this.cursor.next))
     }
@@ -113,21 +99,18 @@ sealed class BTreeIndexCursor(val predicate: BooleanPredicate.Atomic, val index:
     /**
      * A [BTreeIndexCursor] variant to evaluate  [ComparisonOperator.Binary.GreaterEqual] operators.
      */
-    class Greater(predicate: BooleanPredicate.Atomic, index: BTreeIndex.Tx, context: TransactionContext): BTreeIndexCursor(predicate, index, context) {
-        init {
-            require(predicate.operator is ComparisonOperator.Binary.Greater) { "BTreeIndexCursor.GreaterEqual does only support the > operator." }
-
-            /** Initialize cursor. */
-            val value = this.index.binding.valueToEntry((predicate.operator as ComparisonOperator.Binary.Greater).right.value)
+    class Greater(operator: ComparisonOperator.Binary.Greater, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.Binary.Greater>(operator, index) {
+        context(BindingContext,Record)        override fun initialize(): Boolean {
+            val value = this.index.binding.valueToEntry(this.operator.right.getValue())
             if (this.cursor.getSearchKeyRange(value) != null) {
-                this.boc.compareAndExchange(false, true)
                 while (this.cursor.key == value) {
                     if (!this.cursor.next) {
-                        this.boc.compareAndExchange(true, false)
-                        break
+                        return false
                     }
                 }
+                return true
             }
+            return false
         }
 
         override fun moveNext(): Boolean
@@ -137,15 +120,8 @@ sealed class BTreeIndexCursor(val predicate: BooleanPredicate.Atomic, val index:
     /**
      * A [BTreeIndexCursor] variant to evaluate [ComparisonOperator.Binary.LessEqual] operators.
      */
-    class LessEqual(predicate: BooleanPredicate.Atomic, index: BTreeIndex.Tx, context: TransactionContext): BTreeIndexCursor(predicate, index, context) {
-        init {
-            require(predicate.operator is ComparisonOperator.Binary.LessEqual) { "BTreeIndexCursor.LessEqual does only support the <= operator." }
-
-            /** Initialize cursor. */
-            if (this.cursor.getSearchKeyRange(this.index.binding.valueToEntry((predicate.operator as ComparisonOperator.Binary.GreaterEqual).right.value)) != null || this.cursor.last) {
-                this.boc.compareAndExchange(false, true)
-            }
-        }
+    class LessEqual(operator: ComparisonOperator.Binary.LessEqual, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.Binary.LessEqual>(operator, index) {
+        context(BindingContext,Record)        override fun initialize(): Boolean = this.cursor.getSearchKeyRange(this.index.binding.valueToEntry(this.operator.right.getValue())) != null
 
         override fun moveNext(): Boolean
             = (this.boc.compareAndExchange(true, false) || (this.cursor.prev))
@@ -154,21 +130,18 @@ sealed class BTreeIndexCursor(val predicate: BooleanPredicate.Atomic, val index:
     /**
      * A [BTreeIndexCursor] variant to evaluate [ComparisonOperator.Binary.LessEqual] operators.
      */
-    class Less(predicate: BooleanPredicate.Atomic, index: BTreeIndex.Tx, context: TransactionContext): BTreeIndexCursor(predicate, index, context) {
-        init {
-            require(predicate.operator is ComparisonOperator.Binary.Less) { "BTreeIndexCursor.Less does only support the < operator." }
-
-            /** Initialize cursor. */
-            val value = this.index.binding.valueToEntry((predicate.operator as ComparisonOperator.Binary.Greater).right.value)
-            if (this.cursor.getSearchKeyRange(this.index.binding.valueToEntry((predicate.operator as ComparisonOperator.Binary.Less).right.value)) != null || this.cursor.last) {
-                this.boc.compareAndExchange(false, true)
+    class Less(operator: ComparisonOperator.Binary.Less, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.Binary.Less>(operator, index) {
+        context(BindingContext,Record)        override fun initialize(): Boolean {
+            val value = this.index.binding.valueToEntry(this.operator.right.getValue())
+            if (this.cursor.getSearchKeyRange(value) != null) {
                 while (this.cursor.key == value) {
                     if (!this.cursor.prev) {
-                        this.boc.compareAndExchange(true, false)
-                        break
+                        return false
                     }
                 }
+                return true
             }
+            return false
         }
 
         override fun moveNext(): Boolean

@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.transform
 
+import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
@@ -27,10 +29,12 @@ class SkipPhysicalOperatorNode(input: Physical, val skip: Long) : UnaryPhysicalO
         get() = NODE_NAME
 
     /** The output size of this [SkipPhysicalOperatorNode], which depends on skip and limit. */
+    context(BindingContext,Record)
     override val outputSize: Long
         get() = super.outputSize - this.skip
 
     /** The [Cost] of a [SkipPhysicalOperatorNode]. */
+    context(BindingContext,Record)
     override val cost: Cost
         get() = Cost.MEMORY_ACCESS * this.outputSize
 
@@ -55,7 +59,7 @@ class SkipPhysicalOperatorNode(input: Physical, val skip: Long) : UnaryPhysicalO
      *
      * @param ctx The [TransactionContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = SkipOperator(this.input.toOperator(ctx), this.skip)
+    override fun toOperator(ctx: QueryContext) = SkipOperator(this.input.toOperator(ctx), this.skip, ctx)
 
     /** Generates and returns a [String] representation of this [SkipPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.skip}]"

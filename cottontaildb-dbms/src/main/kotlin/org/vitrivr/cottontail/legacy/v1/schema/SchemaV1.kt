@@ -10,10 +10,10 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.DBOVersion
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.legacy.v1.catalogue.CatalogueV1
@@ -84,12 +84,12 @@ class SchemaV1(override val name: Name.SchemaName, override val parent: Catalogu
     }
 
     /**
-     * Creates and returns a new [SchemaTx] for the given [TransactionContext].
+     * Creates and returns a new [SchemaTx] for the given [QueryContext].
      *
-     * @param context The [TransactionContext] to create the [SchemaTx] for.
+     * @param context The [QueryContext] to create the [SchemaTx] for.
      * @return New [SchemaTx]
      */
-    override fun newTx(context: TransactionContext): SchemaTx = this.Tx(context)
+    override fun newTx(context: QueryContext): SchemaTx = this.Tx(context)
 
     /**
      * Closes this [Schema] and all the [EntityV1] objects that are contained within.
@@ -111,7 +111,7 @@ class SchemaV1(override val name: Name.SchemaName, override val parent: Catalogu
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    inner class Tx(context: TransactionContext) : AbstractTx(context), SchemaTx {
+    inner class Tx(context: QueryContext) : AbstractTx(context), SchemaTx {
 
         /** Reference to the surrounding [Schema]. */
         override val dbo: DBO

@@ -21,5 +21,5 @@ import org.vitrivr.cottontail.dbms.schema.Schema
 class ListEntityPhysicalOperatorNode(val tx: CatalogueTx, val schema: Name.SchemaName? = null): DataDefinitionPhysicalOperatorNode("ListEntity") {
     override val columns: List<ColumnDef<*>> = ColumnSets.DDL_LIST_COLUMNS
     override fun copy(): NullaryPhysicalOperatorNode = ListEntityPhysicalOperatorNode(this.tx, this.schema)
-    override fun toOperator(ctx: QueryContext): Operator = ListEntityOperator(this.tx, this.schema)
+    override fun toOperator(ctx: QueryContext): Operator = ListEntityOperator(this.tx, this.schema, ctx)
 }

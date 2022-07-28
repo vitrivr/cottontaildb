@@ -116,7 +116,7 @@ class DefaultQueryContext(override val queryId: String, override val catalogue: 
         check(local != null) { IllegalStateException("Cannot generate an operator tree without a valid, physical node expression tree.") }
         val maxParallelism = this.hints.filterIsInstance<QueryHint.Parallelism>().firstOrNull()?.max?.coerceAtMost(this.txn.availableIntraQueryWorkers) ?: this.txn.availableIntraQueryWorkers
         if (maxParallelism > 1) {
-            val partitioned = local.tryPartition(this.costPolicy, maxParallelism)
+            val partitioned = local.tryPartition(this, maxParallelism)?.root
             if (partitioned != null) {
                 return partitioned.toOperator(this)
             }

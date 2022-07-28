@@ -1,7 +1,9 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
@@ -28,10 +30,12 @@ class CountProjectionPhysicalOperatorNode(input: Physical, val out: Binding.Colu
     override val requires: List<ColumnDef<*>> = emptyList()
 
     /** The output size of this [CountProjectionPhysicalOperatorNode] is always one. */
-    override val outputSize: Long = 1
+    context(BindingContext,Record)    override val outputSize: Long
+        get() = 1L
 
     /** The [Cost] of a [CountProjectionPhysicalOperatorNode]. */
-    override val cost: Cost = Cost.MEMORY_ACCESS * this.input.outputSize
+    context(BindingContext,Record)    override val cost: Cost
+        get() = Cost.MEMORY_ACCESS * this.input.outputSize
 
     /** The [CountProjectionPhysicalOperatorNode] cannot be partitioned. */
     override val traits: Map<TraitType<*>, Trait> by lazy {
@@ -54,7 +58,7 @@ class CountProjectionPhysicalOperatorNode(input: Physical, val out: Binding.Colu
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = CountProjectionOperator(this.input.toOperator(ctx))
+    override fun toOperator(ctx: QueryContext) = CountProjectionOperator(this.input.toOperator(ctx), ctx)
 
     /**
      * Compares this [CountProjectionPhysicalOperatorNode] to another object.

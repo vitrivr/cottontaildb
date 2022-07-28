@@ -2,8 +2,6 @@ package org.vitrivr.cottontail.core.queries.predicates
 
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.queries.nodes.BindableNode
-import org.vitrivr.cottontail.core.queries.nodes.CopyableNode
 import org.vitrivr.cottontail.core.queries.nodes.Node
 import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
 
@@ -15,16 +13,9 @@ import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
  * @author Ralph Gasser
  * @version 1.4.0
  */
-sealed interface Predicate : BindableNode, CopyableNode, NodeWithCost {
+sealed interface Predicate : NodeWithCost {
     /** Set of [ColumnDef] that are accessed by this [Predicate]. */
     val columns: Set<ColumnDef<*>>
-
-    /**
-     * Creates a copy of this [Predicate].
-     *
-     * @return [Predicate]
-     */
-    override fun copy(): Predicate
 }
 
 

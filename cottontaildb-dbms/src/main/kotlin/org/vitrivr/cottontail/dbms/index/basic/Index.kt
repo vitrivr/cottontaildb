@@ -3,10 +3,10 @@ package org.vitrivr.cottontail.dbms.index.basic
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.IndexRebuilder
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * Represents a (secondary) [Index] structure in the Cottontail DB data model. An [Index] belongs
@@ -43,17 +43,17 @@ interface Index : DBO {
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [Index].
      *
-     * @param context If the [TransactionContext] that requested the [IndexTx].
+     * @param context If the [QueryContext] that requested the [IndexTx].
      */
-    override fun newTx(context: TransactionContext): IndexTx
+    override fun newTx(context: QueryContext): IndexTx
 
     /**
      * Creates and returns a new [IndexRebuilder] for this [Index].
      *
-     * @param context If the [TransactionContext] that requested the [IndexRebuilder].
+     * @param context If the [QueryContext] that requested the [IndexRebuilder].
      * @return [IndexRebuilder]
      */
-    fun newRebuilder(context: TransactionContext): IndexRebuilder<*>
+    fun newRebuilder(context: QueryContext): IndexRebuilder<*>
 
     /**
      * Creates and returns a new [AsyncIndexRebuilder] for this [Index].

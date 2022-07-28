@@ -6,7 +6,6 @@ import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.Vector
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
-import org.vitrivr.cottontail.dbms.index.basic.IndexTx
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
@@ -80,7 +79,7 @@ object NNSIndexScanClass3Rule : RewriteRule {
                 /* Extract index hint and search for candidate. */
                 val hint = ctx.hints.filterIsInstance<QueryHint.IndexHint>().firstOrNull() ?: QueryHint.IndexHint.All
                 val candidate = scan.entity.listIndexes().map {
-                    scan.entity.context.getTx(scan.entity.indexForName(it)) as IndexTx
+                    scan.entity.indexForName(it).newTx(ctx)
                 }.find {
                     it.state != IndexState.DIRTY && hint.matches(it.dbo) && it.canProcess(predicate)
                 }

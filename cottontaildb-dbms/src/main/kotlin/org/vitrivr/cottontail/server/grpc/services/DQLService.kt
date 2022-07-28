@@ -67,15 +67,16 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
      */
     override fun query(request: CottontailGrpc.QueryMessage): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(request.metadata, true) { ctx ->
         /* Bind query and create logical plan. */
-        val canonical = GrpcQueryBinder.bind(request.query, ctx)
-        ctx.assign(canonical)
+        with(ctx) {
+            val canonical = GrpcQueryBinder.bind(request.query)
+            ctx.assign(canonical)
 
+            /* Plan query and create execution plan. */
+            ctx.plan(this@DQLService.planner)
 
-        /* Plan query and create execution plan. */
-        ctx.plan(this.planner)
-
-        /* Generate operator tree. */
-        ctx.toOperatorTree()
+            /* Generate operator tree. */
+            ctx.toOperatorTree()
+        }
     }
 
     /**
@@ -83,14 +84,16 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
      */
     override fun explain(request: CottontailGrpc.QueryMessage): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(request.metadata, true) { ctx ->
         /* Bind query and create canonical, logical plan. */
-        val canonical = GrpcQueryBinder.bind(request.query, ctx)
-        ctx.assign(canonical)
+        with(ctx) {
+            val canonical = GrpcQueryBinder.bind(request.query)
+            ctx.assign(canonical)
 
-        /* Plan query and create execution plan. */
-        val candidate = this.planner.planAndSelect(ctx)
+            /* Plan query and create execution plan. */
+            val candidate = this@DQLService.planner.planAndSelect(ctx)
 
-        /* Generate operator tree. */
-        ExplainQueryOperator(listOf(candidate), ctx.costPolicy)
+            /* Generate operator tree. */
+            ExplainQueryOperator(listOf(candidate), ctx)
+        }
     }
 
     /**

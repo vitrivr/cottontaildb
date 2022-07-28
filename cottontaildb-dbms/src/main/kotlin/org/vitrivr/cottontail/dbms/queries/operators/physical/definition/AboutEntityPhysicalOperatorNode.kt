@@ -17,5 +17,5 @@ import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets.DDL_ABOUT_COLUMN
 class AboutEntityPhysicalOperatorNode(val tx: CatalogueTx, val entityName: Name.EntityName): DataDefinitionPhysicalOperatorNode("AboutEntity") {
     override val columns: List<ColumnDef<*>> = DDL_ABOUT_COLUMNS
     override fun copy() = AboutEntityPhysicalOperatorNode(this.tx, this.entityName)
-    override fun toOperator(ctx: QueryContext) = AboutEntityOperator(this.tx, this.entityName)
+    override fun toOperator(ctx: QueryContext) = AboutEntityOperator(this.tx, this.entityName, ctx)
 }

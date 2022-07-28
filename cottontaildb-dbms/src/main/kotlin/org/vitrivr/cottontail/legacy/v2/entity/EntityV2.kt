@@ -18,13 +18,13 @@ import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexConfig
 import org.vitrivr.cottontail.dbms.index.basic.IndexTx
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.statistics.entity.EntityStatistics
 import org.vitrivr.cottontail.legacy.v2.column.ColumnV2
@@ -113,12 +113,12 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, Closeabl
     }
 
     /**
-     * Creates and returns a new [EntityV2.Tx] for the given [TransactionContext].
+     * Creates and returns a new [EntityV2.Tx] for the given [QueryContext].
      *
-     * @param context The [TransactionContext] to create the [EntityV2.Tx] for.
+     * @param context The [QueryContext] to create the [EntityV2.Tx] for.
      * @return New [EntityV2.Tx]
      */
-    override fun newTx(context: TransactionContext) = this.Tx(context)
+    override fun newTx(context: QueryContext) = this.Tx(context)
 
     /**
      * Closes the [EntityV2].
@@ -141,7 +141,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, Closeabl
      * @author Ralph Gasser
      * @version 1.3.0
      */
-    inner class Tx(context: TransactionContext) : AbstractTx(context), EntityTx {
+    inner class Tx(context: QueryContext) : AbstractTx(context), EntityTx {
 
         /** Reference to the surrounding [EntityV2]. */
         override val dbo: EntityV2
@@ -151,7 +151,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, Closeabl
 
         /** Checks if DBO is still open. */
         init {
-            if (this@EntityV2.closed) throw TransactionException.DBOClosed(this.context.txId, this@EntityV2)
+            if (this@EntityV2.closed) throw TransactionException.DBOClosed(this.context.txn.txId, this@EntityV2)
         }
 
         /**
@@ -167,7 +167,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, Closeabl
             /* Read values from underlying columns. */
             val values = columns.map {
                 val column = this@EntityV2.columns[it.name] ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@EntityV2.name}.")
-                (this.context.getTx(column) as ColumnTx<*>).get(tupleId)
+                column.newTx(this@Tx.context).get(tupleId)
             }.toTypedArray()
 
             /* Return value of all the desired columns. */
@@ -274,7 +274,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, Closeabl
             /** List of [ColumnTx]s used by  this [Iterator]. */
             private val txs = columns.map {
                 val column = this@EntityV2.columns[it.name] ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@EntityV2.name}.")
-                (this@Tx.context.getTx(column) as ColumnV2<*>.Tx)
+                column.newTx(this@Tx.context)
             }
 
             /** The wrapped [Iterator] of the first column. */

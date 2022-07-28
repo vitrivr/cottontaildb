@@ -4,11 +4,13 @@ import jetbrains.exodus.bindings.LongBinding
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
+import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
@@ -17,7 +19,6 @@ import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.va.bounds.Bounds
 import org.vitrivr.cottontail.dbms.index.va.bounds.L1Bounds
 import org.vitrivr.cottontail.dbms.index.va.bounds.L2Bounds
@@ -32,7 +33,7 @@ import org.vitrivr.cottontail.utilities.selection.HeapSelection
  * @version 1.0.0
  */
 @Suppress("UNCHECKED_CAST")
-class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val index: VAFIndex.Tx, val context: TransactionContext): Cursor<Record> {
+class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val index: VAFIndex.Tx): Cursor<Record> {
     /** [VectorValue] used for query. Must be prepared before using the [Iterator]. */
     private val query: RealVectorValue<*>
 
@@ -66,13 +67,19 @@ class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val
 
     init {
         /* Convert query vector. */
-        val value = this.predicate.query.value
-        check(value is RealVectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
-        this.query = value
+        val queryVectorBinding = this@VAFCursor.predicate.query
+        require(queryVectorBinding is Binding.Literal) {  "Bound query vector is not a literal value."  }
+        with(PlaceholderRecord) {
+            with(this@VAFCursor.index.context.bindings) {
+                val value = queryVectorBinding.getValue()
+                check(value is RealVectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
+                this@VAFCursor.query = value
+            }
+        }
 
         /* Obtain Tx object for column. */
-        val entityTx: EntityTx = this.context.getTx(this.index.dbo.parent) as EntityTx
-        this.columnCursor = (this.context.getTx(entityTx.columnForName(this.index.columns[0].name)) as ColumnTx<RealVectorValue<*>>).cursor(partition)
+        val entityTx: EntityTx = this.index.dbo.parent.newTx(this.index.context)
+        this.columnCursor = entityTx.columnForName(this.index.columns[0].name).newTx(this.index.context).cursor(partition) as Cursor<RealVectorValue<*>?>
 
         /* Derive bounds object. */
         this.bounds = when (this.predicate.distance) {
@@ -129,7 +136,7 @@ class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val
      */
     private fun prepareVASSA() {
         /* Initialize cursor. */
-        val subTx = this.context.xodusTx.readonlySnapshot
+        val subTx = this.index.context.txn.xodusTx.readonlySnapshot
         val cursor = this.index.dataStore.openCursor(subTx)
         try {
             if (cursor.getSearchKeyRange(this.startKey) == null) return

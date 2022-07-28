@@ -8,21 +8,21 @@ import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
 
 /**
  * An [Operator.SourceOperator] used during query execution. Used to list all ongoing transactions.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
-class ListTransactionsOperator(val manager: TransactionManager) : Operator.SourceOperator() {
+class ListTransactionsOperator(val manager: TransactionManager, override val context: QueryContext) : Operator.SourceOperator() {
     override val columns: List<ColumnDef<*>>
         get() = ColumnSets.DDL_TRANSACTIONS_COLUMNS
 
-    override fun toFlow(context: TransactionContext): Flow<Record> = flow {
+    override fun toFlow(): Flow<Record> = flow {
         val columns = this@ListTransactionsOperator.columns.toTypedArray()
         var row = 0L
         this@ListTransactionsOperator.manager.transactionHistory.forEach {

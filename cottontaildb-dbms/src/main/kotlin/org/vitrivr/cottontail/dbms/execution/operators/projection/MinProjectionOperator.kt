@@ -1,9 +1,7 @@
 package org.vitrivr.cottontail.dbms.execution.operators.projection
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
@@ -14,7 +12,7 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
 
 /**
@@ -25,9 +23,9 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
  * Only produces a single [Record]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 2.0.0
  */
-class MinProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : Operator.PipelineOperator(parent) {
+class MinProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
 
     /** [MinProjectionOperator] does act as a pipeline breaker. */
     override val breaker: Boolean = true
@@ -49,12 +47,11 @@ class MinProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : O
     /**
      * Converts this [MinProjectionOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [MinProjectionOperator]
      */
     @Suppress("UNCHECKED_CAST")
-    override fun toFlow(context: TransactionContext): Flow<Record> = flow {
-        val parentFlow = this@MinProjectionOperator.parent.toFlow(context)
+    override fun toFlow(): Flow<Record> = flow {
+        val incoming = this@MinProjectionOperator.parent.toFlow()
         val columns = this@MinProjectionOperator.columns.toTypedArray()
 
         /* Prepare holder of type double, which can hold all types of values and collect incoming flow */
@@ -69,11 +66,11 @@ class MinProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : O
                 else -> throw IllegalArgumentException("Column $it is not supported by the MinProjectionOperator. This is a programmer's error!")
             }
         }.toTypedArray()
-        parentFlow.onEach { r ->
+        incoming.collect { r ->
             for (i in results.indices) {
-                results[i] = RealValue.min(results[i], r[i + 1] as RealValue<*>)
+                results[i] = RealValue.min(results[i], r[columns[i]] as RealValue<*>)
             }
-        }.collect()
+        }
 
         /** Emit record. */
         emit(StandaloneRecord(0L, columns, results as Array<Value?>))

@@ -3,8 +3,8 @@ package org.vitrivr.cottontail.dbms.catalogue
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.DBO
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.Schema
 import java.io.Closeable
 
@@ -31,12 +31,12 @@ interface Catalogue : DBO, Closeable {
     override val parent: DBO?
 
     /**
-     * Creates and returns a new [CatalogueTx] for the given [TransactionContext].
+     * Creates and returns a new [CatalogueTx] for the given [QueryContext].
      *
-     * @param context The [TransactionContext] to create the [CatalogueTx] for.
+     * @param context The [QueryContext] to create the [CatalogueTx] for.
      * @return New [CatalogueTx]
      */
-    override fun newTx(context: TransactionContext): CatalogueTx
+    override fun newTx(context: QueryContext): CatalogueTx
 
     /**
      * Closes the [Catalogue] and all objects contained within.

@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.predicates
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
@@ -35,14 +37,13 @@ class FilterPhysicalOperatorNode(input: Physical, val predicate: BooleanPredicat
         get() = super.executable && this.predicate.atomics.none { it.operator is ComparisonOperator.Binary.Match }
 
     /** The estimated output size of this [FilterOnSubSelectPhysicalOperatorNode]. Calculated based on [Selectivity] estimates. */
-    override val outputSize: Long by lazy {
-        NaiveSelectivityCalculator.estimate(this.predicate, this.statistics).invoke(this.input.outputSize)
-    }
+    context(BindingContext,Record)    override val outputSize: Long
+        get() = NaiveSelectivityCalculator.estimate(this.predicate, this.statistics).invoke(this.input.outputSize)
 
     /** The [Cost] of this [FilterPhysicalOperatorNode]. */
-    override val cost: Cost by lazy {
-        this.predicate.cost * this.input.outputSize
-    }
+    context(BindingContext,Record)
+    override val cost: Cost
+        get() = this.predicate.cost * this.input.outputSize
 
     /**
      * Creates and returns a copy of this [FilterPhysicalOperatorNode] using the given parents as input.
@@ -52,7 +53,7 @@ class FilterPhysicalOperatorNode(input: Physical, val predicate: BooleanPredicat
      */
     override fun copyWithNewInput(vararg input: Physical): FilterPhysicalOperatorNode {
         require(input.size == 1) { "The input arity for FilterPhysicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
-        return FilterPhysicalOperatorNode(input = input[0], predicate = this.predicate.copy())
+        return FilterPhysicalOperatorNode(input = input[0], predicate = this.predicate)
     }
 
     /**
@@ -60,13 +61,7 @@ class FilterPhysicalOperatorNode(input: Physical, val predicate: BooleanPredicat
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): FilterOperator {
-        /* Bind predicate to context. */
-        this.predicate.bind(ctx.bindings)
-
-        /* Generate and return FilterOperator. */
-        return FilterOperator(this.input.toOperator(ctx), this.predicate)
-    }
+    override fun toOperator(ctx: QueryContext): FilterOperator = FilterOperator(this.input.toOperator(ctx), this.predicate, ctx)
 
     /** Generates and returns a [String] representation of this [FilterPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.predicate}]"

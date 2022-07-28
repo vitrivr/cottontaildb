@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
+import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.values.DoubleValue
@@ -53,7 +55,7 @@ sealed class RealValueStatistics<T: RealValue<*>>(type: Types<T>): AbstractValue
      * @param predicate [BooleanPredicate.Atomic] to estimate [Selectivity] for.
      * @return [Selectivity]
      */
-    override fun estimateSelectivity(predicate: BooleanPredicate.Atomic): Selectivity {
+    context(BindingContext,Record)    override fun estimateSelectivity(predicate: BooleanPredicate.Atomic): Selectivity {
         val op = predicate.operator
         if (op.left is org.vitrivr.cottontail.core.queries.binding.Binding.Column && op.left.type == this.type) {
             when (op) {
@@ -61,15 +63,15 @@ sealed class RealValueStatistics<T: RealValue<*>>(type: Types<T>): AbstractValue
                     val left = op.left
                     val right = op.right
                     if (op.right is org.vitrivr.cottontail.core.queries.binding.Binding.Literal) {
-                        return this.estimateBinarySelectivity(op, right.value as T)
+                        return this.estimateBinarySelectivity(op, right.getValue() as T)
                     } else if (op.left is org.vitrivr.cottontail.core.queries.binding.Binding.Literal){
-                        return this.estimateBinarySelectivity(op, left.value as T)
+                        return this.estimateBinarySelectivity(op, left.getValue() as T)
                     }
                 }
                 is ComparisonOperator.Between -> {
                     val lower = op.rightLower
                     val upper = op.rightUpper
-                    return this.estimateBetweenSelectivity(lower.value as T, upper.value as T)
+                    return this.estimateBetweenSelectivity(lower.getValue() as T, upper.getValue() as T)
                 }
                 else -> { /* No op. */ }
             }

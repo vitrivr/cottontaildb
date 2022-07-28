@@ -27,12 +27,20 @@ interface TransactionContext: ExecutionContext {
     val xodusTx: Transaction
 
     /**
-     * Obtains a [Tx] for the given [DBO]. This method should make sure, that only one [Tx] per [DBO] is created.
+     * Caches a [Tx] for later re-use.
      *
      * @param dbo The [DBO] to create the [Tx] for.
-     * @return The resulting [Tx]
+     * @return True on success, false otherwise.
      */
-    fun getTx(dbo: DBO): Tx
+    fun cacheTxForDBO(dbo: Tx): Boolean
+
+    /**
+     * Obtains a cached [Tx] for the given [DBO].
+     *
+     * @param dbo The [DBO] to create the [Tx] for.
+     * @return The resulting [Tx] or null
+     */
+    fun <T: Tx> getCachedTxForDBO(dbo: DBO): T?
 
     /**
      * Acquires a [Lock] on a [DBO] for the given [LockMode]. This call is delegated to the

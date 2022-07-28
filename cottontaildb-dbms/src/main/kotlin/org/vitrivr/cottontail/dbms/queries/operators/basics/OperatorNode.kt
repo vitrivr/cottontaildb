@@ -1,13 +1,13 @@
 package org.vitrivr.cottontail.dbms.queries.operators.basics
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.Node
-import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
 import org.vitrivr.cottontail.core.queries.nodes.NodeWithTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
@@ -141,7 +141,7 @@ sealed class OperatorNode : NodeWithTrait {
      *
      * @see OperatorNode
      */
-    sealed class Physical : OperatorNode(), NodeWithCost {
+    sealed class Physical : OperatorNode() {
 
         /** The [OperatorNode.Logical] that receives the results produced by this [OperatorNode.Logical] as input. May be null, which makes this [OperatorNode.Logical] the root of the tree. */
         var output: Physical? = null
@@ -157,21 +157,24 @@ sealed class OperatorNode : NodeWithTrait {
         /** Map containing all [ValueStatistics] about the [ColumnDef]s processed in this [OperatorNode.Physical]. */
         abstract val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
 
-        /** The estimated number of rows this [OperatorNode.Physical] generates. */
-        abstract val outputSize: Long
-
-        /** An estimation of the [Cost] incurred by the query plan up and until this [OperatorNode.Physical]. */
-        abstract val totalCost: Cost
-
-        /** An estimation of the [Cost] incurred by the parallelizable portion of the query plan up and until this [OperatorNode.Physical]. */
-        abstract val parallelizableCost: Cost
-
-        /** An estimation of the [Cost] incurred by the sequential portion of the query plan up and until this [OperatorNode.Physical]. */
-        val sequentialCost: Cost
-            get() = this.totalCost - this.parallelizableCost
-
         /** Most [OperatorNode.Physical]s are executable by default. */
         override val executable: Boolean = true
+
+        /** The estimated number of rows this [OperatorNode.Physical] generates. */
+        context(BindingContext,Record)        abstract val outputSize: Long
+
+        /** An estimation of the [Cost] incurred by this [OperatorNode.Physical]. */
+        context(BindingContext,Record)        abstract val cost: Cost
+
+        /** An estimation of the [Cost] incurred by the query plan up and until this [OperatorNode.Physical]. */
+        context(BindingContext,Record)        abstract val totalCost: Cost
+
+        /** An estimation of the [Cost] incurred by the parallelizable portion of the query plan up and until this [OperatorNode.Physical]. */
+        context(BindingContext,Record)        abstract val parallelizableCost: Cost
+
+        /** An estimation of the [Cost] incurred by the sequential portion of the query plan up and until this [OperatorNode.Physical]. */
+        context(BindingContext,Record)        val sequentialCost: Cost
+            get() = this.totalCost - this.parallelizableCost
 
         /**
          * Creates and returns a copy of this [OperatorNode.Physical]. Furthermore, connects the provided [input] to the copied [OperatorNode.Physical]s.
@@ -220,11 +223,11 @@ sealed class OperatorNode : NodeWithTrait {
          * By default, a call to this method propagates up a tree until a [OperatorNode.Physical] that allows for
          * partitioning (i.e. lacks the [NotPartitionableTrait]) or the end of the tree has been reached.
          *
-         * @param policy The [CostPolicy] to use for partitioning.
+         * @param ctx The [QueryContext] to use for partitioning.
          * @param max The maximum number of partitions. Usually determined by the available threads.
          * @return [OperatorNode.Physical] that represents the base of a new, partitioned query plan or null.
          */
-        abstract fun tryPartition(policy: CostPolicy, max: Int): Physical?
+        abstract fun tryPartition(ctx: QueryContext, max: Int): Physical?
 
         /**
          * Generates a partitioned version of this [OperatorNode.Physical].

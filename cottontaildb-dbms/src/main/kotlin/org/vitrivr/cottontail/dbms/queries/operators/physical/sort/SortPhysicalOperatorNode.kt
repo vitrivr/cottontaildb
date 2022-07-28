@@ -1,12 +1,15 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.sort
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.MaterializedTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
+import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -36,7 +39,7 @@ class SortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<ColumnDef<
     override val requires: List<ColumnDef<*>> = sortOn.map { it.first }
 
     /** The [Cost] incurred by this [SortPhysicalOperatorNode]. */
-    override val cost: Cost
+    context(BindingContext,Record)    override val cost: Cost
         get() = Cost(
             cpu = 2 * this.sortOn.size * Cost.MEMORY_ACCESS.cpu,
             memory = this.columns.sumOf {
@@ -76,7 +79,18 @@ class SortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<ColumnDef<
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): Operator = HeapSortOperator(this.input.toOperator(ctx), this.sortOn, this.outputSize.coerceAtMost(Integer.MAX_VALUE.toLong()).toInt())
+    override fun toOperator(ctx: QueryContext): Operator {
+        with(ctx.bindings) {
+            with(PlaceholderRecord) {
+                return HeapSortOperator(
+                    this@SortPhysicalOperatorNode.input.toOperator(ctx),
+                    this@SortPhysicalOperatorNode.sortOn,
+                    this@SortPhysicalOperatorNode.outputSize.coerceAtMost(Integer.MAX_VALUE.toLong()).toInt(),
+                    ctx
+                )
+            }
+        }
+    }
 
     /** Generates and returns a [String] representation of this [SortPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.name} ${it.second}" }}]"

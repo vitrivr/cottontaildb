@@ -13,8 +13,7 @@ import java.io.ByteArrayInputStream
  */
 object UQBTreeIndexConfig: IndexConfig<UQBTreeIndex>, ComparableBinding() {
     override fun readObject(stream: ByteArrayInputStream): Comparable<UQBTreeIndexConfig> = UQBTreeIndexConfig
-    override fun writeObject(output: LightOutputStream, `object`: Comparable<UQBTreeIndexConfig>) {
-   /* No op. */
+    override fun writeObject(output: LightOutputStream, `object`: Comparable<UQBTreeIndexConfig>) {/* No op. */
     }
     override fun toMap(): Map<String, String> = emptyMap()
 }

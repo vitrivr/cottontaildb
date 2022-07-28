@@ -14,5 +14,5 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  */
 class DropIndexPhysicalOperatorNode(val tx: CatalogueTx, val indexName: Name.IndexName): DataDefinitionPhysicalOperatorNode("DropIndex") {
     override fun copy() = DropIndexPhysicalOperatorNode(this.tx, this.indexName)
-    override fun toOperator(ctx: QueryContext) = DropIndexOperator(this.tx, this.indexName)
+    override fun toOperator(ctx: QueryContext) = DropIndexOperator(this.tx, this.indexName, ctx)
 }

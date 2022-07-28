@@ -1,10 +1,12 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.sort
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
+import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.sort.LimitingHeapSortOperator
@@ -34,11 +36,14 @@ class LimitingSortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<Co
     override val requires: List<ColumnDef<*>> = sortOn.map { it.first }
 
     /** The size of the output produced by this [SortPhysicalOperatorNode]. */
-    override val outputSize: Long = min(super.outputSize, this.limit)
+    context(BindingContext,Record)
+    override val outputSize: Long
+        get() = min(super.outputSize, this.limit)
 
     /** The [Cost] incurred by this [SortPhysicalOperatorNode]. */
-    override val cost: Cost by lazy {
-        Cost(
+    context(BindingContext,Record)
+    override val cost: Cost
+        get() = Cost(
             cpu = 2 * this.sortOn.size * Cost.MEMORY_ACCESS.cpu,
             memory = (this.columns.sumOf {
                 if (it.type == Types.String) {
@@ -48,7 +53,6 @@ class LimitingSortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<Co
                 }
             }).toFloat()
         ) * this.outputSize
-    }
 
     /** The [LimitingSortPhysicalOperatorNode] overwrites/sets the [OrderTrait] and the [LimitTrait].  */
     override val traits: Map<TraitType<*>, Trait>
@@ -78,20 +82,24 @@ class LimitingSortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<Co
      * For this operator, there is a dedicated, [MergeLimitingSortPhysicalOperatorNode] that acts as a drop-in replacement,
      * if the input allows for partitioning.
      *
-     * @param policy The [CostPolicy] to use when determining the optimal number of partitions.
+     * @param ctx The [QueryContext] to use when determining the optimal number of partitions.
      * @param max The maximum number of partitions to create.
      * @return [OperatorNode.Physical] operator at the based of the new query plan.
      */
-    override fun tryPartition(policy: CostPolicy, max: Int): Physical? {
+    override fun tryPartition(ctx: QueryContext, max: Int): Physical? {
         return if (!this.input.hasTrait(NotPartitionableTrait)) {
-            val partitions = policy.parallelisation(this.parallelizableCost, this.totalCost, max)
+            val partitions = with(ctx.bindings) {
+                with(PlaceholderRecord) {
+                    ctx.costPolicy.parallelisation(this@LimitingSortPhysicalOperatorNode.parallelizableCost, this@LimitingSortPhysicalOperatorNode.totalCost, max)
+                }
+            }
             if (partitions <= 1) return null
             val inbound = (0 until partitions).map { input.partition(partitions, it) }
             val outbound = this.output
             val merge = MergeLimitingSortPhysicalOperatorNode(*inbound.toTypedArray(), sortOn = this.sortOn, limit = this.limit)
             outbound?.copyWithOutput(merge) ?: merge
         } else {
-            this.input.tryPartition(policy, max)
+            this.input.tryPartition(ctx, max)
         }
     }
 
@@ -100,7 +108,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<Co
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = LimitingHeapSortOperator(this.input.toOperator(ctx), this.sortOn, this.limit)
+    override fun toOperator(ctx: QueryContext) = LimitingHeapSortOperator(this.input.toOperator(ctx), this.sortOn, this.limit, ctx)
 
     /** Generates and returns a [String] representation of this [SortPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.name} ${it.second}" }},${this.limit}]"

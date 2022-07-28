@@ -9,9 +9,9 @@ import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.events.IndexEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import kotlin.concurrent.withLock
 
 /**
@@ -58,7 +58,12 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
     /**
      * A [Tx] that affects this [AbstractIndex].
      */
-    abstract inner class Tx(context: TransactionContext) : AbstractTx(context), IndexTx, WriteModel {
+    abstract inner class Tx(context: QueryContext) : AbstractTx(context), IndexTx, WriteModel {
+
+        init {
+            /* Cache this Tx for future use. */
+            context.txn.cacheTxForDBO(this)
+        }
 
         /** Reference to the [AbstractIndex] */
         final override val dbo: AbstractIndex
@@ -91,10 +96,10 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
             private set
 
         init {
-            val entry = IndexCatalogueEntry.read(this@AbstractIndex.name, this@AbstractIndex.catalogue, this.context.xodusTx) ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
+            val entry = IndexCatalogueEntry.read(this@AbstractIndex.name, this@AbstractIndex.catalogue, this.context.txn.xodusTx) ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
             this.state = entry.state
             this.columns = entry.columns.map {
-                ColumnCatalogueEntry.read(it, this@AbstractIndex.catalogue, this.context.xodusTx)?.toColumnDef() ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name} because catalogue entry for column could not be read ${it}.")
+                ColumnCatalogueEntry.read(it, this@AbstractIndex.catalogue, this.context.txn.xodusTx)?.toColumnDef() ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name} because catalogue entry for column could not be read ${it}.")
             }.toTypedArray()
             this.config = entry.config
         }
@@ -152,9 +157,9 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
          *
          * @param state The new [IndexState].
          */
-        protected fun updateState(state: IndexState) {
-            if (state != this.state && IndexCatalogueEntry.updateState(this@AbstractIndex.name, this@AbstractIndex.catalogue, state, this.context.xodusTx)) {
-                this.context.signalEvent(IndexEvent.State(this@AbstractIndex.name, this@AbstractIndex.type, state))
+        private fun updateState(state: IndexState) {
+            if (state != this.state && IndexCatalogueEntry.updateState(this@AbstractIndex.name, this@AbstractIndex.catalogue, state, this.context.txn.xodusTx)) {
+                this.context.txn.signalEvent(IndexEvent.State(this@AbstractIndex.name, this@AbstractIndex.type, state))
             }
         }
     }

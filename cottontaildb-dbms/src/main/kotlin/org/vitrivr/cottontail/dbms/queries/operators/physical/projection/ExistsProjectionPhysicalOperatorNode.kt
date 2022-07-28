@@ -57,7 +57,7 @@ class ExistsProjectionPhysicalOperatorNode(input: Physical, val out: Binding.Col
      *
      * @param ctx The [TransactionContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = ExistsProjectionOperator(this.input.toOperator(ctx), this.out)
+    override fun toOperator(ctx: QueryContext) = ExistsProjectionOperator(this.input.toOperator(ctx), this.out, ctx)
 
     /**
      * Compares this [ExistsProjectionPhysicalOperatorNode] to another object.

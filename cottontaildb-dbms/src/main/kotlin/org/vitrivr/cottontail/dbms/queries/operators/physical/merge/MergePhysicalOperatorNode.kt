@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.merge
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
@@ -28,15 +29,20 @@ class MergePhysicalOperatorNode(vararg inputs: Physical): NAryPhysicalOperatorNo
     override val name: String = "Merge"
 
     /** The output size of all [MergePhysicalOperatorNode]s is the sum of all its input's output sizes. */
-    override val outputSize: Long
+    context(BindingContext,Record)    override val outputSize: Long
         get() = this.inputs.sumOf { it.outputSize }
 
     /** The [Cost] incurred by the [MergePhysicalOperatorNode] is usually negligible. */
-    override val cost: Cost = Cost.ZERO
+    context(BindingContext,Record)    override val cost: Cost
+        get() = Cost.ZERO
 
     /** The parallelizable portion of the [Cost] incurred by the [MergePhysicalOperatorNode] is the sum of the [Cost]s of all inputs. */
-    override val parallelizableCost: Cost
+    context(BindingContext,Record)    override val parallelizableCost: Cost
         get() = this.inputs.map { it.totalCost }.reduce {c1, c2 -> c1 + c2}
+
+    /** The [MergePhysicalOperator] eliminates all traits from the incoming nodes. */
+    override val traits: Map<TraitType<*>, Trait>
+        get() = emptyMap()
 
     /** The [MergePhysicalOperatorNode] depends on all its [GroupId]s. */
     override val dependsOn: Array<GroupId> by lazy {
@@ -51,14 +57,10 @@ class MergePhysicalOperatorNode(vararg inputs: Physical): NAryPhysicalOperatorNo
      */
     override fun copyWithNewInput(vararg input: Physical): NAryPhysicalOperatorNode = MergePhysicalOperatorNode(*input)
 
-    /* The [MergePhysicalOperator] eliminates all traits from the incoming nodes. */
-    override val traits: Map<TraitType<*>, Trait>
-        get() = emptyMap()
-
     /**
      * Converts this [MergePhysicalOperatorNode] to a [MergeOperator].
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): Operator = MergeOperator(this.inputs.map { it.toOperator(ctx.split()) }, ctx.bindings)
+    override fun toOperator(ctx: QueryContext): Operator = MergeOperator(this.inputs.map { it.toOperator(ctx.split()) }, ctx)
 }

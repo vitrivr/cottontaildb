@@ -20,12 +20,12 @@ import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexConfig
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.legacy.v1.column.ColumnV1
 import org.vitrivr.cottontail.legacy.v1.schema.SchemaV1
 import java.io.Closeable
@@ -111,12 +111,12 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
         private set
 
     /**
-     * Creates and returns a new [EntityTx] for the given [TransactionContext].
+     * Creates and returns a new [EntityTx] for the given [QueryContext].
      *
-     * @param context The [TransactionContext] to create the [EntityTx] for.
+     * @param context The [QueryContext] to create the [EntityTx] for.
      * @return New [EntityTx]
      */
-    override fun newTx(context: TransactionContext) = this.Tx(context)
+    override fun newTx(context: QueryContext) = this.Tx(context)
 
     /**
      * Closes the [Entity]. Closing an [Entity] is a delicate matter since ongoing [EntityTx] objects as well as all involved [Column]s are involved.
@@ -135,7 +135,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
      *
      * Opening a [EntityTx] will automatically spawn [ColumnTx] for every [Column] that belongs to this [Entity].
      */
-    inner class Tx(context: TransactionContext) : AbstractTx(context), EntityTx {
+    inner class Tx(context: QueryContext) : AbstractTx(context), EntityTx {
 
         /** Reference to the surrounding [Entity]. */
         override val dbo: Entity
@@ -143,7 +143,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
 
         /** Tries to acquire a global read-lock on this entity. */
         init {
-            if (this@EntityV1.closed) throw TransactionException.DBOClosed(this.context.txId, this@EntityV1)
+            if (this@EntityV1.closed) throw TransactionException.DBOClosed(this.context.txn.txId, this@EntityV1)
         }
 
         /**
@@ -193,12 +193,12 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
         }
 
         override fun smallestTupleId(): TupleId {
-            val columnTx = this@Tx.context.getTx(this@EntityV1.columns.values.first()) as ColumnV1<*>.Tx
+            val columnTx = this@EntityV1.columns.values.first().newTx(this.context)
             return columnTx.smallestTupleId()
         }
 
         override fun largestTupleId(): TupleId {
-            val columnTx = this@Tx.context.getTx(this@EntityV1.columns.values.first()) as ColumnV1<*>.Tx
+            val columnTx = this@EntityV1.columns.values.first().newTx(this.context)
             return columnTx.largestTupleId()
         }
 
@@ -223,7 +223,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
         override fun cursor(columns: Array<ColumnDef<*>>, partition: LongRange): Cursor<Record> = object : Cursor<Record> {
 
             /** The wrapped [Iterator] of the first (primary) column. */
-            private val wrapped = (this@Tx.context.getTx(this@EntityV1.columns.values.first()) as ColumnV1<*>.Tx).scan(partition)
+            private val wrapped = this@EntityV1.columns.values.first().newTx(this@Tx.context).scan(partition)
 
             override fun value(): Record {
                 /* Read values from underlying columns. */
@@ -231,7 +231,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
                 val values = columns.map {
                     val column = this@EntityV1.columns[it.name]
                         ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@EntityV1.name}.")
-                    (this@Tx.context.getTx(column) as ColumnTx<*>).get(tupleId)
+                    column.newTx(this@Tx.context).get(tupleId)
                 }.toTypedArray()
 
                 /* Return value of all the desired columns. */

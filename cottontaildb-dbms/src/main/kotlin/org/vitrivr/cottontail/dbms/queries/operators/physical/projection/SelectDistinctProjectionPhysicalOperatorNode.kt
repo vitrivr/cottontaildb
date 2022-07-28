@@ -1,8 +1,10 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 
 import org.vitrivr.cottontail.config.Config
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.projection.SelectDistinctProjectionOperator
@@ -30,9 +32,9 @@ class SelectDistinctProjectionPhysicalOperatorNode(input: Physical, val fields: 
         get() = this.columns
 
     /** The [Cost] of a [SelectDistinctProjectionPhysicalOperatorNode]. */
-    override val cost: Cost by lazy {
-        Cost.MEMORY_ACCESS * (this.outputSize * this.fields.size) + Cost.DISK_ACCESS_WRITE * (16 * this.fields.size * this.outputSize)
-    }
+    context(BindingContext,Record)
+    override val cost: Cost
+        get() = Cost.MEMORY_ACCESS * (this.outputSize * this.fields.size) + Cost.DISK_ACCESS_WRITE * (16 * this.fields.size * this.outputSize)
 
     init {
         /* Sanity check. */
@@ -57,7 +59,7 @@ class SelectDistinctProjectionPhysicalOperatorNode(input: Physical, val fields: 
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = SelectDistinctProjectionOperator(this.input.toOperator(ctx), this.fields, this.config)
+    override fun toOperator(ctx: QueryContext) = SelectDistinctProjectionOperator(this.input.toOperator(ctx), this.fields, ctx)
 
     /**
      *

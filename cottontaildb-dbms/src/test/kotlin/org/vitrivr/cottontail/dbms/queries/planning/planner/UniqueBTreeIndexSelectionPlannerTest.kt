@@ -93,11 +93,11 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
             try {
                 val ctx = DefaultQueryContext("test", this.catalogue, txn)
-                val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+                val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
                 val schema = catalogueTx.schemaForName(this.schemaName)
-                val schemaTx = txn.getTx(schema) as SchemaTx
+                val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
                 val entity = schemaTx.entityForName(this.entityName)
-                val entityTx = txn.getTx(entity) as EntityTx
+                val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
                 val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
                 /* Bind EQUALS operator. */
@@ -133,11 +133,11 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn, setOf(QueryHint.IndexHint.None))
-            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getTx(schema) as SchemaTx
+            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getTx(entity) as EntityTx
+            val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
             val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
             /* Bind EQUALS operator. */
@@ -169,11 +169,11 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
             try {
                 val ctx = DefaultQueryContext("test", this.catalogue, txn)
-                val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+                val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
                 val schema = catalogueTx.schemaForName(this.schemaName)
-                val schemaTx = txn.getTx(schema) as SchemaTx
+                val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
                 val entity = schemaTx.entityForName(this.entityName)
-                val entityTx = txn.getTx(entity) as EntityTx
+                val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
                 val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
                 /* Bind IN operator. */
@@ -209,11 +209,11 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
             try {
                 val ctx = DefaultQueryContext("test", this.catalogue, txn)
-                val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+                val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
                 val schema = catalogueTx.schemaForName(this.schemaName)
-                val schemaTx = txn.getTx(schema) as SchemaTx
+                val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
                 val entity = schemaTx.entityForName(this.entityName)
-                val entityTx = txn.getTx(entity) as EntityTx
+                val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
                 val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
                 /* Bind IN operator. */
@@ -249,11 +249,11 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn, setOf(QueryHint.IndexHint.None))
-            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getTx(schema) as SchemaTx
+            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getTx(entity) as EntityTx
+            val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
             val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
             /* Bind IN operator. */

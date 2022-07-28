@@ -18,6 +18,7 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
+import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
@@ -33,6 +34,7 @@ import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignature
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignatureGenerator
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import kotlin.concurrent.withLock
 
 /**
@@ -134,17 +136,18 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [LSHIndex].
      *
-     * @param context The [TransactionContext] to create this [IndexTx] for.
+     * @param context The [QueryContext] to create this [IndexTx] for.
      */
-    override fun newTx(context: TransactionContext): IndexTx = Tx(context)
+    override fun newTx(context: QueryContext): IndexTx
+        = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
 
     /**
      * Opens and returns a new [LSHIndexRebuilder] object that can be used to rebuild with this [LSHIndex].
      *
-     * @param context The [TransactionContext] to create [LSHIndexRebuilder] for.
+     * @param context The [QueryContext] to create [LSHIndexRebuilder] for.
      * @return [LSHIndexRebuilder]
      */
-    override fun newRebuilder(context: TransactionContext) = LSHIndexRebuilder(this, context)
+    override fun newRebuilder(context: QueryContext) = LSHIndexRebuilder(this, context)
 
     /**
      * Since [LSHIndex] does not support asynchronous re-indexing, this method will throw an error.
@@ -155,10 +158,10 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
     /**
      * A [IndexTx] that affects this [LSHIndex].
      */
-    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
+    private inner class Tx(context: QueryContext) : AbstractIndex.Tx(context) {
 
         /** The Xodus [Store] used to store [LSHSignature]s. */
-        private val store: LSHDataStore = LSHDataStore.open(context.xodusTx, this@LSHIndex)
+        private val store: LSHDataStore = LSHDataStore.open(this.context.txn.xodusTx, this@LSHIndex)
 
         /**
          * [LSHIndex] only produced candidate [TupleId]s and no columns.
@@ -221,7 +224,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             val generator = (this.config as LSHIndexConfig).generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
             val value = event.data[this.columns[0]]
             check(value is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.store.addMapping(this.context.xodusTx, generator.generate(value), event.tupleId)
+            return this.store.addMapping(this.context.txn.xodusTx, generator.generate(value), event.tupleId)
         }
 
         /**
@@ -236,7 +239,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             val value = event.data[this.columns[0]]
             check(value?.first is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
             check(value?.second is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.store.removeMapping(this.context.xodusTx, generator.generate(value!!.first as VectorValue<*>), event.tupleId) && this.store.addMapping(this.context.xodusTx,generator.generate(value.second as VectorValue<*>), event.tupleId)
+            return this.store.removeMapping(this.context.txn.xodusTx, generator.generate(value!!.first as VectorValue<*>), event.tupleId) && this.store.addMapping(this.context.txn.xodusTx,generator.generate(value.second as VectorValue<*>), event.tupleId)
         }
 
         /**
@@ -250,7 +253,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             val generator = (this.config as LSHIndexConfig).generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
             val value = event.data[this.columns[0]]
             check(value is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.store.removeMapping(this.context.xodusTx, generator.generate(value), event.tupleId)
+            return this.store.removeMapping(this.context.txn.xodusTx, generator.generate(value), event.tupleId)
         }
 
         /**
@@ -259,7 +262,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return Number of entries in this [LSHIndex]
          */
         override fun count(): Long  = this.txLatch.withLock {
-            this.store.store.count(this.context.xodusTx)
+            this.store.store.count(this.context.txn.xodusTx)
         }
 
         /**
@@ -273,14 +276,14 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         override fun filter(predicate: Predicate) = object : Cursor<Record> {
 
             /** Cast [ProximityPredicate] (if such a cast is possible).  */
-            private val predicate = if (predicate is ProximityPredicate) {
+            private val predicate: ProximityPredicate = if (predicate is ProximityPredicate) {
                 predicate
             } else {
                 throw QueryException.UnsupportedPredicateException("Index '${this@LSHIndex.name}' (LSH Index) does not support predicates of type '${predicate::class.simpleName}'.")
             }
 
             /** Sub transaction for this [Cursor]. */
-            private val subTx = this@Tx.context.xodusTx.readonlySnapshot
+            private val subTx = this@Tx.context.txn.xodusTx.readonlySnapshot
 
             /** The Xodus cursors used to navigate the data. */
             private val cursor = this@Tx.store.store.openCursor(this.subTx)
@@ -293,13 +296,17 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
                 }
 
                 /* Assure correctness of query vector. */
-                val value = this.predicate.query.value
-                check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
+                with(PlaceholderRecord) {
+                    with(this@Tx.context.bindings) {
+                        val value = (predicate as ProximityPredicate).query.getValue()
+                        check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
 
-                /* Obtain LSH signature of query and set signature. */
-                val signature = config.generator?.generate(value)
-                check(signature != null) { "Failed to generate signature for query vector." }
-                this.cursor.getSearchKey(LSHSignature.Binding.objectToEntry(signature))
+                        /* Obtain LSH signature of query and set signature. */
+                        val signature = config.generator?.generate(value)
+                        check(signature != null) { "Failed to generate signature for query vector." }
+                        cursor.getSearchKey(LSHSignature.Binding.objectToEntry(signature))
+                    }
+                }
             }
 
             /**

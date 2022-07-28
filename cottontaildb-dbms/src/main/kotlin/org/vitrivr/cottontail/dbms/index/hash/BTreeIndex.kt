@@ -18,21 +18,20 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
+import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
-import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
@@ -44,7 +43,7 @@ import kotlin.math.log10
  * to map a [Value] to a [TupleId]. Well suited for equality based lookups of [Value]s.
  *
  * @author Luca Rossetto & Ralph Gasser
- * @version 3.1.0
+ * @version 3.2.0
  */
 class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
@@ -124,15 +123,16 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
      * @param context If the [TransactionContext] to create the [IndexTx] for.
      * @return [Tx]
      */
-    override fun newTx(context: TransactionContext) = Tx(context)
+    override fun newTx(context: QueryContext)
+        = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
 
     /**
-     * Opens and returns a new [BTreeIndexRebuilder] object that can be used to rebuild with this [BTreeIndex].
+     * Opens and returns a new [QueryContext] object that can be used to rebuild with this [BTreeIndex].
      *
      * @param context If the [TransactionContext] to create the [BTreeIndexRebuilder] for.
-     * @return [BTreeIndexRebuilder]
+     * @return [QueryContext]
      */
-    override fun newRebuilder(context: TransactionContext) = BTreeIndexRebuilder(this, context)
+    override fun newRebuilder(context: QueryContext) = BTreeIndexRebuilder(this, context)
 
     /**
      * Since [BTreeIndex] does not support asynchronous re-indexing, this method will throw an error.
@@ -143,14 +143,14 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
     /**
      * An [IndexTx] that affects this [BTreeIndex].
      */
-    inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
+    inner class Tx(context: QueryContext) : AbstractIndex.Tx(context) {
 
         /** The internal [XodusBinding] reference used for de-/serialization. */
         @Suppress("UNCHECKED_CAST")
         internal val binding: XodusBinding<Value> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable) as XodusBinding<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
-        internal val dataStore: Store = this@BTreeIndex.catalogue.environment.openStore(this@BTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
+        internal val dataStore: Store = this@BTreeIndex.catalogue.environment.openStore(this@BTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@BTreeIndex.name} is missing.")
 
         /**
@@ -164,7 +164,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         private fun addMapping(key: Value, tupleId: TupleId): Boolean {
             val keyRaw = this.binding.valueToEntry(key)
             val tupleIdRaw = LongBinding.longToCompressedEntry(tupleId)
-            return this.dataStore.put(this.context.xodusTx, keyRaw, tupleIdRaw)
+            return this.dataStore.put(this.context.txn.xodusTx, keyRaw, tupleIdRaw)
         }
 
         /**
@@ -177,7 +177,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         private fun removeMapping(key: Value, tupleId: TupleId): Boolean {
             val keyRaw = this.binding.valueToEntry(key)
             val valueRaw = LongBinding.longToCompressedEntry(tupleId)
-            val cursor = this.dataStore.openCursor(this.context.xodusTx)
+            val cursor = this.dataStore.openCursor(this.context.txn.xodusTx)
             val ret = cursor.getSearchBoth(keyRaw, valueRaw) && cursor.deleteCurrent()
             cursor.close()
             return ret
@@ -197,8 +197,8 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
             if (!predicate.columns.contains(this.columns[0])) return false
             return when (predicate.operator) {
                 is ComparisonOperator.Binary.Equal,
-                is ComparisonOperator.In -> true
-                is ComparisonOperator.Binary.Like -> ((predicate.operator as ComparisonOperator.Binary.Like).right.value is LikePatternValue.StartsWith)
+                is ComparisonOperator.In,
+                is ComparisonOperator.Binary.Like -> true
                 else -> false
             }
         }
@@ -232,9 +232,13 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          */
         override fun costFor(predicate: Predicate): Cost = this.txLatch.withLock {
             if (predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not) return Cost.INVALID
-            val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
-            val statistics = this.columns.associateWith { (this.context.getTx(entityTx.columnForName(it.name)) as ColumnTx<*>).statistics() }
-            val selectivity = NaiveSelectivityCalculator.estimate(predicate, statistics)
+            val entityTx = this.dbo.parent.newTx(this.context)
+            val statistics = this.columns.associateWith { entityTx.columnForName(it.name).newTx(this.context).statistics() }
+            val selectivity = with(PlaceholderRecord) {
+                with(this@Tx.context.bindings) {
+                    NaiveSelectivityCalculator.estimate(predicate, statistics)
+                }
+            }
             val count = this.count()                /* Number of entries. */
             val countOut = selectivity(count)       /* Number of entries actually selected (comparison still required). */
             val search = log10(count.toFloat())     /* Overhead for search into the index. */
@@ -284,7 +288,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @return Number of entries in this [UQBTreeIndex]
          */
         override fun count(): Long  = this.txLatch.withLock {
-            this.dataStore.count(this.context.xodusTx)
+            this.dataStore.count(this.context.txn.xodusTx)
         }
 
         /**
@@ -298,13 +302,13 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          */
         override fun filter(predicate: Predicate) = this.txLatch.withLock {
             require(predicate is BooleanPredicate.Atomic) { "BTreeIndex.filter() does only support BooleanPredicate.Atomic boolean predicates." }
-            when(predicate.operator) {
-                is ComparisonOperator.Binary.Equal -> BTreeIndexCursor.Equals(predicate, this, this.context)
-                is ComparisonOperator.Binary.Greater -> BTreeIndexCursor.Greater(predicate, this, this.context)
-                is ComparisonOperator.Binary.GreaterEqual -> BTreeIndexCursor.GreaterEqual(predicate, this, this.context)
-                is ComparisonOperator.Binary.Less -> BTreeIndexCursor.Less(predicate, this, this.context)
-                is ComparisonOperator.Binary.LessEqual -> BTreeIndexCursor.LessEqual(predicate, this, this.context)
-                is ComparisonOperator.In -> BTreeIndexCursor.In(predicate, this, this.context)
+            when(val op = predicate.operator) {
+                is ComparisonOperator.Binary.Equal -> BTreeIndexCursor.Equals(op, this)
+                is ComparisonOperator.Binary.Greater -> BTreeIndexCursor.Greater(op, this)
+                is ComparisonOperator.Binary.GreaterEqual -> BTreeIndexCursor.GreaterEqual(op, this)
+                is ComparisonOperator.Binary.Less -> BTreeIndexCursor.Less(op, this)
+                is ComparisonOperator.Binary.LessEqual -> BTreeIndexCursor.LessEqual(op, this)
+                is ComparisonOperator.In -> BTreeIndexCursor.In(op, this)
                 else -> throw IllegalArgumentException("BTreeIndex.filter() does only support =,>=,<=,>,< and IN operators.")
             }
         }

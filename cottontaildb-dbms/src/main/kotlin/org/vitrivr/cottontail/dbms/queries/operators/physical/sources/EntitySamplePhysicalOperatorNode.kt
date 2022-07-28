@@ -9,7 +9,6 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.sources.EntitySampleOperator
@@ -64,7 +63,7 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
         var fetchSize = 0
         for ((binding, physical) in this.fetch) {
             if (!this.statistics.containsKey(binding.column)) {
-                this.statistics[binding.column] = (this.entity.context.getTx(this.entity.columnForName(physical.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
+                this.statistics[binding.column] = this.entity.columnForName(physical.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
             }
             fetchSize += if (binding.type == Types.String) {
                 this.statistics[binding.column]!!.avgWidth * Char.SIZE_BYTES
@@ -87,13 +86,7 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): EntitySampleOperator {
-        /* Bind all column bindings to context. */
-        this.fetch.forEach { it.first.bind(ctx.bindings) }
-
-        /* Generate and return EntitySampleOperator. */
-        return EntitySampleOperator(this.groupId, this.entity, this.fetch, this.p, this.seed)
-    }
+    override fun toOperator(ctx: QueryContext): EntitySampleOperator = EntitySampleOperator(this.groupId, this.entity, this.fetch, this.p, this.seed, ctx)
 
     /** Generates and returns a [String] representation of this [EntitySamplePhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"

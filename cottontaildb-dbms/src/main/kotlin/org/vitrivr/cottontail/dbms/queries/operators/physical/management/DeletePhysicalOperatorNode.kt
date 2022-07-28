@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.management
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
@@ -40,9 +42,8 @@ class DeletePhysicalOperatorNode(input: Physical, val entity: EntityTx) : UnaryP
     override val outputSize: Long = 1L
 
     /** The [Cost] of this [DeletePhysicalOperatorNode]. */
-    override val cost: Cost by lazy {
-        Cost.DISK_ACCESS_WRITE * this.entity.count() * this.input.outputSize
-    }
+    context(BindingContext,Record)    override val cost: Cost
+        get() = Cost.DISK_ACCESS_WRITE * this.entity.count() * this.input.outputSize
 
     /** The [DeletePhysicalOperatorNode] cannot be partitioned. */
     override val traits: Map<TraitType<*>, Trait> = mapOf(NotPartitionableTrait to NotPartitionableTrait)
@@ -63,7 +64,7 @@ class DeletePhysicalOperatorNode(input: Physical, val entity: EntityTx) : UnaryP
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): Operator = DeleteOperator(this.input.toOperator(ctx), this.entity)
+    override fun toOperator(ctx: QueryContext): Operator = DeleteOperator(this.input.toOperator(ctx), this.entity, ctx)
 
     override fun toString(): String = "${super.toString()}[${this.entity.dbo.name}]"
 

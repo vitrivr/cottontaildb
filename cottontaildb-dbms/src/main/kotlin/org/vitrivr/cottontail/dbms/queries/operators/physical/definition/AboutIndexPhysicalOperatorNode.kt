@@ -17,5 +17,5 @@ import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
 class AboutIndexPhysicalOperatorNode (val tx: CatalogueTx, val indexName: Name.IndexName): DataDefinitionPhysicalOperatorNode("AboutIndex") {
     override val columns: List<ColumnDef<*>> = ColumnSets.DDL_ABOUT_COLUMNS
     override fun copy() = AboutIndexPhysicalOperatorNode(this.tx, this.indexName)
-    override fun toOperator(ctx: QueryContext) = AboutIndexOperator(this.tx, this.indexName)
+    override fun toOperator(ctx: QueryContext) = AboutIndexOperator(this.tx, this.indexName, ctx)
 }

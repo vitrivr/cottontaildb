@@ -1,11 +1,14 @@
 package org.vitrivr.cottontail.dbms.queries.operators.basics
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
+import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergeLimitingSortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.LimitPhysicalOperatorNode
@@ -16,7 +19,7 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Physical] implementation that has a single [OperatorNode] as input.
  *
  * @author Ralph Gasser
- * @version 2.8.0
+ * @version 2.9.0
  */
 abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Physical() {
 
@@ -38,20 +41,6 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
     final override val base: List<Physical>
         get() = this.input.base
 
-    /** The [totalCost] of a [UnaryPhysicalOperatorNode] is always the sum of its own and its input cost. */
-    final override val totalCost: Cost by lazy {
-        this.input.totalCost + this.cost
-    }
-
-    /** The [parallelizableCost] of a [UnaryPhysicalOperatorNode] is always the sum of its own and its input cost. */
-    final override val parallelizableCost: Cost by lazy {
-        if (this.hasTrait(NotPartitionableTrait)) {
-            this.totalCost
-        } else {
-            this.input.parallelizableCost
-        }
-    }
-
     /** By default, a [UnaryPhysicalOperatorNode] has no specific requirements. */
     override val requires: List<ColumnDef<*>> = emptyList()
 
@@ -67,10 +56,6 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
     override val columns: List<ColumnDef<*>>
         get() = this.input.columns
 
-    /** By default, the output size of a [UnaryPhysicalOperatorNode] is the same as its input's output size. Can be overridden! */
-    override val outputSize: Long
-        get() = this.input.outputSize
-
     /** By default, a [UnaryLogicalOperatorNode] inherits its traits from its parent. Can be overridden! */
     override val traits: Map<TraitType<*>,Trait>
         get() = this.input.traits
@@ -78,6 +63,23 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
     /** By default, a [UnaryPhysicalOperatorNode]'s statistics are retained from its input. Can be overridden! */
     override val statistics:Map<ColumnDef<*>, ValueStatistics<*>>
         get() = this.input.statistics
+
+    /** The [totalCost] of a [UnaryPhysicalOperatorNode] is always the sum of its own and its input cost. */
+    context(BindingContext,Record)    final override val totalCost: Cost
+        get() = this.input.totalCost + this.cost
+
+    /** The [parallelizableCost] of a [UnaryPhysicalOperatorNode] is always the sum of its own and its input cost. */
+    context(BindingContext,Record)    final override val parallelizableCost: Cost
+        get() = if (this.hasTrait(NotPartitionableTrait)) {
+            this.totalCost
+        } else {
+            this.input.parallelizableCost
+        }
+
+    /** By default, the output size of a [UnaryPhysicalOperatorNode] is the same as its input's output size. Can be overridden! */
+    context(BindingContext,Record)
+    override val outputSize: Long
+        get() = this.input.outputSize
 
     init {
         this.input.output = this
@@ -136,10 +138,14 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
      *
      * @return Array of [OperatorNode.Physical]s.
      */
-    override fun tryPartition(policy: CostPolicy, max: Int): Physical? {
+    override fun tryPartition(ctx: QueryContext, max: Int): Physical? {
         require(max > 1) { "Expected number of partitions to be greater than one but encountered $max." }
         return if (!this.input.hasTrait(NotPartitionableTrait)) {
-            val partitions = policy.parallelisation(this.parallelizableCost, this.totalCost, max)
+            val partitions = with(ctx.bindings) {
+                with(PlaceholderRecord) {
+                    ctx.costPolicy.parallelisation(this@UnaryPhysicalOperatorNode.parallelizableCost, this@UnaryPhysicalOperatorNode.totalCost, max)
+                }
+            }
             if (partitions <= 1) return null
             val inbound = (0 until partitions).map { this.input.partition(partitions, it) }
             when {
@@ -156,7 +162,7 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
                 else -> this.copyWithOutput(MergePhysicalOperatorNode(*inbound.toTypedArray()))
             }
         } else {
-            this.input.tryPartition(policy, max)
+            this.input.tryPartition(ctx, max)
         }
     }
 

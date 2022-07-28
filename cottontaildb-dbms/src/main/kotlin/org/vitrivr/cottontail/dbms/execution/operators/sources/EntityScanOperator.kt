@@ -1,7 +1,9 @@
 package org.vitrivr.cottontail.dbms.execution.operators.sources
 
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.buffer
+import kotlinx.coroutines.flow.channelFlow
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Record
@@ -12,7 +14,7 @@ import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * An [Operator.SourceOperator] that scans an [Entity] and streams all [Record]s found within.
@@ -20,7 +22,7 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
  * @author Ralph Gasser
  * @version 1.6.0
  */
-class EntityScanOperator(groupId: GroupId, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, val partitionIndex: Int, val partitions: Int) : Operator.SourceOperator(groupId) {
+class EntityScanOperator(groupId: GroupId, private val entity: EntityTx, private val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, private val partitionIndex: Int, private val partitions: Int, override val context: QueryContext) : Operator.SourceOperator(groupId) {
 
     companion object {
         /** [Logger] instance used by [EntityScanOperator]. */
@@ -33,26 +35,23 @@ class EntityScanOperator(groupId: GroupId, val entity: EntityTx, val fetch: List
     /**
      * Converts this [EntityScanOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [EntityScanOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> = flow {
+    override fun toFlow(): Flow<Record> = channelFlow {
         val fetch = this@EntityScanOperator.fetch.map { it.second }.toTypedArray()
         val columns = this@EntityScanOperator.fetch.map { it.first.column }.toTypedArray()
         val partition = this@EntityScanOperator.entity.partitionFor(this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)
         var read = 0
-        val cursor = this@EntityScanOperator.entity.cursor(fetch, partition)
-        val bindingContext = this@EntityScanOperator.fetch.first().first.context
-        while (cursor.moveNext()) {
-            val next = cursor.value() as StandaloneRecord
-            for ((i, c) in columns.withIndex()) { /* Replace column designations. */
-                next.columns[i] = c
+        this@EntityScanOperator.entity.cursor(fetch, partition).use { cursor ->
+            while (cursor.moveNext()) {
+                val next = cursor.value() as StandaloneRecord
+                for ((i, c) in columns.withIndex()) { /* Replace column designations. */
+                    next.columns[i] = c
+                }
+                send(next)
+                read += 1
             }
-            bindingContext.update(next) /* Important: Make new record available to binding context. */
-            emit(next)
-            read += 1
         }
-        cursor.close()
         LOGGER.debug("Read $read entries from ${this@EntityScanOperator.entity.dbo.name}.")
-    }
+    }.buffer(1000, BufferOverflow.SUSPEND)
 }

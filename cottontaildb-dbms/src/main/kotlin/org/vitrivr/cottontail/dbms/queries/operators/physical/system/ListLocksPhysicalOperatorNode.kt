@@ -28,6 +28,6 @@ class ListLocksPhysicalOperatorNode(val manager: LockManager<DBO>): NullaryPhysi
     override val physicalColumns: List<ColumnDef<*>>
         get() = emptyList()
     override val cost: Cost = Cost.ZERO
-    override fun toOperator(ctx: QueryContext) = ListLocksOperator(this.manager)
+    override fun toOperator(ctx: QueryContext) = ListLocksOperator(this.manager, ctx)
     override fun copy() = ListLocksPhysicalOperatorNode(this.manager)
 }

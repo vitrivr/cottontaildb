@@ -4,8 +4,8 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.DBO
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * Represents a [Schema] in the Cottontail DB data model. A [Schema] is a collection of [Entity]
@@ -27,10 +27,10 @@ interface Schema : DBO {
     override val name: Name.SchemaName
 
     /**
-     * Creates and returns a new [SchemaTx] for the given [TransactionContext].
+     * Creates and returns a new [SchemaTx] for the given [QueryContext].
      *
-     * @param context The [TransactionContext] to create the [SchemaTx] for.
+     * @param context The [QueryContext] to create the [SchemaTx] for.
      * @return New [SchemaTx]
      */
-    override fun newTx(context: TransactionContext): SchemaTx
+    override fun newTx(context: QueryContext): SchemaTx
 }

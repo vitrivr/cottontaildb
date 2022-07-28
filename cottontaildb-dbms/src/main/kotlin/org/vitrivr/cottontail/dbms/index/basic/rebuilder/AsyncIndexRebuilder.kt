@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.index.basic.rebuilder
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
 import org.vitrivr.cottontail.dbms.index.basic.Index
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import java.io.Closeable
 
 /**
@@ -28,16 +29,16 @@ interface AsyncIndexRebuilder <T: Index>: TransactionObserver, Closeable {
     val state: IndexRebuilderState
 
     /**
-     * Scans the data necessary for this [AsyncIndexRebuilder]. Usually, this takes place within an existing [TransactionContext].
+     * Scans the data necessary for this [AsyncIndexRebuilder]. Usually, this takes place within an existing [QueryContext].
      *
-     * @param context1 The [TransactionContext] to perform the MERGE in.
+     * @param context1 The [QueryContext] to perform the MERGE in.
      */
-    fun scan(context1: TransactionContext)
+    fun scan(context1: QueryContext)
 
     /**
-     * Merges this [AbstractAsyncIndexRebuilder] with its [IndexTx] using the given [TransactionContext].
+     * Merges this [AbstractAsyncIndexRebuilder] with its [IndexTx] using the given [QueryContext].
      *
-     * @param context2 The [TransactionContext] to perform the MERGE in.
+     * @param context2 The [QueryContext] to perform the MERGE in.
      */
-    fun merge(context2: TransactionContext)
+    fun merge(context2: QueryContext)
 }

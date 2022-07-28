@@ -6,7 +6,6 @@ import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
-import org.vitrivr.cottontail.dbms.index.basic.IndexTx
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
@@ -41,7 +40,7 @@ object BooleanIndexScanRule : RewriteRule {
 
                 /* Extract index hint and search for candidate. */
                 val candidate = parent.entity.listIndexes().map {
-                    parent.entity.context.getTx(parent.entity.indexForName(it)) as IndexTx
+                    parent.entity.indexForName(it).newTx(ctx)
                 }.find {
                     it.state != IndexState.DIRTY && it.canProcess(normalizedPredicate)
                 }
@@ -71,32 +70,11 @@ object BooleanIndexScanRule : RewriteRule {
         is BooleanPredicate.Atomic -> {
             /* Map left and right operands. */
             val op = predicate.operator
-            val left = if (op.left is Binding.Column) {
-                Binding.Column(fetch[(op.left as Binding.Column)]!!, op.left.context)
-            } else {
-                op.left
-            }
+            val left = op.left
             val right: List<Binding> = when(op) {
-                is ComparisonOperator.Binary -> {
-                    listOf(if (op.right is Binding.Column) {
-                        Binding.Column(fetch[(op.right as Binding.Column)]!!, op.right.context)
-                    } else {
-                        op.right
-                    })
-                }
+                is ComparisonOperator.Binary -> listOf(op.right)
                 is ComparisonOperator.Between -> {
-                    listOf(
-                        if (op.rightLower is Binding.Column) {
-                            Binding.Column(fetch[(op.rightLower as Binding.Column)]!!, op.rightLower.context)
-                        } else {
-                            op.rightLower
-                        },
-                        if (op.rightUpper is Binding.Column) {
-                            Binding.Column(fetch[(op.rightUpper as Binding.Column)]!!, op.rightUpper.context)
-                        } else {
-                            op.rightUpper
-                        }
-                    )
+                    listOf(op.rightLower, op.rightUpper)
                 }
                 else -> emptyList()
             }

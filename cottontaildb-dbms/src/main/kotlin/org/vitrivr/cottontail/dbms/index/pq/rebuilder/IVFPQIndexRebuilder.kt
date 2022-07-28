@@ -8,15 +8,13 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
-import org.vitrivr.cottontail.dbms.column.ColumnTx
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.pq.IVFPQIndex
 import org.vitrivr.cottontail.dbms.index.pq.IVFPQIndexConfig
 import org.vitrivr.cottontail.dbms.index.pq.quantizer.MultiStageQuantizer
 import org.vitrivr.cottontail.dbms.index.pq.quantizer.SerializableMultiStageProductQuantizer
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import java.lang.Math.max
 
 /**
@@ -25,7 +23,7 @@ import java.lang.Math.max
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class IVFPQIndexRebuilder(index: IVFPQIndex, context: TransactionContext): AbstractIndexRebuilder<IVFPQIndex>(index, context) {
+class IVFPQIndexRebuilder(index: IVFPQIndex, context: QueryContext): AbstractIndexRebuilder<IVFPQIndex>(index, context) {
 
     /**
      * Starts the index rebuilding process for this [IVFPQIndexRebuilder].
@@ -34,14 +32,14 @@ class IVFPQIndexRebuilder(index: IVFPQIndex, context: TransactionContext): Abstr
      */
     override fun rebuildInternal(): Boolean {
         /* Read basic index properties. */
-        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.xodusTx)
+        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.txn.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
         val config = entry.config as IVFPQIndexConfig
         val column = entry.columns[0]
 
         /* Tx objects required for index rebuilding. */
-        val entityTx = this.context.getTx(this.index.parent) as EntityTx
-        val columnTx = this.context.getTx(entityTx.columnForName(column)) as ColumnTx<*>
+        val entityTx = this.index.parent.newTx(this.context)
+        val columnTx = entityTx.columnForName(column).newTx(this.context)
         val dataStore = this.tryClearAndOpenStore() ?: return false
         val count = columnTx.count()
 
@@ -58,14 +56,14 @@ class IVFPQIndexRebuilder(index: IVFPQIndex, context: TransactionContext): Abstr
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
                     val signature = quantizer.quantize(cursor.key(), value)
-                    if (!dataStore.put(this.context.xodusTx, ShortBinding.shortToEntry(signature.first), signature.second.toEntry())) {
+                    if (!dataStore.put(this.context.txn.xodusTx, ShortBinding.shortToEntry(signature.first), signature.second.toEntry())) {
                         return false
                     }
 
                     /* Data is flushed every once in a while. */
                     if ((++counter) % 1_000_000 == 0) {
                         LOGGER.debug("Rebuilding index ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
-                        if (!this.context.xodusTx.flush()) {
+                        if (!this.context.txn.xodusTx.flush()) {
                             return false
                         }
                     }
@@ -74,7 +72,7 @@ class IVFPQIndexRebuilder(index: IVFPQIndex, context: TransactionContext): Abstr
         }
 
         /* Update stored ProductQuantizer. */
-        IndexStructCatalogueEntry.write(this.index.name, quantizer.toSerializableProductQuantizer(), this.index.catalogue, context.xodusTx, SerializableMultiStageProductQuantizer.Binding)
+        IndexStructCatalogueEntry.write(this.index.name, quantizer.toSerializableProductQuantizer(), this.index.catalogue, this.context.txn.xodusTx, SerializableMultiStageProductQuantizer.Binding)
         return true
     }
 }

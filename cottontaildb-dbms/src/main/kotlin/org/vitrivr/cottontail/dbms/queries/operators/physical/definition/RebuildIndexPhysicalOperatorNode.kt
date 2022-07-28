@@ -14,5 +14,5 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  */
 class RebuildIndexPhysicalOperatorNode(val tx: CatalogueTx, val indexName: Name.IndexName): DataDefinitionPhysicalOperatorNode("RebuildIndex") {
     override fun copy() = RebuildIndexPhysicalOperatorNode(this.tx, this.indexName)
-    override fun toOperator(ctx: QueryContext) = RebuildIndexOperator(this.tx, this.indexName)
+    override fun toOperator(ctx: QueryContext) = RebuildIndexOperator(this.tx, this.indexName, ctx)
 }

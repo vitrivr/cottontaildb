@@ -7,10 +7,9 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.utilities.selection.HeapSelection
 import java.lang.Long.min
 import java.util.concurrent.atomic.AtomicLong
@@ -22,9 +21,9 @@ import java.util.concurrent.atomic.AtomicLong
  * This is often used in parallelized proximity based queries.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 2.0.0
  */
-class MergeLimitingHeapSortOperator(parents: List<Operator>, val context: BindingContext, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, val limit: Long) : Operator.MergingPipelineOperator(parents) {
+class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, private val limit: Long, override val context: QueryContext) : Operator.MergingPipelineOperator(parents) {
 
     companion object {
         /** [Logger] instance used by [MergeLimitingHeapSortOperator]. */
@@ -43,10 +42,9 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, val context: Bindin
     /**
      * Converts this [MergeLimitingHeapSortOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [MergeLimitingHeapSortOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> = channelFlow {
+    override fun toFlow(): Flow<Record> = channelFlow {
 
         /* Prepare a global heap selection; this selection is large enough to accept [limit] entries from each partition to prevent concurrent sorting. */
         val incoming = this@MergeLimitingHeapSortOperator.parents
@@ -66,7 +64,7 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, val context: Bindin
             launch {
                 val localSelection = HeapSelection(this@MergeLimitingHeapSortOperator.limit, this@MergeLimitingHeapSortOperator.comparator)
                 var localCollected = 0L
-                op.toFlow(context).collect {
+                op.toFlow().collect {
                     localCollected += 1L
                     localSelection.offer(it)
                 }
@@ -80,9 +78,7 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, val context: Bindin
         LOGGER.debug("Collection of ${globalCollected.get()} records from ${jobs.size} partitions completed! ")
 
         for (i in 0 until min(this@MergeLimitingHeapSortOperator.limit, globalSelection.size)) {
-            val rec = globalSelection[i]
-            this@MergeLimitingHeapSortOperator.context.update(rec)
-            send(rec)
+            send(globalSelection[i])
         }
     }
 }

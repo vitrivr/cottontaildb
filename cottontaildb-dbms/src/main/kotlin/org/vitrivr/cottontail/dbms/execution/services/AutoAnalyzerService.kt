@@ -5,10 +5,7 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.column.Column
-import org.vitrivr.cottontail.dbms.column.ColumnTx
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.ColumnEvent
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.events.IndexEvent
@@ -17,20 +14,24 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.basic.Index
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * A [TransactionObserver] that listens for [ColumnEvent.Stale]s and triggers analysis of [Column]es whose statistic has become stale.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.2.0
  */
-class AutoAnalyzerService(val catalogue: Catalogue, val manager: TransactionManager): TransactionObserver {
+class AutoAnalyzerService(private val catalogue: Catalogue, private val manager: TransactionManager): TransactionObserver {
 
     companion object {
         private val LOGGER = LoggerFactory.getLogger(AutoAnalyzerService::class.java)
     }
+
+    /** Internal counter to keep track of then umber of spawned tasks. */
+    private val counter = AtomicLong(0L)
 
     /**
      * The [AutoAnalyzerService] is only interested int [ColumnEvent.Stale].
@@ -72,15 +73,16 @@ class AutoAnalyzerService(val catalogue: Catalogue, val manager: TransactionMana
     inner class Task(private val column: Name.ColumnName): Runnable {
         override fun run() {
             val transaction = this@AutoAnalyzerService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+            val context = DefaultQueryContext("auto-analysis-${this@AutoAnalyzerService.counter.incrementAndGet()}", this@AutoAnalyzerService.catalogue, transaction)
             try {
                 LOGGER.info("Starting auto-analysis of column $column...")
-                val catalogueTx = transaction.getTx(this@AutoAnalyzerService.catalogue) as CatalogueTx
+                val catalogueTx = this@AutoAnalyzerService.catalogue.newTx(context)
                 val schema = catalogueTx.schemaForName(this.column.schema() ?: return)
-                val schemaTx = transaction.getTx(schema) as SchemaTx
+                val schemaTx = schema.newTx(context)
                 val entity = schemaTx.entityForName(this.column.entity() ?: return)
-                val entityTx = transaction.getTx(entity) as EntityTx
+                val entityTx = entity.newTx(context)
                 val column = entityTx.columnForName(this.column)
-                val columnTx = transaction.getTx(column) as ColumnTx<*>
+                val columnTx = column.newTx(context)
                 if (!columnTx.statistics().fresh) {
                     columnTx.analyse()
                 }

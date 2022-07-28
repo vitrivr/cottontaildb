@@ -1,7 +1,9 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
@@ -37,12 +39,14 @@ class AggregatingProjectionPhysicalOperatorNode(input: Physical, type: Projectio
     }
 
     /** The output size of this [AggregatingProjectionPhysicalOperatorNode] is always one. */
-    override val outputSize: Long = 1
+    context(BindingContext,Record)
+    override val outputSize: Long
+        get() = 1L
 
     /** The [Cost] of a [AggregatingProjectionPhysicalOperatorNode]. */
-    override val cost: Cost by lazy {
-        (Cost.MEMORY_ACCESS + Cost.FLOP) * 3.0f * this.input.outputSize
-    }
+    context(BindingContext,Record)
+    override val cost: Cost
+       get() = (Cost.MEMORY_ACCESS + Cost.FLOP) * 3.0f * this.input.outputSize
 
     init {
         /* Sanity check. */
@@ -69,10 +73,10 @@ class AggregatingProjectionPhysicalOperatorNode(input: Physical, type: Projectio
      */
     override fun toOperator(ctx: QueryContext): Operator {
         return when (this.type) {
-            Projection.SUM -> SumProjectionOperator(this.input.toOperator(ctx), this.fields)
-            Projection.MAX -> MaxProjectionOperator(this.input.toOperator(ctx), this.fields)
-            Projection.MIN -> MinProjectionOperator(this.input.toOperator(ctx), this.fields)
-            Projection.MEAN -> MeanProjectionOperator(this.input.toOperator(ctx), this.fields)
+            Projection.SUM -> SumProjectionOperator(this.input.toOperator(ctx), this.fields, ctx)
+            Projection.MAX -> MaxProjectionOperator(this.input.toOperator(ctx), this.fields, ctx)
+            Projection.MIN -> MinProjectionOperator(this.input.toOperator(ctx), this.fields, ctx)
+            Projection.MEAN -> MeanProjectionOperator(this.input.toOperator(ctx), this.fields, ctx)
             else -> throw IllegalStateException("An AggregatingProjectionPhysicalOperatorNode requires a project of type SUM, MAX, MIN or MEAN but encountered ${this.type}.")
         }
     }

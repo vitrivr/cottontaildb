@@ -6,8 +6,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.column.ColumnTx
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * A [Cursor] implementation for the [DefaultEntity].
@@ -15,11 +14,11 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class DefaultEntityCursor(private val columns: Array<ColumnDef<*>>, partition: LongRange, entity: DefaultEntity.Tx, context: TransactionContext) : Cursor<Record> {
+class DefaultEntityCursor(private val columns: Array<ColumnDef<*>>, partition: LongRange, entity: DefaultEntity.Tx, context: QueryContext) : Cursor<Record> {
 
     /** The wrapped [Cursor] to iterate over columns. */
     private val cursors: Array<Cursor<out Value?>> = Array(columns.size) {
-        (context.getTx(entity.columnForName(columns[it].name)) as ColumnTx<*>).cursor(partition)
+        entity.columnForName(this.columns[it].name).newTx(entity.context).cursor(partition)
     }
 
     /**

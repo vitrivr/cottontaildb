@@ -8,16 +8,14 @@ import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
-import org.vitrivr.cottontail.dbms.column.ColumnTx
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractAsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.IndexRebuilderState
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.index.va.VAFIndexConfig
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.columns.RealVectorValueStatistics
 
 /**
@@ -41,19 +39,19 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
     /**
      * Internal scan method that is being executed when executing the SCAN stage of this [AsyncVAFIndexRebuilder].
      *
-     * @param context1 The [TransactionContext] to execute the SCAN stage in.
+     * @param context1 The [QueryContext] to execute the SCAN stage in.
      * @return True on success, false otherwise.
      */
-    override fun internalScan(context1: TransactionContext): Boolean {
+    override fun internalScan(context1: QueryContext): Boolean {
         /* Read basic index properties. */
-        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, context1.xodusTx)
+        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, context1.txn.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
         val config = entry.config as VAFIndexConfig
         val column = entry.columns[0]
 
         /* Tx objects required for index rebuilding. */
-        val entityTx = context1.getTx(this.index.parent) as EntityTx
-        val columnTx = context1.getTx(entityTx.columnForName(column)) as ColumnTx<*>
+        val entityTx = this.index.parent.newTx(context1)
+        val columnTx = entityTx.columnForName(column).newTx(context1)
         val count = columnTx.count()
         this.indexedColumn = columnTx.columnDef
 
@@ -92,31 +90,31 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
     /**
      * Internal merge method that is being executed when executing the MERGE stage of this [AsyncVAFIndexRebuilder].
      *
-     * @param context2 The [TransactionContext] to execute the MERGE stage in.
+     * @param context2 The [QueryContext] to execute the MERGE stage in.
      * @param store The [Store] to merge data into.
      * @return True on success, false otherwise.
      */
-    override fun internalMerge(context2: TransactionContext, store: Store): Boolean {
+    override fun internalMerge(context2: QueryContext, store: Store): Boolean {
         val count = this.tmpDataStore.count(this.tmpTx)
         this.tmpDataStore.openCursor(this.tmpTx).use {cursor ->
             var counter = 0
             while (cursor.next) {
                 if (this.state != IndexRebuilderState.MERGING) return false
-                if (!store.put(context2.xodusTx, cursor.key, cursor.value)) {
+                if (!store.put(context2.txn.xodusTx, cursor.key, cursor.value)) {
                     return false
                 }
 
                 /* Data is flushed every once in a while. */
                 if ((++counter) % 1_000_000 == 0) {
                     LOGGER.debug("Rebuilding index (MERGE) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
-                    if (!context2.xodusTx.flush()) {
+                    if (!context2.txn.xodusTx.flush()) {
                         return false
                     }
                 }
             }
 
             /* Update stored VAFMarks. */
-            IndexStructCatalogueEntry.write(this.index.name, this.newMarks!!, this.index.catalogue, context2.xodusTx, EquidistantVAFMarks.Binding)
+            IndexStructCatalogueEntry.write(this.index.name, this.newMarks!!, this.index.catalogue, context2.txn.xodusTx, EquidistantVAFMarks.Binding)
             return true
         }
     }

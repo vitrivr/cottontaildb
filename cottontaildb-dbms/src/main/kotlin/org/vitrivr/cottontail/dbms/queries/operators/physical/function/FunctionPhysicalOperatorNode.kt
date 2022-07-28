@@ -1,7 +1,9 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.function
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -33,9 +35,8 @@ class FunctionPhysicalOperatorNode(input: Physical, val function: Binding.Functi
     }
 
     /** The [Cost] of a [FunctionPhysicalOperatorNode]. */
-    override val cost: Cost by lazy {
-        this.function.cost * this.outputSize
-    }
+    context(BindingContext,Record)    override val cost: Cost
+        get() = this.function.cost * this.outputSize
 
     /** [FunctionPhysicalOperatorNode] can only be executed if [Function] can be executed. */
     override val executable: Boolean
@@ -61,14 +62,7 @@ class FunctionPhysicalOperatorNode(input: Physical, val function: Binding.Functi
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): Operator {
-        /* Bind relevant objects to binding context. */
-        this.function.bind(ctx.bindings)
-        this.out.bind(ctx.bindings)
-
-        /* Convert input and append FunctionOperator. */
-        return FunctionOperator(this.input.toOperator(ctx), this.function, this.out)
-    }
+    override fun toOperator(ctx: QueryContext): Operator = FunctionOperator(this.input.toOperator(ctx), this.function, this.out, ctx)
 
     /**
      * Compares this [FunctionOperator] to the given [Object] and returns true if they're equal and false otherwise.

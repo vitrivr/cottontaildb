@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
@@ -37,8 +38,9 @@ import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.dbms.index.pq.quantizer.MultiStageQuantizer
 import org.vitrivr.cottontail.dbms.index.pq.quantizer.SerializableMultiStageProductQuantizer
 import org.vitrivr.cottontail.dbms.index.pq.rebuilder.IVFPQIndexRebuilder
-import org.vitrivr.cottontail.dbms.index.pq.signature.*
+import org.vitrivr.cottontail.dbms.index.pq.signature.SPQSignature
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import kotlin.concurrent.withLock
 
 /**
@@ -127,10 +129,10 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
     }
 
     override val type: IndexType = IndexType.IVFPQ
+    override fun newTx(context: QueryContext): IndexTx
+        = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
 
-    override fun newTx(context: TransactionContext): IndexTx = Tx(context)
-
-    override fun newRebuilder(context: TransactionContext): IndexRebuilder<*> = IVFPQIndexRebuilder(this, context)
+    override fun newRebuilder(context: QueryContext): IndexRebuilder<*> = IVFPQIndexRebuilder(this, context)
 
     override fun newAsyncRebuilder(): AsyncIndexRebuilder<*> {
         TODO("Not yet implemented")
@@ -139,7 +141,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
     /**
      * A [IndexTx] that affects this [IVFPQIndex].
      */
-    inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
+    inner class Tx(context: QueryContext) : AbstractIndex.Tx(context) {
 
         /** The [VectorDistance] function employed by this [PQIndex]. */
         internal val distanceFunction: VectorDistance<*> by lazy {
@@ -149,13 +151,13 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
 
         /** The coarse [MultiStageQuantizer] used by this [IVFPQIndex.Tx] instance. */
         internal val quantizer: MultiStageQuantizer by lazy {
-            val serializable = IndexStructCatalogueEntry.read<SerializableMultiStageProductQuantizer>(this@IVFPQIndex.name, this@IVFPQIndex.catalogue, context.xodusTx, SerializableMultiStageProductQuantizer.Binding)?:
+            val serializable = IndexStructCatalogueEntry.read<SerializableMultiStageProductQuantizer>(this@IVFPQIndex.name, this@IVFPQIndex.catalogue, this.context.txn.xodusTx, SerializableMultiStageProductQuantizer.Binding)?:
             throw DatabaseException.DataCorruptionException("ProductQuantizer for IVFPQ index ${this@IVFPQIndex.name} is missing.")
             serializable.toProductQuantizer(this.distanceFunction)
         }
 
         /** The Xodus [Store] used to store [SPQSignature]s. */
-        internal val dataStore: Store = this@IVFPQIndex.catalogue.environment.openStore(this@IVFPQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
+        internal val dataStore: Store = this@IVFPQIndex.catalogue.environment.openStore(this@IVFPQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for IVFPQ index ${this@IVFPQIndex.name} is missing.")
 
         /**
@@ -215,7 +217,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          * @return Number of entries in this [VAFIndex]
          */
         override fun count(): Long  = this.txLatch.withLock {
-            this.dataStore.count(this.context.xodusTx)
+            this.dataStore.count(this.context.txn.xodusTx)
         }
 
         /**
@@ -229,7 +231,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
             /* Extract value and return true if value is NULL (since NULL values are ignored). */
             val value = event.data[this@Tx.columns[0]] ?: return true
             val sig = this.quantizer.quantize(event.tupleId, value as VectorValue<*>)
-            return this.dataStore.put(this.context.xodusTx, ShortBinding.shortToEntry(sig.first), sig.second.toEntry())
+            return this.dataStore.put(this.context.txn.xodusTx, ShortBinding.shortToEntry(sig.first), sig.second.toEntry())
         }
 
         /**
@@ -247,7 +249,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
             /* Remove signature to tuple ID mapping. */
             if (oldValue != null) {
                 val oldSig = this.quantizer.quantize(event.tupleId, oldValue as VectorValue<*>)
-                val cursor = this.dataStore.openCursor(this.context.xodusTx)
+                val cursor = this.dataStore.openCursor(this.context.txn.xodusTx)
                 if (cursor.getSearchBoth(ShortBinding.shortToEntry(oldSig.first), oldSig.second.toEntry())) {
                     cursor.deleteCurrent()
                 }
@@ -257,7 +259,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
             /* Generate signature and store it. */
             if (newValue != null) {
                 val newSig = this.quantizer.quantize(event.tupleId, newValue as VectorValue<*>)
-                return this.dataStore.put(this.context.xodusTx, ShortBinding.shortToEntry(newSig.first), newSig.second.toEntry())
+                return this.dataStore.put(this.context.txn.xodusTx, ShortBinding.shortToEntry(newSig.first), newSig.second.toEntry())
             }
             return true
         }
@@ -272,7 +274,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
         override fun tryApply(event: DataEvent.Delete): Boolean {
             val oldValue = event.data[this.columns[0]] ?: return true
             val sig = this.quantizer.quantize(event.tupleId, oldValue as VectorValue<*>)
-            val cursor = this.dataStore.openCursor(this.context.xodusTx)
+            val cursor = this.dataStore.openCursor(this.context.txn.xodusTx)
             if (cursor.getSearchBoth(ShortBinding.shortToEntry(sig.first), sig.second.toEntry())) {
                 cursor.deleteCurrent()
             }
@@ -289,10 +291,9 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [IVFPQIndexCursor]
          */
-        @Suppress("UNCHECKED_CAST")
         override fun filter(predicate: Predicate): Cursor<Record> = this.txLatch.withLock {
             require(predicate is ProximityPredicate.Scan) { "IVFPQIndex can only be used with a SCAN type proximity predicate. This is a programmer's error!" }
-            IVFPQIndexCursor(predicate, this, this.context)
+            IVFPQIndexCursor(predicate, this)
         }
 
         /**

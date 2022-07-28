@@ -5,8 +5,8 @@ import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.core.queries.planning.cost.NormalizedCost
+import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.FloatValue
 import org.vitrivr.cottontail.core.values.LongValue
@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.*
 import java.util.*
 
@@ -25,7 +25,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class ExplainQueryOperator(private val candidates: Collection<OperatorNode.Physical>, private val costPolicy: CostPolicy) : Operator.SourceOperator() {
+class ExplainQueryOperator(private val candidates: Collection<OperatorNode.Physical>, override val context: QueryContext) : Operator.SourceOperator() {
     companion object {
         val COLUMNS: List<ColumnDef<*>> = listOf(
             ColumnDef(Name.ColumnName("path"), Types.String, false),
@@ -42,29 +42,31 @@ class ExplainQueryOperator(private val candidates: Collection<OperatorNode.Physi
 
     override val columns: List<ColumnDef<*>> = COLUMNS
 
-    override fun toFlow(context: TransactionContext): Flow<Record> {
-        val normalized = NormalizedCost.normalize(this.candidates.map { it.totalCost })
-        val selected = this.candidates.zip(normalized).minByOrNull { (_, cost) ->
-            this@ExplainQueryOperator.costPolicy.toScore(cost)
-        }?.first ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for query. Maybe there is an index missing?")
-        val columns = this.columns.toTypedArray()
-        return flow {
-            val plan = enumerate(LinkedList(), emptyArray(), selected)
-            var row = 0L
-            for (p in plan) {
-                val node = p.second
-                val values = arrayOf<Value?>(
-                    StringValue(p.first),
-                    StringValue(node.javaClass.simpleName),
-                    LongValue(node.outputSize),
-                    FloatValue(node.cost.cpu),
-                    FloatValue(node.cost.io),
-                    FloatValue(node.cost.memory),
-                    FloatValue(node.cost.accuracy),
-                    StringValue(node.traits.map { it.value.toString() }.joinToString(",")),
-                    StringValue(node.toString())
-                )
-                emit(StandaloneRecord(row++, columns, values))
+    override fun toFlow(): Flow<Record> = flow {
+        with(this@ExplainQueryOperator.context.bindings) {
+            with(PlaceholderRecord) {
+                val normalized = NormalizedCost.normalize(this@ExplainQueryOperator.candidates.map { it.totalCost })
+                val selected = this@ExplainQueryOperator.candidates.zip(normalized).minByOrNull { (_, cost) ->
+                    this@ExplainQueryOperator.context.costPolicy.toScore(cost)
+                }?.first ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for query. Maybe there is an index missing?")
+                val columns = this@ExplainQueryOperator.columns.toTypedArray()
+                val plan = enumerate(LinkedList(), emptyArray(), selected)
+                var row = 0L
+                for (p in plan) {
+                    val node = p.second
+                    val values = arrayOf<Value?>(
+                        StringValue(p.first),
+                        StringValue(node.javaClass.simpleName),
+                        LongValue(node.outputSize),
+                        FloatValue(node.cost.cpu),
+                        FloatValue(node.cost.io),
+                        FloatValue(node.cost.memory),
+                        FloatValue(node.cost.accuracy),
+                        StringValue(node.traits.map { it.value.toString() }.joinToString(",")),
+                        StringValue(node.toString())
+                    )
+                    emit(StandaloneRecord(row++, columns, values))
+                }
             }
         }
     }

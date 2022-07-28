@@ -8,15 +8,13 @@ import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.toKey
-import org.vitrivr.cottontail.dbms.column.ColumnTx
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
 import org.vitrivr.cottontail.dbms.index.pq.PQIndexConfig
 import org.vitrivr.cottontail.dbms.index.pq.quantizer.SerializableSingleStageProductQuantizer
 import org.vitrivr.cottontail.dbms.index.pq.quantizer.SingleStageQuantizer
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * An [AbstractIndexRebuilder] for the [PQIndex].
@@ -24,7 +22,7 @@ import org.vitrivr.cottontail.dbms.index.pq.quantizer.SingleStageQuantizer
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class PQIndexRebuilder(index: PQIndex, context: TransactionContext): AbstractIndexRebuilder<PQIndex>(index, context) {
+class PQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractIndexRebuilder<PQIndex>(index, context) {
 
     /**
      * Starts the index rebuilding process for this [PQIndexRebuilder].
@@ -33,14 +31,14 @@ class PQIndexRebuilder(index: PQIndex, context: TransactionContext): AbstractInd
      */
     override fun rebuildInternal(): Boolean {
         /* Read basic index properties. */
-        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.xodusTx)
+        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.txn.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
         val config = entry.config as PQIndexConfig
         val column = entry.columns[0]
 
         /* Tx objects required for index rebuilding. */
-        val entityTx = this.context.getTx(this.index.parent) as EntityTx
-        val columnTx = this.context.getTx(entityTx.columnForName(column)) as ColumnTx<*>
+        val entityTx = this.index.parent.newTx(this.context)
+        val columnTx = entityTx.columnForName(column).newTx(this.context)
         val dataStore = this.tryClearAndOpenStore() ?: return false
         val count = columnTx.count()
 
@@ -56,14 +54,14 @@ class PQIndexRebuilder(index: PQIndex, context: TransactionContext): AbstractInd
             while (cursor.moveNext()) {
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
-                    if (!dataStore.put(this.context.xodusTx, cursor.key().toKey(), quantizer.quantize(value).toEntry())) {
+                    if (!dataStore.put(this.context.txn.xodusTx, cursor.key().toKey(), quantizer.quantize(value).toEntry())) {
                         return false
                     }
 
                     /* Data is flushed every once in a while. */
                     if ((++counter) % 1_000_000 == 0) {
                         LOGGER.debug("Rebuilding index ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
-                        if (!this.context.xodusTx.flush()) {
+                        if (!this.context.txn.xodusTx.flush()) {
                             return false
                         }
                     }
@@ -72,7 +70,7 @@ class PQIndexRebuilder(index: PQIndex, context: TransactionContext): AbstractInd
         }
 
         /* Update stored ProductQuantizer. */
-        IndexStructCatalogueEntry.write(this.index.name, quantizer.toSerializableProductQuantizer(), this.index.catalogue, context.xodusTx, SerializableSingleStageProductQuantizer.Binding)
+        IndexStructCatalogueEntry.write(this.index.name, quantizer.toSerializableProductQuantizer(), this.index.catalogue, this.context.txn.xodusTx, SerializableSingleStageProductQuantizer.Binding)
         return true
     }
 }

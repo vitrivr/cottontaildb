@@ -13,9 +13,9 @@ import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.legacy.v1.entity.EntityV1
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
@@ -102,16 +102,16 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
     /**
      * Creates a new [ColumnV1.Tx] and returns it.
      *
-     * @param context [TransactionContext]
+     * @param context [QueryContext]
      *
      * @return A new [ColumnTx] object.
      */
-    override fun newTx(context: TransactionContext): ColumnTx<T> = Tx(context)
+    override fun newTx(context: QueryContext) = Tx(context)
 
     /**
      * A [ColumnTx] that affects this [ColumnV1].
      */
-    inner class Tx constructor(context: TransactionContext) : AbstractTx(context), ColumnTx<T> {
+    inner class Tx constructor(context: QueryContext) : AbstractTx(context), ColumnTx<T> {
         /** The [ColumnDef] of the [Column] underlying this [ColumnTx]. */
         override val columnDef: ColumnDef<T>
             get() = this@ColumnV1.columnDef
@@ -129,7 +129,7 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
             /* Tries to acquire a global read-lock on the column. */
             if (this@ColumnV1.closed) {
                 this@ColumnV1.closeLock.unlockRead(this.closeStamp)
-                throw TransactionException.DBOClosed(this.context.txId, this@ColumnV1)
+                throw TransactionException.DBOClosed(this.context.txn.txId, this@ColumnV1)
             }
         }
 

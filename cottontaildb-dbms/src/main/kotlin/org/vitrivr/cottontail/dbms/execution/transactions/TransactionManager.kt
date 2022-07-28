@@ -106,6 +106,21 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         }
 
         /**
+         *
+         */
+        override fun cacheTxForDBO(tx: Tx): Boolean
+            = this.txns.putIfAbsent(tx.dbo.name, tx) != null
+
+        /**
+         * Tries to retrieve a cached [Tx] from this [TransactionManager.TransactionImpl]s cache.
+         *
+         * @param dbo The [DBO] to obtain the [Tx] for.
+         * @return The [Tx] or null
+         */
+        override fun <T : Tx> getCachedTxForDBO(dbo: DBO): T?
+            = this.txns[dbo.name] as T?
+
+        /**
          * A [MutableMap] of all [TransactionObserver] and the [Event]s that were collected for them.
          *
          * Since a lot of [Event]s can build-up during a [Transaction], the [MutableList] is wrapped in a [SoftReference],
@@ -177,20 +192,6 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         }
 
         /**
-         * Returns the [Tx] for the provided [DBO]. Creating [Tx] through this method makes sure,
-         * that only on [Tx] per [DBO] and [TransactionImpl] is created.
-         *
-         * @param dbo [DBO] to return the [Tx] for.
-         * @return entity [Tx]
-         */
-        override fun getTx(dbo: DBO): Tx = this.txns.computeIfAbsent(dbo.name) {
-            val new = dbo.newTx(this)
-            if (new is Tx.WithCommitFinalization) this.notifyOnCommit.add(new)
-            if (new is Tx.WithRollbackFinalization) this.notifyOnRollback.add(new)
-            new
-        }
-
-        /**
          * Tries to acquire a [Lock] on a [DBO] for the given [LockMode]. This call is delegated to the
          * [LockManager] and really just a convenient way for [Tx] objects to obtain locks.
          *
@@ -220,7 +221,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          *
          * @param operator The [Operator.SinkOperator] that should be executed.
          */
-        override fun execute(operator: Operator): Flow<Record>  = operator.toFlow(this).flowOn(this@TransactionManager.executionManager.queryDispatcher).onStart {
+        override fun execute(operator: Operator): Flow<Record>  = operator.toFlow().flowOn(this@TransactionManager.executionManager.queryDispatcher).onStart {
             this@TransactionImpl.mutex.withLock {  /* Update transaction state; synchronise with ongoing COMMITS or ROLLBACKS. */
                 check(this@TransactionImpl.state.canExecute) {
                     "Cannot start execution of transaction ${this@TransactionImpl.txId} because it is in the wrong state (s = ${this@TransactionImpl.state})."

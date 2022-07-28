@@ -22,7 +22,7 @@ class FunctionVectorisationRule(val threshold: Int) : RewriteRule {
         if (node is FunctionPhysicalOperatorNode && node.function.function is VectorisableFunction<*>) {
             val input = node.input.copyWithExistingInput()
             val out = node.out
-            val bindFunction = out.context.bind((node.function.function as VectorisableFunction<*>).vectorized(), node.function.arguments)
+            val bindFunction = ctx.bindings.bind((node.function.function as VectorisableFunction<*>).vectorized(), node.function.arguments)
 
             // Provisional heuristic
             if ((node.function.function as VectorisableFunction<*>).vectorSize >= this.threshold) {

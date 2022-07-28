@@ -10,10 +10,10 @@ import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.DBOVersion
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.legacy.v2.catalogue.CatalogueV2
@@ -76,12 +76,12 @@ class SchemaV2(val path: Path, override val parent: CatalogueV2) : Schema, AutoC
     }
 
     /**
-     * Creates and returns a new [SchemaV2.Tx] for the given [TransactionContext].
+     * Creates and returns a new [SchemaV2.Tx] for the given [QueryContext].
      *
-     * @param context The [TransactionContext] to create the [SchemaV2.Tx] for.
+     * @param context The [QueryContext] to create the [SchemaV2.Tx] for.
      * @return New [SchemaV2.Tx]
      */
-    override fun newTx(context: TransactionContext) = this.Tx(context)
+    override fun newTx(context: QueryContext) = this.Tx(context)
 
     /**
      * Closes this [SchemaV2] and all the [EntityV2] objects that are contained within.
@@ -106,7 +106,7 @@ class SchemaV2(val path: Path, override val parent: CatalogueV2) : Schema, AutoC
      * @author Ralph Gasser
      * @version 2.0.0
      */
-    inner class Tx(context: TransactionContext) : AbstractTx(context), SchemaTx {
+    inner class Tx(context: QueryContext) : AbstractTx(context), SchemaTx {
 
 
         /** Reference to the surrounding [SchemaV2]. */
@@ -115,7 +115,7 @@ class SchemaV2(val path: Path, override val parent: CatalogueV2) : Schema, AutoC
 
         /** Checks if DBO is still open. */
         init {
-            if (this@SchemaV2.closed) throw TransactionException.DBOClosed(this.context.txId, this@SchemaV2)
+            if (this@SchemaV2.closed) throw TransactionException.DBOClosed(this.context.txn.txId, this@SchemaV2)
         }
 
         /**

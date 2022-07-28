@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.planning.cost.NormalizedCost
+import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.*
@@ -54,21 +55,25 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         val stage2 = stage1.map {(groupId, plans) -> groupId to plans.flatMap { this.optimizePhysical(it.implement(), context) } }.toMap()
 
         /* Generate candidate plans per group. */
-        val candidates = stage2.map { (groupId, plans) ->
-            val normalized = NormalizedCost.normalize(plans.map { it.totalCost })
-            val candidate = plans.zip(normalized).minByOrNull { (_, cost) -> context.costPolicy.toScore(cost) }
-            groupId to (candidate?.first ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for query. Maybe there is an index missing?"))
-        }.toMap()
+        val candidates = with(context.bindings) {
+            with(PlaceholderRecord) {
+                stage2.map { (groupId, plans) ->
+                val normalized = NormalizedCost.normalize(plans.map { it.totalCost })
+                val candidate = plans.zip(normalized).minByOrNull { (_, cost) -> context.costPolicy.toScore(cost) }
+                    groupId to (candidate?.first ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for query. Maybe there is an index missing?"))
+                }.toMap()
+            }
+        }
 
         /* Combine different sub-plans, if they exist. */
         var selected = candidates[0] ?: throw IllegalStateException("No query plan for groupId zero; this is a programmer's error!")
         if (candidates.size > 1) {
-            selected = this.compose(selected, candidates)
+            selected = this@CottontailQueryPlanner.compose(selected, candidates)
         }
 
         /* Update plan cache and return. */
         if (!cache) {
-            this.planCache[digest] = selected
+            this@CottontailQueryPlanner.planCache[digest] = selected
         }
         return selected
     }
@@ -89,17 +94,28 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         val decomposition = this.decompose(logical)
 
         /* Stage 1: Logical query planning for each group. */
-        val stage1 = decomposition.map {(groupId, plan) -> groupId to this.optimizeLogical(plan, context) }.toMap()
+        val stage1 = decomposition.map { (groupId, plan) -> groupId to this.optimizeLogical(plan, context) }.toMap()
 
         /* Stage 2: Physical query planning for each group. */
-        val stage2 = stage1.map {(groupId, plans) -> groupId to plans.flatMap { this.optimizePhysical(it.implement(), context) } }.toMap()
+        val stage2 = stage1.map { (groupId, plans) ->
+            groupId to plans.flatMap {
+                this.optimizePhysical(
+                    it.implement(),
+                    context
+                )
+            }
+        }.toMap()
 
         /* Generate candidate plans. */
-        return stage2.map { (groupId, plans) ->
-            val normalized = NormalizedCost.normalize(plans.map { it.totalCost })
-            val candidates = plans.zip(normalized).sortedBy { (_, cost) -> context.costPolicy.toScore(cost) }
-            groupId to candidates
-        }.toMap()
+        with(context.bindings) {
+            with(PlaceholderRecord) {
+                return stage2.map { (groupId, plans) ->
+                    val normalized = NormalizedCost.normalize(plans.map { it.totalCost })
+                    val candidates = plans.zip(normalized).sortedBy { (_, cost) -> context.costPolicy.toScore(cost) }
+                    groupId to candidates
+                }.toMap()
+            }
+        }
     }
 
     /**
@@ -145,8 +161,8 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
             next = when (next) {
                 is NullaryPhysicalOperatorNode -> return next.root
                 is UnaryPhysicalOperatorNode -> next.input
-                is BinaryPhysicalOperatorNode ->  next.copyWithNewInput(next.left.copyWithExistingInput(), compose(decomposition[next.right.groupId]!!, decomposition)).left
-                is NAryPhysicalOperatorNode -> next.copyWithNewInput(next.inputs[0].copyWithExistingInput(), *next.inputs.drop(1).map { compose(decomposition[it.groupId]!!, decomposition) }.toTypedArray()).inputs[0]
+                is BinaryPhysicalOperatorNode ->  next.copyWithOutput(next.left.copyWithExistingInput(), compose(decomposition[next.right.groupId]!!, decomposition)).left
+                is NAryPhysicalOperatorNode -> next.copyWithOutput(next.inputs[0].copyWithExistingInput(), *next.inputs.drop(1).map { compose(decomposition[it.groupId]!!, decomposition) }.toTypedArray()).inputs[0]
             }
         } while (true)
     }

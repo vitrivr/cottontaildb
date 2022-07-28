@@ -1,7 +1,9 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.projection.SelectProjectionOperator
@@ -31,7 +33,7 @@ class SelectProjectionPhysicalOperatorNode(input: Physical, val fields: List<Nam
         get() = this.columns
 
     /** The [Cost] of a [SelectProjectionPhysicalOperatorNode]. */
-    override val cost: Cost
+    context(BindingContext,Record)    override val cost: Cost
         get() = Cost.MEMORY_ACCESS * (this.outputSize * this.fields.size)
 
     init {
@@ -57,7 +59,7 @@ class SelectProjectionPhysicalOperatorNode(input: Physical, val fields: List<Nam
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = SelectProjectionOperator(this.input.toOperator(ctx), this.fields)
+    override fun toOperator(ctx: QueryContext) = SelectProjectionOperator(this.input.toOperator(ctx), this.fields, ctx)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

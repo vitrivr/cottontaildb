@@ -40,29 +40,34 @@ class DMLService(override val catalogue: Catalogue, override val manager: Transa
      */
     override suspend fun update(request: CottontailGrpc.UpdateMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         /* Bind query and create logical plan. */
-        val canonical = GrpcQueryBinder.bind(request, ctx)
-        ctx.assign(canonical)
+        with(ctx) {
+            val canonical = GrpcQueryBinder.bind(request)
+            ctx.assign(canonical)
 
-        /* Plan query and create execution plan. */
-        ctx.plan(this.planner)
+            /* Plan query and create execution plan. */
+            ctx.plan(this@DMLService.planner)
 
-        /* Generate operator tree. */
-        ctx.toOperatorTree()
+            /* Generate operator tree. */
+            ctx.toOperatorTree()
+        }
+
     }.single()
 
     /**
      * gRPC endpoint for handling DELETE queries.
      */
     override suspend fun delete(request: CottontailGrpc.DeleteMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
-        /* Bind query and create logical plan. */
-        val canonical = GrpcQueryBinder.bind(request, ctx)
-        ctx.assign(canonical)
+        with(ctx) {
+            /* Bind query and create logical plan. */
+            val canonical = GrpcQueryBinder.bind(request)
+            ctx.assign(canonical)
 
-        /* Plan query and create execution plan. */
-        ctx.plan(this.planner)
+            /* Plan query and create execution plan. */
+            ctx.plan(this@DMLService.planner)
 
-        /* Generate operator tree. */
-        ctx.toOperatorTree()
+            /* Generate operator tree. */
+            ctx.toOperatorTree()
+        }
     }.single()
 
     /**
@@ -70,14 +75,16 @@ class DMLService(override val catalogue: Catalogue, override val manager: Transa
      */
     override suspend fun insert(request: CottontailGrpc.InsertMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         /* Bind query and create logical plan. */
-        val canonical = GrpcQueryBinder.bind(request, ctx)
-        ctx.assign(canonical)
+        with(ctx) {
+            val canonical = GrpcQueryBinder.bind(request)
+            ctx.assign(canonical)
 
-        /* Implement physical plan. */
-        ctx.implement()
+            /* Implement physical plan. */
+            ctx.implement()
 
-        /* Generate operator tree. */
-        ctx.toOperatorTree()
+            /* Generate operator tree. */
+            ctx.toOperatorTree()
+        }
     }.single()
 
     /**
@@ -85,13 +92,15 @@ class DMLService(override val catalogue: Catalogue, override val manager: Transa
      */
     override suspend fun insertBatch(request: CottontailGrpc.BatchInsertMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         /* Bind query and create logical plan. */
-        val canonical = GrpcQueryBinder.bind(request, ctx)
-        ctx.assign(canonical)
+        with(ctx) {
+            val canonical = GrpcQueryBinder.bind(request)
+            ctx.assign(canonical)
 
-        /* Implement physical plan. */
-        ctx.implement()
+            /* Implement physical plan. */
+            ctx.implement()
 
-        /* Generate operator tree. */
-        ctx.toOperatorTree()
+            /* Generate operator tree. */
+            ctx.toOperatorTree()
+        }
     }.single()
 }

@@ -7,11 +7,11 @@ import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
+import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.core.values.types.VectorValue
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.pq.quantizer.PQCodebook
 import org.vitrivr.cottontail.dbms.index.pq.signature.IVFPQSignature
 import org.vitrivr.cottontail.dbms.index.pq.signature.PQLookupTable
@@ -26,16 +26,16 @@ import java.util.concurrent.atomic.AtomicBoolean
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class IVFPQIndexCursor(val predicate: ProximityPredicate.Scan, val index: IVFPQIndex.Tx, val context: TransactionContext): Cursor<Record> {
+class IVFPQIndexCursor(val predicate: ProximityPredicate.Scan, val index: IVFPQIndex.Tx): Cursor<Record> {
 
     /** The [PQCodebook] used for coarse quantization. */
     private val coarse: PQCodebook = this.index.quantizer.coarse
 
     /** [PQLookupTable]s for the given query vector(s). */
-    private val lookupTable: PQLookupTable = this.index.quantizer.createLookupTable(this.predicate.query.value as VectorValue<*>)
+    private val lookupTable: PQLookupTable
 
     /** The sub-transaction this [Cursor] operates upon.  */
-    private val subTx = this.context.xodusTx.readonlySnapshot
+    private val subTx = this.index.context.txn.xodusTx.readonlySnapshot
 
     /** The internal cursor used by this index. */
     private val cursor = this.index.dataStore.openCursor(this.subTx)
@@ -51,11 +51,18 @@ class IVFPQIndexCursor(val predicate: ProximityPredicate.Scan, val index: IVFPQI
 
     init {
         /* Prepare list of Voronoi cells that should be scanned. */
-        val nprobe = this.coarse.numberOfCentroids / 32
+        val nprobe = this@IVFPQIndexCursor.coarse.numberOfCentroids / 32
         val selection = MinHeapSelection<ComparablePair<Int,Double>>(nprobe)
-        for (c in coarse.centroids.indices) {
-            selection.offer(ComparablePair(c, this.coarse.distanceFrom(this.predicate.query.value as RealVectorValue<*>, c)))
+
+        with(PlaceholderRecord) {
+            with(this@IVFPQIndexCursor.index.context.bindings) {
+                this@IVFPQIndexCursor.lookupTable = this@IVFPQIndexCursor.index.quantizer.createLookupTable(this@IVFPQIndexCursor.predicate.query.getValue() as VectorValue<*>)
+                for (c in coarse.centroids.indices) {
+                    selection.offer(ComparablePair(c, this@IVFPQIndexCursor.coarse.distanceFrom(this@IVFPQIndexCursor.predicate.query.getValue() as RealVectorValue<*>, c)))
+                }
+            }
         }
+
         this.queue = ArrayDeque(nprobe)
         for (i in 0 until selection.size) {
             this.queue.offer(selection[i].first.toShort())

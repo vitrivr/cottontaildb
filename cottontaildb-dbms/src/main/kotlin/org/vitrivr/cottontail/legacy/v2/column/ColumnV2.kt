@@ -17,9 +17,9 @@ import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.legacy.v1.column.ColumnV1
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
@@ -102,12 +102,12 @@ class ColumnV2<T : Value>(val path: Path, override val parent: Entity) : Column<
         get() = this.store.isClosed
 
     /**
-     * Creates and returns a new [ColumnV2.Tx] for the given [TransactionContext].
+     * Creates and returns a new [ColumnV2.Tx] for the given [QueryContext].
      *
-     * @param context The [TransactionContext] to create the [ColumnV2.Tx] for.
+     * @param context The [QueryContext] to create the [ColumnV2.Tx] for.
      * @return New [ColumnV2.Tx]
      */
-    override fun newTx(context: TransactionContext) = Tx(context)
+    override fun newTx(context: QueryContext) = Tx(context)
 
     /**
      * Closes the [ColumnV2]. Closing an [ColumnV2] is a delicate matter since ongoing [ColumnV2.Tx]  are involved.
@@ -125,7 +125,7 @@ class ColumnV2<T : Value>(val path: Path, override val parent: Entity) : Column<
      * @author Ralph Gasser
      * @version 1.4.0
      */
-    inner class Tx constructor(context: TransactionContext) : AbstractTx(context), ColumnTx<T> {
+    inner class Tx constructor(context: QueryContext) : AbstractTx(context), ColumnTx<T> {
 
         /** Reference to the [ColumnV2] this [ColumnV2.Tx] belongs to. */
         override val dbo: Column<T>
@@ -136,7 +136,7 @@ class ColumnV2<T : Value>(val path: Path, override val parent: Entity) : Column<
 
         /** Tries to acquire a global read-lock on the surrounding column. */
         init {
-            if (this@ColumnV2.closed) throw TransactionException.DBOClosed(this.context.txId, this@ColumnV2)
+            if (this@ColumnV2.closed) throw TransactionException.DBOClosed(this.context.txn.txId, this@ColumnV2)
         }
 
         /**

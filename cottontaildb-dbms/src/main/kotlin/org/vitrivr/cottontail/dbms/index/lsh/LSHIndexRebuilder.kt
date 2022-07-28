@@ -2,11 +2,9 @@ package org.vitrivr.cottontail.dbms.index.lsh
 
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
-import org.vitrivr.cottontail.dbms.column.ColumnTx
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * An [AbstractIndexRebuilder] for the [LSHIndex].
@@ -14,7 +12,7 @@ import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class LSHIndexRebuilder(index: LSHIndex, context: TransactionContext): AbstractIndexRebuilder<LSHIndex>(index, context) {
+class LSHIndexRebuilder(index: LSHIndex, context: QueryContext): AbstractIndexRebuilder<LSHIndex>(index, context) {
 
     /**
      * Performs the index rebuilding process for this [LSHIndexRebuilder].
@@ -23,14 +21,14 @@ class LSHIndexRebuilder(index: LSHIndex, context: TransactionContext): AbstractI
      */
     override fun rebuildInternal(): Boolean {
         /* Read basic index properties. */
-        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, context.xodusTx)
+        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.txn.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
         val config = entry.config as LSHIndexConfig
         val column = entry.columns[0]
 
         /* Tx objects required for index rebuilding. */
-        val entityTx = context.getTx(this.index.parent) as EntityTx
-        val columnTx = context.getTx(entityTx.columnForName(column)) as ColumnTx<*>
+        val entityTx = this.index.parent.newTx(this.context)
+        val columnTx = entityTx.columnForName(column).newTx(this.context)
         val dataStore = this.tryClearAndOpenStore() ?: return false
 
         /* Generate a new LSHSignature for each entry in the entity and adds it to the index. */
@@ -41,7 +39,7 @@ class LSHIndexRebuilder(index: LSHIndex, context: TransactionContext): AbstractI
             val tupleId = cursor.key()
             val value = cursor.next()
             if (value is VectorValue<*>) {
-                wrappedStore.addMapping(context.xodusTx, generator.generate(value), tupleId)
+                wrappedStore.addMapping(this.context.txn.xodusTx, generator.generate(value), tupleId)
             }
         }
 

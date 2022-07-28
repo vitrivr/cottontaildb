@@ -1,12 +1,13 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.transform
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.transform.FetchOperator
@@ -48,15 +49,16 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
         get() = super.statistics + this.localStatistics
 
     /** The [Cost] of a [FetchPhysicalOperatorNode]. */
-    override val cost: Cost by lazy {
-        (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf { (b, _) ->
+    context(BindingContext,Record)
+    override val cost: Cost
+        get() = (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf { (b, _) ->
             if (b.type == Types.String) {
                 this.localStatistics[b.column]!!.avgWidth * Char.SIZE_BYTES
             } else {
                 b.type.physicalSize
             }
         } * 10.0f /* Random access cost is more expensive. */
-    }
+
 
     /** Local reference to entity statistics. */
     private val localStatistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
@@ -65,7 +67,7 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
     init {
         for ((binding, physical) in this.fetch) {
             if (!this.localStatistics.containsKey(binding.column)) {
-                this.localStatistics[binding.column] = (this.entity.context.getTx(this.entity.columnForName(physical.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
+                this.localStatistics[binding.column] = this.entity.columnForName(physical.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
             }
         }
     }
@@ -87,11 +89,8 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
     override fun toOperator(ctx: QueryContext): FetchOperator {
-        /* Bind predicate to context. */
-        this.fetch.forEach { it.first.bind(ctx.bindings) }
-
         /* Generate and return FetchOperator. */
-        return FetchOperator(this.input.toOperator(ctx), this.entity, this.fetch)
+        return FetchOperator(this.input.toOperator(ctx), this.entity, this.fetch, ctx)
     }
 
     /** Generates and returns a [String] representation of this [FetchPhysicalOperatorNode]. */

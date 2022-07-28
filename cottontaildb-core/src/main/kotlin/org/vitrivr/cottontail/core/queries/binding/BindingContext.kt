@@ -28,19 +28,12 @@ interface BindingContext {
     operator fun get(binding: Binding.Literal): Value?
 
     /**
-     * Returns the [Value] for the given [Binding.Column].
-     *
-     * @param binding The [Binding.Column] to lookup.
-     * @return The bound [Value].
-     */
-    operator fun get(binding: Binding.Column): Value?
-
-    /**
      * Returns the [Value] for the given [Binding.Function].
      *
      * @param binding The [Binding.Function] to lookup.
      * @return The bound [Value].
      */
+    context(Record)
     operator fun get(binding: Binding.Function): Value?
 
     /**
@@ -117,13 +110,6 @@ interface BindingContext {
      * @param value The new [Value] to bind.
      */
     fun update(binding: Binding.Literal, value: Value?)
-
-    /**
-     * Updates the this [BindingContext] with a new [Record].
-     *
-     * @param record The new [Record] to bind.
-     */
-    fun update(record: Record)
 
     /**
      * Creates a copy of this [BindingContext]. The copy must be fully independent.

@@ -14,5 +14,5 @@ import org.vitrivr.cottontail.dbms.schema.Schema
  */
 class DropSchemaPhysicalOperatorNode(val tx: CatalogueTx, val schemaName: Name.SchemaName): DataDefinitionPhysicalOperatorNode("DropSchema") {
     override fun copy() = DropSchemaPhysicalOperatorNode(this.tx, this.schemaName)
-    override fun toOperator(ctx: QueryContext) = DropSchemaOperator(this.tx, this.schemaName)
+    override fun toOperator(ctx: QueryContext) = DropSchemaOperator(this.tx, this.schemaName, ctx)
 }

@@ -1,14 +1,16 @@
 package org.vitrivr.cottontail.dbms.queries.operators.basics
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.CopyableNode
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * An abstract [OperatorNode.Physical] implementation that has no input node, i.e., acts as a source.
@@ -32,11 +34,11 @@ abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical(), CopyableNo
     }
 
     /** The [totalCost] of a [NullaryPhysicalOperatorNode] is always its own [Cost]. */
-    final override val totalCost: Cost
+    context(BindingContext,Record)    final override val totalCost: Cost
         get() = this.cost
 
     /** The [parallelizableCost] of a [NullaryPhysicalOperatorNode] is either [Cost.ZERO] or [cost]. */
-    final override val parallelizableCost: Cost
+    context(BindingContext,Record)    final override val parallelizableCost: Cost
         get() = if (this.hasTrait(NotPartitionableTrait)) {
             Cost.ZERO
         } else {
@@ -105,7 +107,7 @@ abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical(), CopyableNo
      *
      * Must be overridden in order to support partitioning.
      */
-    override fun tryPartition(policy: CostPolicy, max: Int): Physical? = null
+    override fun tryPartition(ctx: QueryContext, max: Int): Physical? = null
 
     /**
      * By default, [NullaryPhysicalOperatorNode] cannot be partitioned and hence calling this method throws an exception.

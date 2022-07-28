@@ -5,14 +5,12 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
+import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.sources.IndexScanOperator
 import org.vitrivr.cottontail.dbms.index.basic.AbstractIndex
@@ -88,20 +86,24 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
 
     /** The estimated output size of this [IndexScanPhysicalOperatorNode]. */
     override val outputSize: Long by lazy {
-        when (this.predicate) {
-            is ProximityPredicate.Scan -> this.index.count()
-            is ProximityPredicate.NNS -> this.predicate.k
-            is ProximityPredicate.FNS -> this.predicate.k
-            is ProximityPredicate.ENN -> Selectivity.DEFAULT(this.index.count())
-            is BooleanPredicate -> {
-                val entityTx = this.index.context.getTx(this.index.dbo.parent) as EntityTx
-                NaiveSelectivityCalculator.estimate(this.predicate, this.statistics)(entityTx.count())
+        with(PlaceholderRecord) {
+            with(this@IndexScanPhysicalOperatorNode.index.context.bindings) {
+                when (val predicate = this@IndexScanPhysicalOperatorNode.predicate) {
+                    is ProximityPredicate.Scan -> this@IndexScanPhysicalOperatorNode.index.count()
+                    is ProximityPredicate.NNS -> predicate.k
+                    is ProximityPredicate.FNS -> predicate.k
+                    is ProximityPredicate.ENN -> Selectivity.DEFAULT(this@IndexScanPhysicalOperatorNode.index.count())
+                    is BooleanPredicate -> {
+                        val entityTx = this@IndexScanPhysicalOperatorNode.index.dbo.parent.newTx(this@IndexScanPhysicalOperatorNode.index.context)
+                        NaiveSelectivityCalculator.estimate(predicate, this@IndexScanPhysicalOperatorNode.statistics)(entityTx.count())
+                    }
+                }
             }
         }
     }
 
     init {
-        val entityTx = this.index.context.getTx(this.index.dbo.parent) as EntityTx
+        val entityTx = this.index.dbo.parent.newTx(this.index.context)
         val columns = mutableListOf<ColumnDef<*>>()
         val physicalColumns = mutableListOf<ColumnDef<*>>()
         val indexProduces = this.index.columnsFor(this.predicate)
@@ -117,7 +119,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
 
             /* Populate statistics. */
             if (!this.statistics.containsKey(binding.column) && entityProduces.contains(physical)) {
-                this.statistics[binding.column] = (this.index.context.getTx(entityTx.columnForName(physical.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
+                this.statistics[binding.column] = entityTx.columnForName(physical.name).newTx(this.index.context).statistics() as ValueStatistics<Value>
             }
         }
 
@@ -131,20 +133,24 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
      *
      * @return Copy of this [IndexScanPhysicalOperatorNode].
      */
-    override fun copy() = IndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate.copy(), this.fetch.map { it.first.copy() to it.second })
+    override fun copy() = IndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.fetch.map { it.first.copy() to it.second })
 
     /**
      * [IndexScanPhysicalOperatorNode] can be partitioned if the underlying input allows for partitioning.
      *
-     * @param policy The [CostPolicy] to use when determining the optimal number of partitions.
+     * @param ctx The [QueryContext] to use when determining the optimal number of partitions.
      * @param max The maximum number of partitions to create.
      * @return [OperatorNode.Physical] operator at the based of the new query plan.
      */
-    override fun tryPartition(policy: CostPolicy, max: Int): Physical? {
+    override fun tryPartition(ctx: QueryContext, max: Int): Physical? {
         if (this.hasTrait(NotPartitionableTrait)) return null
 
         /* Determine optimal number of partitions and create them. */
-        val partitions = policy.parallelisation(this.parallelizableCost, this.totalCost, max)
+        val partitions = with(ctx.bindings) {
+            with(PlaceholderRecord) {
+                ctx.costPolicy.parallelisation(this@IndexScanPhysicalOperatorNode.parallelizableCost, this@IndexScanPhysicalOperatorNode.totalCost, max)
+            }
+        }
         if (partitions <= 1) return null
         val inbound = (0 until partitions).map { this.partition(partitions, it) }
 
@@ -176,7 +182,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
      */
     override fun partition(partitions: Int, p: Int): Physical {
         check(!this.hasTrait(NotPartitionableTrait)) { "IndesScanPhysicalOperatorNode with index ${this.index.dbo.name} cannot be partitioned. This is a programmer's error!"}
-        return IndexScanPhysicalOperatorNode(p, this.index, this.predicate.copy(), this.fetch.map { it.first.copy() to it.second }, p, partitions)
+        return IndexScanPhysicalOperatorNode(this.groupId + p, this.index, this.predicate, this.fetch.map { it.first.copy() to it.second }, p, partitions)
     }
 
     /**
@@ -185,11 +191,8 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
     override fun toOperator(ctx: QueryContext): Operator {
-        /** Bind all column bindings to context. */
-        this.fetch.forEach { it.first.bind(ctx.bindings) }
-
         /** Generate and return IndexScanOperator. */
-        return IndexScanOperator(this.groupId, this.index, this.predicate, this.fetch, this.partitionIndex, this.partitions)
+        return IndexScanOperator(this.groupId, this.index, this.predicate, this.fetch, this.partitionIndex, this.partitions, ctx)
     }
 
     /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */

@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.merge
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
@@ -40,11 +41,11 @@ class MergeLimitingSortPhysicalOperatorNode(vararg inputs: Physical, val sortOn:
     }
 
     /** The output size of all [MergeLimitingSortPhysicalOperatorNode]s is usually the specified limit. */
-    override val outputSize: Long
+    context(BindingContext,Record)    override val outputSize: Long
         get() = min(this.inputs.sumOf { it.outputSize }, this.limit)
 
     /** The [Cost] incurred by the [MergeLimitingSortPhysicalOperatorNode] is similar to that of the [LimitingSortPhysicalOperatorNode]. */
-    override val cost: Cost
+    context(BindingContext,Record)    override val cost: Cost
         get() = Cost(
              cpu = 2 * this.inputs.sumOf { it.outputSize } * this.sortOn.size * Cost.MEMORY_ACCESS.cpu,
              memory = (this.columns.sumOf {
@@ -57,7 +58,7 @@ class MergeLimitingSortPhysicalOperatorNode(vararg inputs: Physical, val sortOn:
     )
 
     /** The [Cost] incurred by merging is usually negligible. */
-    override val parallelizableCost: Cost
+    context(BindingContext,Record)    override val parallelizableCost: Cost
         get() = this.inputs.map { it.totalCost }.reduce {c1, c2 -> c1 + c2}
 
     /** The [MergeLimitingSortPhysicalOperatorNode] overwrites/sets the [OrderTrait] and the [LimitTrait].  */
@@ -77,5 +78,5 @@ class MergeLimitingSortPhysicalOperatorNode(vararg inputs: Physical, val sortOn:
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): Operator = MergeLimitingHeapSortOperator(this.inputs.map { it.toOperator(ctx.split()) }, ctx.bindings, this.sortOn, this.limit)
+    override fun toOperator(ctx: QueryContext): Operator = MergeLimitingHeapSortOperator(this.inputs.map { it.toOperator(ctx.split()) }, this.sortOn, this.limit, ctx)
 }

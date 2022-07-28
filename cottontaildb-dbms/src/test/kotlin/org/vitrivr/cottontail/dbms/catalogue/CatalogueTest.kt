@@ -39,7 +39,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         /* Transaction 1: Create schema. */
         val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
-            val catalogueTxn1 = txn1.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn1 = txn1.getCachedTxForDBO(this.catalogue) as CatalogueTx
             catalogueTxn1.createSchema(this.schemaName)
             txn1.commit()
         } catch (t: Throwable) {
@@ -50,9 +50,9 @@ class CatalogueTest: AbstractDatabaseTest() {
         /* Transaction 2: Read and compare schema. */
         val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
-            val catalogueTxn2 = txn2.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn2 = txn2.getCachedTxForDBO(this.catalogue) as CatalogueTx
             val schema = catalogueTxn2.schemaForName(this.schemaName)
-            val schemaTxn2 = txn2.getTx(schema) as SchemaTx
+            val schemaTxn2 = txn2.getCachedTxForDBO(schema) as SchemaTx
 
             /* Check if schema contains the expected number of entities (zero). */
             Assertions.assertEquals(0, schemaTxn2.listEntities().size)
@@ -69,7 +69,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         /* Transaction 1: Create schema. */
         val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
-            val catalogueTxn1 = txn1.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn1 = txn1.getCachedTxForDBO(this.catalogue) as CatalogueTx
             catalogueTxn1.createSchema(this.schemaName)
         } finally {
             txn1.rollback()
@@ -78,7 +78,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         /* Transaction 2: Read and compare schema. */
         val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
-            val catalogueTxn2 = txn2.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn2 = txn2.getCachedTxForDBO(this.catalogue) as CatalogueTx
 
             /* Read schema (should throw error). */
             Assertions.assertThrows(DatabaseException.SchemaDoesNotExistException::class.java) {
@@ -99,7 +99,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         /* Transaction 1: Create schema. */
         val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
-            val catalogueTxn1 = txn1.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn1 = txn1.getCachedTxForDBO(this.catalogue) as CatalogueTx
             catalogueTxn1.createSchema(this.schemaName)
             txn1.commit()
         } catch (t: Throwable) {
@@ -111,7 +111,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         /* Transaction 2: Read, check and drop schema. */
         val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
-            val catalogueTxn2 = txn2.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn2 = txn2.getCachedTxForDBO(this.catalogue) as CatalogueTx
             catalogueTxn2.schemaForName(this.schemaName)
 
             /* Drop schema. */
@@ -125,7 +125,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         /* Transaction 3: Read and compare schema. */
         val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
-            val catalogueTxn3 = txn3.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn3 = txn3.getCachedTxForDBO(this.catalogue) as CatalogueTx
 
             /* Read schema (should throw error). */
             Assertions.assertThrows(DatabaseException.SchemaDoesNotExistException::class.java) {
@@ -146,7 +146,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         /* Transaction 1: Create schema. */
         val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
-            val catalogueTxn1 = txn1.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn1 = txn1.getCachedTxForDBO(this.catalogue) as CatalogueTx
             catalogueTxn1.createSchema(this.schemaName)
             txn1.commit()
         } catch (t: Throwable) {
@@ -158,7 +158,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         /* Transaction 2: Read, check and drop schema. */
         val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
-            val catalogueTxn2 = txn2.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn2 = txn2.getCachedTxForDBO(this.catalogue) as CatalogueTx
             Assertions.assertDoesNotThrow {
                 catalogueTxn2.schemaForName(this.schemaName)
             }
@@ -173,7 +173,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         /* Transaction 3: Read and compare schema. */
         val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
-            val catalogueTxn3 = txn3.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn3 = txn3.getCachedTxForDBO(this.catalogue) as CatalogueTx
             Assertions.assertDoesNotThrow {
                 catalogueTxn3.schemaForName(this.schemaName)
             }
@@ -192,7 +192,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         /* Transaction 1: Create schema. */
         val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
-            val catalogueTxn1 = txn1.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn1 = txn1.getCachedTxForDBO(this.catalogue) as CatalogueTx
             Assertions.assertDoesNotThrow {
                 catalogueTxn1.createSchema(this.schemaName)
                 catalogueTxn1.dropSchema(this.schemaName)
@@ -204,7 +204,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         /* Transaction 2: Read and compare schema. */
         val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
-            val catalogueTxn3 = txn3.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn3 = txn3.getCachedTxForDBO(this.catalogue) as CatalogueTx
 
             /* Read schema (should throw error). */
             Assertions.assertThrows(DatabaseException.SchemaDoesNotExistException::class.java) {

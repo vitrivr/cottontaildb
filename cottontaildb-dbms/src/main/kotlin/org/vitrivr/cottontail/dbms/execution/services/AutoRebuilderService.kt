@@ -5,8 +5,6 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.events.IndexEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
@@ -17,15 +15,16 @@ import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.IndexRebuilderState
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * A [TransactionObserver] that listens for [IndexEvent]s and triggers rebuilding of [Index]es that become [IndexState.STALE].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionManager): TransactionObserver {
 
@@ -36,6 +35,9 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
 
     /** Tracks failures for index rebuilding. */
     private val failures = ConcurrentHashMap<Name.IndexName, Int>(10)
+
+    /** Internal counter to keep track of then umber of spawned tasks. */
+    private val counter = AtomicLong(0L)
 
     /**
      * The [AutoRebuilderService] is only interested int [IndexEvent]s.
@@ -122,14 +124,15 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
          */
         private fun performRebuild(): Boolean {
             val transaction = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+            val context = DefaultQueryContext("auto-rebuild-${this@AutoRebuilderService.counter.incrementAndGet()}", this@AutoRebuilderService.catalogue, transaction)
             try {
-                val catalogueTx = transaction.getTx(this@AutoRebuilderService.catalogue) as CatalogueTx
+                val catalogueTx = this@AutoRebuilderService.catalogue.newTx(context)
                 val schema = catalogueTx.schemaForName(this.index.schema())
-                val schemaTx = transaction.getTx(schema) as SchemaTx
+                val schemaTx = schema.newTx(context)
                 val entity = schemaTx.entityForName(this.index.entity())
-                val entityTx = transaction.getTx(entity) as EntityTx
+                val entityTx = entity.newTx(context)
                 val index = entityTx.indexForName(this.index)
-                val ret = index.newRebuilder(transaction).rebuild()
+                val ret = index.newRebuilder(context).rebuild()
                 if (ret) {
                     transaction.commit()
                 } else {
@@ -156,12 +159,13 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
         private fun performConcurrentRebuild(): Boolean {
             /* Step 1a: Scan index (read-only). */
             val transaction1 = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
+            val context = DefaultQueryContext("auto-rebuild-scan-${this@AutoRebuilderService.counter.incrementAndGet()}", this@AutoRebuilderService.catalogue, transaction1)
             val rebuilder = try {
-                val catalogueTx = transaction1.getTx(this@AutoRebuilderService.catalogue) as CatalogueTx
+                val catalogueTx = this@AutoRebuilderService.catalogue.newTx(context)
                 val schema = catalogueTx.schemaForName(this.index.schema())
-                val schemaTx = transaction1.getTx(schema) as SchemaTx
+                val schemaTx = schema.newTx(context)
                 val entity = schemaTx.entityForName(this.index.entity())
-                val entityTx = transaction1.getTx(entity) as EntityTx
+                val entityTx = entity.newTx(context)
                 val index = entityTx.indexForName(this.index)
                 index.newAsyncRebuilder()
             } catch (e: Throwable) {
@@ -178,7 +182,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
             rebuilder.use { r ->
                 /* Start rebuilding. */
                 try {
-                    r.scan(transaction1)
+                    r.scan(context)
                 } catch (e: Throwable) {
                     LOGGER.error("Index auto-rebuilding (SCAN) for $index failed due to exception: ${e.message}.")
                     return false
@@ -194,9 +198,10 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
 
                 /* Step 2: MERGE index (write). */
                 val transaction2 = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+                val context2 = DefaultQueryContext("auto-rebuild-merge-${this@AutoRebuilderService.counter.incrementAndGet()}", this@AutoRebuilderService.catalogue, transaction1)
                 try {
                     return if (r.state == IndexRebuilderState.SCANNED) {
-                        r.merge(transaction2)
+                        r.merge(context2)
                         transaction2.commit()
                         true
                     } else {
