@@ -5,12 +5,12 @@ import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
-import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
@@ -69,7 +69,7 @@ class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val
         /* Convert query vector. */
         val queryVectorBinding = this@VAFCursor.predicate.query
         require(queryVectorBinding is Binding.Literal) {  "Bound query vector is not a literal value."  }
-        with(PlaceholderRecord) {
+        with(MissingRecord) {
             with(this@VAFCursor.index.context.bindings) {
                 val value = queryVectorBinding.getValue()
                 check(value is RealVectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }

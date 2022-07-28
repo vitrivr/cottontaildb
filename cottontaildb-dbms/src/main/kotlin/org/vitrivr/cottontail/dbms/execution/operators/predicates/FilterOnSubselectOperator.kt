@@ -5,9 +5,9 @@ import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.basics.take
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
@@ -40,7 +40,7 @@ class FilterOnSubselectOperator(val parent: Operator, val subquery: Operator, va
         val query = this@FilterOnSubselectOperator.parent.toFlow()
         val subqueryFlow = this@FilterOnSubselectOperator.subquery.toFlow()
         with(this@FilterOnSubselectOperator.context.bindings) {
-            with(PlaceholderRecord) {
+            with(MissingRecord) {
                 for (a in this@FilterOnSubselectOperator.predicate.atomics) {
                     /* Case 1: Binary operator that depends on sub-query. */
                     val op = a.operator

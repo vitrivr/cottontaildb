@@ -5,8 +5,8 @@ import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.types.Value
 import java.util.*
@@ -25,14 +25,14 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
     /** Internal cursor used for navigation. */
     protected val cursor: jetbrains.exodus.env.Cursor
 
-    /** A begin of cursor flag. */
+    /** A begin of cursor (BoC) flag. */
     protected val boc = AtomicBoolean(false)
 
     /* Perform initial sanity checks. */
     init {
         this.cursor = this.index.dataStore.openCursor(this.subTransaction)
         with(this@BTreeIndexCursor.index.context.bindings) {
-            with(PlaceholderRecord) {
+            with(MissingRecord) {
                 if (this@BTreeIndexCursor.initialize()) {
                     this@BTreeIndexCursor.boc.compareAndExchange(false, true)
                 }
@@ -48,7 +48,8 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
         this.subTransaction.abort()
     }
 
-    context(BindingContext,Record)    protected abstract fun initialize(): Boolean
+    context(BindingContext,Record)
+    protected abstract fun initialize(): Boolean
 
     /**
      * A [BTreeIndexCursor] variant to evaluate  [ComparisonOperator.Binary.Equal] operators.

@@ -3,13 +3,13 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sort
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.nodes.traits.MaterializedTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
-import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -81,7 +81,7 @@ class SortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<ColumnDef<
      */
     override fun toOperator(ctx: QueryContext): Operator {
         with(ctx.bindings) {
-            with(PlaceholderRecord) {
+            with(MissingRecord) {
                 return HeapSortOperator(
                     this@SortPhysicalOperatorNode.input.toOperator(ctx),
                     this@SortPhysicalOperatorNode.sortOn,

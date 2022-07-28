@@ -5,8 +5,8 @@ import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
-import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.VectorValue
@@ -44,7 +44,7 @@ class PQIndexCursor(partition: LongRange, val predicate: ProximityPredicate.Scan
     private val boc = AtomicBoolean(true)
 
     init {
-        with(PlaceholderRecord) {
+        with(MissingRecord) {
             with(this@PQIndexCursor.index.context.bindings) {
                 this@PQIndexCursor.lookupTable = this@PQIndexCursor.index.quantizer.createLookupTable(this@PQIndexCursor.predicate.query.getValue() as VectorValue<*>)
             }

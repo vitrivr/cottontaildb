@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform
 
-import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntityScanPhysicalOperatorNode
@@ -32,7 +32,7 @@ object DeferFetchOnScanRewriteRule: RewriteRule {
      */
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         with(ctx.bindings) {
-            with(PlaceholderRecord) {
+            with(MissingRecord) {
                 /* Make sure, that node is a FetchLogicalOperatorNode. */
                 require(node is EntityScanPhysicalOperatorNode) { "Called DeferFetchOnFetchRewriteRule.rewrite() with node of type ${node.javaClass.simpleName}. This is a programmer's error!"}
 

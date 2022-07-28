@@ -29,15 +29,18 @@ class MergePhysicalOperatorNode(vararg inputs: Physical): NAryPhysicalOperatorNo
     override val name: String = "Merge"
 
     /** The output size of all [MergePhysicalOperatorNode]s is the sum of all its input's output sizes. */
-    context(BindingContext,Record)    override val outputSize: Long
+    context(BindingContext,Record)
+    override val outputSize: Long
         get() = this.inputs.sumOf { it.outputSize }
 
     /** The [Cost] incurred by the [MergePhysicalOperatorNode] is usually negligible. */
-    context(BindingContext,Record)    override val cost: Cost
+    context(BindingContext,Record)
+    override val cost: Cost
         get() = Cost.ZERO
 
     /** The parallelizable portion of the [Cost] incurred by the [MergePhysicalOperatorNode] is the sum of the [Cost]s of all inputs. */
-    context(BindingContext,Record)    override val parallelizableCost: Cost
+    context(BindingContext,Record)
+    override val parallelizableCost: Cost
         get() = this.inputs.map { it.totalCost }.reduce {c1, c2 -> c1 + c2}
 
     /** The [MergePhysicalOperator] eliminates all traits from the incoming nodes. */

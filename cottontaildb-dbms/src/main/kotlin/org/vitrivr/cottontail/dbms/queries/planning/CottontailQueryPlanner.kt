@@ -2,9 +2,9 @@ package org.vitrivr.cottontail.dbms.queries.planning
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.planning.cost.NormalizedCost
-import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.*
@@ -56,7 +56,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
 
         /* Generate candidate plans per group. */
         val candidates = with(context.bindings) {
-            with(PlaceholderRecord) {
+            with(MissingRecord) {
                 stage2.map { (groupId, plans) ->
                 val normalized = NormalizedCost.normalize(plans.map { it.totalCost })
                 val candidate = plans.zip(normalized).minByOrNull { (_, cost) -> context.costPolicy.toScore(cost) }
@@ -108,7 +108,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
 
         /* Generate candidate plans. */
         with(context.bindings) {
-            with(PlaceholderRecord) {
+            with(MissingRecord) {
                 return stage2.map { (groupId, plans) ->
                     val normalized = NormalizedCost.normalize(plans.map { it.totalCost })
                     val candidates = plans.zip(normalized).sortedBy { (_, cost) -> context.costPolicy.toScore(cost) }

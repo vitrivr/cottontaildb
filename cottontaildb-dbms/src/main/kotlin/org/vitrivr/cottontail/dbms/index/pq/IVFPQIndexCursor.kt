@@ -6,8 +6,8 @@ import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
-import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
@@ -54,7 +54,7 @@ class IVFPQIndexCursor(val predicate: ProximityPredicate.Scan, val index: IVFPQI
         val nprobe = this@IVFPQIndexCursor.coarse.numberOfCentroids / 32
         val selection = MinHeapSelection<ComparablePair<Int,Double>>(nprobe)
 
-        with(PlaceholderRecord) {
+        with(MissingRecord) {
             with(this@IVFPQIndexCursor.index.context.bindings) {
                 this@IVFPQIndexCursor.lookupTable = this@IVFPQIndexCursor.index.quantizer.createLookupTable(this@IVFPQIndexCursor.predicate.query.getValue() as VectorValue<*>)
                 for (c in coarse.centroids.indices) {

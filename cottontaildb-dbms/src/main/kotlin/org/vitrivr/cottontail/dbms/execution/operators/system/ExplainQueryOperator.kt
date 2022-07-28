@@ -5,8 +5,8 @@ import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.planning.cost.NormalizedCost
-import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.FloatValue
 import org.vitrivr.cottontail.core.values.LongValue
@@ -44,7 +44,7 @@ class ExplainQueryOperator(private val candidates: Collection<OperatorNode.Physi
 
     override fun toFlow(): Flow<Record> = flow {
         with(this@ExplainQueryOperator.context.bindings) {
-            with(PlaceholderRecord) {
+            with(MissingRecord) {
                 val normalized = NormalizedCost.normalize(this@ExplainQueryOperator.candidates.map { it.totalCost })
                 val selected = this@ExplainQueryOperator.candidates.zip(normalized).minByOrNull { (_, cost) ->
                     this@ExplainQueryOperator.context.costPolicy.toScore(cost)

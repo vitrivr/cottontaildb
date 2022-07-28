@@ -2,12 +2,12 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.transform
 
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.nodes.traits.MaterializedTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.dbms.execution.operators.transform.LimitOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
@@ -68,7 +68,7 @@ class LimitPhysicalOperatorNode(input: Physical, val limit: Long) : UnaryPhysica
         require(max > 1) { "Expected number of partitions to be greater than one but encountered $max." }
         /** Check: If no materialization takes places upstream, cost must be adjusted by LIMIT. */
         with(ctx.bindings) {
-            with(PlaceholderRecord) {
+            with(MissingRecord) {
                 if (!this@LimitPhysicalOperatorNode.input.hasTrait(MaterializedTrait)) {
                     val parallelisableCost = (this@LimitPhysicalOperatorNode.parallelizableCost / this@LimitPhysicalOperatorNode.input.outputSize) * this@LimitPhysicalOperatorNode.limit
                     val totalCost = (this@LimitPhysicalOperatorNode.parallelizableCost / this@LimitPhysicalOperatorNode.input.outputSize) * this@LimitPhysicalOperatorNode.limit

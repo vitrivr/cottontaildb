@@ -5,13 +5,13 @@ import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotFoundException
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
-import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.core.values.types.Types
@@ -422,7 +422,7 @@ object GrpcQueryBinder {
         CottontailGrpc.ComparisonOperator.GEQUAL -> ComparisonOperator.Binary.GreaterEqual(left, right[0])
         CottontailGrpc.ComparisonOperator.LEQUAL -> ComparisonOperator.Binary.LessEqual(left, right[0])
         CottontailGrpc.ComparisonOperator.LIKE -> {
-            with(PlaceholderRecord) {
+            with(MissingRecord) {
                 with(this@QueryContext.bindings) {
                     val r = right[0]
                     if (r is Binding.Literal && r.getValue() is StringValue) {
@@ -435,7 +435,7 @@ object GrpcQueryBinder {
             }
         }
         CottontailGrpc.ComparisonOperator.BETWEEN -> {
-            with(PlaceholderRecord) {
+            with(MissingRecord) {
                 with(this@QueryContext.bindings) {
                     var rightLower = right[0]
                     var rightUpper = right[1]

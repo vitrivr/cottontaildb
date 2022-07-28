@@ -3,10 +3,10 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sort
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
-import org.vitrivr.cottontail.core.recordset.PlaceholderRecord
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.sort.LimitingHeapSortOperator
@@ -89,7 +89,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<Co
     override fun tryPartition(ctx: QueryContext, max: Int): Physical? {
         return if (!this.input.hasTrait(NotPartitionableTrait)) {
             val partitions = with(ctx.bindings) {
-                with(PlaceholderRecord) {
+                with(MissingRecord) {
                     ctx.costPolicy.parallelisation(this@LimitingSortPhysicalOperatorNode.parallelizableCost, this@LimitingSortPhysicalOperatorNode.totalCost, max)
                 }
             }

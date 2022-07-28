@@ -64,7 +64,6 @@ class MergeLimitingSortPhysicalOperatorNode(vararg inputs: Physical, val sortOn:
     /** The [MergeLimitingSortPhysicalOperatorNode] overwrites/sets the [OrderTrait] and the [LimitTrait].  */
     override val traits: Map<TraitType<*>, Trait> = mapOf(OrderTrait to OrderTrait(this.sortOn), LimitTrait to LimitTrait(this.limit))
 
-
     /**
      * Creates and returns a copy of this [MergeLimitingSortPhysicalOperatorNode] using the given parents as input.
      *
