@@ -48,6 +48,11 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
      */
     inner class Tx(context: QueryContext) : AbstractTx(context), SchemaTx {
 
+        init {
+            /* Cache this Tx for future use. */
+            context.txn.cacheTxForDBO(this)
+        }
+
         /** Reference to the surrounding [DefaultSchema]. */
         override val dbo: DefaultSchema
             get() = this@DefaultSchema

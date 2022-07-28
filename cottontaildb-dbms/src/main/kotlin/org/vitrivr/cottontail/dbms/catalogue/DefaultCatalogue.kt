@@ -164,11 +164,13 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
     /**
      * A [Tx] that affects this [DefaultCatalogue].
-     *
-     * @author Ralph Gasser
-     * @version 1.0.0
      */
     inner class Tx(context: QueryContext) : AbstractTx(context), CatalogueTx {
+
+        init {
+            /* Cache this Tx for future use. */
+            context.txn.cacheTxForDBO(this)
+        }
 
         /** Reference to the [DefaultCatalogue] this [CatalogueTx] belongs to. */
         override val dbo: DefaultCatalogue
