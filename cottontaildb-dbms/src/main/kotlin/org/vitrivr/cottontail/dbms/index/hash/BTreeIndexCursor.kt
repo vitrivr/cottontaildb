@@ -31,8 +31,8 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
     /* Perform initial sanity checks. */
     init {
         this.cursor = this.index.dataStore.openCursor(this.subTransaction)
-        with(PlaceholderRecord) {
-            with(this@BTreeIndexCursor.index.context.bindings) {
+        with(this@BTreeIndexCursor.index.context.bindings) {
+            with(PlaceholderRecord) {
                 if (this@BTreeIndexCursor.initialize()) {
                     this@BTreeIndexCursor.boc.compareAndExchange(false, true)
                 }
@@ -54,8 +54,8 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
      * A [BTreeIndexCursor] variant to evaluate  [ComparisonOperator.Binary.Equal] operators.
      */
     class Equals(operator: ComparisonOperator.Binary.Equal, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.Binary.Equal>(operator, index) {
-        context(Record, BindingContext) override
-        fun initialize(): Boolean = this@Equals.cursor.getSearchKey(this@Equals.index.binding.valueToEntry(this.operator.right.getValue())) != null
+        context(BindingContext,Record)
+        override fun initialize(): Boolean = this@Equals.cursor.getSearchKey(this@Equals.index.binding.valueToEntry(this.operator.right.getValue())) != null
         override fun moveNext(): Boolean = (this.boc.compareAndExchange(true, false) || (this.cursor.nextDup))
     }
 
@@ -66,7 +66,8 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
 
         /** Internal list of query values for IN predicate. */
         private val queryValueQueue = LinkedList<Value>()
-        context(Record, BindingContext) override fun initialize(): Boolean {
+        context(BindingContext,Record)
+        override fun initialize(): Boolean {
             this.queryValueQueue.addAll(this.operator.right.mapNotNull { it.getValue() })
             while (this.queryValueQueue.size > 0) {
                 if (this@In.cursor.getSearchKey(this@In.index.binding.valueToEntry(this@In.queryValueQueue.poll())) != null) {

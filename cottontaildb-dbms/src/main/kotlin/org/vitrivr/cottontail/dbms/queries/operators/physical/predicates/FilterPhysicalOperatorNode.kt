@@ -37,7 +37,8 @@ class FilterPhysicalOperatorNode(input: Physical, val predicate: BooleanPredicat
         get() = super.executable && this.predicate.atomics.none { it.operator is ComparisonOperator.Binary.Match }
 
     /** The estimated output size of this [FilterOnSubSelectPhysicalOperatorNode]. Calculated based on [Selectivity] estimates. */
-    context(BindingContext,Record)    override val outputSize: Long
+    context(BindingContext,Record)
+    override val outputSize: Long
         get() = NaiveSelectivityCalculator.estimate(this.predicate, this.statistics).invoke(this.input.outputSize)
 
     /** The [Cost] of this [FilterPhysicalOperatorNode]. */

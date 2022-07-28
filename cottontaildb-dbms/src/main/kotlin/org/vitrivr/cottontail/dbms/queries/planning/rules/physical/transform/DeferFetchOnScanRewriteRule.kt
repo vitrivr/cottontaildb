@@ -69,10 +69,8 @@ object DeferFetchOnScanRewriteRule: RewriteRule {
                     prev = next
                     next = next.output
                 }
-
                 /* This usually only happens for count(*) or exists (*) queries. */
                 return prev!!.copyWithExistingInput().base.first().output!!.copyWithOutput(EntityScanPhysicalOperatorNode(originalGroupId, node.entity, node.fetch.filter { !candidates.contains(it) }))
-
             }
         }
     }

@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.values.types.Types
@@ -87,6 +88,6 @@ sealed interface ValueStatistics<T : Value> {
      * @param predicate [BooleanPredicate.Atomic] To estimate [Selectivity] for.
      * @return [Selectivity] estimate.
      */
-    context(org.vitrivr.cottontail.core.basics.Record, BindingContext)
+    context(BindingContext,Record)
     fun estimateSelectivity(predicate: BooleanPredicate.Atomic): Selectivity
 }
