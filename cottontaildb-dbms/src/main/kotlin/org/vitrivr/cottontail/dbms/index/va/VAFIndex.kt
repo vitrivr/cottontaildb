@@ -181,7 +181,11 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             val fullRead = 0.1f * signatureRead /* Assumption: Only 10% of values are read --> see paper. */
             return when (predicate) {
                 is ProximityPredicate.Scan -> Cost.INVALID
-                is ProximityPredicate.ENN -> Cost.INVALID
+                is ProximityPredicate.ENN -> Cost(
+                    Cost.DISK_ACCESS_READ.io * this.columns[0].type.logicalSize * signatureRead + Cost.DISK_ACCESS_READ.io * this.columns[0].type.physicalSize * fullRead,
+                    (Cost.MEMORY_ACCESS.memory * 2.0f + Cost.FLOP.cpu) * this.columns[0].type.logicalSize * signatureRead + predicate.cost.cpu * fullRead,
+                    (Long.SIZE_BYTES + Double.SIZE_BYTES + this.columns[0].type.physicalSize).toFloat() * 10_000
+                )
                 is ProximityPredicate.KLimitedSearch -> Cost(
                     Cost.DISK_ACCESS_READ.io * this.columns[0].type.logicalSize * signatureRead + Cost.DISK_ACCESS_READ.io * this.columns[0].type.physicalSize * fullRead,
                     (Cost.MEMORY_ACCESS.memory * 2.0f + Cost.FLOP.cpu) * this.columns[0].type.logicalSize * signatureRead + predicate.cost.cpu * fullRead,
@@ -210,7 +214,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             if (predicate !is ProximityPredicate) return false
             if (predicate.column != this.columns[0]) return false
             if (predicate.distance !is MinkowskiDistance) return false
-            return predicate is ProximityPredicate.NNS || predicate is ProximityPredicate.FNS
+            return (predicate is ProximityPredicate.KLimitedSearch || predicate is ProximityPredicate.ENN)
         }
 
         /**
@@ -220,6 +224,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return Map of [Trait]s for this [VAFIndex]
          */
         override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> = when (predicate) {
+            is ProximityPredicate.ENN -> emptyMap()
             is ProximityPredicate.NNS -> mutableMapOf(
                 OrderTrait to OrderTrait(listOf(predicate.distanceColumn to SortOrder.ASCENDING)),
                 LimitTrait to LimitTrait(predicate.k)
@@ -312,8 +317,12 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return The resulting [Iterator].
          */
         override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> = this.txLatch.withLock {
-            require(predicate is ProximityPredicate) { "VAFIndex can only be used with a SCAN type proximity predicate. This is a programmer's error!" }
-            return VAFCursor(partition, predicate, this)
+            return when(predicate) {
+                is ProximityPredicate.ENN -> VAFCursor.ENN(partition, predicate, this)
+                is ProximityPredicate.FNS -> VAFCursor.FNS(partition, predicate, this)
+                is ProximityPredicate.NNS -> VAFCursor.NNS(partition, predicate, this)
+                else -> throw IllegalArgumentException(" VAFIndex can only be used with a NNS, FNS or ENS type proximity predicate. This is a programmer's error!")
+            }
         }
     }
 }

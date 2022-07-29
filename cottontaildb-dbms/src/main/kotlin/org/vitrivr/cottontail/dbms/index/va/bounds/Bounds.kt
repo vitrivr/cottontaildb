@@ -20,15 +20,28 @@ sealed class Bounds {
     protected abstract val rq: VAFSignature
 
     /**
-     * Checks if the given [VAFSignature] is a VA-SSA candidate according to [1] by comparing the
-     * lower bounds estimation to the given threshold and returns true if so and false otherwise.
+     * Calculates and returns the lower bounds for this [Bounds].
      *
-     * @param signature The [VAFSignature] to check.
-     * @return True if [VAFSignature] is a candidate, false otherwise.
+     * @param signature [VAFSignature] to calculate bounds for.
+     * @param threshold Threshold for early abort.
+     * @return Upper bound.
      */
     abstract fun lb(signature: VAFSignature, threshold: Double = Double.MAX_VALUE): Double
 
-    abstract fun ub(signature: VAFSignature): Double
+    /**
+     * Calculates and returns the upper bounds for this [Bounds].
+     *
+     * @param signature [VAFSignature] to calculate bounds for.
+     * @param threshold Threshold for early abort.
+     * @return Upper bound.
+     */
+    abstract fun ub(signature: VAFSignature, threshold: Double = Double.MIN_VALUE): Double
 
-    open fun bounds(signature: VAFSignature): Pair<Double,Double> = Pair(lb(signature),ub(signature))
+    /**
+     * Calculates and returns the bounds for this [Bounds].
+     *
+     * @param signature [VAFSignature] to calculate bounds for.
+     * @return Bounds
+     */
+    abstract fun bounds(signature: VAFSignature): Pair<Double,Double>
 }

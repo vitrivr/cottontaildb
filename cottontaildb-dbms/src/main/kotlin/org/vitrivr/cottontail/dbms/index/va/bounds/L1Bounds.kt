@@ -14,7 +14,7 @@ import kotlin.math.max
  * [1] Weber, R. and Blott, S., 1997. An approximation based data structure for similarity search (No. 9141, p. 416). Technical Report 24, ESPRIT Project HERMES.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.3.0
  */
 class L1Bounds(query: RealVectorValue<*>, marks: VAFMarks) : Bounds() {
 
@@ -33,7 +33,11 @@ class L1Bounds(query: RealVectorValue<*>, marks: VAFMarks) : Bounds() {
     }
 
     /**
+     * Calculates and returns the lower bounds for this [L1Bounds].
      *
+     * @param signature [VAFSignature] to calculate bounds for.
+     * @param threshold Threshold for early abort.
+     * @return Lower bound.
      */
     override fun lb(signature: VAFSignature, threshold: Double): Double {
         var sum = 0.0
@@ -51,9 +55,13 @@ class L1Bounds(query: RealVectorValue<*>, marks: VAFMarks) : Bounds() {
     }
 
     /**
+     * Calculates and returns the upper bounds for this [L1Bounds].
      *
+     * @param signature [VAFSignature] to calculate bounds for.
+     * @param threshold Threshold for early abort.
+     * @return Upper bound.
      */
-    override fun ub(signature: VAFSignature): Double {
+    override fun ub(signature: VAFSignature, threshold: Double): Double {
         var sum = 0.0
         for (i in 0 until signature.size()) {
             val rij = signature[i]
@@ -64,10 +72,17 @@ class L1Bounds(query: RealVectorValue<*>, marks: VAFMarks) : Bounds() {
             } else {
                 max(this.lat[i][rij + 1], this.lat[i][rij])
             }
+            if (sum > threshold) break
         }
         return sum
     }
 
+    /**
+     * Calculates and returns the bounds for this [L1Bounds].
+     *
+     * @param signature [VAFSignature] to calculate bounds for.
+     * @return Bounds
+     */
     override fun bounds(signature: VAFSignature): Pair<Double,Double> {
         var lb = 0.0
         var ub = 0.0

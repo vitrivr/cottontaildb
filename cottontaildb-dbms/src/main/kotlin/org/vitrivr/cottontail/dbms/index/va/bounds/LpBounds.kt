@@ -13,7 +13,7 @@ import kotlin.math.pow
  * [1] Weber, R. and Blott, S., 1997. An approximation based data structure for similarity search (No. 9141, p. 416). Technical Report 24, ESPRIT Project HERMES.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.3.0
  */
 class LpBounds(query: RealVectorValue<*>, marks: EquidistantVAFMarks, val p: Int) : Bounds() {
     /** [VAFSignature] for the query [RealVectorValue]. */
@@ -31,10 +31,10 @@ class LpBounds(query: RealVectorValue<*>, marks: EquidistantVAFMarks, val p: Int
     }
 
     /**
-     * Checks if the given [VAFSignature] is a VA-SSA candidate according to [1] by comparing the
-     * lower bounds estimation to the given threshold and returns true if so and false otherwise.
+     * Calculates and returns the lower bounds for this [LpBounds].
      *
      * @param signature The [VAFSignature] to check.
+     * @param threshold Threshold for early abort.
      * @return True if [VAFSignature] is a candidate, false otherwise.
      */
     override fun lb(signature: VAFSignature, threshold: Double): Double {
@@ -43,22 +43,23 @@ class LpBounds(query: RealVectorValue<*>, marks: EquidistantVAFMarks, val p: Int
             val rij = signature[i]
             if (rij < this.rq[i]) {
                 sum += this.lat[i][rij + 1][0]
+                if (sum > threshold) break
             } else if (rij > this.rq[i]) {
                 sum += this.lat[i][rij][1]
+                if (sum > threshold) break
             }
-
         }
         return sum.pow(1.0 / p)
     }
 
     /**
-     * Checks if the given [VAFSignature] is a VA-SSA candidate according to [1] by comparing the
-     * lower bounds estimation to the given threshold and returns true if so and false otherwise.
+     * Calculates and returns the upper bounds for this [LpBounds].
      *
      * @param signature The [VAFSignature] to check.
+     * @param threshold Threshold for early abort.
      * @return True if [VAFSignature] is a candidate, false otherwise.
      */
-    override fun ub(signature: VAFSignature): Double {
+    override fun ub(signature: VAFSignature, threshold: Double): Double {
         var sum = 0.0
         for (i in 0 until signature.size()) {
             val rij = signature[i]
@@ -69,7 +70,32 @@ class LpBounds(query: RealVectorValue<*>, marks: EquidistantVAFMarks, val p: Int
             } else {
                 sum += max(this.lat[i][rij + 1][0], this.lat[i][rij][1])
             }
+            if (sum > threshold) break
         }
         return sum.pow(1.0 / p)
+    }
+
+    /**
+     * Calculates and returns the bounds for this [LpBounds].
+     *
+     * @param signature [VAFSignature] to calculate bounds for.
+     * @return Bounds
+     */
+    override fun bounds(signature: VAFSignature): Pair<Double,Double> {
+        var lb = 0.0
+        var ub = 0.0
+        for (i in 0 until signature.size()) {
+            val rij = signature[i]
+            if (rij < this.rq[i]) {
+                lb += this.lat[i][rij + 1][0]
+                ub += this.lat[i][rij][1]
+            } else if (rij > this.rq[i]) {
+                lb += this.lat[i][rij][1]
+                ub += this.lat[i][rij + 1][0]
+            } else {
+                ub += max(this.lat[i][rij + 1][0], this.lat[i][rij][1])
+            }
+        }
+        return Pair(lb.pow(1.0 / p), ub.pow(1.0 / p))
     }
 }

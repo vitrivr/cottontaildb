@@ -12,13 +12,16 @@ import java.util.concurrent.locks.StampedLock
  * @version 2.0.0
  */
 @Suppress("UNCHECKED_CAST")
-class HeapSelection<T>(val k: Int, val comparator: Comparator<T>) {
+class HeapSelection<T>(private val heap: Array<T?>, val comparator: Comparator<T>) {
 
-    /** The internal [Array] used as a heap. */
-    private val heap = arrayOfNulls<Any?>(this.k) as Array<T?>
+    constructor(k: Int, comparator: Comparator<T>) : this(arrayOfNulls<Any?>(k) as Array<T?>, comparator)
 
     /** A lock that mediates access to this [HeapSelection]. */
     private val lock = StampedLock()
+
+    /** The value k is determined by the heap size.*/
+    val k: Int
+        get() = this.heap.size
 
     /** Number of items that have been added to this [HeapSelection] so far. */
     @Volatile
@@ -29,6 +32,16 @@ class HeapSelection<T>(val k: Int, val comparator: Comparator<T>) {
     @Volatile
     var size: Int = 0
         private set
+
+    init {
+        try {
+            ObjectHeaps.makeHeap(this.heap, this.k, this.comparator as java.util.Comparator<in T?>)
+            this.size = this.k
+            this.added = this.k
+        } catch (e: NullPointerException) {
+            /* No op. */
+        }
+    }
 
     /**
      * Adds a new element to this [HeapSelection].
