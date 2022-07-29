@@ -1,37 +1,29 @@
 package org.vitrivr.cottontail.utilities.selection
 
-import org.vitrivr.cottontail.utilities.extensions.read
-import org.vitrivr.cottontail.utilities.extensions.write
 import java.lang.Integer.min
-import java.util.NoSuchElementException
-import java.util.concurrent.locks.StampedLock
 
 /**
- * A data structure used for heap based sorting.
+ * A data structure that can be used to retain the [k] smallest values with respect to a given [Comparator].
+ *
+ * This data structure is not thread safe and concurrent access must therefore be synchronised!
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 @Suppress("UNCHECKED_CAST")
 class HeapSelection<T>(val k: Int, val comparator: Comparator<T>) : Iterable<T> {
-
-    private val heap: Array<T?> = arrayOfNulls<Any?>(k) as Array<T?>
-
-    /** A lock that mediates access to this [HeapSelection]. */
-    private val lock = StampedLock()
+    /** The [Array] backing this [HeapSelection].   */
+    private val heap: Array<T?> = arrayOfNulls<Any?>(this.k) as Array<T?>
 
     /** Indicates whether this [MinHeapSelection] is currently sorted or not. */
-    @Volatile
     var sorted: Boolean = true
         private set
 
     /** Number of items that have been added to this [HeapSelection] so far. */
-    @Volatile
     var added: Long = 0
         private set
 
     /** Returns the size of this [HeapSelection], i.e., the number of items contained in the heap. */
-    @Volatile
     var size: Int = 0
         private set
 
@@ -40,7 +32,7 @@ class HeapSelection<T>(val k: Int, val comparator: Comparator<T>) : Iterable<T> 
      *
      * @param element The element to add to this [HeapSelection].
      */
-    fun offer(element: T): T = this.lock.write {
+    fun offer(element: T): T {
         if (this.size < this.heap.size) {
             this.sorted = false
             this.heap[this.size++] = element
@@ -54,7 +46,7 @@ class HeapSelection<T>(val k: Int, val comparator: Comparator<T>) : Iterable<T> 
             }
         }
         this.added += 1
-        this.heap[0]!!
+        return this.heap[0]!!
     }
 
     /**
@@ -62,34 +54,24 @@ class HeapSelection<T>(val k: Int, val comparator: Comparator<T>) : Iterable<T> 
      *
      * @return Largest value seen so far.
      */
-    fun peek(): T? = this.lock.read { this.heap.firstOrNull() }
+    fun peek(): T? = this.heap.firstOrNull()
 
     /**
-     * Returns the i-*th* retained value seen  by this [MinHeapSelection]. i = 0 returns the
-     * smallest value seen, i = 1 the second smallest, ..., i = k-1 the largest value tracked.
-     * Also, i must be less than the number of previous assimilated.
+     * Returns the i-*th* value held by this [HeapSelection]. i = 0 returns the smallest value seen,
+     * i = 1 the second smallest, ..., i = k-1 the largest value tracked.
      *
      * @param i The index of the value to return
      * @return The i-th smallest value retained by this [MinHeapSelection]
      */
     operator fun get(i: Int): T {
-        if (i == this.heap.size - 1) {
-            this.lock.read { return this.heap[0] ?: throw NoSuchElementException("") }
+        val maxId =  this.heap.size - 1
+        if (i == maxId) {
+            return this.heap[0] ?: throw NoSuchElementException("Element at index $i does not exist in HeapSelection.")
+        } else if (!this.sorted) {
+            this.sort()
         }
-        return if (!this.sorted) {
-            this.lock.write {
-                val maxIdx = this.heap.size - 1
-                this.sort()
-                this.heap[maxIdx - i] ?: throw NoSuchElementException("")
-            }
-        } else {
-            this.lock.read {
-                val maxIdx = this.heap.size - 1
-                this.heap[maxIdx - i]?: throw NoSuchElementException("")
-            }
-        }
+        return this.heap[maxId - i] ?: throw NoSuchElementException("Element at index $i does not exist in HeapSelection.")
     }
-
 
     /**
      * Sorts the heap so that the smallest values move to the top of the [HeapSelection].
@@ -144,9 +126,8 @@ class HeapSelection<T>(val k: Int, val comparator: Comparator<T>) : Iterable<T> 
      * Heapifies this [HeapSelection].
      */
     private fun heapify() {
-        val n = this.heap.size
-        for (i in Math.floorDiv(n, 2) downTo 0) {
-            siftDown(i, n - 1)
+        for (i in Math.floorDiv(this.heap.size, 2) downTo 0) {
+            siftDown(i, this.heap.size - 1)
         }
     }
 
@@ -155,14 +136,27 @@ class HeapSelection<T>(val k: Int, val comparator: Comparator<T>) : Iterable<T> 
      *
      * @return True if this [HeapSelection] is empty and false otherwise
      */
-    fun isEmpty(): Boolean = this.lock.read { this.size == 0 }
+    fun isEmpty(): Boolean = this.size == 0
 
     /**
+     * Creates and returns an [Iterator] for this [HeapSelection].
      *
+     * Creating an [Iterator] causes the [HeapSelection] to be sorted. If elements are added to the
+     * [HeapSelection] after creating the [Iterator], the sort order may become incorrect and a call
+     * next will cause a [ConcurrentModificationException] to be thrown.
+     *
+     * @return [Iterator] for this [HeapSelection].
      */
-    override fun iterator(): Iterator<T> = object : Iterator<T> {
-        private var index: Int = 0
-        override fun hasNext(): Boolean = this.index < this@HeapSelection.size - 1
-        override fun next(): T = this@HeapSelection.heap[this.index++] ?: throw NoSuchElementException()
+    override fun iterator(): Iterator<T> {
+        if (!this.sorted) this.sort()
+        return object : Iterator<T> {
+            private val expectedAdded: Long = this@HeapSelection.added
+            private var index: Int = this@HeapSelection.size - 1
+            override fun hasNext(): Boolean = this.index > 0
+            override fun next(): T {
+                if(this.expectedAdded != this@HeapSelection.added) throw ConcurrentModificationException("HeapSelection was modified while iterating over it.")
+                return this@HeapSelection.heap[this.index--] ?: throw NoSuchElementException("Iterator for HeapSelection has no more elements left.")
+            }
+        }
     }
 }
