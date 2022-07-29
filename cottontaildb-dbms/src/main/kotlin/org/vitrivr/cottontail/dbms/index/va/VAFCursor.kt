@@ -51,8 +51,8 @@ class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val
 
     /** The [HeapSelection] use for finding the top k entries. */
     private val selection = when (this.predicate) {
-        is ProximityPredicate.NNS -> HeapSelection(this.predicate.k, RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
-        is ProximityPredicate.FNS -> HeapSelection(this.predicate.k, RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.DESCENDING))
+        is ProximityPredicate.NNS -> HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
+        is ProximityPredicate.FNS -> HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.DESCENDING))
         else -> throw IllegalArgumentException("VAFIndex does only support NNS and FNS queries. This is a programmer's error!")
     }
 
@@ -62,8 +62,8 @@ class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val
     /** The columns produced by this [Cursor]. */
     private val produces = this.index.columnsFor(this.predicate).toTypedArray()
 
-    /** The current [Cursor] position. */
-    private var position = -1L
+    /** */
+    private var current: Record? = null
 
     init {
         /* Convert query vector. */
@@ -79,7 +79,7 @@ class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val
 
         /* Obtain Tx object for column. */
         val entityTx: EntityTx = this.index.dbo.parent.newTx(this.index.context)
-        this.columnCursor = entityTx.columnForName(this.index.columns[0].name).newTx(this.index.context).cursor(partition) as Cursor<RealVectorValue<*>?>
+        this.columnCursor = entityTx.columnForName(this.index.columns[0].name).newTx(this.index.context).cursor(this.partition) as Cursor<RealVectorValue<*>?>
 
         /* Derive bounds object. */
         this.bounds = when (this.predicate.distance) {
@@ -94,8 +94,14 @@ class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val
      * Moves the internal cursor and return true, as long as new candidates appear.
      */
     override fun moveNext(): Boolean {
-        if (this.selection.added == 0L) this.prepareVASSA()
-        return (++this.position) < this.selection.size
+        if (this.selection.added == 0) {
+            this.prepareVASSA() /* Initialize data. */
+        }
+        if (this.selection.isEmpty()) {
+            return false
+        }
+        this.current = this.selection.dequeue()
+        return true
     }
 
     /**
@@ -103,14 +109,14 @@ class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val
      *
      * @return [TupleId]
      */
-    override fun key(): TupleId = this.selection[this.position].tupleId
+    override fun key(): TupleId = this.current?.tupleId ?: throw IllegalStateException("VAFCursor has been depleted.")
 
     /**
      * Returns the current [Record] this [Cursor] is pointing to.
      *
      * @return [TupleId]
      */
-    override fun value(): Record = this.selection[this.position]
+    override fun value(): Record = this.current ?: throw IllegalStateException("VAFCursor has been depleted.")
 
     /**
      * Closes this [Cursor]
@@ -128,7 +134,7 @@ class VAFCursor(val partition: LongRange, val predicate: ProximityPredicate, val
         require(this.columnCursor.moveTo(tupleId)) { "Column cursor failed to seek tuple with ID ${tupleId}."}
         val value = this.columnCursor.value()
         val distance = this.predicate.distance(this.query, value)!!
-        return (this.selection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
+        return (this.selection.enqueue(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
     }
 
     /**

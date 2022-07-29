@@ -34,10 +34,10 @@ class LimitingHeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>,
      */
     override fun toFlow(): Flow<Record> = flow {
         val incoming = this@LimitingHeapSortOperator.parent.toFlow()
-        val selection = HeapSelection(this@LimitingHeapSortOperator.limit, this@LimitingHeapSortOperator.comparator)
-        incoming.collect { selection.offer(it) }
-        for (i in 0 until selection.size) {
-            emit(selection[i])
+        val selection = HeapSelection(this@LimitingHeapSortOperator.limit.toInt(), this@LimitingHeapSortOperator.comparator)
+        incoming.collect { selection.enqueue(it) }
+        while (!selection.isEmpty()) {
+            emit(selection.dequeue())
         }
     }
 }

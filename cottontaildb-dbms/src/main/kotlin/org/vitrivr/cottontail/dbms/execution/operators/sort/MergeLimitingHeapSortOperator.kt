@@ -11,7 +11,6 @@ import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.utilities.selection.HeapSelection
-import java.lang.Long.min
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -49,7 +48,7 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<C
         /* Prepare a global heap selection; this selection is large enough to accept [limit] entries from each partition to prevent concurrent sorting. */
         val incoming = this@MergeLimitingHeapSortOperator.parents
         val globalSelection = HeapSelection(
-            this@MergeLimitingHeapSortOperator.limit * incoming.size,
+            (this@MergeLimitingHeapSortOperator.limit * incoming.size).toInt(),
             this@MergeLimitingHeapSortOperator.comparator
         )
         val globalCollected = AtomicLong(0L)
@@ -62,23 +61,22 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<C
          */
         val jobs = incoming.map { op ->
             launch {
-                val localSelection = HeapSelection(this@MergeLimitingHeapSortOperator.limit, this@MergeLimitingHeapSortOperator.comparator)
+                val localSelection = HeapSelection(this@MergeLimitingHeapSortOperator.limit.toInt(), this@MergeLimitingHeapSortOperator.comparator)
                 var localCollected = 0L
                 op.toFlow().collect {
                     localCollected += 1L
-                    localSelection.offer(it)
+                    localSelection.enqueue(it)
                 }
-                for (i in 0 until localSelection.size) {
-                    globalSelection.offer(localSelection[i])
+                while (!localSelection.isEmpty()) {
+                    globalSelection.enqueue(localSelection.dequeue())
                 }
                 globalCollected.addAndGet(localCollected)
             }
         }
         jobs.forEach { it.join() } /* Wait for jobs to complete. */
         LOGGER.debug("Collection of ${globalCollected.get()} records from ${jobs.size} partitions completed! ")
-
-        for (i in 0 until min(this@MergeLimitingHeapSortOperator.limit, globalSelection.size)) {
-            send(globalSelection[i])
+        while (!globalSelection.isEmpty()) {
+            send(globalSelection.dequeue())
         }
     }
 }
