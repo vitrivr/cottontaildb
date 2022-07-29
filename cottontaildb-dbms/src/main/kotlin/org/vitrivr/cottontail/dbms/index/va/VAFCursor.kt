@@ -93,7 +93,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
     sealed class KLimited<T : ProximityPredicate.KLimitedSearch>(partition: LongRange, predicate: T, index: VAFIndex.Tx) : VAFCursor<T>(partition, predicate, index) {
 
         /** The [HeapSelection] use for finding the top k entries. */
-        protected var selection: HeapSelection<Record>? = null
+        protected var selection: Iterator<Record>? = null
 
         /** */
         protected var current: Record? = null
@@ -103,10 +103,10 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
          */
         override fun moveNext(): Boolean {
             if (this.selection == null) { /* Initialize data. */
-                this.selection = this.prepareVASSA()
+                this.selection = this.prepareVASSA().iterator()
             }
-            if (this.selection!!.isEmpty()) return false
-            this.current = this.selection!!.dequeue()
+            if (!this.selection!!.hasNext()) return false
+            this.current = this.selection!!.next()
             return true
         }
 
@@ -123,18 +123,6 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
          * @return [TupleId]
          */
         override fun value(): Record = this.current ?: throw IllegalStateException("VAFCursor has been depleted.")
-
-        /**
-         * Reads the vector with the given [TupleId] and adds it to the [HeapSelection].
-         *
-         * @param tupleId The [TupleId] to read.
-         */
-        protected fun readAndOffer(tupleId: TupleId): Double {
-            require(this.columnCursor.moveTo(tupleId)) { "Column cursor failed to seek tuple with ID ${tupleId}." }
-            val value = this.columnCursor.value()
-            val distance = this.predicate.distance(this.query, value)!!
-            return (this.selection!!.enqueue(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
-        }
 
         protected abstract fun prepareVASSA(): HeapSelection<Record>
     }
@@ -157,24 +145,18 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                     return HeapSelection(0, RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
 
                 /* First phase: Just add entries until we have k-results. */
-                val heap = arrayOfNulls<Record?>(this.predicate.k.toInt())
-                var index = 0
+                val localSelection = HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
+                var threshold: Double
                 do {
                     val tupleId = LongBinding.compressedEntryToLong(cursor.key)
                     require(this.columnCursor.moveTo(tupleId)) { "Column cursor failed to seek tuple with ID ${tupleId}." }
                     val value = this.columnCursor.value()
                     val distance = this.predicate.distance(this.query, value)!!
-                    heap[index++] = StandaloneRecord(tupleId, this.produces, arrayOf(distance, value))
-                } while (index < this.predicate.k && cursor.next && cursor.key < this.endKey)
-
-                /* Early abort, if partition contains less than k entries. */
-                if (index < this.predicate.k - 1) {
-                    return HeapSelection(heap.copyOfRange(0, index), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
-                }
+                    localSelection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))
+                } while (localSelection.size < localSelection.k && cursor.next && cursor.key < this.endKey)
 
                 /* Second phase: Use lower-bound to decide whether entry should be added. */
-                val localSelection = HeapSelection(heap, RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
-                var threshold: Double = Double.MAX_VALUE
+                threshold = (localSelection.peek()!![0] as DoubleValue).value
                 do {
                     val signature = VAFSignature.fromEntry(cursor.value)
                     if (this.bounds.lb(signature, threshold) < threshold) {
@@ -182,7 +164,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                         require(this.columnCursor.moveTo(tupleId)) { "Column cursor failed to seek tuple with ID ${tupleId}." }
                         val value = this.columnCursor.value()
                         val distance = this.predicate.distance(this.query, value)!!
-                        threshold = (localSelection.enqueue(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
+                        threshold = (localSelection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
                     }
                 } while (cursor.next && cursor.key < this.endKey)
 
@@ -218,32 +200,26 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                     return HeapSelection(0, RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.DESCENDING))
 
                 /* First phase: Just add entries until we have k-results. */
-                val heap = arrayOfNulls<Record?>(this.predicate.k.toInt())
-                var index = 0
+                val localSelection = HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
+                var threshold: Double
                 do {
                     val tupleId = LongBinding.compressedEntryToLong(cursor.key)
                     require(this.columnCursor.moveTo(tupleId)) { "Column cursor failed to seek tuple with ID ${tupleId}." }
                     val value = this.columnCursor.value()
                     val distance = this.predicate.distance(this.query, value)!!
-                    heap[index++] = StandaloneRecord(tupleId, this.produces, arrayOf(distance, value))
-                } while (index < this.predicate.k && cursor.next && cursor.key < this.endKey)
-
-                /* Early abort, if partition contains less than k entries. */
-                if (index < this.predicate.k - 1) {
-                    return HeapSelection(heap.copyOfRange(0, index), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.DESCENDING))
-                }
+                    localSelection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))
+                } while (localSelection.size < localSelection.k && cursor.next && cursor.key < this.endKey)
 
                 /* Second phase: Use lower-bound to decide whether entry should be added. */
-                val localSelection = HeapSelection(heap, RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.DESCENDING))
-                var threshold: Double = Double.MAX_VALUE
+                threshold = (localSelection.peek()!![0] as DoubleValue).value
                 do {
                     val signature = VAFSignature.fromEntry(cursor.value)
-                    if (this.bounds.ub(signature, threshold) > threshold) {
+                    if (this.bounds.lb(signature, threshold) < threshold) {
                         val tupleId = LongBinding.compressedEntryToLong(cursor.key)
                         require(this.columnCursor.moveTo(tupleId)) { "Column cursor failed to seek tuple with ID ${tupleId}." }
                         val value = this.columnCursor.value()
                         val distance = this.predicate.distance(this.query, value)!!
-                        threshold = (localSelection.enqueue(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
+                        threshold = (localSelection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
                     }
                 } while (cursor.next && cursor.key < this.endKey)
 

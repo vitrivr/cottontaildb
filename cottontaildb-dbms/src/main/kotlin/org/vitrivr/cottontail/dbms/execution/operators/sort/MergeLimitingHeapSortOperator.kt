@@ -65,18 +65,18 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<C
                 var localCollected = 0L
                 op.toFlow().collect {
                     localCollected += 1L
-                    localSelection.enqueue(it)
+                    localSelection.offer(it)
                 }
-                while (!localSelection.isEmpty()) {
-                    globalSelection.enqueue(localSelection.dequeue())
+               for (r in localSelection) {
+                    globalSelection.offer(r)
                 }
                 globalCollected.addAndGet(localCollected)
             }
         }
         jobs.forEach { it.join() } /* Wait for jobs to complete. */
         LOGGER.debug("Collection of ${globalCollected.get()} records from ${jobs.size} partitions completed! ")
-        while (!globalSelection.isEmpty()) {
-            send(globalSelection.dequeue())
+        for (r in globalSelection) {
+            send(r)
         }
     }
 }
