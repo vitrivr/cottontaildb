@@ -60,10 +60,7 @@ class IndexScanOperator(
         }.use { cursor ->
             while (cursor.moveNext()) {
                 val record = cursor.value() as StandaloneRecord
-                for ((i, c) in columns.withIndex()) {
-                    record.columns[i] = c
-                }
-                send(record)
+                send(StandaloneRecord(record.tupleId, columns, record.values))
                 read += 1
             }
         }

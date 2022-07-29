@@ -44,11 +44,8 @@ class EntityScanOperator(groupId: GroupId, private val entity: EntityTx, private
         var read = 0
         this@EntityScanOperator.entity.cursor(fetch, partition).use { cursor ->
             while (cursor.moveNext()) {
-                val next = cursor.value() as StandaloneRecord
-                for ((i, c) in columns.withIndex()) { /* Replace column designations. */
-                    next.columns[i] = c
-                }
-                send(next)
+                val record = cursor.value() as StandaloneRecord
+                send(StandaloneRecord(record.tupleId, columns, record.values))
                 read += 1
             }
         }
