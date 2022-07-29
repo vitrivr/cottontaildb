@@ -3,6 +3,8 @@ package org.vitrivr.cottontail.dbms.execution.operators.sort
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Record
@@ -59,6 +61,7 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<C
          * For pre-sorted and pre-limited input, the HeapSelection should incur only minimal overhead because
          * sorting only kicks in if k entries have been added.
          */
+        val mutex = Mutex()
         val jobs = incoming.map { op ->
             launch {
                 val localSelection = HeapSelection(this@MergeLimitingHeapSortOperator.limit.toInt(), this@MergeLimitingHeapSortOperator.comparator)
@@ -67,8 +70,10 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<C
                     localCollected += 1L
                     localSelection.offer(it)
                 }
-               for (r in localSelection) {
-                    globalSelection.offer(r)
+                mutex.withLock {
+                    for (r in localSelection) {
+                       globalSelection.offer(r)
+                   }
                 }
                 globalCollected.addAndGet(localCollected)
             }
