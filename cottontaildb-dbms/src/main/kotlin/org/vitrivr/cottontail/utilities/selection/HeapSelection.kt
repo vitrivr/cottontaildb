@@ -1,38 +1,34 @@
 package org.vitrivr.cottontail.utilities.selection
 
-import it.unimi.dsi.fastutil.objects.ObjectBigArrayBigList
+import it.unimi.dsi.fastutil.objects.ObjectHeaps
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.util.concurrent.locks.StampedLock
-import kotlin.math.min
 
 /**
  * A data structure used for heap based sorting.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 2.0.0
  */
-class HeapSelection<T>(val k: Long, val comparator: Comparator<T>) {
+@Suppress("UNCHECKED_CAST")
+class HeapSelection<T>(val k: Int, val comparator: Comparator<T>) {
 
-    /** The [ArrayList] containing the heap for this [HeapSelection]. */
-    private val heap = ObjectBigArrayBigList<T>(this.k)
+    /** The internal [Array] used as a heap. */
+    private val heap = arrayOfNulls<Any?>(this.k) as Array<T?>
 
     /** A lock that mediates access to this [HeapSelection]. */
     private val lock = StampedLock()
 
-    /** Indicates whether this [MinHeapSelection] is currently sorted or not. */
-    @Volatile
-    var sorted: Boolean = true
-        private set
-
     /** Number of items that have been added to this [HeapSelection] so far. */
     @Volatile
-    var added: Long = 0
+    var added: Int = 0
         private set
 
     /** Returns the size of this [HeapSelection], i.e., the number of items contained in the heap. */
-    val size: Long
-        get() = this.lock.read { this.heap.size64() }
+    @Volatile
+    var size: Int = 0
+        private set
 
     /**
      * Adds a new element to this [HeapSelection].
@@ -40,112 +36,36 @@ class HeapSelection<T>(val k: Long, val comparator: Comparator<T>) {
      * @param element The element to add to this [HeapSelection].
      * @return The smallest element in the heap.
      */
-    fun offer(element: T): T = this.lock.write {
-        if ((this.added++) < this.k) {
-            this.sorted = false
-            this.heap.add(element)
-            if (this.added == this.k) {
-                heapify()
-            }
-        } else {
-            if (this.comparator.compare(element, this.heap[0]) < 0) {
-                this.heap[0] = element
-                siftDown(0, this.k - 1)
-            }
+    fun enqueue(element: T): T = this.lock.write {
+        if (this.size < this.k) {
+            this.heap[this.size++] = element
+            ObjectHeaps.upHeap(this.heap, this.size, this.size - 1, this.comparator)
+        } else if (this.comparator.compare(element, this.heap[0]) < 0) {
+            this.heap[0] = element
+            ObjectHeaps.downHeap(this.heap, this.k, 0, this.comparator as java.util.Comparator<in T?>)
         }
-        this.heap[0]
+        this.added += 1
+        this.heap[0]!!
     }
 
     /**
-     * Returns the largest (i.e. i == k-1) value retained by this [HeapSelection].
+     * Returns the i-*th* value seen by this [HeapSelection].
      *
-     * @return Largest value seen so far.
+     * @return The i-th smallest value retained by this [HeapSelection]
      */
-    fun peek(): T? = this.lock.read { this.heap.firstOrNull() }
+    fun dequeue(): T = this.lock.write {
+        if (this.size == 0) throw NoSuchElementException("HeapSelect is empty!")
+        val result = this.heap[0]
+        this.heap[0] = this.heap[--this.size]
+        this.heap[this.size] = null
+        if (this.size != 0) ObjectHeaps.downHeap(this.heap, this.size, 0, this.comparator as java.util.Comparator<in T?>)
+        return result!!
+    }
 
     /**
-     * Returns the i-*th* retained value seen  by this [MinHeapSelection]. i = 0 returns the
-     * smallest value seen, i = 1 the second smallest, ..., i = k-1 the largest value tracked.
-     * Also, i must be less than the number of previous assimilated.
+     * Returns true if this [HeapSelection] is empty and false otherwise.
      *
-     * @param i The index of the value to return
-     * @return The i-th smallest value retained by this [MinHeapSelection]
+     * @return True if this [HeapSelection] is empty and false otherwise
      */
-    operator fun get(i: Long): T {
-        if (i == this.k - 1) {
-            this.lock.read { return this.heap[0] }
-        }
-        return if (!this.sorted) {
-            this.lock.write {
-                val maxIdx = this.heap.size64() - 1
-                this.sort()
-                this.heap[maxIdx - i]
-            }
-        } else {
-            this.lock.read {
-                val maxIdx = this.heap.size64() - 1
-                this.heap[maxIdx - i]
-            }
-        }
-    }
-
-
-    /**
-     * Sorts the heap so that the smallest values move to the top of the [HeapSelection].
-     */
-    private fun sort() {
-        val n = min(this.k, this.added)
-        var inc = 1
-        do {
-            inc *= 3
-            inc++
-        } while (inc <= n)
-
-        do {
-            inc /= 3
-            for (i in inc until n) {
-                val v = this.heap[i]
-                var j = i
-                while (this.comparator.compare(this.heap[j - inc], v) < 0) {
-                    this.heap[j] = this.heap[j - inc]
-                    j -= inc
-                    if (j < inc) {
-                        break
-                    }
-                }
-                this.heap[j] = v
-            }
-        } while (inc > 1)
-        this.sorted = true
-    }
-
-    /**
-     *
-     */
-    private fun siftDown(i: Long, n: Long) {
-        var k = i
-        while (2 * k <= n) {
-            var j = 2 * k
-            if (j < n && this.comparator.compare(this.heap[j], this.heap[j + 1]) < 0) {
-                j++
-            }
-            if (this.comparator.compare(this.heap[k], this.heap[j]) >= 0) break
-
-            /* Swap elements. */
-            val a = this.heap[k]
-            this.heap[k] = this.heap[j]
-            this.heap[j] = a
-            k = j
-        }
-    }
-
-    /**
-     * Heapifies this [HeapSelection].
-     */
-    private fun heapify() {
-        val n = this.heap.size64()
-        for (i in Math.floorDiv(n, 2) downTo 0) {
-            siftDown(i, n - 1)
-        }
-    }
+    fun isEmpty(): Boolean = this.lock.read { this.size == 0 }
 }
