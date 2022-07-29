@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
@@ -118,7 +119,7 @@ sealed class AbstractValueStatistics<T : Value>(override val type: Types<T>): Va
      * @param predicate [BooleanPredicate.Atomic] To estimate [Selectivity] for.
      * @return [Selectivity] estimate.
      */
-    context(org.vitrivr.cottontail.core.basics.Record, BindingContext)
+    context(BindingContext,Record)
     override fun estimateSelectivity(predicate: BooleanPredicate.Atomic): Selectivity = when(val operator = predicate.operator){
         /* This can actually be calculated exactly. */
         is ComparisonOperator.IsNull -> if (predicate.not) {

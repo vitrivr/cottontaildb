@@ -65,11 +65,13 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
         get() = this.input.statistics
 
     /** The [totalCost] of a [UnaryPhysicalOperatorNode] is always the sum of its own and its input cost. */
-    context(BindingContext,Record)    final override val totalCost: Cost
+    context(BindingContext,Record)
+    final override val totalCost: Cost
         get() = this.input.totalCost + this.cost
 
     /** The [parallelizableCost] of a [UnaryPhysicalOperatorNode] is always the sum of its own and its input cost. */
-    context(BindingContext,Record)    final override val parallelizableCost: Cost
+    context(BindingContext,Record)
+    final override val parallelizableCost: Cost
         get() = if (this.hasTrait(NotPartitionableTrait)) {
             this.totalCost
         } else {

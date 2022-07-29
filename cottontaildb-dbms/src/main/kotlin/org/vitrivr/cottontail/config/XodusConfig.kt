@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class XodusConfig (
     val logFileSize: Long = 128 * 1024L, /** Determines size of an individual Log file on disk. @see [EnvironmentConfig.LOG_FILE_SIZE] */
+    val logCacheMemoryUsage: Int = 50, /** Determines percentage of memory that can be used by the log cache. @see [EnvironmentConfig.MEMORY_USAGE_PERCENTAGE] */
     val logCachePageSize: Int = 128 * 1024, /** Determines size of an individual Log page in cache. @see [EnvironmentConfig.LOG_CACHE_PAGE_SIZE] */
     val logCacheOpenFilesSize: Int = 500, /** Determines size of the open files cache. @see [EnvironmentConfig.LOG_CACHE_OPEN_FILES] */
     val logCacheReadAhead: Int = 25, /** Determines if and how many pages should be pre-fetched. @see [EnvironmentConfig.LOG_CACHE_READ_AHEAD_MULTIPLE] */
@@ -26,5 +27,6 @@ data class XodusConfig (
         .setEnvStoreGetCacheSize(this.storeGetCacheSize)
         .setTreeDupMaxPageSize(this.treeDupMaximumPageSize)
         .setTreeMaxPageSize(this.treeMaximumPageSize)
+        .setMemoryUsagePercentage(this.logCacheMemoryUsage)
         .setEnvMonitorTxnsExpirationTimeout(0)
 }

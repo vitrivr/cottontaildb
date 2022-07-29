@@ -161,19 +161,24 @@ sealed class OperatorNode : NodeWithTrait {
         override val executable: Boolean = true
 
         /** The estimated number of rows this [OperatorNode.Physical] generates. */
-        context(BindingContext,Record)        abstract val outputSize: Long
+        context(BindingContext,Record)
+        abstract val outputSize: Long
 
         /** An estimation of the [Cost] incurred by this [OperatorNode.Physical]. */
-        context(BindingContext,Record)        abstract val cost: Cost
+        context(BindingContext,Record)
+        abstract val cost: Cost
 
         /** An estimation of the [Cost] incurred by the query plan up and until this [OperatorNode.Physical]. */
-        context(BindingContext,Record)        abstract val totalCost: Cost
+        context(BindingContext,Record)
+        abstract val totalCost: Cost
 
         /** An estimation of the [Cost] incurred by the parallelizable portion of the query plan up and until this [OperatorNode.Physical]. */
-        context(BindingContext,Record)        abstract val parallelizableCost: Cost
+        context(BindingContext,Record)
+        abstract val parallelizableCost: Cost
 
         /** An estimation of the [Cost] incurred by the sequential portion of the query plan up and until this [OperatorNode.Physical]. */
-        context(BindingContext,Record)        val sequentialCost: Cost
+        context(BindingContext,Record)
+        val sequentialCost: Cost
             get() = this.totalCost - this.parallelizableCost
 
         /**
