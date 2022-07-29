@@ -9,9 +9,7 @@ import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.AbstractEntityTest
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
@@ -22,7 +20,6 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntityScan
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnFetchRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnScanRewriteRule
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
 /**
  * A collection of test cases for the [DeferFetchOnScanRewriteRule].
@@ -58,11 +55,11 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn)
-            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx = this.catalogue.newTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
+            val entityTx = entity.newTx(ctx)
 
             /* Prepare simple SAMPLE with projection. */
             val sample0 = EntitySamplePhysicalOperatorNode(0, entityTx, this.columns.map { ctx.bindings.bind(it) to it }, 0.5f)
@@ -86,11 +83,11 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn)
-            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx = this.catalogue.newTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
+            val entityTx = entity.newTx(ctx)
 
             /* Prepare simple SAMPLE with projection. */
             val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, this.columns.map { ctx.bindings.bind(it) to it })
@@ -115,11 +112,11 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn)
-            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx = this.catalogue.newTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
+            val entityTx = entity.newTx(ctx)
 
             /* Prepare simple scan with projection. */
             val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, this.columns.map { ctx.bindings.bind(it) to it })
@@ -150,11 +147,11 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn)
-            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx = this.catalogue.newTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
+            val entityTx = entity.newTx(ctx)
 
             /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
             val context = DefaultBindingContext()
@@ -194,12 +191,13 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
      */
     override fun populateDatabase() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx = DefaultQueryContext("populate-database", this.catalogue, txn)
         try {
-            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx = this.catalogue.newTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
+            val entityTx = entity.newTx(ctx)
 
             /* Insert data and track how many entries have been stored for the test later. */
             entityTx.insert(StandaloneRecord(1L, this.columns.toTypedArray(), arrayOf(LongValue(1L), DoubleValue(0.0), StringValue("test"), IntValue(1), BooleanValue(true))))

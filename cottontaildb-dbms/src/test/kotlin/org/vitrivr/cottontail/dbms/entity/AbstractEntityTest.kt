@@ -4,18 +4,17 @@ import org.junit.jupiter.api.BeforeEach
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.basic.Index
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.schema.Schema
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
 /**
  * An [AbstractDatabaseTest] that tests entities with toy data.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 abstract class AbstractEntityTest: AbstractDatabaseTest() {
 
@@ -59,7 +58,8 @@ abstract class AbstractEntityTest: AbstractDatabaseTest() {
     protected fun prepareSchema(): Schema {
         this.logger.info("Creating schema ${this.schemaName}.")
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
-        val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
+        val ctx = DefaultQueryContext("index-test-prepare", this.catalogue, txn)
+        val catalogueTx = this.catalogue.newTx(ctx)
         val ret = catalogueTx.createSchema(this.schemaName)
         txn.commit()
         return ret
@@ -70,11 +70,12 @@ abstract class AbstractEntityTest: AbstractDatabaseTest() {
      */
     protected fun prepareEntity() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx = DefaultQueryContext("index-test-prepare-entity", this.catalogue, txn)
         for (e in this.entities) {
             this.logger.info("Creating schema ${e.first}.")
-            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx = this.catalogue.newTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx = schema.newTx(ctx)
             schemaTx.createEntity(e.first, *e.second.map { it }.toTypedArray())
         }
         txn.commit()

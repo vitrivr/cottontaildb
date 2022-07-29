@@ -11,7 +11,6 @@ import org.vitrivr.cottontail.dbms.index.va.bounds.L1Bounds
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.test.TestConstants
-import org.vitrivr.cottontail.utilities.math.random.nextInt
 import java.lang.Double.max
 import java.lang.Double.min
 

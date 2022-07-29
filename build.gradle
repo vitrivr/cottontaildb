@@ -41,14 +41,28 @@ subprojects {
     apply plugin: 'java-library'
     apply plugin: 'java-test-fixtures'
 
+    /* Compiler options for Kotlin. */
+    def kotlinCompilerOptions = ["-Xcontext-receivers"]
     compileKotlin {
-        kotlinOptions.jvmTarget = "1.8"
         kotlinOptions {
-            freeCompilerArgs = ["-Xinline-classes", "-Xcontext-receivers"]
+            freeCompilerArgs = kotlinCompilerOptions
+            jvmTarget = "1.8"
         }
     }
+
+    /* Compiler options for Kotlin when running tests. */
     compileTestKotlin {
-        kotlinOptions.jvmTarget = "1.8"
+        kotlinOptions {
+            freeCompilerArgs = kotlinCompilerOptions
+            jvmTarget = "1.8"
+        }
+    }
+
+    compileTestFixturesKotlin {
+        kotlinOptions {
+            freeCompilerArgs = kotlinCompilerOptions
+            jvmTarget = "1.8"
+        }
     }
 
     java {
@@ -71,12 +85,12 @@ subprojects {
     }
 
     /* Important warnings that are currently missing simply because there are too many: "cast", "rawtypes". Ideally, "all" should be used in the future. */
-    def compilerOptions = ["-Xlint:deprecation", "-Xlint:empty", "-Xlint:overrides", "-Xlint:serial", "-Xlint:static", "-Xlint:unchecked", "-Xlint:varargs"]
+    def javaCompilerOptions = []
     compileJava {
         options.encoding = 'UTF-8'
-        options.compilerArgs += compilerOptions
+        options.compilerArgs += javaCompilerOptions
     }
-    compileTestJava.options.compilerArgs += compilerOptions
+    compileTestJava.options.compilerArgs += javaCompilerOptions
 
     /* Common dependencies. */
     dependencies {

@@ -4,6 +4,7 @@ import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.config.ExecutionConfig
 import org.vitrivr.cottontail.config.ServerConfig
 import org.vitrivr.cottontail.core.database.Name
+
 import java.nio.file.Files
 import java.util.*
 

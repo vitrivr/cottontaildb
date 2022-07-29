@@ -8,17 +8,16 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.schema.Schema
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
 /**
  * A set of unit tests to test basic [Schema] functionality.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 class SchemaTest: AbstractDatabaseTest() {
 
@@ -39,11 +38,12 @@ class SchemaTest: AbstractDatabaseTest() {
 
         /* Transaction 1: Create entity. */
         val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx1 = DefaultQueryContext("create-entity-test-01", this.catalogue, txn1)
 
         try {
-            val catalogueTx1 = txn1.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx1 = this.catalogue.newTx(ctx1)
             val schema = catalogueTx1.createSchema(this.schemaName)
-            val schemaTx1 = txn1.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx1 = schema.newTx(ctx1)
             for (name in entityNames) {
                 schemaTx1.createEntity(name, ColumnDef(name.column("id"), Types.String))
             }
@@ -55,10 +55,11 @@ class SchemaTest: AbstractDatabaseTest() {
 
         /* Transaction 2: Query. */
         val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx2 = DefaultQueryContext("create-entity-test-02", this.catalogue, txn2)
         try {
-            val catalogueTx2 = txn2.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx2 = this.catalogue.newTx(ctx2)
             val schema = catalogueTx2.schemaForName(this.schemaName)
-            val schemaTx2 = txn2.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx2 = schema.newTx(ctx2)
             for (name in entityNames) {
                 Assertions.assertDoesNotThrow {
                     schemaTx2.entityForName(name)
@@ -84,10 +85,11 @@ class SchemaTest: AbstractDatabaseTest() {
 
         /* Transaction 1: Create entity. */
         val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx1 = DefaultQueryContext("create-entity-test-01", this.catalogue, txn1)
         try {
-            val catalogueTx1 = txn1.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx1 = this.catalogue.newTx(ctx1)
             val schema = catalogueTx1.createSchema(this.schemaName)
-            val schemaTx1 = txn1.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx1 = schema.newTx(ctx1)
             for (name in entityNames) {
                 schemaTx1.createEntity(name, ColumnDef(name.column("id"), Types.String))
             }
@@ -109,10 +111,11 @@ class SchemaTest: AbstractDatabaseTest() {
 
         /* Transaction 2: Query. */
         val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx2 = DefaultQueryContext("create-entity-test-02", this.catalogue, txn2)
         try {
-            val catalogueTx2 = txn2.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx2 = this.catalogue.newTx(ctx2)
             val schema = catalogueTx2.schemaForName(this.schemaName)
-            val schemaTx2 = txn2.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx2 = schema.newTx(ctx2)
             for (name in entityNames) {
                 Assertions.assertDoesNotThrow {
                     schemaTx2.entityForName(name)
@@ -135,8 +138,9 @@ class SchemaTest: AbstractDatabaseTest() {
     fun createEntityWithRollbackTest() {
         /* Transaction 0: Create schema (as preparation). */
         val txn0 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx0 = DefaultQueryContext("create-entity-test-01", this.catalogue, txn0)
         try {
-            val catalogueTx0 = txn0.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx0 = this.catalogue.newTx(ctx0)
             catalogueTx0.createSchema(this.schemaName)
         } finally {
             txn0.commit()
@@ -144,10 +148,11 @@ class SchemaTest: AbstractDatabaseTest() {
 
         /* Transaction 1: Create entity. */
         val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx1 = DefaultQueryContext("create-entity-test-02", this.catalogue, txn1)
         try {
-            val catalogueTx1 = txn1.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx1 = this.catalogue.newTx(ctx1)
             val schema = catalogueTx1.schemaForName(this.schemaName)
-            val schemaTx1 = txn1.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx1 = schema.newTx(ctx1)
             for (name in entityNames) {
                 schemaTx1.createEntity(name, ColumnDef(name.column("id"), Types.String))
             }
@@ -157,10 +162,11 @@ class SchemaTest: AbstractDatabaseTest() {
 
         /* Transaction 2: Query. */
         val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx2 = DefaultQueryContext("create-entity-test-03", this.catalogue, txn2)
         try {
-            val catalogueTx2 = txn2.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx2 = this.catalogue.newTx(ctx2)
             val schema = catalogueTx2.schemaForName(this.schemaName)
-            val schemaTx2 = txn2.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx2 = schema.newTx(ctx2)
             for (name in entityNames) {
                 Assertions.assertThrows(DatabaseException.EntityDoesNotExistException::class.java) {
                     schemaTx2.entityForName(name)
@@ -178,10 +184,11 @@ class SchemaTest: AbstractDatabaseTest() {
     fun replaceEntityWithCommitTest() {
         /* Transaction 1: Create entity. */
         val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx1 = DefaultQueryContext("create-entity-test-01", this.catalogue, txn1)
         try {
-            val catalogueTx1 = txn1.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx1 = this.catalogue.newTx(ctx1)
             val schema = catalogueTx1.createSchema(this.schemaName)
-            val schemaTx1 = txn1.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx1 = schema.newTx(ctx1)
             for (name in this.entityNames) {
                 schemaTx1.createEntity(name, ColumnDef(name.column("id"), Types.String))
             }
@@ -191,13 +198,14 @@ class SchemaTest: AbstractDatabaseTest() {
 
         /* Transaction 2: Truncate. */
         val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx2 = DefaultQueryContext("create-entity-test-02", this.catalogue, txn2)
         try {
-            val catalogueTx2 = txn2.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx2 = this.catalogue.newTx(ctx2)
             val schema = catalogueTx2.schemaForName(this.schemaName)
-            val schemaTx2 = txn2.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx2 = schema.newTx(ctx2)
             for (name in this.entityNames) {
                 val entity = schemaTx2.entityForName(name)
-                val entityTx = txn2.getCachedTxForDBO(entity) as EntityTx
+                val entityTx = entity.newTx(ctx2)
                 assertEquals(1, entityTx.listColumns().size)
                 schemaTx2.dropEntity(name)
                 schemaTx2.createEntity(
@@ -212,13 +220,14 @@ class SchemaTest: AbstractDatabaseTest() {
 
         /* Transaction 2: Truncate. */
         val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx3 = DefaultQueryContext("create-entity-test-02", this.catalogue, txn3)
         try {
-            val catalogueTx3 = txn3.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx3 = this.catalogue.newTx(ctx3)
             val schema = catalogueTx3.schemaForName(this.schemaName)
-            val schemaTx3 = txn3.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx3 = schema.newTx(ctx3)
             for (name in this.entityNames) {
                 val entity = schemaTx3.entityForName(name)
-                val entityTx3 = txn3.getCachedTxForDBO(entity) as EntityTx
+                val entityTx3 = entity.newTx(ctx3)
                 assertEquals(2, entityTx3.listColumns().size)
             }
         } finally {

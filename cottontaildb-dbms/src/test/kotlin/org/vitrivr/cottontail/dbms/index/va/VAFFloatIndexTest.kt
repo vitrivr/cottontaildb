@@ -18,15 +18,12 @@ import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.generators.FloatVectorValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
-import org.vitrivr.cottontail.dbms.index.basic.IndexTx
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.utilities.selection.HeapSelection
 import java.util.stream.Stream
 import kotlin.time.ExperimentalTime
@@ -71,6 +68,7 @@ class VAFFloatIndexTest : AbstractIndexTest() {
     @ExperimentalTime
     fun test(distance: Name.FunctionName) {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
         try {
             val k = 1000L
             val query = FloatVectorValueGenerator.random(this.indexColumn.type.logicalSize, this.random)
@@ -79,17 +77,16 @@ class VAFFloatIndexTest : AbstractIndexTest() {
             val predicate = ProximityPredicate.NNS(column = this.indexColumn, k = k, distance = function, query = context.bind(query))
 
             /* Obtain necessary transactions. */
-            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx = this.catalogue.newTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
+            val entityTx = entity.newTx(ctx)
             val index = entityTx.indexForName(this.indexName)
-            val indexTx = txn.getCachedTxForDBO(index) as IndexTx
+            val indexTx = index.newTx(ctx)
 
             /* Fetch results through full table scan. */
-
-            val bruteForceResults = HeapSelection(k, RecordComparator.SingleNonNullColumnComparator(predicate.distanceColumn, SortOrder.ASCENDING))
+            val bruteForceResults = HeapSelection(k.toInt(), RecordComparator.SingleNonNullColumnComparator(predicate.distanceColumn, SortOrder.ASCENDING))
             val bruteForceDuration = measureTime {
                 entityTx.cursor(arrayOf(this.indexColumn)).use { cursor ->
                     cursor.forEach {
@@ -108,9 +105,10 @@ class VAFFloatIndexTest : AbstractIndexTest() {
             }
 
             /* Compare results. */
-            for ((i, e) in indexResults.withIndex()) {
-                Assertions.assertEquals(bruteForceResults[i.toLong()].tupleId, e.tupleId)
-                Assertions.assertEquals(bruteForceResults[i.toLong()][predicate.distanceColumn], e[predicate.distanceColumn])
+            for (e in indexResults) {
+                val next = bruteForceResults.get(0)
+                Assertions.assertEquals(next.tupleId, e.tupleId)
+                Assertions.assertEquals(next[predicate.distanceColumn], e[predicate.distanceColumn])
             }
 
             log("Test done for ${function.name} and d=${this.indexColumn.type.logicalSize}! VAF took $indexDuration, brute-force took $bruteForceDuration.")

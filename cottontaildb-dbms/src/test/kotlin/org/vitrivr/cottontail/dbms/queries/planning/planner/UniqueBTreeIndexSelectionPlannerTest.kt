@@ -11,8 +11,6 @@ import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.generators.StringValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.basic.Index
@@ -33,7 +31,6 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.merge.Limitin
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.CountPushdownRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnFetchRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnScanRewriteRule
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
 /**
  * A collection of test cases that test the outcome for index selection in presence of an [IndexType.BTREE_UQ].
@@ -93,11 +90,11 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
             try {
                 val ctx = DefaultQueryContext("test", this.catalogue, txn)
-                val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
+                val catalogueTx = this.catalogue.newTx(ctx)
                 val schema = catalogueTx.schemaForName(this.schemaName)
-                val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
+                val schemaTx = schema.newTx(ctx)
                 val entity = schemaTx.entityForName(this.entityName)
-                val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
+                val entityTx = entity.newTx(ctx)
                 val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
                 /* Bind EQUALS operator. */
@@ -133,11 +130,11 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn, setOf(QueryHint.IndexHint.None))
-            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx = this.catalogue.newTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
+            val entityTx = entity.newTx(ctx)
             val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
             /* Bind EQUALS operator. */
@@ -169,11 +166,11 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
             try {
                 val ctx = DefaultQueryContext("test", this.catalogue, txn)
-                val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
+                val catalogueTx = this.catalogue.newTx(ctx)
                 val schema = catalogueTx.schemaForName(this.schemaName)
-                val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
+                val schemaTx = schema.newTx(ctx)
                 val entity = schemaTx.entityForName(this.entityName)
-                val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
+                val entityTx = entity.newTx(ctx)
                 val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
                 /* Bind IN operator. */
@@ -209,11 +206,11 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
             try {
                 val ctx = DefaultQueryContext("test", this.catalogue, txn)
-                val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
+                val catalogueTx = this.catalogue.newTx(ctx)
                 val schema = catalogueTx.schemaForName(this.schemaName)
-                val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
+                val schemaTx = schema.newTx(ctx)
                 val entity = schemaTx.entityForName(this.entityName)
-                val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
+                val entityTx = entity.newTx(ctx)
                 val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
                 /* Bind IN operator. */
@@ -249,11 +246,11 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn, setOf(QueryHint.IndexHint.None))
-            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx = this.catalogue.newTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
+            val entityTx = entity.newTx(ctx)
             val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
             /* Bind IN operator. */

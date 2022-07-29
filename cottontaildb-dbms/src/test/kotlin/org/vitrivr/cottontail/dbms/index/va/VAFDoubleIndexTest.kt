@@ -20,14 +20,11 @@ import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.generators.DoubleVectorValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
-import org.vitrivr.cottontail.dbms.index.basic.IndexTx
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
 import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
 import java.util.stream.Stream
@@ -73,6 +70,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
     @ExperimentalTime
     fun test(distance: Name.FunctionName) {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
         try {
             val k = 100L
             val query = DoubleVectorValueGenerator.random(this.indexColumn.type.logicalSize, this.random)
@@ -82,13 +80,13 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
 
 
             /* Obtain necessary transactions. */
-            val catalogueTx = txn.getCachedTxForDBO(this.catalogue) as CatalogueTx
+            val catalogueTx = this.catalogue.newTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getCachedTxForDBO(schema) as SchemaTx
+            val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getCachedTxForDBO(entity) as EntityTx
+            val entityTx = entity.newTx(ctx)
             val index = entityTx.indexForName(this.indexName)
-            val indexTx = txn.getCachedTxForDBO(index) as IndexTx
+            val indexTx = index.newTx(ctx)
 
             /* Fetch results through index. */
             val indexResults = ArrayList<Record>(k.toInt())
