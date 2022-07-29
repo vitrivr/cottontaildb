@@ -16,7 +16,6 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
-import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import java.util.*
 
@@ -74,16 +73,16 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
                     for (entry in this@NonUniqueStringHashIndexTest.list.entries) {
                         valueBinding.update(entry.key) /* Update value binding. */
                         var found = false
-                        val cursor = indexTx.filter(predicate)
-                        while (cursor.moveNext() && !found) {
-                            val rec = entityTx.read(cursor.key(), this.columns)
-                            val id = rec[this.columns[0]] as StringValue
-                            Assertions.assertEquals(entry.key, id)
-                            if (entry.value.contains(rec[this.columns[1]])) {
-                                found = true
+                        indexTx.filter(predicate).use {
+                            while (it.moveNext() && !found) {
+                                val rec = entityTx.read(it.key(), this@NonUniqueStringHashIndexTest.columns)
+                                val id = rec[this@NonUniqueStringHashIndexTest.columns[0]] as StringValue
+                                Assertions.assertEquals(entry.key, id)
+                                if (entry.value.contains(rec[this@NonUniqueStringHashIndexTest.columns[1]])) {
+                                    found = true
+                                }
                             }
                         }
-                        cursor.close()
                         Assertions.assertTrue(found)
                     }
                 }
@@ -110,11 +109,10 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
         val indexTx = index.newTx(ctx)
 
         var count = 0
-        val context = DefaultBindingContext()
-        val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(StringValue(UUID.randomUUID().toString()))), false)
-        val cursor = indexTx.filter(predicate)
-        cursor.forEach { count += 1 }
-        cursor.close()
+        val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(ctx.bindings.bind(this.columns[0]), ctx.bindings.bind(StringValue(UUID.randomUUID().toString()))), false)
+        indexTx.filter(predicate).use {
+            it.forEach { count += 1 }
+        }
         Assertions.assertEquals(0, count)
         txn.commit()
     }

@@ -16,7 +16,6 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
-import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import java.util.*
 
@@ -74,9 +73,9 @@ class UniqueHashIndexTest : AbstractIndexTest() {
                     valueBinding.update(entry.key) /* Update value binding. */
                     val cursor = indexTx.filter(predicate)
                     cursor.forEach { r ->
-                        val rec = entityTx.read(r.tupleId, this.columns)
-                        assertEquals(entry.key, rec[this.columns[0]])
-                        assertArrayEquals(entry.value.data, (rec[this.columns[1]] as FloatVectorValue).data)
+                        val rec = entityTx.read(r.tupleId, this@UniqueHashIndexTest.columns)
+                        assertEquals(entry.key.value, (rec[this@UniqueHashIndexTest.columns[0]] as StringValue).value)
+                        assertArrayEquals(entry.value.data, (rec[this@UniqueHashIndexTest.columns[1]] as FloatVectorValue).data)
                     }
                     cursor.close()
                 }
@@ -104,8 +103,7 @@ class UniqueHashIndexTest : AbstractIndexTest() {
         val indexTx = index.newTx(ctx)
 
         var count = 0
-        val context = DefaultBindingContext()
-        val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(StringValue(UUID.randomUUID().toString()))), false)
+        val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(ctx.bindings.bind(this.columns[0]), ctx.bindings.bind(StringValue(UUID.randomUUID().toString()))), false)
         val cursor = indexTx.filter(predicate)
         cursor.forEach { count += 1 }
         cursor.close()

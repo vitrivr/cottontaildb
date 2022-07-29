@@ -18,12 +18,12 @@ import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.LongValue
+import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.generators.DoubleVectorValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
-import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
 import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
@@ -75,9 +75,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
             val k = 100L
             val query = DoubleVectorValueGenerator.random(this.indexColumn.type.logicalSize, this.random)
             val function = this.catalogue.functions.obtain(Signature.Closed(distance, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Types.Double)) as VectorDistance<*>
-            val context = DefaultBindingContext()
-            val predicate = ProximityPredicate.NNS(column = this.indexColumn, k = k, distance = function, query = context.bind(query))
-
+            val predicate = ProximityPredicate.NNS(column = this.indexColumn, k = k, distance = function, query = ctx.bindings.bind(query))
 
             /* Obtain necessary transactions. */
             val catalogueTx = this.catalogue.newTx(ctx)
@@ -112,7 +110,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
             /* Compare results. */
             for ((i, e) in indexResults.withIndex()) {
                 Assertions.assertEquals(bruteForceResults[i].first, e.tupleId)
-                Assertions.assertEquals(bruteForceResults[i].second, e[predicate.distanceColumn])
+                Assertions.assertEquals(bruteForceResults[i].second.value, (e[predicate.distanceColumn] as StringValue).value)
             }
             this.log("Test done for ${function.name} and d=${this.indexColumn.type.logicalSize}! VAF took $indexDuration, brute-force took $bruteForceDuration.")
         } finally {

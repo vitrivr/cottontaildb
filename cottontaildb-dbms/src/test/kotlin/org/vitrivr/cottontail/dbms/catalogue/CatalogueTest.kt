@@ -80,7 +80,7 @@ class CatalogueTest: AbstractDatabaseTest() {
 
         /* Transaction 2: Read and compare schema. */
         val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
-        val ctx2 = DefaultQueryContext("create-schema-02", this.catalogue, txn1)
+        val ctx2 = DefaultQueryContext("create-schema-02", this.catalogue, txn2)
         try {
             val catalogueTxn2 = this.catalogue.newTx(ctx2)
 

@@ -22,7 +22,6 @@ import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
-import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.utilities.selection.HeapSelection
 import java.util.stream.Stream
@@ -73,8 +72,7 @@ class VAFFloatIndexTest : AbstractIndexTest() {
             val k = 1000L
             val query = FloatVectorValueGenerator.random(this.indexColumn.type.logicalSize, this.random)
             val function = this.catalogue.functions.obtain(Signature.Closed(distance, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Types.Double)) as VectorDistance<*>
-            val context = DefaultBindingContext()
-            val predicate = ProximityPredicate.NNS(column = this.indexColumn, k = k, distance = function, query = context.bind(query))
+            val predicate = ProximityPredicate.NNS(column = this.indexColumn, k = k, distance = function, query = ctx.bindings.bind(query))
 
             /* Obtain necessary transactions. */
             val catalogueTx = this.catalogue.newTx(ctx)
@@ -100,13 +98,11 @@ class VAFFloatIndexTest : AbstractIndexTest() {
             val indexDuration = measureTime {
                 indexTx.filter(predicate).use { cursor ->
                     cursor.forEach { indexResults.add(it) }
-                    cursor.close()
                 }
             }
 
             /* Compare results. */
-            for (e in indexResults) {
-                val next = bruteForceResults.get(0)
+            for ((e, next) in indexResults.zip(bruteForceResults)) {
                 Assertions.assertEquals(next.tupleId, e.tupleId)
                 Assertions.assertEquals(next[predicate.distanceColumn], e[predicate.distanceColumn])
             }
