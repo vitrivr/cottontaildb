@@ -27,7 +27,7 @@ sealed interface ComparisonOperator: NodeWithCost {
      *
      * @return True on match, false otherwise.
      */
-    context(Record, BindingContext)
+    context(BindingContext,Record)
     fun match(): Boolean
 
     /**
@@ -36,7 +36,7 @@ sealed interface ComparisonOperator: NodeWithCost {
     data class IsNull(override val left: Binding) : ComparisonOperator {
         override val cost: Cost
             get() = Cost.MEMORY_ACCESS
-        context(Record, BindingContext)
+        context(BindingContext,Record)
         override fun match() = (this.left.getValue() == null)
         override fun digest(): Digest = this.hashCode().toLong()
     }
@@ -53,7 +53,7 @@ sealed interface ComparisonOperator: NodeWithCost {
             get() = Cost.MEMORY_ACCESS * 5
 
         data class Equal(override val left: Binding, override val right: Binding): Binary {
-            context(Record, BindingContext)
+            context(BindingContext,Record)
             override fun match() = this.left.getValue() != null && this.right.getValue() != null && this.left.getValue()!!.isEqual(this.right.getValue()!!)
             override fun toString(): String = "$left = $right"
             override fun digest(): Digest = this.hashCode().toLong()
@@ -63,7 +63,7 @@ sealed interface ComparisonOperator: NodeWithCost {
          * A [ComparisonOperator] that expresses greater (>) comparison.
          */
         data class Greater(override val left: Binding, override val right: Binding): Binary {
-            context(Record, BindingContext)
+            context(BindingContext,Record)
             override fun match(): Boolean = this.left.getValue() != null && this.right.getValue() != null && this.left.getValue()!! > this.right.getValue()!!
             override fun toString(): String = "$left > $right"
             override fun digest(): Digest = this.hashCode().toLong()
@@ -73,7 +73,7 @@ sealed interface ComparisonOperator: NodeWithCost {
          * A [ComparisonOperator] that expresses less (<) comparison.
          */
         data class Less(override val left: Binding, override val right: Binding) : Binary {
-            context(Record, BindingContext)
+            context(BindingContext,Record)
             override fun match() = this.left.getValue() != null && this.right.getValue() != null && this.left.getValue()!! < this.right.getValue()!!
             override fun toString(): String = "$left < $right"
             override fun digest(): Digest = this.hashCode().toLong()
@@ -83,7 +83,7 @@ sealed interface ComparisonOperator: NodeWithCost {
          * A [ComparisonOperator] that expresses greater or equal (>=) comparison.
          */
         data class GreaterEqual(override val left: Binding, override val right: Binding) : Binary {
-            context(Record, BindingContext)
+            context(BindingContext,Record)
             override fun match() = this.left.getValue() != null && this.right.getValue() != null && this.left.getValue()!! >= this.right.getValue()!!
             override fun toString(): String = "$left >= $right"
             override fun digest(): Digest = this.hashCode().toLong()
@@ -93,7 +93,7 @@ sealed interface ComparisonOperator: NodeWithCost {
          * A [ComparisonOperator] that expresses less or equal (<=) comparison.
          */
         data class LessEqual(override val left: Binding, override val right: Binding) : Binary {
-            context(Record, BindingContext)
+            context(BindingContext,Record)
             override fun match() = this.left.getValue() != null && this.right.getValue() != null && this.left.getValue()!! <= this.right.getValue()!!
             override fun toString(): String = "$left <= $right"
             override fun digest(): Digest = this.hashCode().toLong()
@@ -103,7 +103,7 @@ sealed interface ComparisonOperator: NodeWithCost {
          * A [ComparisonOperator] that expresses a LIKE comparison, i.e., left LIKE right.
          */
         class Like(override val left: Binding, override val right: Binding) : Binary {
-            context(Record, BindingContext)
+            context(BindingContext,Record)
             override fun match() = this.left.getValue() is StringValue && this.right.getValue() is LikePatternValue && (this.right.getValue() as LikePatternValue).matches(this.left.getValue() as StringValue)
             override fun toString(): String = "$left LIKE $right"
             override fun digest(): Digest = this.hashCode().toLong()
@@ -113,6 +113,7 @@ sealed interface ComparisonOperator: NodeWithCost {
          * A [ComparisonOperator] that expresses a MATCH comparison. Can only be evaluated through a lucene index.
          */
         class Match(override val left: Binding, override val right: Binding) : Binary {
+            context(BindingContext,Record)
             override fun match() = throw UnsupportedOperationException("A MATCH comparison operator cannot be evaluated directly.")
             override fun toString(): String = "$left MATCH $right"
             override fun digest(): Digest = this.hashCode().toLong()
@@ -125,7 +126,7 @@ sealed interface ComparisonOperator: NodeWithCost {
     data class Between(override val left: Binding, val rightLower: Binding, val rightUpper: Binding) : ComparisonOperator {
         override val cost: Cost
             get() = Cost.MEMORY_ACCESS * 4
-        context(Record, BindingContext)
+        context(BindingContext,Record)
         override fun match() = this.left.getValue() != null && this.rightLower.getValue() != null && this.rightLower.getValue() != null && this.left.getValue()!! in this.rightLower.getValue()!!..this.rightUpper.getValue()!!
         override fun digest(): Digest = this.hashCode().toLong()
         override fun toString(): String = "$left BETWEEN $rightLower, $rightUpper"
@@ -153,7 +154,7 @@ sealed interface ComparisonOperator: NodeWithCost {
          *
          * @return True on match, false otherwise.
          */
-        context(Record, BindingContext)
+        context(BindingContext,Record)
         override fun match(): Boolean {
             if (this.lookupSet == null) {
                 this.lookupSet = ObjectOpenHashSet()

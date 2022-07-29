@@ -234,8 +234,8 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
             if (predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not) return Cost.INVALID
             val entityTx = this.dbo.parent.newTx(this.context)
             val statistics = this.columns.associateWith { entityTx.columnForName(it.name).newTx(this.context).statistics() }
-            val selectivity = with(MissingRecord) {
-                with(this@Tx.context.bindings) {
+            val selectivity = with(this@Tx.context.bindings) {
+                with(MissingRecord) {
                     NaiveSelectivityCalculator.estimate(predicate, statistics)
                 }
             }

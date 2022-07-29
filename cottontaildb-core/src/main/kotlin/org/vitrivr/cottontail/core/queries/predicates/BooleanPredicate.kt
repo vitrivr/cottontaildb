@@ -27,13 +27,13 @@ sealed interface BooleanPredicate : Predicate {
     /**
      * Returns true, if this [BooleanPredicate] returns true in its current configuration, and false otherwise.
      */
-    context(Record, BindingContext)
+    context(BindingContext,Record)
     fun isMatch(): Boolean
 
     /**
      * Returns the matching score, if the provided [Record]. Score of 0.0 equates to a non-match, while 1.0 equates to a full match.
      */
-    context(Record, BindingContext)
+    context(BindingContext,Record)
     fun score(): Double
 
     /**
@@ -92,7 +92,7 @@ sealed interface BooleanPredicate : Predicate {
          *
          * @return Matching score.
          */
-        context(Record, BindingContext)
+        context(BindingContext,Record)
         override fun score(): Double = this.isMatch().toDouble()
 
         /**
@@ -100,7 +100,7 @@ sealed interface BooleanPredicate : Predicate {
          *
          * @return true if [Record] matches this [Atomic], false otherwise.
          */
-        context(Record, BindingContext)
+        context(BindingContext,Record)
         override fun isMatch(): Boolean =
             (!this.not && this.operator.match()) || (this.not && !this.operator.match())
 
@@ -179,7 +179,7 @@ sealed interface BooleanPredicate : Predicate {
              *
              * @return true if [Record] matches this [Compound], false otherwise.
              */
-            context(Record, BindingContext)
+            context(BindingContext,Record)
             override fun isMatch(): Boolean = this.p1.isMatch() && this.p2.isMatch()
 
             /**
@@ -187,7 +187,7 @@ sealed interface BooleanPredicate : Predicate {
              *
              * @return true if [Record] matches this [Atomic], false otherwise.
              */
-            context(Record, BindingContext)
+            context(BindingContext,Record)
             override fun score(): Double = (p1.isMatch() && p2.isMatch()).toDouble()
 
             /**
@@ -214,14 +214,14 @@ sealed interface BooleanPredicate : Predicate {
              *
              * @return true if [Record] matches this [Compound], false otherwise.
              */
-            context(Record, BindingContext)
+            context(BindingContext,Record)
             override fun isMatch(): Boolean = this.p1.isMatch() || this.p2.isMatch()
             /**
              * Checks if the provided [Record] matches this [Compound] and returns a score.
              *
              * @return true if [Record] matches this [Atomic], false otherwise.
              */
-            context(Record, BindingContext)
+            context(BindingContext,Record)
             override fun score(): Double = ((p1.isMatch() || p2.isMatch()).toDouble() / 2.0)
 
             /**
