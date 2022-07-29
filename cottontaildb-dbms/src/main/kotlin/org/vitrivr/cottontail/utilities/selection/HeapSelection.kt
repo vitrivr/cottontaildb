@@ -15,15 +15,17 @@ class HeapSelection<T>(val k: Int, val comparator: Comparator<T>) : Iterable<T> 
     /** The [Array] backing this [HeapSelection].   */
     private val heap: Array<T?> = arrayOfNulls<Any?>(this.k) as Array<T?>
 
-    /** Indicates whether this [MinHeapSelection] is currently sorted or not. */
-    var sorted: Boolean = true
-        private set
-
     /** Number of items that have been added to this [HeapSelection] so far. */
     var added: Long = 0
         private set
 
+    /** Indicates whether this [MinHeapSelection] is currently sorted or not. */
+    @Volatile
+    var sorted: Boolean = true
+        private set
+
     /** Returns the size of this [HeapSelection], i.e., the number of items contained in the heap. */
+    @Volatile
     var size: Int = 0
         private set
 
