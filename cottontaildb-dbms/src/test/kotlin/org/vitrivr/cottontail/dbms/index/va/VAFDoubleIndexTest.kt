@@ -18,7 +18,6 @@ import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.LongValue
-import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.generators.DoubleVectorValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
@@ -110,7 +109,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
             /* Compare results. */
             for ((i, e) in indexResults.withIndex()) {
                 Assertions.assertEquals(bruteForceResults[i].first, e.tupleId)
-                Assertions.assertEquals(bruteForceResults[i].second.value, (e[predicate.distanceColumn] as StringValue).value)
+                Assertions.assertEquals(bruteForceResults[i].second.value, (e[predicate.distanceColumn] as DoubleValue).value)
             }
             this.log("Test done for ${function.name} and d=${this.indexColumn.type.logicalSize}! VAF took $indexDuration, brute-force took $bruteForceDuration.")
         } finally {
