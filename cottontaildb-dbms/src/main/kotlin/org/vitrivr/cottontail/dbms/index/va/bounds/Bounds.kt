@@ -30,5 +30,5 @@ sealed class Bounds {
 
     abstract fun ub(signature: VAFSignature): Double
 
-    open fun bounds(signature: VAFSignature): Pair<Double,Double> = Pair(ub(signature),lb(signature))
+    open fun bounds(signature: VAFSignature): Pair<Double,Double> = Pair(lb(signature),ub(signature))
 }
