@@ -47,12 +47,9 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<C
      */
     override fun toFlow(): Flow<Record> = channelFlow {
 
-        /* Prepare a global heap selection; this selection is large enough to accept [limit] entries from each partition to prevent concurrent sorting. */
+        /* Prepare a global heap selection. */
         val incoming = this@MergeLimitingHeapSortOperator.parents
-        val globalSelection = HeapSelection(
-            (this@MergeLimitingHeapSortOperator.limit * incoming.size).toInt(),
-            this@MergeLimitingHeapSortOperator.comparator
-        )
+        val globalSelection = HeapSelection((this@MergeLimitingHeapSortOperator.limit).toInt(), this@MergeLimitingHeapSortOperator.comparator)
         val globalCollected = AtomicLong(0L)
 
         /*
