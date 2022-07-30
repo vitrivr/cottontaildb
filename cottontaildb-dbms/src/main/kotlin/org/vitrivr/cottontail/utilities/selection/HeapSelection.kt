@@ -154,7 +154,7 @@ class HeapSelection<T>(val k: Int, val comparator: Comparator<T>) : Iterable<T> 
         return object : Iterator<T> {
             private val expectedAdded: Long = this@HeapSelection.added
             private var index: Int = this@HeapSelection.size - 1
-            override fun hasNext(): Boolean = this.index > 0
+            override fun hasNext(): Boolean = this.index >= 0
             override fun next(): T {
                 if(this.expectedAdded != this@HeapSelection.added) throw ConcurrentModificationException("HeapSelection was modified while iterating over it.")
                 return this@HeapSelection.heap[this.index--] ?: throw NoSuchElementException("Iterator for HeapSelection has no more elements left.")
