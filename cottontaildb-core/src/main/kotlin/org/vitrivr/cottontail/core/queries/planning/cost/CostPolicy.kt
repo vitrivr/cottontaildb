@@ -61,8 +61,8 @@ interface CostPolicy: Comparator<NormalizedCost> {
      */
     fun parallelisation(parallelisableCost: Cost, totalCost: Cost, pmax: Int): Int {
         if (pmax < 2) return 1
-        if (parallelisableCost.cpu < 1.0f) return 1
         val sp = parallelisableCost.cpu + parallelisableCost.io * this.parallelisableIO /* Parallelisable portion of the cost. */
+        if (sp < 1.0f) return 1
         val ss = (totalCost.cpu - parallelisableCost.cpu) + (totalCost.io - parallelisableCost.io * this.parallelisableIO) /* Serial portion of the cost. */
         val ov = 0.01f * parallelisableCost.cpu /* Overhead = 0.1% of the parallel cost. */
         var prevSpeedup = 0.0f
