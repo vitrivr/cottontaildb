@@ -91,16 +91,15 @@ internal interface TransactionalGrpcService {
             }
         }
         if (metadata.hasPolicyHint()) {
-            QueryHint.CostPolicy(
+            hints.add(QueryHint.CostPolicy(
                 metadata.policyHint.weightIo,
                 metadata.policyHint.weightCpu,
                 metadata.policyHint.weightMemory,
                 metadata.policyHint.weightAccuracy,
                 this.catalogue.config.cost.speedupPerWorker, /* Setting inherited from global config. */
                 this.catalogue.config.cost.parallelisableIO /* Setting inherited from global config. */
-            )
+            ))
         }
-
 
         return DefaultQueryContext(queryId, this.catalogue, transactionContext, hints)
     }
