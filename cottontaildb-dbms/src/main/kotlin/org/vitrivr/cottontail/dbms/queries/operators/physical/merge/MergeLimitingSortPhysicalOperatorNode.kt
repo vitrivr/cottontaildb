@@ -41,11 +41,13 @@ class MergeLimitingSortPhysicalOperatorNode(vararg inputs: Physical, val sortOn:
     }
 
     /** The output size of all [MergeLimitingSortPhysicalOperatorNode]s is usually the specified limit. */
-    context(BindingContext,Record)    override val outputSize: Long
+    context(BindingContext,Record)
+    override val outputSize: Long
         get() = min(this.inputs.sumOf { it.outputSize }, this.limit)
 
     /** The [Cost] incurred by the [MergeLimitingSortPhysicalOperatorNode] is similar to that of the [LimitingSortPhysicalOperatorNode]. */
-    context(BindingContext,Record)    override val cost: Cost
+    context(BindingContext,Record)
+    override val cost: Cost
         get() = Cost(
              cpu = 2 * this.inputs.sumOf { it.outputSize } * this.sortOn.size * Cost.MEMORY_ACCESS.cpu,
              memory = (this.columns.sumOf {
@@ -58,7 +60,8 @@ class MergeLimitingSortPhysicalOperatorNode(vararg inputs: Physical, val sortOn:
     )
 
     /** The [Cost] incurred by merging is usually negligible. */
-    context(BindingContext,Record)    override val parallelizableCost: Cost
+    context(BindingContext,Record)
+    override val parallelizableCost: Cost
         get() = this.inputs.map { it.totalCost }.reduce {c1, c2 -> c1 + c2}
 
     /** The [MergeLimitingSortPhysicalOperatorNode] overwrites/sets the [OrderTrait] and the [LimitTrait].  */
