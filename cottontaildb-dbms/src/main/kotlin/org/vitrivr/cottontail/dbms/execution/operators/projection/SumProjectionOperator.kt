@@ -23,7 +23,7 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
  * Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.1
  */
 class SumProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
     /** [SumProjectionOperator] does act as a pipeline breaker. */
@@ -52,7 +52,7 @@ class SumProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, ove
         val incoming = this@SumProjectionOperator.parent.toFlow()
         val columns = this@SumProjectionOperator.columns.toTypedArray()
         val values: Array<NumericValue<*>> = this@SumProjectionOperator.parentColumns.map {
-            when (val t = it.type) {
+            when (it.type) {
                 is Types.Byte -> ByteValue.ZERO
                 is Types.Short -> ShortValue.ZERO
                 is Types.Int -> IntValue.ZERO

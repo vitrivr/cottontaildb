@@ -23,7 +23,7 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
  * Only produces a single [Record]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.1
  */
 class MinProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
 
@@ -67,8 +67,8 @@ class MinProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, ove
             }
         }.toTypedArray()
         incoming.collect { r ->
-            for (i in results.indices) {
-                results[i] = RealValue.min(results[i], r[columns[i]] as RealValue<*>)
+            for ((i,c) in this@MinProjectionOperator.parentColumns.withIndex()) {
+                results[i] = RealValue.min(results[i], r[c] as RealValue<*>)
             }
         }
 

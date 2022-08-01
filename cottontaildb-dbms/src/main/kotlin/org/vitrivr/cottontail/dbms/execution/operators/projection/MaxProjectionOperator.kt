@@ -25,7 +25,7 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
  * single [Record]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.1
  */
 class MaxProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
 
@@ -69,8 +69,8 @@ class MaxProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, ove
             }
         }.toTypedArray()
         incoming.onEach { r ->
-            for (i in results.indices) {
-                results[i] = RealValue.max(results[i], r[i + 1] as RealValue<*>)
+            for ((i, c) in this@MaxProjectionOperator.parentColumns.withIndex()) {
+                results[i] = RealValue.max(results[i], r[c] as RealValue<*>)
             }
         }.collect()
 

@@ -20,11 +20,10 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
  * An [Operator.PipelineOperator] used during query execution. It calculates the MEAN of all values
  * it has encountered and returns it as a [Record].
  *
- * Only produces a single [Record] and converts the projected columns to a [Types.Double] column.
- * Acts as pipeline breaker.
+ * Only produces a single [Record]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.1
  */
 class MeanProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
 
