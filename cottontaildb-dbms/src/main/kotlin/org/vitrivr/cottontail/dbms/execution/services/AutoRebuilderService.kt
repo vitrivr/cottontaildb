@@ -198,7 +198,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
 
                 /* Step 2: MERGE index (write). */
                 val transaction2 = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
-                val context2 = DefaultQueryContext("auto-rebuild-merge-${this@AutoRebuilderService.counter.incrementAndGet()}", this@AutoRebuilderService.catalogue, transaction1)
+                val context2 = DefaultQueryContext("auto-rebuild-merge-${this@AutoRebuilderService.counter.incrementAndGet()}", this@AutoRebuilderService.catalogue, transaction2)
                 try {
                     return if (r.state == IndexRebuilderState.SCANNED) {
                         r.merge(context2)
