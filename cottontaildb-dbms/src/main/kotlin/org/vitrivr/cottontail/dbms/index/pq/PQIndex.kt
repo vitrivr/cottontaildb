@@ -226,7 +226,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
             return Cost(
                 io = Cost.DISK_ACCESS_READ.io * Short.SIZE_BYTES,
                 cpu = 4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu,
-                accuracy = 0.1f
+                accuracy = 0.2f
             ) * this.quantizer.codebooks.size * count
         }
 
