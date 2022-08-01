@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.execution.operators.sources
 
-import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.channelFlow
@@ -50,5 +50,5 @@ class EntityScanOperator(groupId: GroupId, private val entity: EntityTx, private
             }
         }
         LOGGER.debug("Read $read entries from ${this@EntityScanOperator.entity.dbo.name}.")
-    }.buffer(1000, BufferOverflow.SUSPEND)
+    }.buffer(Channel.UNLIMITED)
 }
