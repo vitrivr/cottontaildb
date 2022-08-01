@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.dbms.execution.operators.transform
 
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
 import org.vitrivr.cottontail.core.basics.Record
@@ -39,5 +41,5 @@ class MergeOperator(parents: List<Operator>, override val context: QueryContext)
                 }
             }
         }
-    }
+    }.buffer(Channel.UNLIMITED)
 }
