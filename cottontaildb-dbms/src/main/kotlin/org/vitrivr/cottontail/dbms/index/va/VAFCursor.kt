@@ -169,7 +169,8 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                 } while (cursor.next && cursor.key < this.endKey)
 
                 /* Log efficiency of VAF scan. */
-                VAFIndex.LOGGER.debug("VA-SSA Scan: Read ${localSelection.added} and skipped over ${(1.0 - (localSelection.added.toDouble() / this.index.count())) * 100}% of entries.")
+                val count = this.partition.last - this.partition.first + 1
+                VAFIndex.LOGGER.debug("VA-SSA Scan: Read ${localSelection.added} and skipped over ${(1.0 - (localSelection.added.toDouble() / count)) * 100}% of entries.")
                 return localSelection
             } catch (e: Throwable) {
                 VAFIndex.LOGGER.error("VA-SSA Scan: Error while scanning VAF index: ${e.message}")
