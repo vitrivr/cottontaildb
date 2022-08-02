@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.execution.operators.sources
 
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.channelFlow
@@ -65,5 +64,5 @@ class IndexScanOperator(
             }
         }
         LOGGER.debug("Read $read entries from ${this@IndexScanOperator.index.dbo.name}.")
-    }.buffer(Channel.UNLIMITED)
+    }.buffer(1024) /* Buffering up to 1024 records. */
 }
