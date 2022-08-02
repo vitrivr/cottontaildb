@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.logical.projection
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.projection.SelectProjectionPhysicalOperatorNode
@@ -50,25 +51,13 @@ class SelectProjectionLogicalOperatorNode(input: Logical, val fields: List<Name.
     override fun implement(): Physical = SelectProjectionPhysicalOperatorNode(this.input.implement(), this.fields)
 
     /**
-     * Compares this [SelectProjectionLogicalOperatorNode] to another object.
+     * Generates and returns a [Digest] for this [SelectProjectionLogicalOperatorNode].
      *
-     * @param other The other [Any] to compare this [SelectProjectionLogicalOperatorNode] to.
-     * @return True if other equals this, false otherwise.
+     * @return [Digest]
      */
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is SelectProjectionLogicalOperatorNode) return false
-        if (this.type != other.type) return false
-        if (this.fields != other.fields) return false
-        return true
-    }
-
-    /**
-     * Generates and returns a hash code for this [SelectProjectionLogicalOperatorNode].
-     */
-    override fun hashCode(): Int {
-        var result = this.type.hashCode()
-        result = 31 * result + this.fields.hashCode()
+    override fun digest(): Digest {
+        var result = Projection.SELECT.hashCode().toLong()
+        result += 33L * result + this.fields.hashCode()
         return result
     }
 }

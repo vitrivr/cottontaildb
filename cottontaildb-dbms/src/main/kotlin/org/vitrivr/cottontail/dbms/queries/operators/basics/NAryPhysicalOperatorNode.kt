@@ -140,17 +140,16 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
     }
 
     /**
-     * Calculates and returns the digest for this [BinaryPhysicalOperatorNode].
+     * Calculates and returns the digest for this [BinaryLogicalOperatorNode].
      *
-     * @return [Digest] for this [BinaryPhysicalOperatorNode]
+     * @return [Digest] for this [BinaryLogicalOperatorNode]
      */
-    override fun digest(): Digest {
-        var result = this.hashCode().toLong()
+    override fun totalDigest(): Digest {
+        var result = this.depth.hashCode().toLong()
         for (i in this.inputs) {
-            result += 27L * result + i.digest()
+            result += 167L * result + i.totalDigest()
         }
-        result += 27L * result + this.depth.hashCode()
-        return result
+        return 167L * result + this.digest()
     }
 
     /**

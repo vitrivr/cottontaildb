@@ -38,7 +38,6 @@ class ExplainQueryOperator(private val candidates: Map<GroupId,List<Pair<Operato
             ColumnDef(Name.ColumnName("cost_io"), Types.Float, false),
             ColumnDef(Name.ColumnName("cost_memory"), Types.Float, false),
             ColumnDef(Name.ColumnName("cost_accuracy"), Types.Float, false),
-            ColumnDef(Name.ColumnName("traits"), Types.String, false),
             ColumnDef(Name.ColumnName("digest"), Types.Long, false),
             ColumnDef(Name.ColumnName("designation"), Types.String, false)
         )
@@ -69,8 +68,7 @@ class ExplainQueryOperator(private val candidates: Map<GroupId,List<Pair<Operato
                                 FloatValue(node.cost.io),
                                 FloatValue(node.cost.memory),
                                 FloatValue(node.cost.accuracy),
-                                StringValue(node.traits.map { it.value.toString() }.joinToString(",")),
-                                LongValue(node.digest()),
+                                LongValue(node.totalDigest()),
                                 StringValue(node.toString())
                             )
                             emit(StandaloneRecord(row++, columns, values))

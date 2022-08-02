@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
@@ -127,25 +128,16 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
     /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is EntityScanPhysicalOperatorNode) return false
-
-        if (this.entity.dbo.name != other.entity.dbo.name) return false
-        if (this.physicalColumns != other.physicalColumns) return false
-        if (this.columns != other.columns) return false
-        if (this.partitions != other.partitions) return false
-        if (this.partitionIndex != other.partitionIndex) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = this.entity.dbo.name.hashCode()
-        result = 31 * result + this.physicalColumns.hashCode()
-        result = 31 * result + this.columns.hashCode()
-        result = 31 * result + this.partitionIndex.hashCode()
-        result = 31 * result + this.partitions.hashCode()
+    /**
+     * Generates and returns a [Digest] for this [EntityScanPhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest {
+        var result = this.entity.dbo.name.hashCode() + 1L
+        result += 31L * result + this.fetch.hashCode()
+        result += 31L * result + this.partitionIndex.hashCode()
+        result += 31L * result + this.partitions.hashCode()
         return result
     }
 }

@@ -88,17 +88,16 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical): OperatorNode.Log
     }
 
     /**
-     * Calculates and returns the digest for this [NAryLogicalOperatorNode].
+     * Calculates and returns the digest for this [BinaryLogicalOperatorNode].
      *
-     * @return [Digest] for this [NAryLogicalOperatorNode]
+     * @return [Digest] for this [BinaryLogicalOperatorNode]
      */
-    override fun digest(): Digest {
-        var result = this.hashCode().toLong()
+    override fun totalDigest(): Digest {
+        var result = this.depth.hashCode().toLong()
         for (i in this.inputs) {
-            result = 33L * result + i.digest()
+            result += 163L * result + i.totalDigest()
         }
-        result += 33L * result + this.depth.hashCode()
-        return result
+        return 163L * result + this.digest()
     }
 
     /**

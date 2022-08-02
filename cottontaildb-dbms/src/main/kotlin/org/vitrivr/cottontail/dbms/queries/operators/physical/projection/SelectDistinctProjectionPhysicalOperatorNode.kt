@@ -4,6 +4,7 @@ import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
@@ -78,11 +79,13 @@ class SelectDistinctProjectionPhysicalOperatorNode(input: Physical, val fields: 
     }
 
     /**
-     * Generates and returns a hash code for this [SelectDistinctProjectionPhysicalOperatorNode].
+     * Generates and returns a [Digest] for this [SelectDistinctProjectionPhysicalOperatorNode].
+     *
+     * @return [Digest]
      */
-    override fun hashCode(): Int {
-        var result = Projection.SELECT_DISTINCT.hashCode()
-        result = 33 * result + this.fields.hashCode()
+    override fun digest(): Digest {
+        var result = Projection.SELECT_DISTINCT.hashCode().toLong()
+        result += 31L * result + this.fields.hashCode()
         return result
     }
 }

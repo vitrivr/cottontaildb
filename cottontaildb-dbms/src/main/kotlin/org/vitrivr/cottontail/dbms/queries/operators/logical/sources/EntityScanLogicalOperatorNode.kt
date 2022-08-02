@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.sources
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
@@ -43,24 +44,17 @@ class EntityScanLogicalOperatorNode(override val groupId: Int, val entity: Entit
      */
     override fun implement(): Physical = EntityScanPhysicalOperatorNode(this.groupId, this.entity, this.fetch)
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is EntityScanLogicalOperatorNode) return false
-
-        if (this.entity.dbo.name != other.entity.dbo.name) return false
-        if (this.physicalColumns != other.physicalColumns) return false
-        if (this.columns != other.columns) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = this.entity.dbo.name.hashCode()
-        result = 31 * result + this.physicalColumns.hashCode()
-        result = 31 * result + this.columns.hashCode()
-        return result
-    }
-
     /** Generates and returns a [String] representation of this [EntitySampleLogicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
+
+    /**
+     * Generates and returns a [Digest] for this [EntityScanLogicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest {
+        var result = this.entity.dbo.name.hashCode() + 1L
+        result += 33L * result + this.fetch.hashCode()
+        return result
+    }
 }

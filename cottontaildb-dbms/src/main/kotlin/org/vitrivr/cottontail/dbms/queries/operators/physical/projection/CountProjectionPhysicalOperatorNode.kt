@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
@@ -63,28 +64,17 @@ class CountProjectionPhysicalOperatorNode(input: Physical, val out: Binding.Colu
      */
     override fun toOperator(ctx: QueryContext) = CountProjectionOperator(this.input.toOperator(ctx), ctx)
 
-    /**
-     * Compares this [CountProjectionPhysicalOperatorNode] to another object.
-     *
-     * @param other The other [Any] to compare this [CountProjectionPhysicalOperatorNode] to.
-     * @return True if other equals this, false otherwise.
-     */
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is CountProjectionPhysicalOperatorNode) return false
-        if (this.out != other.out) return false
-        return true
-    }
-
     /** Generates and returns a [String] representation of this [CountProjectionPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
 
     /**
-     * Generates and returns a hash code for this [CountProjectionPhysicalOperatorNode].
+     * Generates and returns a [Digest] for this [CountProjectionPhysicalOperatorNode].
+     *
+     * @return [Digest]
      */
-    override fun hashCode(): Int {
-        var result = Projection.COUNT.hashCode()
-        result = 31 * result + this.out.hashCode()
+    override fun digest(): Digest {
+        var result = Projection.COUNT.hashCode().toLong()
+        result += 31L * result + this.out.hashCode()
         return result
     }
 }

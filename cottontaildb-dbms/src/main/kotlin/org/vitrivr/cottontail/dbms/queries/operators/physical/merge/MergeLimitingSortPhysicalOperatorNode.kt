@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.merge
 
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.LimitTrait
@@ -81,4 +82,15 @@ class MergeLimitingSortPhysicalOperatorNode(vararg inputs: Physical, val sortOn:
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
     override fun toOperator(ctx: QueryContext): Operator = MergeLimitingHeapSortOperator(this.inputs.map { it.toOperator(ctx.split()) }, this.sortOn, this.limit, ctx)
+
+    /**
+     * Generates and returns a [Digest] for this [MergeLimitingSortPhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest {
+        var result = this.limit.hashCode() + 2L
+        result += 31L * result + this.sortOn.hashCode() + 5L
+        return result
+    }
 }

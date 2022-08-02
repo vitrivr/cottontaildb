@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.function
 
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.functions.Function
@@ -65,22 +66,13 @@ class FunctionPhysicalOperatorNode(input: Physical, val function: Binding.Functi
     override fun toOperator(ctx: QueryContext): Operator = FunctionOperator(this.input.toOperator(ctx), this.function, this.out, ctx)
 
     /**
-     * Compares this [FunctionOperator] to the given [Object] and returns true if they're equal and false otherwise.
+     * Generates and returns a [Digest] for this [FunctionPhysicalOperatorNode].
+     *
+     * @return [Digest]
      */
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is FunctionPhysicalOperatorNode) return false
-        if (this.function != other.function) return false
-        if (this.out != other.out) return false
-        return true
-    }
-
-    /**
-     * Generates and returns a hash code for this [FunctionPhysicalOperatorNode].
-     */
-    override fun hashCode(): Int {
-        val result = this.function.hashCode()
-        return 31 * result + this.out.hashCode()
+    override fun digest(): Digest {
+        val result = this.function.hashCode().toLong()
+        return 31L * result + this.out.hashCode()
     }
 
     /** Generates and returns a [String] representation of this [FunctionOperator]. */

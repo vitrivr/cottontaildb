@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.predicates
 
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
@@ -75,4 +76,11 @@ class FilterPhysicalOperatorNode(input: Physical, val predicate: BooleanPredicat
     }
 
     override fun hashCode(): Int = this.predicate.hashCode()
+
+    /**
+     * Generates and returns a [Digest] for this [FilterPhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest = this.predicate.hashCode().toLong() + 5L
 }

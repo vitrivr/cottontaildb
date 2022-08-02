@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.predicates
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.dbms.queries.operators.basics.BinaryLogicalOperatorNode
@@ -55,12 +56,10 @@ class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, left
     /** Generates and returns a [String] representation of this [FilterOnSubSelectLogicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.predicate}]"
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is FilterOnSubSelectLogicalOperatorNode) return false
-        if (this.predicate != other.predicate) return false
-        return true
-    }
-
-    override fun hashCode(): Int = this.predicate.hashCode()
+    /**
+     * Generates and returns a [Digest] for this [FilterOnSubSelectLogicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest = this.predicate.hashCode() + 2L
 }

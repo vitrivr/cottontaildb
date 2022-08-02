@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.merge
 
 import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
@@ -66,4 +67,11 @@ class MergePhysicalOperatorNode(vararg inputs: Physical): NAryPhysicalOperatorNo
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
     override fun toOperator(ctx: QueryContext): Operator = MergeOperator(this.inputs.map { it.toOperator(ctx.split()) }, ctx)
+
+    /**
+     * Generates and returns a [Digest] for this [MergePhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest = 1L
 }

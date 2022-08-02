@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.transform
 
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.SkipPhysicalOperatorNode
@@ -38,16 +39,13 @@ class SkipLogicalOperatorNode(input: Logical, val skip: Long) : UnaryLogicalOper
      */
     override fun implement(): Physical = SkipPhysicalOperatorNode(this.input.implement(), this.skip)
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is LimitLogicalOperatorNode) return false
-        if (skip != other.limit) return false
-        return true
-    }
-
-    /** Generates and returns a hash code for this [SkipLogicalOperatorNode]. */
-    override fun hashCode(): Int = this.skip.hashCode() + 2
-
     /** Generates and returns a [String] representation of this [SkipLogicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.skip}]"
+
+    /**
+     * Generates and returns a hash code for this [SkipLogicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest = this.skip.hashCode() + 7L
 }

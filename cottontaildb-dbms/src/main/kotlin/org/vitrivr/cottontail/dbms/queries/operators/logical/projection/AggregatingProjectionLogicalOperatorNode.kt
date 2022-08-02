@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.logical.projection
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
@@ -59,4 +60,15 @@ class AggregatingProjectionLogicalOperatorNode(input: Logical, type: Projection,
      * @return [AggregatingProjectionPhysicalOperatorNode]
      */
     override fun implement(): Physical = AggregatingProjectionPhysicalOperatorNode(this.input.implement(), this.type, this.fields)
+
+    /**
+     * Generates and returns a [Digest] for this [AggregatingProjectionLogicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest {
+        var result = this.type.hashCode().toLong()
+        result += 33L * result + this.fields.hashCode()
+        return result
+    }
 }

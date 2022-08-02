@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.management
 
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
@@ -66,19 +67,14 @@ class UpdatePhysicalOperatorNode(input: Physical, val entity: EntityTx, val valu
 
     override fun toString(): String = "${super.toString()}[${this.values.map { it.first.name }.joinToString(",")}]"
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is UpdatePhysicalOperatorNode) return false
-
-        if (entity != other.entity) return false
-        if (values != other.values) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = entity.hashCode()
-        result = 31 * result + values.hashCode()
+    /**
+     * Generates and returns a [Digest] for this [UpdatePhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest {
+        var result = this.entity.dbo.name.hashCode().toLong()
+        result += 31L * result + this.values.hashCode()
         return result
     }
 }

@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.transform
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
@@ -53,23 +54,17 @@ class FetchLogicalOperatorNode(input: Logical, val entity: EntityTx, val fetch: 
      */
     override fun implement(): Physical = FetchPhysicalOperatorNode(this.input.implement(), this.entity, this.fetch)
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is FetchLogicalOperatorNode) return false
-
-        if (this.entity != other.entity) return false
-        if (this.fetch != other.fetch) return false
-
-        return true
-    }
-
-    /** Generates and returns a [String] representation of this [FetchLogicalOperatorNode]. */
-    override fun hashCode(): Int {
-        var result = this.entity.hashCode()
-        result = 31 * result + this.fetch.hashCode()
-        return result
-    }
-
     /** Generates and returns a [String] representation of this [FetchLogicalOperatorNode]. */
     override fun toString() = "${super.toString()}(${this.fetch.joinToString(",") { it.second.name.toString() }})"
+
+    /**
+     * Generates and returns a [Digest] for this [FetchLogicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest {
+        var result = this.entity.dbo.name.hashCode().toLong()
+        result += 33L * result + this.fetch.hashCode()
+        return result
+    }
 }

@@ -120,9 +120,9 @@ abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical(), CopyableNo
         = throw UnsupportedOperationException("NullaryPhysicalOperatorNode cannot be partitioned!")
 
     /**
-     * Calculates and returns the digest for this [NullaryPhysicalOperatorNode].
+     * Calculates and returns the total [Digest] for this [NullaryPhysicalOperatorNode].
      *
-     * @return [Digest] for this [NullaryPhysicalOperatorNode]
+     * @return Total [Digest] for this [NullaryPhysicalOperatorNode]
      */
-    final override fun digest(): Digest = this.hashCode().toLong()
+    final override fun totalDigest(): Digest = this.digest()
 }

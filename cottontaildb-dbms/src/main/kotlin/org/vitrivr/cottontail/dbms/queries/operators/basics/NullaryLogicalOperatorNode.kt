@@ -86,9 +86,9 @@ abstract class NullaryLogicalOperatorNode: OperatorNode.Logical(), CopyableNode 
     }
 
     /**
-     * Calculates and returns the digest for this [NullaryLogicalOperatorNode].
+     * Calculates and returns the total [Digest] for this [NullaryLogicalOperatorNode].
      *
-     * @return [Digest] for this [NullaryLogicalOperatorNode]
+     * @return Total [Digest] for this [NullaryLogicalOperatorNode]
      */
-    final override fun digest(): Digest = this.hashCode().toLong()
+    final override fun totalDigest(): Digest = this.digest()
 }

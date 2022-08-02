@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
@@ -121,7 +122,18 @@ class MergeAggregatingProjectionPhysicalOperatorNode(vararg inputs: Physical, va
      */
     override fun hashCode(): Int {
         var result = this.type.hashCode()
-        result = 32 * result + this.fields.hashCode()
+        result += 32 * result + this.fields.hashCode()
+        return result
+    }
+
+    /**
+     * Generates and returns a [Digest] for this [MergeAggregatingProjectionPhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest {
+        var result = this.type.hashCode() + 5L
+        result += 33L * result + this.fields.hashCode()
         return result
     }
 }

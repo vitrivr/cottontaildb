@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.transform
 
 import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.nodes.traits.MaterializedTrait
@@ -90,13 +91,6 @@ class LimitPhysicalOperatorNode(input: Physical, val limit: Long) : UnaryPhysica
     /** Generates and returns a [String] representation of this [LimitPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.limit}]"
 
-    /** Generates and returns a hash code for this [LimitPhysicalOperatorNode]. */
-    override fun hashCode(): Int = this.limit.hashCode() + 1
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is LimitPhysicalOperatorNode) return false
-        if (this.limit != other.limit) return false
-        return true
-    }
+    /** Generates and returns a hash code for this [SkipPhysicalOperatorNode]. */
+    override fun digest(): Digest = this.limit.hashCode() + 1L
 }

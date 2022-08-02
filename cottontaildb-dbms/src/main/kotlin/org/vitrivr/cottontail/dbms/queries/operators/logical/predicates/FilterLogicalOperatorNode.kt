@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.predicates
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryLogicalOperatorNode
@@ -43,16 +44,10 @@ class FilterLogicalOperatorNode(input: Logical, val predicate: BooleanPredicate)
      */
     override fun implement(): Physical = FilterPhysicalOperatorNode(this.input.implement(), this.predicate)
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is FilterLogicalOperatorNode) return false
-        if (this.predicate != other.predicate) return false
-        return true
-    }
-
-    /** Generates and returns a hash code for this [FilterLogicalOperatorNode]. */
-    override fun hashCode(): Int = this.predicate.hashCode()
-
-    /** Generates and returns a [String] representation of this [FilterLogicalOperatorNode]. */
-    override fun toString() = "${super.toString()}[${this.predicate}]"
+    /**
+     * Generates and returns a [Digest] for this [FilterLogicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest = this.predicate.hashCode().toLong() + 5L
 }

@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sort
 
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
@@ -113,17 +114,14 @@ class LimitingSortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<Co
     /** Generates and returns a [String] representation of this [SortPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.name} ${it.second}" }},${this.limit}]"
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is LimitingSortPhysicalOperatorNode) return false
-        if (limit != other.limit) return false
-        if (this.sortOn != other.sortOn) return false
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = this.limit.hashCode()
-        result = 31 * result + sortOn.hashCode()
+    /**
+     * Generates and returns a [Digest] for this [LimitingSortPhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest {
+        var result = this.limit.hashCode().toLong() + 1L
+        result += 31L * result + this.sortOn.hashCode()
         return result
     }
 }

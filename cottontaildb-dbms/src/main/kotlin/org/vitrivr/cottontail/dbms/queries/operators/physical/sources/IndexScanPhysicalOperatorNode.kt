@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
@@ -198,24 +199,17 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
     /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.index.dbo.type},${this.predicate}]"
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is IndexScanPhysicalOperatorNode) return false
-
-        if (this.index.dbo.name != other.index.dbo.name) return false
-        if (this.partitionIndex != other.partitionIndex) return false
-        if (this.partitions != other.partitions) return false
-        if (this.predicate != other.predicate) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = this.depth.hashCode()
-        result = 31 * result + this.index.dbo.name.hashCode()
-        result = 31 * result + this.partitionIndex.hashCode()
-        result = 31 * result + this.partitions.hashCode()
-        result = 31 * result + this.predicate.hashCode()
+    /**
+     * Generates and returns a [Digest] for this [IndexScanPhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest {
+        var result = this.index.dbo.name.hashCode().toLong()
+        result += 31L * result + this.fetch.hashCode()
+        result += 31L * result + this.partitionIndex.hashCode()
+        result += 31L * result + this.partitions.hashCode()
+        result += 31L * result + this.predicate.hashCode()
         return result
     }
 }

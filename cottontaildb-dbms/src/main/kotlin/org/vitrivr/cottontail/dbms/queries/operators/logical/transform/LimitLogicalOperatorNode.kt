@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.transform
 
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.LimitPhysicalOperatorNode
@@ -38,16 +39,13 @@ class LimitLogicalOperatorNode(input: Logical, val limit: Long) : UnaryLogicalOp
      */
     override fun implement(): Physical = LimitPhysicalOperatorNode(this.input.implement(), this.limit)
 
-    /** Generates and returns a hash code for this [LimitLogicalOperatorNode]. */
-    override fun hashCode(): Int = this.limit.hashCode() + 1
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is LimitLogicalOperatorNode) return false
-        if (limit != other.limit) return false
-        return true
-    }
-
     /** Generates and returns a [String] representation of this [LimitLogicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.limit}]"
+
+    /**
+     * Generates and returns a hash code for this [LimitLogicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest = this.limit.hashCode() + 5L
 }

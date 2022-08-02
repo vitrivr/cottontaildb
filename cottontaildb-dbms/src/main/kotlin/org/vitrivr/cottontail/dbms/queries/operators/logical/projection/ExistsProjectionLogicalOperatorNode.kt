@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.projection
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryLogicalOperatorNode
@@ -39,25 +40,13 @@ class ExistsProjectionLogicalOperatorNode(input: Logical, val out: Binding.Colum
     override fun implement(): Physical = ExistsProjectionPhysicalOperatorNode(this.input.implement(), this.out)
 
     /**
-     * Compares this [ExistsProjectionPhysicalOperatorNode] to another object.
+     * Generates and returns a [Digest] for this [ExistsProjectionLogicalOperatorNode].
      *
-     * @param other The other [Any] to compare this [ExistsProjectionPhysicalOperatorNode] to.
-     * @return True if other equals this, false otherwise.
+     * @return [Digest]
      */
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is ExistsProjectionLogicalOperatorNode) return false
-        if (this.type != other.type) return false
-        if (this.out != other.out) return false
-        return true
-    }
-
-    /**
-     * Generates and returns a hash code for this [ExistsProjectionPhysicalOperatorNode].
-     */
-    override fun hashCode(): Int {
-        var result = this.type.hashCode()
-        result = 31 * result + this.out.hashCode()
+    override fun digest(): Digest {
+        var result = Projection.EXISTS.hashCode().toLong()
+        result += 33L * result + this.out.hashCode()
         return result
     }
 }

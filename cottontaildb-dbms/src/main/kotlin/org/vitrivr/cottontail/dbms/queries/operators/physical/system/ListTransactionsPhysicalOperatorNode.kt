@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.system
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.execution.operators.system.ListTransactionsOperator
@@ -29,4 +30,11 @@ class ListTransactionsPhysicalOperatorNode(val manager: TransactionManager): Nul
     override val cost: Cost = Cost.ZERO
     override fun toOperator(ctx: QueryContext) = ListTransactionsOperator(this.manager, ctx)
     override fun copy() = ListTransactionsPhysicalOperatorNode(this.manager)
+
+    /**
+     * Generates and returns a [Digest] for this [ListTransactionsPhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest = this.hashCode() + 1L
 }

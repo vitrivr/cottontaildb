@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.management
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.management.DeleteOperator
@@ -50,19 +51,10 @@ class DeleteLogicalOperatorNode(input: Logical, val entity: EntityTx) : UnaryLog
 
     override fun toString(): String = "${super.toString()}[${this.entity.dbo.name}]"
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is DeleteLogicalOperatorNode) return false
-
-        if (this.entity != other.entity) return false
-        if (this.columns != other.columns) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = entity.hashCode()
-        result = 31 * result + columns.hashCode()
-        return result
-    }
+    /**
+     * Generates and returns a [Digest] for this [DeleteLogicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest = this.entity.dbo.name.hashCode().toLong() + -5L
 }

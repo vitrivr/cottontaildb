@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.definition
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -20,4 +21,5 @@ class ListSchemaPhysicalOperatorNode(val tx: CatalogueTx): DataDefinitionPhysica
     override val columns: List<ColumnDef<*>> = ColumnSets.DDL_LIST_COLUMNS
     override fun copy(): NullaryPhysicalOperatorNode = ListSchemaPhysicalOperatorNode(this.tx)
     override fun toOperator(ctx: QueryContext): Operator = ListSchemaOperator(this.tx, ctx)
+    override fun digest(): Digest = this.hashCode().toLong()
 }

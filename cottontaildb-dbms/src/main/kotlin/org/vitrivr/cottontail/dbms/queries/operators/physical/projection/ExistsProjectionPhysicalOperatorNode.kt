@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
@@ -66,24 +67,13 @@ class ExistsProjectionPhysicalOperatorNode(input: Physical, val out: Binding.Col
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
 
     /**
-     * Compares this [ExistsProjectionPhysicalOperatorNode] to another object.
+     * Generates and returns a [Digest] for this [ExistsProjectionPhysicalOperatorNode].
      *
-     * @param other The other [Any] to compare this [ExistsProjectionPhysicalOperatorNode] to.
-     * @return True if other equals this, false otherwise.
+     * @return [Digest]
      */
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is ExistsProjectionPhysicalOperatorNode) return false
-        if (this.out != other.out) return false
-        return true
-    }
-
-    /**
-     * Generates and returns a hash code for this [ExistsProjectionPhysicalOperatorNode].
-     */
-    override fun hashCode(): Int {
-        var result = Projection.EXISTS.hashCode()
-        result = 31 * result + this.out.hashCode()
+    override fun digest(): Digest {
+        var result = Projection.EXISTS.hashCode().toLong()
+        result += 31L * result + this.out.hashCode()
         return result
     }
 }

@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.function
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
@@ -56,19 +57,14 @@ class FunctionLogicalOperatorNode(input: Logical, val function: Binding.Function
     override fun implement() = FunctionPhysicalOperatorNode(this.input.implement(), this.function, this.out)
 
     /**
-     * Compares this [FunctionLogicalOperatorNode] to the given [Object] and returns true if they're equal and false otherwise.
+     * Generates and returns a [Digest] for this [FunctionPhysicalOperatorNode].
+     *
+     * @return [Digest]
      */
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is FunctionLogicalOperatorNode) return false
-        if (this.function != other.function) return false
-        return true
+    override fun digest(): Digest {
+        val result = this.function.hashCode().toLong()
+        return 31L * result + this.out.hashCode()
     }
-
-    /**
-     * Generates and returns a hash code for this [FunctionLogicalOperatorNode].
-     */
-    override fun hashCode(): Int = this.function.hashCode()
 
     /** Generates and returns a [String] representation of this [FilterLogicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.function.function.signature} -> ${this.out.column.name}]"

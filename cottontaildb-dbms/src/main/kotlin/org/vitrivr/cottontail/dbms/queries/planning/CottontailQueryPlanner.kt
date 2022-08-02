@@ -37,16 +37,8 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
      * @throws QueryException.QueryPlannerException If planner fails to generate a valid execution plan.
      */
     fun planAndSelect(context: QueryContext, bypassCache: Boolean = false, cache: Boolean = false): OperatorNode.Physical {
-        /* Try to obtain PhysicalNodeExpression from plan cache, unless bypassCache has been set to true. */
-        val logical = context.logical
-        require(logical != null) { "Cannot plan for a QueryContext that doesn't have a valid logical query representation." }
-        val digest = logical.digest()
-        if (!bypassCache && this.planCache[digest] != null) {
-            return this.planCache[digest]!!
-        }
-
         /* Plan the query. */
-        val candidates = this.plan(context).map { (groupId, plans) ->
+        val candidates = this.plan(context, bypassCache, cache).map { (groupId, plans) ->
             groupId to plans.first().first
         }.toMap()
 
@@ -57,9 +49,6 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         }
 
         /* Update plan cache and return. */
-        if (!cache) {
-            this@CottontailQueryPlanner.planCache[digest] = selected
-        }
         return selected
     }
 
@@ -72,7 +61,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
      *
      * @return Map of [GroupId] to list of candidate plans with associated score.
      */
-    fun plan(context: QueryContext, limit: Int = 1): Map<GroupId,List<Pair<OperatorNode.Physical,Float>>> {
+    fun plan(context: QueryContext, bypassCache: Boolean = false, cache: Boolean = false, limit: Int = 1): Map<GroupId,List<Pair<OperatorNode.Physical,Float>>> {
         val logical = context.logical
         require(logical != null) { QueryException.QueryPlannerException("Cannot perform query planning for a QueryContext that doesn't have a logical query plan.") }
 

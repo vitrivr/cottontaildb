@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
@@ -115,25 +116,13 @@ class AggregatingProjectionPhysicalOperatorNode(input: Physical, val type: Proje
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
 
     /**
-     * Compares this [AggregatingProjectionPhysicalOperatorNode] to another object.
+     * Generates and returns a [Digest] for this [AggregatingProjectionPhysicalOperatorNode].
      *
-     * @param other The other [Any] to compare this [AggregatingProjectionPhysicalOperatorNode] to.
-     * @return True if other equals this, false otherwise.
+     * @return [Digest]
      */
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is AggregatingProjectionPhysicalOperatorNode) return false
-        if (this.type != other.type) return false
-        if (this.fields != other.fields) return false
-        return true
-    }
-
-    /**
-     * Generates and returns a hash code for this [AggregatingProjectionPhysicalOperatorNode].
-     */
-    override fun hashCode(): Int {
-        var result = this.type.hashCode()
-        result = 31 * result + this.fields.hashCode()
+    override fun digest(): Digest {
+        var result = this.type.hashCode().toLong()
+        result += 31L * result + this.fields.hashCode()
         return result
     }
 }

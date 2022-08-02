@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sort
 
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.nodes.traits.MaterializedTrait
@@ -95,12 +96,10 @@ class SortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<ColumnDef<
     /** Generates and returns a [String] representation of this [SortPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.name} ${it.second}" }}]"
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is SortPhysicalOperatorNode) return false
-        if (this.sortOn != other.sortOn) return false
-        return true
-    }
-
-    override fun hashCode(): Int = this.sortOn.hashCode()
+    /**
+     * Generates and returns a [Digest] for this [SortPhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest = this.sortOn.hashCode() + 3L
 }

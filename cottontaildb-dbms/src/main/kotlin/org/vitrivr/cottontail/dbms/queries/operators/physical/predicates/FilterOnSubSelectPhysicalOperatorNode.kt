@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.predicates
 
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
@@ -112,12 +113,10 @@ class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, lef
     /** Generates and returns a [String] representation of this [FilterOnSubSelectPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.predicate}]"
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is FilterOnSubSelectPhysicalOperatorNode) return false
-        if (predicate != other.predicate) return false
-        return true
-    }
-
-    override fun hashCode(): Int = this.predicate.hashCode()
+    /**
+     * Generates and returns a [Digest] for this [FilterOnSubselectOperator].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest = this.predicate.hashCode() + 1L
 }

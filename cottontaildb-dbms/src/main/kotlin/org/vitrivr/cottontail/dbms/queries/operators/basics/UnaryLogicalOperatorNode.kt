@@ -95,13 +95,14 @@ abstract class UnaryLogicalOperatorNode(val input: Logical): OperatorNode.Logica
         = this.copyWithNewInput(this.input.copyWithExistingInput())
 
     /**
-     * Calculates and returns the digest for this [UnaryLogicalOperatorNode].
+     * Calculates and returns the total [Digest] for this [UnaryLogicalOperatorNode].
      *
-     * @return [Digest] for this [UnaryLogicalOperatorNode]
+     * @return Total [Digest] for this [UnaryLogicalOperatorNode]
      */
-    final override fun digest(): Digest {
-        val result = 33L * this.hashCode() + this.input.digest()
-        return 33L * result + this.depth.hashCode()
+    final override fun totalDigest(): Digest{
+        var result = 197L * this.depth + this.input.totalDigest()
+        result += 197L * result + this.digest()
+        return result
     }
 
     /**

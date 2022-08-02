@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.management
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
@@ -87,19 +88,14 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
      */
     override fun toOperator(ctx: QueryContext): Operator = InsertOperator(this.groupId, this.entity, this.records, ctx)
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is InsertPhysicalOperatorNode) return false
-
-        if (entity != other.entity) return false
-        if (records != other.records) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = entity.hashCode()
-        result = 31 * result + records.hashCode()
+    /**
+     * Generates and returns a [Digest] for this [InsertPhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest {
+        var result = this.entity.dbo.name.hashCode().toLong()
+        result += 31L * result + this.records.hashCode()
         return result
     }
 }

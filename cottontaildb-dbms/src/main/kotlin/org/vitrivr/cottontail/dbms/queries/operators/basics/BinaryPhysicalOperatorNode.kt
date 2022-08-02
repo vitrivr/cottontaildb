@@ -141,14 +141,16 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
     }
 
     /**
-     * Calculates and returns the digest for this [BinaryPhysicalOperatorNode].
+     * Calculates and returns the total [Digest] for this [BinaryPhysicalOperatorNode].
      *
-     * @return [Digest] for this [BinaryPhysicalOperatorNode]
+     * @return Total [Digest] for this [BinaryPhysicalOperatorNode]
      */
-    override fun digest(): Digest {
-        var result = 27L * hashCode() + this.left.digest()
-        result = 27L * result + this.right.digest()
-        return 27L * result + this.depth.hashCode()
+    final override fun totalDigest(): Digest {
+        var result = this.depth.hashCode().toLong()
+        result += 151L * result + this.left.totalDigest()
+        result += 151L * result + this.right.totalDigest()
+        result += 151L * result + this.digest()
+        return result
     }
 
     /**

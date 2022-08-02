@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -23,4 +24,5 @@ data class PlaceholderPhysicalOperatorNode(override val groupId: GroupId, overri
     override val outputSize: Long = 0L
     override fun toOperator(ctx: QueryContext): Operator = throw UnsupportedOperationException("A PlaceholderPhysicalOperatorNode cannot be converted to an operator.")
     override val cost: Cost = Cost.ZERO
+    override fun digest(): Digest = 0L
 }

@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.sort
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
@@ -57,16 +58,13 @@ class SortLogicalOperatorNode(input: Logical, val sortOn: List<Pair<ColumnDef<*>
      */
     override fun implement(): Physical = SortPhysicalOperatorNode(this.input.implement(), this.sortOn)
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is SortLogicalOperatorNode) return false
-        if (this.sortOn != other.sortOn) return false
-        return true
-    }
-
-    /** Generates and returns a hash code for this [SortLogicalOperatorNode]. */
-    override fun hashCode(): Int = this.sortOn.hashCode()
-
     /** Generates and returns a [String] representation of this [SortLogicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.name} ${it.second}" }}]"
+
+    /**
+     * Generates and returns a [Digest] for this [SortLogicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest = this.sortOn.hashCode() + 3L
 }

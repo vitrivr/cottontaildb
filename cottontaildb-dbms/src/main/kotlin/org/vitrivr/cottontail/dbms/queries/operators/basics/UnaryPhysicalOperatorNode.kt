@@ -184,13 +184,13 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
         = this.copyWithNewInput(this.input.partition(partitions, p))
 
     /**
-     * Calculates and returns the digest for this [UnaryPhysicalOperatorNode].
+     * Calculates and returns the total [Digest] for this [UnaryPhysicalOperatorNode].
      *
-     * @return [Digest] for this [UnaryPhysicalOperatorNode]
+     * @return Total [Digest] for this [UnaryPhysicalOperatorNode]
      */
-    final override fun digest(): Digest {
-        val result = 27L * this.hashCode() + this.input.digest()
-        return 27L * result + this.depth.hashCode()
+    final override fun totalDigest(): Digest {
+        val result = 191L * this.depth.hashCode() + this.input.totalDigest()
+        return 191L * result + this.digest()
     }
 
     /**

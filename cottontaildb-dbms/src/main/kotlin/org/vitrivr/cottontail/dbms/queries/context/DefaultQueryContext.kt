@@ -87,9 +87,11 @@ class DefaultQueryContext(override val queryId: String, override val catalogue: 
      * process tries to generate a near-optimal [OperatorNode.Physical] from the registered [OperatorNode.Logical].
      *
      * @param planner The [CottontailQueryPlanner] instance to use for planning.
+     * @param bypassCache Flag indicating, whether the [CottontailQueryPlanner] should bypass the plan cache.
+     * @param cache Flag indicating, whether the resulting plan should be cached.
      */
-    override fun plan(planner: CottontailQueryPlanner) {
-        this.physical = planner.planAndSelect(this)
+    override fun plan(planner: CottontailQueryPlanner, bypassCache: Boolean, cache: Boolean) {
+        this.physical = planner.planAndSelect(this, bypassCache, cache)
     }
 
     /**
@@ -151,7 +153,7 @@ class DefaultQueryContext(override val queryId: String, override val catalogue: 
         override fun nextGroupId(): GroupId = this@DefaultQueryContext.nextGroupId()
         override fun assign(plan: OperatorNode.Logical) = this@DefaultQueryContext.assign(plan)
         override fun assign(plan: OperatorNode.Physical) = this@DefaultQueryContext.assign(plan)
-        override fun plan(planner: CottontailQueryPlanner) = this@DefaultQueryContext.plan(planner)
+        override fun plan(planner: CottontailQueryPlanner, bypassCache: Boolean, cache: Boolean) = this@DefaultQueryContext.plan(planner, bypassCache, cache)
         override fun implement() = this@DefaultQueryContext.implement()
         override fun split(): QueryContext = this@DefaultQueryContext.split()
         override fun toOperatorTree(): Operator = this@DefaultQueryContext.toOperatorTree()

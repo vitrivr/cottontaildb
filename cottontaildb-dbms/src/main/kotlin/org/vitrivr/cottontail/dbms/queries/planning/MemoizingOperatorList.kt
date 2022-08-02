@@ -43,7 +43,7 @@ class MemoizingOperatorList<T : OperatorNode>(vararg elements: T) {
      * @return True on success, false if [OperatorNode] is already known.
      */
     fun enqueue(node: T, force: Boolean = false): Boolean {
-        val digest = node.digest()
+        val digest = node.totalDigest()
         if (force || !this.digests.contains(digest)) {
             this.list.add(node)
             this.digests.add(digest)

@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.basics
 
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.Node
@@ -50,6 +51,15 @@ sealed class OperatorNode : NodeWithTrait {
 
     /** The [ColumnDef]s required by this [OperatorNode] in order to be able to function. */
     abstract val requires: List<ColumnDef<*>>
+
+    /**
+     * Calculates and returns the total [Digest] for this [OperatorNode], which is used for caching and re-use of query plans
+     *
+     * The total [Digest] is a combination of this [OperatorNode]'s [Digest] and all upstream [Digest] values.
+     *
+     * @return The total [Digest] for this [OperatorNode]
+     */
+    abstract fun totalDigest(): Digest
 
     /**
      * Prints this [OperatorNode] tree to the given [PrintStream].

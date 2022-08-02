@@ -107,10 +107,11 @@ abstract class BinaryLogicalOperatorNode(val left: Logical, val right: Logical):
      *
      * @return [Digest] for this [BinaryLogicalOperatorNode]
      */
-    override fun digest(): Digest {
-        var result = 33L * hashCode() + (this.left.digest())
-        result = 33L * result + (this.right.digest())
-        return 33L * result + this.depth.hashCode()
+    override fun totalDigest(): Digest {
+        var result = this.depth.hashCode().toLong()
+        result += 157L * result + this.left.totalDigest()
+        result += 157L * result + this.right.totalDigest()
+        return 157L * result + this.digest()
     }
 
     /**

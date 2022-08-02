@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.transform
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
@@ -65,6 +66,7 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
 
     /* Initialize local statistics. */
     init {
+        var fetchSize = 0
         for ((binding, physical) in this.fetch) {
             if (!this.localStatistics.containsKey(binding.column)) {
                 this.localStatistics[binding.column] = this.entity.columnForName(physical.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
@@ -96,19 +98,14 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
     /** Generates and returns a [String] representation of this [FetchPhysicalOperatorNode]. */
     override fun toString() = "${this.groupId}:Fetch[${this.fetch.joinToString(",") { it.second.name.toString() }}]"
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is FetchPhysicalOperatorNode) return false
-
-        if (this.entity != other.entity) return false
-        if (this.fetch != other.fetch) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = this.entity.hashCode()
-        result = 31 * result + this.fetch.hashCode()
+    /**
+     * Generates and returns a [Digest] for this [FetchPhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest {
+        var result = this.entity.dbo.name.hashCode().toLong()
+        result += 31L * result + this.fetch.hashCode()
         return result
     }
 }

@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.management
 
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
@@ -76,4 +77,11 @@ class DeletePhysicalOperatorNode(input: Physical, val entity: EntityTx) : UnaryP
     }
 
     override fun hashCode(): Int = this.entity.hashCode()
+
+    /**
+     * Generates and returns a [Digest] for this [DeletePhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest = this.entity.dbo.name.hashCode().toLong() + -7L
 }

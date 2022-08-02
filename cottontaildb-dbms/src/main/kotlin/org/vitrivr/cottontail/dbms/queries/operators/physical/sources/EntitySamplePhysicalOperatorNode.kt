@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
@@ -103,11 +104,15 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
         return true
     }
 
-    override fun hashCode(): Int {
-        var result = this.entity.hashCode()
-        result = 31 * result + this.columns.hashCode()
-        result = 31 * result + this.outputSize.hashCode()
-        result = 31 * result + this.seed.hashCode()
+    /**
+     * Generates and returns a [Digest] for this [EntitySamplePhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest {
+        var result = this.entity.dbo.name.hashCode() + 2L
+        result += 31L * result + this.p.hashCode()
+        result += 31L * result + this.fetch.hashCode()
         return result
     }
 }

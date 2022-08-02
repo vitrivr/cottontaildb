@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
@@ -65,19 +66,14 @@ class SelectProjectionPhysicalOperatorNode(input: Physical, val fields: List<Nam
     /** Generates and returns a [String] representation of this [SelectProjectionPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is SelectProjectionPhysicalOperatorNode) return false
-        if (this.fields != other.fields) return false
-        return true
-    }
-
     /**
-     * Generates and returns a hash code for this [SelectProjectionPhysicalOperatorNode].
+     * Generates and returns a [Digest] for this [SelectProjectionPhysicalOperatorNode].
+     *
+     * @return [Digest]
      */
-    override fun hashCode(): Int {
-        var result = Projection.SELECT.hashCode()
-        result = 31 * result + this.fields.hashCode()
+    override fun digest(): Digest {
+        var result = Projection.SELECT.hashCode().toLong()
+        result += 31L * result + this.fields.hashCode()
         return result
     }
 }

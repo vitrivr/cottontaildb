@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.transform
 
 import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
@@ -64,13 +65,10 @@ class SkipPhysicalOperatorNode(input: Physical, val skip: Long) : UnaryPhysicalO
     /** Generates and returns a [String] representation of this [SkipPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.skip}]"
 
-    /** Generates and returns a hash code for this [SkipPhysicalOperatorNode]. */
-    override fun hashCode(): Int = this.skip.hashCode() + 2
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is LimitPhysicalOperatorNode) return false
-        if (this.skip != other.limit) return false
-        return true
-    }
+    /**
+     * Generates and returns a hash code for this [SkipPhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest = this.skip.hashCode() + 2L
 }
