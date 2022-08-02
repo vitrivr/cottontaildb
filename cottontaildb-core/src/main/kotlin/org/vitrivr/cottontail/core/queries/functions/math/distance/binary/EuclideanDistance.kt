@@ -152,7 +152,8 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
             for (i in 0 until bound step SPECIES_PREFERRED.length()) {
                 val vp = jdk.incubator.vector.FloatVector.fromArray(SPECIES_PREFERRED, probing, i)
                 val vq = jdk.incubator.vector.FloatVector.fromArray(SPECIES_PREFERRED, query, i)
-                vectorSum = vectorSum.add(vp.sub(vq).mul(vp.sub(vq)))
+                val diff = vp.sub(vq)
+                vectorSum = vectorSum.add(diff.mul(diff))
             }
 
             /* Scalar version for remainder. */
