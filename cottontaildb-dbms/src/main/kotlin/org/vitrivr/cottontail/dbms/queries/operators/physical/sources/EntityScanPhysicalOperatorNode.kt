@@ -131,15 +131,21 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
         if (this === other) return true
         if (other !is EntityScanPhysicalOperatorNode) return false
 
-        if (this.entity != other.entity) return false
+        if (this.entity.dbo.name != other.entity.dbo.name) return false
+        if (this.physicalColumns != other.physicalColumns) return false
         if (this.columns != other.columns) return false
+        if (this.partitions != other.partitions) return false
+        if (this.partitionIndex != other.partitionIndex) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        var result = entity.hashCode()
+        var result = this.entity.dbo.name.hashCode()
+        result = 31 * result + this.physicalColumns.hashCode()
         result = 31 * result + this.columns.hashCode()
+        result = 31 * result + this.partitionIndex.hashCode()
+        result = 31 * result + this.partitions.hashCode()
         return result
     }
 }

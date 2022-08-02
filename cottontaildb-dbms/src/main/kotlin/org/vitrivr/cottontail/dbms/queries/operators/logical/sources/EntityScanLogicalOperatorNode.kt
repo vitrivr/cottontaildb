@@ -47,14 +47,16 @@ class EntityScanLogicalOperatorNode(override val groupId: Int, val entity: Entit
         if (this === other) return true
         if (other !is EntityScanLogicalOperatorNode) return false
 
-        if (this.entity != other.entity) return false
+        if (this.entity.dbo.name != other.entity.dbo.name) return false
+        if (this.physicalColumns != other.physicalColumns) return false
         if (this.columns != other.columns) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        var result = entity.hashCode()
+        var result = this.entity.dbo.name.hashCode()
+        result = 31 * result + this.physicalColumns.hashCode()
         result = 31 * result + this.columns.hashCode()
         return result
     }

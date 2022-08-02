@@ -202,15 +202,20 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
         if (this === other) return true
         if (other !is IndexScanPhysicalOperatorNode) return false
 
-        if (depth != other.depth) return false
-        if (predicate != other.predicate) return false
+        if (this.index.dbo.name != other.index.dbo.name) return false
+        if (this.partitionIndex != other.partitionIndex) return false
+        if (this.partitions != other.partitions) return false
+        if (this.predicate != other.predicate) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        var result = depth.hashCode()
-        result = 31 * result + predicate.hashCode()
+        var result = this.depth.hashCode()
+        result = 31 * result + this.index.dbo.name.hashCode()
+        result = 31 * result + this.partitionIndex.hashCode()
+        result = 31 * result + this.partitions.hashCode()
+        result = 31 * result + this.predicate.hashCode()
         return result
     }
 }
