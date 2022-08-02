@@ -45,28 +45,13 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
             return this.planCache[digest]!!
         }
 
-        /* Decomposes the tree into subtrees based on group. */
-        val decomposition = this.decompose(logical)
-
-        /* Stage 1: Logical query planning for each group. */
-        val stage1 = decomposition.map {(groupId, plan) -> groupId to this.optimizeLogical(plan, context) }.toMap()
-
-        /* Stage 2: Physical query planning for each group. */
-        val stage2 = stage1.map {(groupId, plans) -> groupId to plans.flatMap { this.optimizePhysical(it.implement(), context) } }.toMap()
-
-        /* Generate candidate plans per group. */
-        val candidates = with(context.bindings) {
-            with(MissingRecord) {
-                stage2.map { (groupId, plans) ->
-                val normalized = NormalizedCost.normalize(plans.map { it.totalCost })
-                val candidate = plans.zip(normalized).minByOrNull { (_, cost) -> context.costPolicy.toScore(cost) }
-                    groupId to (candidate?.first ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for query. Maybe there is an index missing?"))
-                }.toMap()
-            }
-        }
+        /* Plan the query. */
+        val candidates = this.plan(context).map { (groupId, plans) ->
+            groupId to plans.first().first
+        }.toMap()
 
         /* Combine different sub-plans, if they exist. */
-        var selected = candidates[0] ?: throw IllegalStateException("No query plan for groupId zero; this is a programmer's error!")
+        var selected = candidates[0] ?: throw IllegalStateException("No query plan for groupId zero; This is a programmer's error!")
         if (candidates.size > 1) {
             selected = this@CottontailQueryPlanner.compose(selected, candidates)
         }
@@ -83,10 +68,11 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
      * on the seed [OperatorNode.Logical] and derived [OperatorNode]s.
      *
      * @param context The [QueryContext] to plan for.
+     * @param limit The number of plan variant to return. Defaults to 1.
      *
-     * @return List of [OperatorNode.Physical] that implement the [OperatorNode.Logical]
+     * @return Map of [GroupId] to list of candidate plans with associated score.
      */
-    fun plan(context: QueryContext): Map<GroupId,List<Pair<OperatorNode.Physical,NormalizedCost>>> {
+    fun plan(context: QueryContext, limit: Int = 1): Map<GroupId,List<Pair<OperatorNode.Physical,Float>>> {
         val logical = context.logical
         require(logical != null) { QueryException.QueryPlannerException("Cannot perform query planning for a QueryContext that doesn't have a logical query plan.") }
 
@@ -107,11 +93,11 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         }.toMap()
 
         /* Generate candidate plans. */
-        with(context.bindings) {
+        return with(context.bindings) {
             with(MissingRecord) {
-                return stage2.map { (groupId, plans) ->
+                stage2.map { (groupId, plans) ->
                     val normalized = NormalizedCost.normalize(plans.map { it.totalCost })
-                    val candidates = plans.zip(normalized).sortedBy { (_, cost) -> context.costPolicy.toScore(cost) }
+                    val candidates = plans.zip(normalized).map { (p, cost) -> p to context.costPolicy.toScore(cost) }.sortedBy { it.second }.take(limit)
                     groupId to candidates
                 }.toMap()
             }

@@ -5,15 +5,15 @@ import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.MissingRecord
-import org.vitrivr.cottontail.core.queries.planning.cost.NormalizedCost
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.FloatValue
+import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.*
@@ -23,12 +23,15 @@ import java.util.*
  * An [Operator.SourceOperator] used during query execution. Used to explain queries
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 2.0.0
  */
-class ExplainQueryOperator(private val candidates: Collection<OperatorNode.Physical>, override val context: QueryContext) : Operator.SourceOperator() {
+class ExplainQueryOperator(private val candidates: Map<GroupId,List<Pair<OperatorNode.Physical,Float>>>, override val context: QueryContext) : Operator.SourceOperator() {
     companion object {
         val COLUMNS: List<ColumnDef<*>> = listOf(
-            ColumnDef(Name.ColumnName("path"), Types.String, false),
+            ColumnDef(Name.ColumnName("groupId"), Types.Int, false),
+            ColumnDef(Name.ColumnName("rank"), Types.Int, false),
+            ColumnDef(Name.ColumnName("score"), Types.Float, false),
+            ColumnDef(Name.ColumnName("position"), Types.Int, false),
             ColumnDef(Name.ColumnName("name"), Types.String, false),
             ColumnDef(Name.ColumnName("output_size"), Types.Long, false),
             ColumnDef(Name.ColumnName("cost_cpu"), Types.Float, false),
@@ -36,7 +39,8 @@ class ExplainQueryOperator(private val candidates: Collection<OperatorNode.Physi
             ColumnDef(Name.ColumnName("cost_memory"), Types.Float, false),
             ColumnDef(Name.ColumnName("cost_accuracy"), Types.Float, false),
             ColumnDef(Name.ColumnName("traits"), Types.String, false),
-            ColumnDef(Name.ColumnName("comment"), Types.String, false)
+            ColumnDef(Name.ColumnName("digest"), Types.Long, false),
+            ColumnDef(Name.ColumnName("designation"), Types.String, false)
         )
     }
 
@@ -45,27 +49,35 @@ class ExplainQueryOperator(private val candidates: Collection<OperatorNode.Physi
     override fun toFlow(): Flow<Record> = flow {
         with(this@ExplainQueryOperator.context.bindings) {
             with(MissingRecord) {
-                val normalized = NormalizedCost.normalize(this@ExplainQueryOperator.candidates.map { it.totalCost })
-                val selected = this@ExplainQueryOperator.candidates.zip(normalized).minByOrNull { (_, cost) ->
-                    this@ExplainQueryOperator.context.costPolicy.toScore(cost)
-                }?.first ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for query. Maybe there is an index missing?")
                 val columns = this@ExplainQueryOperator.columns.toTypedArray()
-                val plan = enumerate(LinkedList(), emptyArray(), selected)
-                var row = 0L
-                for (p in plan) {
-                    val node = p.second
-                    val values = arrayOf<Value?>(
-                        StringValue(p.first),
-                        StringValue(node.javaClass.simpleName),
-                        LongValue(node.outputSize),
-                        FloatValue(node.cost.cpu),
-                        FloatValue(node.cost.io),
-                        FloatValue(node.cost.memory),
-                        FloatValue(node.cost.accuracy),
-                        StringValue(node.traits.map { it.value.toString() }.joinToString(",")),
-                        StringValue(node.toString())
-                    )
-                    emit(StandaloneRecord(row++, columns, values))
+                for ((groupId, plans) in this@ExplainQueryOperator.candidates) {
+                    var rank = 1
+                    for ((plan, score) in plans) {
+                        val enumerated = enumerate(LinkedList(), emptyArray(), plan)
+                        var row = 0L
+                        var position = 1
+                        for (p in enumerated) {
+                            val node = p.second
+                            val values = arrayOf<Value?>(
+                                IntValue(groupId),
+                                IntValue(rank),
+                                FloatValue(score),
+                                IntValue(position),
+                                StringValue(p.first),
+                                LongValue(node.outputSize),
+                                FloatValue(node.cost.cpu),
+                                FloatValue(node.cost.io),
+                                FloatValue(node.cost.memory),
+                                FloatValue(node.cost.accuracy),
+                                StringValue(node.traits.map { it.value.toString() }.joinToString(",")),
+                                LongValue(node.digest()),
+                                StringValue(node.toString())
+                            )
+                            emit(StandaloneRecord(row++, columns, values))
+                            position += 1
+                        }
+                        rank += 1
+                    }
                 }
             }
         }

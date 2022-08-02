@@ -89,10 +89,10 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
             ctx.assign(canonical)
 
             /* Plan query and create execution plan. */
-            val candidate = this@DQLService.planner.planAndSelect(ctx)
+            val candidates = this@DQLService.planner.plan(ctx, 3)
 
             /* Generate operator tree. */
-            ExplainQueryOperator(listOf(candidate), ctx)
+            ExplainQueryOperator(candidates, ctx)
         }
     }
 
