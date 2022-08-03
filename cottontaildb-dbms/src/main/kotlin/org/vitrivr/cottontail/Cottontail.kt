@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail
 
-import jdk.incubator.vector.FloatVector
+import jdk.incubator.vector.DoubleVector
+import jdk.incubator.vector.IntVector
+import jdk.incubator.vector.LongVector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.config.Config
@@ -40,7 +42,15 @@ fun main(args: Array<String>) {
         /* Check for SIMD support, if flag has been set. */
         if (config.execution.simd) {
             try {
-                FloatVector.SPECIES_PREFERRED
+                val sInt = IntVector.SPECIES_PREFERRED
+                val sLong = LongVector.SPECIES_PREFERRED
+                val sFloat = DoubleVector.SPECIES_PREFERRED
+                val sDouble = DoubleVector.SPECIES_PREFERRED
+                println("Cottontail DB is running with SIMD extensions. This feature is experimental: ($sInt, $sLong, $sFloat, $sDouble).")
+                println("--> Species (Int): $sInt.")
+                println("--> Species (Long): $sLong.")
+                println("--> Species (Float): $sFloat.")
+                println("--> Species (Double): $sDouble.")
             } catch (e: NoClassDefFoundError) {
                 System.err.println("Failed to start Cottontail DB due to error: No support for Java Vector API. Please unset 'execution.simd' flag in config.")
                 exitProcess(1)
