@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.core.queries.functions.math.distance.binary
 
-import jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
 import jdk.incubator.vector.VectorOperators
+import jdk.incubator.vector.VectorSpecies
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.*
 import org.vitrivr.cottontail.core.queries.functions.Function
@@ -136,24 +136,29 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
      * SIMD implementation: [EuclideanDistance] for a [FloatVectorValue]
      */
     class FloatVectorVectorized(type: Types.Vector<FloatVectorValue,*>): EuclideanDistance<FloatVectorValue>(type), VectorisedFunction<DoubleValue> {
+        companion object {
+            @JvmStatic
+           private val SPECIES: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
+        }
+
         override val name: Name.FunctionName = FUNCTION_NAME
 
         /** The [Cost] of applying this [EuclideanDistance]. */
         override val cost: Cost
-            get() = ((Cost.FLOP * 3.0f + Cost.MEMORY_ACCESS * 2.0f) * (this.vectorSize / SPECIES_PREFERRED.length())) + Cost.OP_SQRT
+            get() = ((Cost.FLOP * 3.0f + Cost.MEMORY_ACCESS * 2.0f) * (this.vectorSize / SPECIES.length())) + Cost.OP_SQRT
 
         override fun invoke(vararg arguments: Value?): DoubleValue {
             val probing = (arguments[0] as FloatVectorValue).data
             val query = (arguments[1] as FloatVectorValue).data
 
             /* Vectorised distance calculation. */
-            var vectorSum = jdk.incubator.vector.FloatVector.zero(SPECIES_PREFERRED)
-            val bound = SPECIES_PREFERRED.loopBound(this.vectorSize)
-            for (i in 0 until bound step SPECIES_PREFERRED.length()) {
-                val vp = jdk.incubator.vector.FloatVector.fromArray(SPECIES_PREFERRED, probing, i)
-                val vq = jdk.incubator.vector.FloatVector.fromArray(SPECIES_PREFERRED, query, i)
-                val diff = vp.sub(vq)
-                vectorSum = vectorSum.add(diff.mul(diff))
+            var vectorSum = jdk.incubator.vector.FloatVector.zero(SPECIES)
+            val bound = SPECIES.loopBound(this.vectorSize)
+            for (i in 0 until bound step SPECIES.length()) {
+                val vp = jdk.incubator.vector.FloatVector.fromArray(SPECIES, probing, i)
+                val vq = jdk.incubator.vector.FloatVector.fromArray(SPECIES, query, i)
+                val diff = vp.lanewise(VectorOperators.SUB, vq)
+                vectorSum = vectorSum.lanewise(VectorOperators.ADD, diff.lanewise(VectorOperators.MUL, diff))
             }
 
             /* Scalar version for remainder. */
