@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail
 
 import jdk.incubator.vector.DoubleVector
+import jdk.incubator.vector.FloatVector
 import jdk.incubator.vector.IntVector
 import jdk.incubator.vector.LongVector
 import kotlinx.coroutines.Dispatchers
@@ -44,7 +45,7 @@ fun main(args: Array<String>) {
             try {
                 val sInt = IntVector.SPECIES_PREFERRED
                 val sLong = LongVector.SPECIES_PREFERRED
-                val sFloat = DoubleVector.SPECIES_PREFERRED
+                val sFloat = FloatVector.SPECIES_PREFERRED
                 val sDouble = DoubleVector.SPECIES_PREFERRED
                 println("Cottontail DB is running with SIMD extensions. This feature is experimental: ($sInt, $sLong, $sFloat, $sDouble).")
                 println("--> Species (Int): $sInt.")
