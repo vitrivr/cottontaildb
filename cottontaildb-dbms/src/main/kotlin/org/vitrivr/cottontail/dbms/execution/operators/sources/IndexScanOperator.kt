@@ -1,8 +1,7 @@
 package org.vitrivr.cottontail.dbms.execution.operators.sources
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.buffer
-import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flow
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Record
@@ -48,7 +47,7 @@ class IndexScanOperator(
      *
      * @return [Flow] representing this [IndexScanOperator]
      */
-    override fun toFlow(): Flow<Record> = channelFlow {
+    override fun toFlow(): Flow<Record> = flow {
         val columns = this@IndexScanOperator.fetch.map { it.first.column }.toTypedArray()
         var read = 0
         if (this@IndexScanOperator.partitions == 1) {
@@ -59,10 +58,10 @@ class IndexScanOperator(
         }.use { cursor ->
             while (cursor.moveNext()) {
                 val record = cursor.value() as StandaloneRecord
-                send(StandaloneRecord(record.tupleId, columns, record.values))
+                emit(StandaloneRecord(record.tupleId, columns, record.values))
                 read += 1
             }
         }
         LOGGER.debug("Read $read entries from ${this@IndexScanOperator.index.dbo.name}.")
-    }.buffer(1024) /* Buffering up to 1024 records. */
+    }
 }
