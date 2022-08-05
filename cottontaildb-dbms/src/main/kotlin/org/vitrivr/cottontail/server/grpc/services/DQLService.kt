@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.execution.operators.system.ExplainQueryOperator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
+import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.LeftConjunctionOnSubselectRewriteRule
@@ -71,8 +72,12 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
             val canonical = GrpcQueryBinder.bind(request.query)
             ctx.assign(canonical)
 
-            /* Plan query and create execution plan. */
-            ctx.plan(this@DQLService.planner, false, true)
+            /* Plan and/or implement query to create execution plan. */
+            if (ctx.hints.contains(QueryHint.NoOptimisation)) {
+                ctx.implement()
+            } else {
+                ctx.plan(this@DQLService.planner, false, true)
+            }
 
             /* Generate operator tree. */
             ctx.toOperatorTree()

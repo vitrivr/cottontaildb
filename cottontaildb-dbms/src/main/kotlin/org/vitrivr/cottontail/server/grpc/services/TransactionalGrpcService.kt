@@ -25,6 +25,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.utilities.extensions.proto
 import org.vitrivr.cottontail.utilities.extensions.toLiteral
 import java.util.*
+import kotlin.time.DurationUnit
 import kotlin.time.ExperimentalTime
 import kotlin.time.TimeSource
 
@@ -32,7 +33,7 @@ import kotlin.time.TimeSource
  * A facility common to all service that handle [TransactionManager.TransactionImpl]s over gRPC.
  *
  * @author Ralph Gasser
- * @version 1.4.1
+ * @version 1.5.0
  */
 @ExperimentalTime
 internal interface TransactionalGrpcService {
@@ -48,13 +49,13 @@ internal interface TransactionalGrpcService {
     val manager: TransactionManager
 
     /**
-     * Generates and returns a new [DefaultQueryContext] for the given [CottontailGrpc.Metadata].
+     * Generates and returns a new [DefaultQueryContext] for the given [CottontailGrpc.RequestMetadata].
      *
-     * @param metadata The [CottontailGrpc.Metadata] to process.
+     * @param metadata The [CottontailGrpc.RequestMetadata] to process.
      * @param readOnly Flag indicating whether the query that requested the [DefaultQueryContext] is a readonly query.
      * @return [DefaultQueryContext]
      */
-    fun queryContextFromMetadata(metadata: CottontailGrpc.Metadata, readOnly: Boolean): DefaultQueryContext? {
+    fun queryContextFromMetadata(metadata: CottontailGrpc.RequestMetadata, readOnly: Boolean): DefaultQueryContext? {
         val queryId = if (metadata.queryId.isNullOrEmpty()) {
             UUID.randomUUID().toString()
         } else {
@@ -78,8 +79,11 @@ internal interface TransactionalGrpcService {
 
         /* Parse all the query hints provided by the user. */
         val hints = mutableSetOf<QueryHint>()
+        if (metadata.noOptimiseHint) {
+            hints.add(QueryHint.NoOptimisation)
+        }
         if (metadata.hasParallelHint()) {
-            hints.add(QueryHint.Parallelism(metadata.parallelHint.max))
+            hints.add(QueryHint.Parallelism(metadata.parallelHint.limit))
         }
         if (metadata.hasIndexHint()) {
             if (metadata.indexHint.hasDisallow()) {
@@ -105,14 +109,14 @@ internal interface TransactionalGrpcService {
     }
 
     /**
-     * Prepares and executes a query using the [DefaultQueryContext] specified by the [CottontailGrpc.Metadata] object.
+     * Prepares and executes a query using the [DefaultQueryContext] specified by the [CottontailGrpc.RequestMetadata] object.
      *
-     * @param metadata The [CottontailGrpc.Metadata] that identifies the [DefaultQueryContext]
+     * @param metadata The [CottontailGrpc.RequestMetadata] that identifies the [DefaultQueryContext]
      * @param readOnly Flag indicating, whether the query prepared is a read-only query.
      * @param prepare The action that prepares the query [Operator]
      * @return [Flow] of [CottontailGrpc.QueryResponseMessage]
      */
-    fun prepareAndExecute(metadata: CottontailGrpc.Metadata, readOnly: Boolean, prepare: (ctx: DefaultQueryContext) -> Operator): Flow<CottontailGrpc.QueryResponseMessage> {
+    fun prepareAndExecute(metadata: CottontailGrpc.RequestMetadata, readOnly: Boolean, prepare: (ctx: DefaultQueryContext) -> Operator): Flow<CottontailGrpc.QueryResponseMessage> {
         /* Phase 1a: Obtain query context. */
         val m1 = TimeSource.Monotonic.markNow()
         val context = this.queryContextFromMetadata(metadata, readOnly) ?: return flow {
@@ -124,12 +128,18 @@ internal interface TransactionalGrpcService {
         try {
             /* Phase 1b: Obtain operator by means of query parsing, binding and planning. */
             val operator = prepare(context)
-            m1.elapsedNow()
-            LOGGER.debug("[${context.txn.txId}, ${context.queryId}] Preparation of ${context.physical?.name} completed successfully in ${m1.elapsedNow()}.")
+            val planDuration = m1.elapsedNow()
+            LOGGER.debug("[${context.txn.txId}, ${context.queryId}] Preparation of ${context.physical?.name} completed successfully in $planDuration.")
 
             /* Phase 2a: Build query response message. */
             val m2 = TimeSource.Monotonic.markNow()
-            val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setMetadata(CottontailGrpc.Metadata.newBuilder().setQueryId(context.queryId).setTransactionId(context.txn.txId))
+            val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder()
+                .setMetadata(CottontailGrpc.ResponseMetadata.newBuilder()
+                .setQueryId(context.queryId)
+                .setTransactionId(context.txn.txId)
+                .setQueryDuration(0L)
+                .setPlanDuration(planDuration.toLong(DurationUnit.MILLISECONDS))
+            )
             for (c in operator.columns) {
                 val builder = responseBuilder.addColumnsBuilder()
                 builder.name = c.name.proto()
@@ -148,6 +158,7 @@ internal interface TransactionalGrpcService {
                 val tuple = it.toTuple()
                 results += 1
                 if (accumulatedSize + tuple.serializedSize >= Constants.MAX_PAGE_SIZE_BYTES) {
+                    responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS) /* Query duration is, re-evaluated for every batch. */
                     emit(responseBuilder.build())
                     responseBuilder.clearTuples()
                     accumulatedSize = headerSize
@@ -158,7 +169,11 @@ internal interface TransactionalGrpcService {
                 accumulatedSize += tuple.serializedSize
             }.onCompletion {
                 if (it == null) {
-                    if (results == 0 || responseBuilder.tuplesCount > 0) emit(responseBuilder.build()) /* Emit final response. */
+                    if (results == 0 || responseBuilder.tuplesCount > 0) {
+                        responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS)
+                        emit(responseBuilder.build()) /* Emit final response. */
+                    }
+
                     try {
                         if (context.txn.type.autoCommit) {
                             context.txn.commit() /* Handle auto-commit. */

@@ -6,7 +6,7 @@ import org.vitrivr.cottontail.dbms.index.basic.Index
  * A [QueryHint] as provided by the user that issues a query.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 sealed interface QueryHint {
 
@@ -77,4 +77,10 @@ sealed interface QueryHint {
             require(this.parallelisableIO in 0.0f .. 1.0f) { "The fraction of non-parallelisable IO must lie between 0.0 and 1.0 bit is ${this.parallelisableIO}."}
         }
     }
+
+    /**
+     * A [QueryHint] that instructs the query execution to not perform any plan optimisation.
+     */
+    object NoOptimisation: QueryHint
 }
+
