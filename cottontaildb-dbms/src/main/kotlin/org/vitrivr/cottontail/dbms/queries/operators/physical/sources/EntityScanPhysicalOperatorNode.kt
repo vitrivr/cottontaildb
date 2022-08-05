@@ -21,7 +21,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOpera
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import java.lang.Math.floorDiv
 
 /**
@@ -54,7 +54,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
     override val executable: Boolean = true
 
     /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
-    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>,ValueStatistics<*>>()
+    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
 
     /** The estimated [Cost] incurred by scanning the [Entity]. */
     override val cost: Cost

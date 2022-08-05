@@ -178,13 +178,12 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             if (predicate.column != this.columns[0]) return Cost.INVALID
             if (predicate.distance !is MinkowskiDistance<*>) return Cost.INVALID
             val signatureRead = this.count()
-            val fullRead = 0.1f * signatureRead /* Assumption: Only 10% of values are read --> see paper. */
+            val fullRead = 0.1f * signatureRead /* Assumption: Only about 10% of values are read --> see paper. */
             return when (predicate) {
                 is ProximityPredicate.Scan -> Cost.INVALID
                 is ProximityPredicate.ENN -> Cost(
                     Cost.DISK_ACCESS_READ.io * this.columns[0].type.logicalSize * signatureRead + Cost.DISK_ACCESS_READ.io * this.columns[0].type.physicalSize * fullRead,
-                    (Cost.MEMORY_ACCESS.memory * 2.0f + Cost.FLOP.cpu) * this.columns[0].type.logicalSize * signatureRead + predicate.cost.cpu * fullRead,
-                    (Long.SIZE_BYTES + Double.SIZE_BYTES + this.columns[0].type.physicalSize).toFloat() * 10_000
+                    (Cost.MEMORY_ACCESS.memory * 2.0f + Cost.FLOP.cpu) * this.columns[0].type.logicalSize * signatureRead + predicate.cost.cpu * fullRead
                 )
                 is ProximityPredicate.KLimitedSearch -> Cost(
                     Cost.DISK_ACCESS_READ.io * this.columns[0].type.logicalSize * signatureRead + Cost.DISK_ACCESS_READ.io * this.columns[0].type.physicalSize * fullRead,

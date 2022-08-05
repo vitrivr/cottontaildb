@@ -6,11 +6,13 @@ import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
 import org.vitrivr.cottontail.dbms.execution.services.AutoAnalyzerService
 import org.vitrivr.cottontail.dbms.execution.services.AutoRebuilderService
+import org.vitrivr.cottontail.dbms.execution.services.StatisticsPersisterTask
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.server.grpc.services.DDLService
 import org.vitrivr.cottontail.server.grpc.services.DMLService
 import org.vitrivr.cottontail.server.grpc.services.DQLService
 import org.vitrivr.cottontail.server.grpc.services.TXNService
+import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
 /**
@@ -54,6 +56,9 @@ class CottontailServer(config: Config) {
         /* Register the different service tasks. */
         this.transactionManager.register(AutoRebuilderService(this.catalogue, this.transactionManager))
         this.transactionManager.register(AutoAnalyzerService(this.catalogue, this.transactionManager))
+
+        /* Registers the task that takes care of persisting index & column statistics. */
+        this.executor.serviceWorkerPool.scheduleAtFixedRate(StatisticsPersisterTask(this.catalogue), 1, 1, TimeUnit.MINUTES)
 
         /* Start gRPC server. */
         try {

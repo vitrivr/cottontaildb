@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.statistics.columns
+package org.vitrivr.cottontail.dbms.statistics.values
 
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.queries.binding.BindingContext

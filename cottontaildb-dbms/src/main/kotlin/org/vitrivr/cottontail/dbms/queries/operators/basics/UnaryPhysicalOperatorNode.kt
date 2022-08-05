@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergeLimitingSortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.LimitPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import java.io.PrintStream
 
 /**

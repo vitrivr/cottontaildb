@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.dbms.execution.operators.transform.FetchOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
  * A [UnaryPhysicalOperatorNode] that represents fetching certain [ColumnDef] from a specific [Entity] and
@@ -66,7 +66,6 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
 
     /* Initialize local statistics. */
     init {
-        var fetchSize = 0
         for ((binding, physical) in this.fetch) {
             if (!this.localStatistics.containsKey(binding.column)) {
                 this.localStatistics[binding.column] = this.entity.columnForName(physical.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>

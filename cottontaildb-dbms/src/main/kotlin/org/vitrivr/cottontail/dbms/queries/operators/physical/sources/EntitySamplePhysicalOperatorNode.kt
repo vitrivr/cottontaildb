@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.sources.EntitySampleOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
  * A [NullaryPhysicalOperatorNode] that formalizes the random sampling of a physical [Entity] in Cottontail DB.
@@ -51,7 +51,7 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
     override val executable: Boolean = true
 
     /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
-    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>,ValueStatistics<*>>()
+    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
 
     /** The estimated [Cost] incurred by this [EntitySamplePhysicalOperatorNode]. */
     override val cost: Cost
@@ -91,18 +91,6 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
 
     /** Generates and returns a [String] representation of this [EntitySamplePhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is EntitySamplePhysicalOperatorNode) return false
-
-        if (this.entity != other.entity) return false
-        if (this.columns != other.columns) return false
-        if (this.outputSize != other.outputSize) return false
-        if (this.seed != other.seed) return false
-
-        return true
-    }
 
     /**
      * Generates and returns a [Digest] for this [EntitySamplePhysicalOperatorNode].

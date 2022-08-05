@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.index.va.VAFIndexConfig
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.columns.RealVectorValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
 
 /**
  * An [AbstractIndexRebuilder] for the [VAFIndex].

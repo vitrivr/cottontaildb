@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
 import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
  * A [NullaryPhysicalOperatorNode] used to list all transactions.

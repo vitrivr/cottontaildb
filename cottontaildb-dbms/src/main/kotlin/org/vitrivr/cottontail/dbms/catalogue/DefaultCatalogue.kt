@@ -8,6 +8,7 @@ import jetbrains.exodus.vfs.VfsConfig
 import jetbrains.exodus.vfs.VirtualFileSystem
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
@@ -21,6 +22,9 @@ import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
+import org.vitrivr.cottontail.dbms.statistics.Index.IndexStatisticsManager
+import org.vitrivr.cottontail.dbms.statistics.columns.ColumnStatisticsManager
+
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.concurrent.withLock
@@ -80,7 +84,13 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
     )
 
     /** The Xodus [VirtualFileSystem] used by Cottontail DB. This is an internal variable and not part of the official interface. */
-    internal val vfs: VirtualFileSystem
+    val vfs: VirtualFileSystem
+
+    /** The [IndexStatisticsManager] used by this [DefaultCatalogue]. */
+    val indexStatistics: IndexStatisticsManager
+
+    /** The [ColumnStatisticsManager] used by this [DefaultCatalogue]. */
+    val columnStatistics: ColumnStatisticsManager
 
     init {
         /* Check if catalogue has been initialized and initialize if needed. */
@@ -96,9 +106,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
                 EntityCatalogueEntry.init(this, tx)
                 SequenceCatalogueEntries.init(this, tx)
                 ColumnCatalogueEntry.init(this, tx)
-                StatisticsCatalogueEntry.init(this, tx)
                 IndexCatalogueEntry.init(this, tx)
-                IndexStructCatalogueEntry.init(this, tx)
             }
 
             /** Initialize virtual file system. */
@@ -106,6 +114,10 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
             config.clusteringStrategy = ClusteringStrategy.QuadraticClusteringStrategy(65536)
             config.clusteringStrategy.maxClusterSize = 65536 * 16
             this.vfs = VirtualFileSystem(this.environment, config, tx)
+
+            /** Open the IndexStatisticsManager. */
+            this.indexStatistics = IndexStatisticsManager(this.environment, tx)
+            this.columnStatistics = ColumnStatisticsManager(this.environment, tx)
 
             /* Check database version. */
             val version = MetadataEntry.read(METADATA_ENTRY_DB_VERSION, this, tx)?.let { it -> DBOVersion.valueOf(it.value) } ?: DBOVersion.UNDEFINED
@@ -143,15 +155,18 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
      * @param context The [QueryContext] to create the [DefaultCatalogue.Tx] for.
      * @return New [DefaultCatalogue.Tx]
      */
-    override fun newTx(context: QueryContext): CatalogueTx
-        = context.txn.getCachedTxForDBO(this) ?: Tx(context)
+    override fun newTx(context: QueryContext): CatalogueTx = context.txn.getCachedTxForDBO(this) ?: Tx(context)
 
     /**
      * Closes the [DefaultCatalogue] and all objects contained within.
      */
     override fun close() {
-        this.vfs.shutdown()
-        this.environment.close()
+        try {
+            this.indexStatistics.persist() /* Persist all index statistics. */
+        } finally {
+            this.vfs.shutdown()
+            this.environment.close()
+        }
     }
 
     override fun equals(other: Any?): Boolean {

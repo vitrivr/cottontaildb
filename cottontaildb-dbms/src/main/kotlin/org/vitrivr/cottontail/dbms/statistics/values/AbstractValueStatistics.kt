@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.statistics.columns
+package org.vitrivr.cottontail.dbms.statistics.values
 
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
@@ -58,6 +58,7 @@ sealed class AbstractValueStatistics<T : Value>(override val type: Types<T>): Va
      *
      * @param inserted The [Value] that was deleted.
      */
+    @Synchronized
     override fun insert(inserted: T?) {
         if (inserted == null) {
             this.numberOfNullEntries += 1
@@ -71,6 +72,7 @@ sealed class AbstractValueStatistics<T : Value>(override val type: Types<T>): Va
      *
      * @param deleted The [Value] that was deleted.
      */
+    @Synchronized
     override fun delete(deleted: T?) {
         if (deleted == null) {
             this.numberOfNullEntries -= 1
@@ -87,6 +89,7 @@ sealed class AbstractValueStatistics<T : Value>(override val type: Types<T>): Va
      * @param old The [Value] before the update.
      * @param new The [Value] after the update.
      */
+    @Synchronized
     override fun update(old: T?, new: T?) {
         this.delete(old)
         this.insert(new)
@@ -95,6 +98,7 @@ sealed class AbstractValueStatistics<T : Value>(override val type: Types<T>): Va
     /**
      * Resets this [AbstractValueStatistics] and sets all its values to the default value.
      */
+    @Synchronized
     override fun reset() {
         this.fresh = true
         this.numberOfNullEntries = 0L

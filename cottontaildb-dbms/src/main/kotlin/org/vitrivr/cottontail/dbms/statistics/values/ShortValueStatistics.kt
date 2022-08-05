@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.statistics.columns
+package org.vitrivr.cottontail.dbms.statistics.values
 
 import com.google.common.primitives.Shorts.max
 import com.google.common.primitives.Shorts.min

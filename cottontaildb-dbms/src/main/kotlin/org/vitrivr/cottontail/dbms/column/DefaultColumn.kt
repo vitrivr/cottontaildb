@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.catalogue.entries.StatisticsCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
@@ -19,7 +18,8 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.columns.ColumnStatistic
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
 import kotlin.concurrent.withLock
@@ -91,18 +91,9 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         /** The internal [XodusBinding] reference used for de-/serialization. */
         internal val binding: XodusBinding<T> = ValueSerializerFactory.xodus(this@DefaultColumn.columnDef.type, this@DefaultColumn.nullable)
 
-        /** Internal reference to the [ValueStatistics] for this [DefaultColumn]. */
-        @Suppress("UNCHECKED_CAST")
-        private var statistics: ValueStatistics<T> = (StatisticsCatalogueEntry.read(this@DefaultColumn.name, this@DefaultColumn.catalogue, this.context.txn.xodusTx)?.statistics
-            ?: throw DatabaseException.DataCorruptionException("Failed to PUT value from ${this@DefaultColumn.name}: Reading column statistics failed.")) as ValueStatistics<T>
-
         /** Reference to [Column] this [Tx] belongs to. */
         override val dbo: DefaultColumn<T>
             get() = this@DefaultColumn
-
-        /** Flag indicating that changes have been made through this [DefaultColumn.Tx] */
-        @Volatile
-        private var updateStatistics: Boolean = false
 
         /**
          * Performs analysis of the [DefaultColumn] backing this [ColumnTx] and updates the associated [ValueStatistics].
@@ -111,17 +102,14 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         override fun analyse() = this.txLatch.withLock {
             /* Reset and refresh statistics object. */
             val cursor = this.cursor()
-            val newEntry = StatisticsCatalogueEntry(this@DefaultColumn.columnDef)
+            val newEntry = ColumnStatistic(this@DefaultColumn.columnDef)
             while (cursor.moveNext()) {
                 (newEntry.statistics as ValueStatistics<T>).insert(cursor.value())
             }
             cursor.close()
 
             /* Update statistics entry.*/
-            if (StatisticsCatalogueEntry.write(newEntry, this@DefaultColumn.catalogue, this.context.txn.xodusTx)) {
-                this.statistics = newEntry.statistics as ValueStatistics<T>
-                this.updateStatistics = false
-            }
+            this@DefaultColumn.catalogue.columnStatistics.update(newEntry)
         }
 
         /**
@@ -129,8 +117,10 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
          *
          * @return [ValueStatistics].
          */
+        @Suppress("UNCHECKED_CAST")
         override fun statistics(): ValueStatistics<T> = this.txLatch.withLock {
-            this.statistics
+            (this@DefaultColumn.catalogue.columnStatistics[this@DefaultColumn.name]?.statistics
+                ?: throw DatabaseException.DataCorruptionException("Failed to read column statistics.")) as ValueStatistics<T>
         }
 
         /**
@@ -209,8 +199,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             if (!this.dataStore.add(this.context.txn.xodusTx, rawTuple, valueRaw)) {
                 throw DatabaseException.DataCorruptionException("Failed to ADD tuple $tupleId to column ${this@DefaultColumn.name}.")
             }
-            this.updateStatistics = true
-            this.statistics.insert(value)
+            this.statistics().insert(value)
 
             /* Return success status. */
             return true
@@ -234,8 +223,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             if (!this.dataStore.put(this.context.txn.xodusTx, rawTuple, valueRaw)) {
                 throw DatabaseException.DataCorruptionException("Failed to PUT tuple $tupleId to column ${this@DefaultColumn.name}.")
             }
-            this.updateStatistics = true
-            this.statistics.update(existing, value)
+            this.statistics().update(existing, value)
 
             /* Return updated value. */
             return existing
@@ -257,8 +245,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             if (!this.dataStore.delete(this.context.txn.xodusTx, rawTuple)) {
                 throw DatabaseException.DataCorruptionException("Failed to DELETE tuple $tupleId to column ${this@DefaultColumn.name}.")
             }
-            this.updateStatistics = true
-            this.statistics.delete(existing)
+            this.statistics().delete(existing)
 
             /* Return existing value. */
             return existing
@@ -284,19 +271,13 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         }
 
         /**
-         * Called when a transactions commit. Updates [StatisticsCatalogueEntry].
+         * Called when a transactions commit.
+         *
+         * Checks for freshness of [ColumnStatistic].
          */
         override fun beforeCommit() {
-            /* Update statistics if there have been changes. */
-            if (this.updateStatistics) {
-                val entry = StatisticsCatalogueEntry.read(this@DefaultColumn.name, this@DefaultColumn.catalogue, this.context.txn.xodusTx)
-                    ?: throw DatabaseException.DataCorruptionException("Failed to finalize transaction for column ${this@DefaultColumn.name}: Reading column statistics failed.")
-                StatisticsCatalogueEntry.write(entry.copy(statistics = this.statistics), this@DefaultColumn.catalogue, this.context.txn.xodusTx)
-
-                /* If statistics are no longer fresh, then issue event. */
-                if (!this.statistics.fresh) {
-                    this.context.txn.signalEvent(ColumnEvent.Stale(this@DefaultColumn.name))
-                }
+            if (!this.statistics().fresh) {
+                this.context.txn.signalEvent(ColumnEvent.Stale(this@DefaultColumn.name))
             }
         }
     }

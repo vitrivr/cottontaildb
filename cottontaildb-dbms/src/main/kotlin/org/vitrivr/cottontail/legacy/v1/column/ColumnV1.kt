@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import org.vitrivr.cottontail.legacy.v1.entity.EntityV1
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.mapdb.MapDBSerializer

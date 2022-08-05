@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.statistics.columns
+package org.vitrivr.cottontail.dbms.statistics.values
 
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.core.values.types.Types

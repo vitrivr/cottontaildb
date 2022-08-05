@@ -141,7 +141,7 @@ sealed interface ComparisonOperator: NodeWithCost {
         override val cost: Cost
             get() = Cost.MEMORY_ACCESS * 2 * this.right.size
 
-        private var lookupSet: ObjectOpenHashSet<Value>? = null
+        private val lookupSet: ObjectOpenHashSet<Value> = ObjectOpenHashSet(this.right.size)
 
         init {
             /* Sanity check + initialization of values list. */
@@ -156,17 +156,16 @@ sealed interface ComparisonOperator: NodeWithCost {
          */
         context(BindingContext,Record)
         override fun match(): Boolean {
-            if (this.lookupSet == null) {
-                this.lookupSet = ObjectOpenHashSet()
+            if (this.lookupSet.isEmpty()) {
                 for (r in this.right) {
                     if (r is Binding.Subquery) {
-                        this.lookupSet!!.addAll(r.getValues())
+                        this.lookupSet.addAll(r.getValues())
                     } else {
-                        this.lookupSet!!.add(r.getValue())
+                        this.lookupSet.add(r.getValue())
                     }
                 }
             }
-            return this.left.getValue() in this.lookupSet!!
+            return this.left.getValue() in this.lookupSet
         }
         override fun digest(): Digest = this.hashCode().toLong()
         override fun toString(): String = "$left IN [${this.right.joinToString(",")}]"

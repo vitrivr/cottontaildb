@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.storage.serializers.statistics
 
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.statistics.columns.*
+import org.vitrivr.cottontail.dbms.statistics.values.*
 import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
 
 /**

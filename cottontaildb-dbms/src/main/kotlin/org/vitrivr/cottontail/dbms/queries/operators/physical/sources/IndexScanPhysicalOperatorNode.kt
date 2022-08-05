@@ -23,9 +23,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergeLimitingSortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.LimitPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
 import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
  * A [IndexScanPhysicalOperatorNode] that represents a predicated lookup using an [AbstractIndex].

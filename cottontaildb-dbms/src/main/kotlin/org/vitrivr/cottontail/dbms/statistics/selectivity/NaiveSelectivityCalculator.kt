@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
  * This is a very naive calculator for [Selectivity] values.
@@ -24,7 +24,7 @@ object NaiveSelectivityCalculator {
      * @param statistics The map of [ValueStatistics] to use in the calculation.
      */
     context(BindingContext,Record)
-    fun estimate(predicate: BooleanPredicate, statistics: Map<ColumnDef<*>,ValueStatistics<*>>) = when (predicate) {
+    fun estimate(predicate: BooleanPredicate, statistics: Map<ColumnDef<*>, ValueStatistics<*>>) = when (predicate) {
         is BooleanPredicate.Atomic -> estimateAtomicReference(predicate, statistics)
         is BooleanPredicate.Compound -> estimateCompoundSelectivity(predicate, statistics)
     }
@@ -36,7 +36,7 @@ object NaiveSelectivityCalculator {
      * @param statistics The map of [ValueStatistics] to use in the calculation.
      */
     context(BindingContext,Record)
-    private fun estimateAtomicReference(predicate: BooleanPredicate.Atomic, statistics: Map<ColumnDef<*>,ValueStatistics<*>>): Selectivity {
+    private fun estimateAtomicReference(predicate: BooleanPredicate.Atomic, statistics: Map<ColumnDef<*>, ValueStatistics<*>>): Selectivity {
         val left = predicate.operator.left
         return if (left is Binding.Column) {
             val stat = statistics[left.column] ?: return Selectivity.DEFAULT
@@ -56,7 +56,7 @@ object NaiveSelectivityCalculator {
      * @param statistics The map of [ValueStatistics] to use in the calculation.
      */
     context(BindingContext, Record)
-    private fun estimateCompoundSelectivity(predicate: BooleanPredicate.Compound, statistics: Map<ColumnDef<*>,ValueStatistics<*>>): Selectivity {
+    private fun estimateCompoundSelectivity(predicate: BooleanPredicate.Compound, statistics: Map<ColumnDef<*>, ValueStatistics<*>>): Selectivity {
         val pp1 = estimate(predicate.p1, statistics)
         val pp2 = estimate(predicate.p2, statistics)
         return when (predicate) {

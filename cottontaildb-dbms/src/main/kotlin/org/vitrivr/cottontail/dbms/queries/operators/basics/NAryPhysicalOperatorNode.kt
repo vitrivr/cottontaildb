@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import java.io.PrintStream
 
 /**

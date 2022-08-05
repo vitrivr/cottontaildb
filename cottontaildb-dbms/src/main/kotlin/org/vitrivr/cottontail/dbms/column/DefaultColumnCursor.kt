@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -18,7 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class DefaultColumnCursor<T: Value>(private val partition: LongRange, private val tx: DefaultColumn<T>.Tx, private val context: QueryContext): Cursor<T?> {
 
     /** The per-[Cursor] [XodusBinding] instance. */
-    private val binding: XodusBinding<T> = this.tx.binding
+    private val binding: XodusBinding<T> = ValueSerializerFactory.xodus(this.tx.dbo.columnDef.type, this.tx.dbo.nullable)
 
     /** Creates a read-only snapshot of the enclosing Tx. */
     private val subTransaction = this.context.txn.xodusTx.readonlySnapshot

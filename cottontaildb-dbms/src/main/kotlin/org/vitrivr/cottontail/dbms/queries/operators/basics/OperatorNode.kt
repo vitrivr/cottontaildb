@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import java.io.PrintStream
 
 /**

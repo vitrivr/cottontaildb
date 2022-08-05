@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.index.va.VAFIndexConfig
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.columns.RealVectorValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
 
 /**
  * An [AbstractAsyncIndexRebuilder] that can be used to concurrently rebuild a [VAFIndex].

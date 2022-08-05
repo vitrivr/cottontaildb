@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.PlaceholderPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import java.io.PrintStream
 
 /**
@@ -69,7 +69,7 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
         get() = emptyList()
 
     /** By default, a [BinaryPhysicalOperatorNode]'s statistics are retained from its left input. Can be overridden! */
-    override val statistics: Map<ColumnDef<*>,ValueStatistics<*>>
+    override val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
         get() = this.left.statistics
 
     init {
