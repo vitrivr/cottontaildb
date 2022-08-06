@@ -19,6 +19,7 @@ import org.vitrivr.cottontail.dbms.functions.initialize
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.DBOVersion
+import org.vitrivr.cottontail.dbms.index.cache.InMemoryIndexCache
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
@@ -91,6 +92,9 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
     /** The [ColumnStatisticsManager] used by this [DefaultCatalogue]. */
     val columnStatistics: ColumnStatisticsManager
+
+    /** A internal, in-memory cache for frequently used index structures. This is highly experimental! */
+    val cache = InMemoryIndexCache()
 
     init {
         /* Check if catalogue has been initialized and initialize if needed. */
