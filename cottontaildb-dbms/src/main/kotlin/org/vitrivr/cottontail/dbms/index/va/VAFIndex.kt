@@ -319,7 +319,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             return when(predicate) {
                 is ProximityPredicate.ENN -> VAFCursor.ENN(partition, predicate, this)
                 is ProximityPredicate.FNS -> VAFCursor.FNS(partition, predicate, this)
-                is ProximityPredicate.NNS -> VAFCursor.NNS(partition, predicate, this)
+                is ProximityPredicate.NNS -> CachedVAFCursor.NNS(partition, predicate, this)
                 else -> throw IllegalArgumentException(" VAFIndex can only be used with a NNS, FNS or ENS type proximity predicate. This is a programmer's error!")
             }
         }
