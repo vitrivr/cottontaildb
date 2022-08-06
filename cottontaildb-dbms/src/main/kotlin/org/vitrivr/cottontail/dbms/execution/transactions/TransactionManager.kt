@@ -307,14 +307,11 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         private fun performRollback() {
             this@TransactionImpl.state = TransactionStatus.FINALIZING
             try {
-                try {
-                    for (txn in this@TransactionImpl.notifyOnRollback) {
-                        txn.beforeRollback()
-                    }
-                } finally {
-                    this.xodusTx.abort()
+                for (txn in this@TransactionImpl.notifyOnRollback) {
+                    txn.beforeRollback()
                 }
             } finally {
+                this.xodusTx.abort()
                 this@TransactionImpl.finalize(false)
             }
         }
