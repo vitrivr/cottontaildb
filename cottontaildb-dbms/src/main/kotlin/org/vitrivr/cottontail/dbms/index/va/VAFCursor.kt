@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * A [Cursor] implementation for the [VAFIndex].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 @Suppress("UNCHECKED_CAST")
 sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange, protected val predicate: T, protected val index: VAFIndex.Tx): Cursor<Record> {
@@ -101,6 +101,19 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
         this.cursor.close()
         this.subTx.abort()
         this.columnCursor.close()
+    }
+
+    /**
+     * Calculates, updates and reports [VAFIndex] efficiency.
+     *
+     * @param retrieved The number of entries that had to be retrieved.
+     */
+    protected fun reportAndUpdateEfficiency(retrieved: Long) {
+        /* Log efficiency of VAF scan. */
+        val partitionSize = this.partition.last - this.partition.first + 1
+        val efficiency = (1.0f - (retrieved.toFloat() / partitionSize))
+        this.index.updateEfficiency(efficiency)
+        VAFIndex.LOGGER.debug("VA-SSA Scan: Read $retrieved and skipped over ${"%.2f".format(efficiency * 100.0f)}% of entries.")
     }
 
     /**
@@ -194,13 +207,11 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                 } while (this.cursor.next && this.cursor.key < this.endKey)
 
                 /* Log efficiency of VAF scan. */
-                val count = this.partition.last - this.partition.first + 1
-                VAFIndex.LOGGER.debug("VA-SSA Scan: Read ${localSelection.added} and skipped over ${(1.0 - (localSelection.added.toDouble() / count)) * 100}% of entries.")
-                return localSelection
+                this.reportAndUpdateEfficiency(localSelection.added)
             } catch (e: Throwable) {
                 VAFIndex.LOGGER.error("VA-SSA Scan: Error while scanning VAF index: ${e.message}")
-                return localSelection
             }
+            return localSelection
         }
     }
 
@@ -214,7 +225,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
          * @return Prepared [HeapSelection]
          */
         override fun prepareVASSA(): HeapSelection<Record> {
-            val selection = HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.DESCENDING))
+            val localSelection = HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.DESCENDING))
             try {
                 /* First phase: Just add entries until we have k-results. */
                 var threshold: Double
@@ -222,11 +233,11 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                     val tupleId = LongBinding.compressedEntryToLong(cursor.key)
                     val value = this.columnCursor.value()
                     val distance = this.predicate.distance(this.query, value)!!
-                    selection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))
-                } while (this.cursor.next  && this.columnCursor.moveNext() && this.cursor.key < this.endKey && selection.size < selection.k)
+                    localSelection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))
+                } while (this.cursor.next  && this.columnCursor.moveNext() && this.cursor.key < this.endKey && localSelection.size < localSelection.k)
 
                 /* Second phase: Use lower-bound to decide whether entry should be added. */
-                threshold = (selection.peek()!![0] as DoubleValue).value
+                threshold = (localSelection.peek()!![0] as DoubleValue).value
                 do {
                     val signature = VAFSignature.fromEntry(cursor.value)
                     if (this.bounds.ub(signature, threshold) < threshold) {
@@ -234,17 +245,16 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                         require(this.columnCursor.moveTo(tupleId)) { "Column cursor failed to seek tuple with ID ${tupleId}." }
                         val value = this.columnCursor.value()
                         val distance = this.predicate.distance(this.query, value)!!
-                        threshold = (selection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
+                        threshold = (localSelection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
                     }
                 } while (cursor.next && cursor.key < this.endKey)
 
                 /* Log efficiency of VAF scan. */
-                VAFIndex.LOGGER.debug("VA-SSA Scan: Read ${selection.added} and skipped over ${(1.0 - (selection.added.toDouble() / this.index.count())) * 100}% of entries.")
-                return selection
+                this.reportAndUpdateEfficiency(localSelection.added)
             } catch (e: Throwable) {
                 VAFIndex.LOGGER.error("VA-SSA Scan: Error while scanning VAF index: ${e.message}")
-                return selection
             }
+            return localSelection
         }
     }
 

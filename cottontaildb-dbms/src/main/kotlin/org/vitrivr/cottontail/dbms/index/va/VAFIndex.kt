@@ -36,6 +36,7 @@ import org.vitrivr.cottontail.dbms.index.va.rebuilder.VAFIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import org.vitrivr.cottontail.dbms.statistics.Index.IndexStatistic
 import kotlin.concurrent.withLock
 
 /**
@@ -56,6 +57,9 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
     companion object: IndexDescriptor<VAFIndex> {
         /** [Logger] instance used by [VAFIndex]. */
         internal val LOGGER: Logger = LoggerFactory.getLogger(VAFIndex::class.java)
+
+        /** Key used to store efficiency co-efficient for [VAFIndex]. */
+        const val EFFICIENCY_CACHE_KEY = "vaf.efficiency"
 
         /** False since [VAFIndex] currently doesn't support incremental updates. */
         override val supportsIncrementalUpdate: Boolean = true
@@ -168,6 +172,31 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         }
 
         /**
+         * Retrieves this [VAFIndex]'s efficiency co-efficient from the [IndexStatisticsManager].
+         *
+         * @return Efficiency for this [VAFIndex].
+         */
+        internal fun getEfficiency(): Float {
+            val key = this@VAFIndex.catalogue.indexStatistics.get(this@VAFIndex.name, EFFICIENCY_CACHE_KEY)
+            return key?.asFloat() ?: 0.9f
+        }
+
+        /**
+         * Updates this [VAFIndex]'s efficiency co-efficient from the [IndexStatisticsManager].
+         *
+         * @return Efficiency for this [VAFIndex].
+         */
+        internal fun updateEfficiency(float: Float) {
+            val key = this@VAFIndex.catalogue.indexStatistics.get(this@VAFIndex.name, EFFICIENCY_CACHE_KEY)
+            if (key == null) {
+                this@VAFIndex.catalogue.indexStatistics.update(this@VAFIndex.name, IndexStatistic(EFFICIENCY_CACHE_KEY, float.toString()))
+            } else {
+                val avg = (key.asFloat() + float) / 2
+                this@VAFIndex.catalogue.indexStatistics.update(this@VAFIndex.name, IndexStatistic(EFFICIENCY_CACHE_KEY, avg.toString()))
+            }
+        }
+
+        /**
          * Calculates the cost estimate of this [VAFIndex.Tx] processing the provided [Predicate].
          *
          * @param predicate [Predicate] to check.
@@ -177,8 +206,9 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             if (predicate !is ProximityPredicate) return Cost.INVALID
             if (predicate.column != this.columns[0]) return Cost.INVALID
             if (predicate.distance !is MinkowskiDistance<*>) return Cost.INVALID
+            val efficiency = this.getEfficiency()
             val signatureRead = this.count()
-            val fullRead = 0.1f * signatureRead /* Assumption: Only about 10% of values are read --> see paper. */
+            val fullRead = (1.0f - efficiency) * signatureRead /* Assumption: Efficiency determines how many entries must be read. */
             return when (predicate) {
                 is ProximityPredicate.Scan -> Cost.INVALID
                 is ProximityPredicate.ENN -> Cost(

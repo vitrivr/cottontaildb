@@ -12,20 +12,20 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-data class IndexStatistic(val key: String, val updated: Long, val value: String): Comparable<IndexStatistic> {
+data class IndexStatistic(val key: String, val value: String, val updated: Long = System.currentTimeMillis()): Comparable<IndexStatistic> {
 
 
     companion object: ComparableBinding() {
         override fun readObject(stream: ByteArrayInputStream): Comparable<IndexStatistic> = IndexStatistic(
             StringBinding.BINDING.readObject(stream),
-            LongBinding.BINDING.readObject(stream),
             StringBinding.BINDING.readObject(stream),
-        )
+            LongBinding.BINDING.readObject(stream)
+            )
         override fun writeObject(output: LightOutputStream, `object`: Comparable<IndexStatistic>) {
             require(`object` is IndexStatistic) { "IndexStatistic.Binding can only be used to serialize instances of IndexStatistic." }
             StringBinding.BINDING.writeObject(output, `object`.key)
-            LongBinding.BINDING.writeObject(output, `object`.updated)
             StringBinding.BINDING.writeObject(output, `object`.value)
+            LongBinding.BINDING.writeObject(output, `object`.updated)
         }
     }
 
