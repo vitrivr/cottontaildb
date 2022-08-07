@@ -7,7 +7,6 @@ package org.vitrivr.cottontail.dbms.execution.transactions
  * @version 1.1.0
  */
 enum class TransactionType(val autoCommit: Boolean, val autoRollback: Boolean, val readonly: Boolean, val exclusive: Boolean) {
-    USER(false, false, false, false),                  /* An optimistic read/write transaction created by a user.  */
     USER_EXCLUSIVE(false, false, false, true),         /* An exclusive transaction created by a user.  */
     USER_READONLY(false, false, true, false),          /* A read-only transaction created by a user.  */
     USER_IMPLICIT_EXCLUSIVE(true, true, false, true),  /* An exclusive transaction created by a user that is bound to the context of a single query. */
