@@ -7,7 +7,6 @@ import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.env.Transaction
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
-import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractAsyncIndexRebuilder.Companion.LOGGER
 import org.vitrivr.cottontail.dbms.statistics.Index.IndexStatistic
 import org.vitrivr.cottontail.dbms.statistics.Index.IndexStatisticsManager
 import java.util.concurrent.locks.ReentrantReadWriteLock
@@ -40,8 +39,7 @@ class ColumnStatisticsManager(private val environment: Environment, transaction:
 
     /** A flag indicating, that this [ColumnStatisticsManager] has seen changes since the last time it was persisted. */
     @Volatile
-    var dirty: Boolean = false
-        private set
+    private var dirty: Boolean = false
 
     init {
         /* Reads all entries once. */
@@ -98,6 +96,14 @@ class ColumnStatisticsManager(private val environment: Environment, transaction:
     }
 
     /**
+     * Returns true, if this [ColumnStatisticsManager] is dirty, i.e., has un-persisted changes.
+     *
+     * @return True if [ColumnStatisticsManager] has un-persisted changes, false otherwise.
+     */
+    fun isDirty(): Boolean
+        = this.dirty || (!this.statistics.all { it.value.statistics.fresh })
+
+        /**
      * Persists all the [IndexStatistic] items, if necessary.
      *
      * @return True if content of this [IndexStatisticsManager] was persisted, false otherwise.
@@ -112,17 +118,10 @@ class ColumnStatisticsManager(private val environment: Environment, transaction:
      * @param transaction The [Transaction] to persist [IndexStatistic] in.
      * @return True if content of this [IndexStatisticsManager] was persisted, false otherwise.
      */
-    fun persistInTransaction(transaction: Transaction): Boolean = this.lock.read {
-        if (this.dirty || (!this.statistics.all { it.value.statistics.fresh })) {
-
-            for ((column, statistic) in this.statistics) {
-                this.store.put(transaction, NameBinding.Column.objectToEntry(column), ColumnStatistic.Serialized.objectToEntry(statistic.toSerialized()))
-            }
-            this.dirty = false
-            LOGGER.debug("Column statistics persisted successfully!")
-            true
-        } else {
-            false
+    fun persistInTransaction(transaction: Transaction): Unit = this.lock.read {
+        for ((column, statistic) in this.statistics) {
+            this.store.put(transaction, NameBinding.Column.objectToEntry(column), ColumnStatistic.Serialized.objectToEntry(statistic.toSerialized()))
         }
+        this.dirty = false
     }
 }

@@ -44,8 +44,7 @@ class IndexStatisticsManager(private val environment: Environment, transaction: 
 
     /** A flag indicating, that this [IndexStatisticsManager] has seen changes since the last time it was persisted. */
     @Volatile
-    var dirty: Boolean = false
-        private set
+    private var dirty: Boolean = false
 
     init {
         this.store.openCursor(transaction).use { cursor ->
@@ -97,9 +96,14 @@ class IndexStatisticsManager(private val environment: Environment, transaction: 
     }
 
     /**
-     * Persists all the [IndexStatistic] items, if necessary.
+     * Returns true, if this [IndexStatisticsManager] is dirty, i.e., has un-persisted changes.
      *
-     * @return True if content of this [IndexStatisticsManager] was persisted, false otherwise.
+     * @return True if [IndexStatisticsManager] has un-persisted changes, false otherwise.
+     */
+    fun isDirty(): Boolean = this.dirty
+
+    /**
+     * Persists all the [IndexStatistic] items, if necessary.
      */
     fun persist() = this.lock.read {
         this.environment.executeInExclusiveTransaction {
@@ -111,20 +115,14 @@ class IndexStatisticsManager(private val environment: Environment, transaction: 
      * Persists all the [IndexStatistic] items, if necessary.
      *
      * @param transaction The [Transaction] to persist [IndexStatistic] in.
-     * @return True if content of this [IndexStatisticsManager] was persisted, false otherwise.
      */
-    fun persistInTransaction(transaction: Transaction): Boolean = this.lock.read {
-        if (this.dirty) {
-            for ((index, statistics) in this.statistics) {
-                for (item in statistics.values) {
-                    this.store.put(transaction, NameBinding.Index.objectToEntry(index), IndexStatistic.objectToEntry(item))
-                }
+    fun persistInTransaction(transaction: Transaction) = this.lock.read {
+        for ((index, statistics) in this.statistics) {
+            for (item in statistics.values) {
+                this.store.put(transaction, NameBinding.Index.objectToEntry(index), IndexStatistic.objectToEntry(item))
             }
-            this.dirty = false
-            LOGGER.debug("Index statistics persisted successfully!")
-            true
-        } else {
-            false
         }
+        this.dirty = false
+        LOGGER.debug("Index statistics persisted successfully!")
     }
 }
