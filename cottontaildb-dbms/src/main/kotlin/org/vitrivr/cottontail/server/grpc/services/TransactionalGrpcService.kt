@@ -71,7 +71,7 @@ internal interface TransactionalGrpcService {
             }
         } else { /* Reuse existing transaction. */
             val txn = this.manager[metadata.transactionId]
-            if (txn === null || txn.type !== TransactionType.USER) {
+            if (txn === null || txn.type.autoCommit) {
                 return null
             }
             txn
