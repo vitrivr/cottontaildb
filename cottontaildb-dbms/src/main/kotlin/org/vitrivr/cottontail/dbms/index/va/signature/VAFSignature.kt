@@ -42,6 +42,13 @@ value class VAFSignature(val cells: ByteArray) {
     fun size(): Int = this.cells.size
 
     /**
+     * Returns true, if this [VAFSignature] is considered a tombstone.
+     *
+     * @return True if this [VAFSignature] is a tombstone.
+     */
+    fun tombstone(): Boolean = this.cells[0] == INVALID.cells[0]
+
+    /**
      *
      */
     fun toEntry(): ByteIterable {
