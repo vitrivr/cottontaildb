@@ -209,7 +209,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                 /* Log efficiency of VAF scan. */
                 this.reportAndUpdateEfficiency(localSelection.added)
             } catch (e: Throwable) {
-                VAFIndex.LOGGER.error("VA-SSA Scan: Error while scanning VAF index: ${e.message}")
+                VAFIndex.LOGGER.error("VA-SSA Scan: Error while scanning VAF index: $e")
             }
             return localSelection
         }
