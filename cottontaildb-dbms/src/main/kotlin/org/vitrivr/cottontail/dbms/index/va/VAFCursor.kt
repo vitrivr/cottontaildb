@@ -197,7 +197,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                 threshold = (localSelection.peek()!![0] as DoubleValue).value
                 do {
                     val signature = VAFSignature.fromEntry(cursor.value)
-                    if (this.bounds.lb(signature, threshold) < threshold) {
+                    if (signature == VAFSignature.INVALID || this.bounds.lb(signature, threshold) < threshold) {
                         val tupleId = LongBinding.compressedEntryToLong(cursor.key)
                         require(this.columnCursor.moveTo(tupleId)) { "Column cursor failed to seek tuple with ID ${tupleId}." }
                         val value = this.columnCursor.value()
@@ -209,7 +209,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                 /* Log efficiency of VAF scan. */
                 this.reportAndUpdateEfficiency(localSelection.added)
             } catch (e: Throwable) {
-                VAFIndex.LOGGER.error("VA-SSA Scan: Error while scanning VAF index: $e")
+                VAFIndex.LOGGER.error("VA-SSA Scan: Error while scanning VAF index: ${e.message}")
             }
             return localSelection
         }
@@ -240,7 +240,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                 threshold = (localSelection.peek()!![0] as DoubleValue).value
                 do {
                     val signature = VAFSignature.fromEntry(cursor.value)
-                    if (this.bounds.ub(signature, threshold) < threshold) {
+                    if (signature == VAFSignature.INVALID || this.bounds.ub(signature, threshold) < threshold) {
                         val tupleId = LongBinding.compressedEntryToLong(cursor.key)
                         require(this.columnCursor.moveTo(tupleId)) { "Column cursor failed to seek tuple with ID ${tupleId}." }
                         val value = this.columnCursor.value()
