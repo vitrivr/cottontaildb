@@ -7,8 +7,8 @@ import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.env.Transaction
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
-import org.vitrivr.cottontail.dbms.statistics.Index.IndexStatistic
-import org.vitrivr.cottontail.dbms.statistics.Index.IndexStatisticsManager
+import org.vitrivr.cottontail.dbms.statistics.index.IndexStatistic
+import org.vitrivr.cottontail.dbms.statistics.index.IndexStatisticsManager
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write

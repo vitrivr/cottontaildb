@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.statistics.Index
+package org.vitrivr.cottontail.dbms.statistics.index
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import jetbrains.exodus.env.Environment

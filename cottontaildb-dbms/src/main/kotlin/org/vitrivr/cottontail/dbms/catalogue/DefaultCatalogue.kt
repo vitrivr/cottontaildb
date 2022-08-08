@@ -8,7 +8,6 @@ import jetbrains.exodus.vfs.VfsConfig
 import jetbrains.exodus.vfs.VirtualFileSystem
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
@@ -23,9 +22,8 @@ import org.vitrivr.cottontail.dbms.index.cache.InMemoryIndexCache
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
-import org.vitrivr.cottontail.dbms.statistics.Index.IndexStatisticsManager
 import org.vitrivr.cottontail.dbms.statistics.columns.ColumnStatisticsManager
-
+import org.vitrivr.cottontail.dbms.statistics.index.IndexStatisticsManager
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.concurrent.withLock

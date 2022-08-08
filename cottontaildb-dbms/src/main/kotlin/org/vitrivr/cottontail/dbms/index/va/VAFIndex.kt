@@ -36,7 +36,7 @@ import org.vitrivr.cottontail.dbms.index.va.rebuilder.VAFIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.Index.IndexStatistic
+import org.vitrivr.cottontail.dbms.statistics.index.IndexStatistic
 import kotlin.concurrent.withLock
 
 /**

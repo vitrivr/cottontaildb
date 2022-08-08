@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.statistics.Index
+package org.vitrivr.cottontail.dbms.statistics.index
 
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.LongBinding
