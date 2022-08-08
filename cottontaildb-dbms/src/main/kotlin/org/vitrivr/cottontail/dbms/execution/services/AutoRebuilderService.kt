@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicLong
  * A [TransactionObserver] that listens for [IndexEvent]s and triggers rebuilding of [Index]es that become [IndexState.STALE].
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionManager): TransactionObserver {
 
@@ -45,8 +45,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
      * @param event The [Event] to check.
      * @return True if [Event] is an [IndexEvent]
      */
-    override fun isRelevant(event: Event): Boolean
-        = event is IndexEvent
+    override fun isRelevant(event: Event): Boolean = event is IndexEvent
 
     /**
      * Processes incoming [IndexEvent] and determines which [Index] require re-building.
@@ -71,7 +70,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
 
         /* Schedule task for each index that needs rebuilding. */
         for ((index, type) in set) {
-            this.manager.executionManager.serviceWorkerPool.schedule(Task(index, type), 500L, TimeUnit.MILLISECONDS)
+            this.schedule(index, type)
         }
     }
 
@@ -80,6 +79,16 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
      */
     override fun onDeliveryFailure(txId: TransactionId) {
         /* No op. */
+    }
+
+    /**
+     * Schedules a new [Task] for rebuilding the specified index.
+     *
+     * @param index The [Name.IndexName] of the [Index] to rebuild.
+     * @param type The [IndexType] of the [Index] to rebuild.
+     */
+    fun schedule(index: Name.IndexName, type: IndexType) {
+        this.manager.executionManager.serviceWorkerPool.schedule(Task(index, type), 500L, TimeUnit.MILLISECONDS)
     }
 
     /**

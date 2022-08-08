@@ -8,6 +8,8 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
+import org.vitrivr.cottontail.dbms.execution.services.AutoAnalyzerService
+import org.vitrivr.cottontail.dbms.execution.services.AutoRebuilderService
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
@@ -24,10 +26,10 @@ import kotlin.time.ExperimentalTime
  * This is a gRPC service endpoint that handles DDL (= Data Definition Language) request for Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.6.0
  */
 @ExperimentalTime
-class DDLService(override val catalogue: DefaultCatalogue, override val manager: TransactionManager) : DDLGrpcKt.DDLCoroutineImplBase(), TransactionalGrpcService {
+class DDLService(override val catalogue: DefaultCatalogue, override val manager: TransactionManager, val autoRebuilderService: AutoRebuilderService, val autoAnalyzerService: AutoAnalyzerService) : DDLGrpcKt.DDLCoroutineImplBase(), TransactionalGrpcService {
     /**
      * gRPC endpoint for creating a new [Schema]
      */
@@ -91,7 +93,11 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      */
     override suspend fun analyzeEntity(request: CottontailGrpc.AnalyzeEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val entityName = request.entity.fqn()
-        ctx.assign(AnalyseEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName))
+        if (request.async) {
+            ctx.assign(AnalyseEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName, this.autoAnalyzerService))
+        } else {
+            ctx.assign(AnalyseEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName))
+        }
         ctx.toOperatorTree()
     }.single()
 
@@ -166,7 +172,11 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      */
     override suspend fun rebuildIndex(request: CottontailGrpc.RebuildIndexMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val indexName = request.index.fqn()
-        ctx.assign(RebuildIndexPhysicalOperatorNode(this.catalogue.newTx(ctx), indexName))
+        if (request.async) {
+            ctx.assign(RebuildIndexPhysicalOperatorNode(this.catalogue.newTx(ctx), indexName, this.autoRebuilderService))
+        } else {
+            ctx.assign(RebuildIndexPhysicalOperatorNode(this.catalogue.newTx(ctx), indexName))
+        }
         ctx.toOperatorTree()
     }.single()
 }

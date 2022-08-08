@@ -56,7 +56,7 @@ class AutoAnalyzerService(private val catalogue: Catalogue, private val manager:
 
         /* Schedule task for each index that needs rebuilding. */
         for (column in set) {
-            this.manager.executionManager.serviceWorkerPool.schedule(Task(column), 100L, TimeUnit.MILLISECONDS)
+            this.schedule(column)
         }
     }
 
@@ -65,6 +65,15 @@ class AutoAnalyzerService(private val catalogue: Catalogue, private val manager:
      */
     override fun onDeliveryFailure(txId: TransactionId) {
         /* No op. */
+    }
+
+    /**
+     * Schedules a new [Task] for analysing the specified column.
+     *
+     * @param column The [Name.ColumnName] of the [Column] to analyse.
+     */
+    fun schedule(column: Name.ColumnName) {
+        this.manager.executionManager.serviceWorkerPool.schedule(Task(column), 100L, TimeUnit.MILLISECONDS)
     }
 
     /**
