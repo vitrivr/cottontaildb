@@ -261,26 +261,18 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
          * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Update): Boolean {
-            /* Extract value and perform sanity check. */
-            val oldValue = event.data[this@Tx.columns[0]]?.first
-            val newValue = event.data[this@Tx.columns[0]]?.second
+            val oldValue = event.data[this.columns[0]]?.first
+            val newValue = event.data[this.columns[0]]?.second
 
-            /* Remove signature to tuple ID mapping. */
-            if (oldValue != null) {
-                val oldSig = this.quantizer.quantize(oldValue as VectorValue<*>)
-                val cursor = this.dataStore.openCursor(this.context.txn.xodusTx)
-                if (cursor.getSearchBoth(event.tupleId.toKey(), oldSig.toEntry())) {
-                    cursor.deleteCurrent()
-                }
-                cursor.close()
-            }
-
-            /* Generate signature and store it. */
-            if (newValue != null) {
+            /* Obtain marks and update them. */
+            return if (newValue is RealVectorValue<*>) { /* Case 1: New value is not null, i.e., update to new value. */
                 val newSig = this.quantizer.quantize(newValue as VectorValue<*>)
-                return this.dataStore.put(this.context.txn.xodusTx, event.tupleId.toKey(), newSig.toEntry())
+                this.dataStore.put(this.context.txn.xodusTx, event.tupleId.toKey(), newSig.toEntry())
+            } else if (oldValue is RealVectorValue<*>) { /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
+                this.dataStore.delete(this.context.txn.xodusTx, event.tupleId.toKey())
+            } else { /* Case 3: There is no value, there was no value, proceed. */
+                true
             }
-            return true
         }
 
         /**
@@ -291,14 +283,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
          * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Delete): Boolean {
-            val oldValue = event.data[this.columns[0]] ?: return true
-            val sig = this.quantizer.quantize(oldValue as VectorValue<*>)
-            val cursor = this.dataStore.openCursor(this.context.txn.xodusTx)
-            if (cursor.getSearchBoth(event.tupleId.toKey(), sig.toEntry())) {
-                cursor.deleteCurrent()
-            }
-            cursor.close()
-            return true
+            return event.data[this.columns[0]] == null || this.dataStore.delete(this.context.txn.xodusTx, event.tupleId.toKey())
         }
 
         /**
