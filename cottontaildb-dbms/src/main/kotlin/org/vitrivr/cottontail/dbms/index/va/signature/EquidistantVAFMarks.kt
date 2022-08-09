@@ -122,7 +122,7 @@ class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, Ind
             for (j in 0 until this.marksPerDimension - 1) {
                 if (value >= this.marks[i][j] && value <= this.marks[i][j+1]) return@ByteArray j.toByte()
             }
-            return VAFSignature.INVALID
+            (this.marksPerDimension - 2).toByte()
         })
     }
 

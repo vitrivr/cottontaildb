@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.dbms.index.va.signature
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
-import org.xerial.snappy.Snappy
 
 /**
  * A fixed length [VAFSignature] used in [VAFIndex] structures.
@@ -15,17 +14,13 @@ import org.xerial.snappy.Snappy
 value class VAFSignature(val cells: ByteArray) {
 
     companion object {
-
-        /** The invalid signature is a 1d-byte array. */
-        val INVALID = VAFSignature(ByteArray(1){ Byte.MIN_VALUE })
-
         /**
          * De-serializes a [VAFSignature] from a [ByteIterable].
          *
          * @param entry The [ByteIterable] to deserialize from.
          * @return Resulting [VAFSignature]
          */
-        fun fromEntry(entry: ByteIterable): VAFSignature = VAFSignature(Snappy.uncompress(entry.bytesUnsafe))
+        fun fromEntry(entry: ByteIterable): VAFSignature = VAFSignature(entry.bytesUnsafe)
     }
 
     /**
@@ -42,17 +37,10 @@ value class VAFSignature(val cells: ByteArray) {
     fun size(): Int = this.cells.size
 
     /**
-     * Returns true, if this [VAFSignature] is considered a tombstone.
+     * Converts this [VAFSignature] to an [ArrayByteIterable].
      *
-     * @return True if this [VAFSignature] is a tombstone.
+     * @return The [ArrayByteIterable] representation of this [VAFSignature].
      */
-    fun tombstone(): Boolean = this.cells[0] == INVALID.cells[0]
-
-    /**
-     *
-     */
-    fun toEntry(): ByteIterable {
-        val compressed = Snappy.compress(this.cells)
-        return ArrayByteIterable(compressed, compressed.size)
-    }
+    fun toEntry(): ByteIterable
+        = ArrayByteIterable(this.cells, this.cells.size)
 }
