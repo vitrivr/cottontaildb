@@ -120,9 +120,15 @@ class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, Ind
         return VAFSignature(ByteArray(vector.logicalSize) { i ->
             val value = vector[i].value.toDouble()
             for (j in 0 until this.marksPerDimension - 1) {
-                if (value >= this.marks[i][j] && value <= this.marks[i][j+1]) return@ByteArray j.toByte()
+                if (value >= this.marks[i][j] && value <= this.marks[i][j+1]) {
+                    return@ByteArray j.toByte()
+                }
             }
-            (this.marksPerDimension - 2).toByte()
+            if (value < this.marks[i][0]) {
+                0.toByte()
+            } else {
+                (this.marksPerDimension - 2).toByte()
+            }
         })
     }
 
