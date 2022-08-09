@@ -34,11 +34,11 @@ class DefaultColumnCursor<T: Value>(private val partition: LongRange, private va
     private val endKey = this.partition.last.toKey()
 
     /** Flag indicating, that data must be read from store. */
-    private val boc = AtomicBoolean(false)
+    private val boc = AtomicBoolean(true)
 
     init {
-        if (this.cursor.getSearchKeyRange(this.startKey) != null) {
-            this.boc.set(true)
+        if (this.cursor.getSearchKeyRange(this.startKey) == null) {
+            this.boc.set(false)
         }
     }
 
@@ -56,7 +56,7 @@ class DefaultColumnCursor<T: Value>(private val partition: LongRange, private va
      * @return True on success, false otherwise,
      */
     override fun movePrevious(): Boolean
-        = (this.cursor.prev && this.cursor.key > this.startKey)
+        = (this.cursor.key > this.startKey && this.cursor.prev)
 
     /**
      * Tries to move this [Cursor] to the provided [TupleId].
