@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.dbms.index.pq.quantizer.SerializableSingleStageProductQuantizer
 import org.vitrivr.cottontail.dbms.index.pq.quantizer.SingleStageQuantizer
 import org.vitrivr.cottontail.dbms.index.pq.signature.PQSignature
 import org.vitrivr.cottontail.dbms.index.pq.signature.SPQSignature
@@ -49,6 +50,23 @@ class PQFloatVectorCodebookTest {
 
     /** The [SingleStageQuantizer] that is used for the tests. */
     private val quantizer = SingleStageQuantizer.learnFromData(this.distance, this.trainingdata, this.config)
+
+    /**
+     * Tests serialization / deserialization of [SingleStageQuantizer] and the associated codebooks.
+     */
+    @Test
+    fun testCodebookSerialization() {
+        val serializable1 = this.quantizer.toSerializableProductQuantizer()
+        val serialized = SerializableSingleStageProductQuantizer.Binding.objectToEntry(serializable1)
+        val serializable2 = SerializableSingleStageProductQuantizer.Binding.entryToObject(serialized) as SerializableSingleStageProductQuantizer
+
+        /* Compare SerializableProductQuantizer. */
+        Assertions.assertEquals(serializable1, serializable2)
+
+        /* Compare reconstructed quantizer. */
+        val original = serializable2.toProductQuantizer(this.distance)
+        Assertions.assertEquals(this.quantizer, original)
+    }
 
     /**
      * Tests serialization / deserialization of [PQSignature] objects.
