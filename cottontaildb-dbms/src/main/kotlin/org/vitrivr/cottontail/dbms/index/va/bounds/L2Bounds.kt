@@ -42,11 +42,13 @@ class L2Bounds(query: RealVectorValue<*>, marks: EquidistantVAFMarks) : Bounds()
         var sum = 0.0
         for (i in 0 until signature.size()) {
             val rij = signature[i]
-            if (rij < this.rq[i]) {
-                sum += this.lat[i][rij + 1]
+            val rq = this.rq[i]
+            val lat = this.lat[i]
+            if (rij < rq) {
+                sum += lat[rij + 1]
                 if (sum > t) break
-            } else if (rij > this.rq[i]) {
-                sum += this.lat[i][rij]
+            } else if (rij > rq) {
+                sum += lat[rij]
                 if (sum > t) break
             }
         }
@@ -64,12 +66,14 @@ class L2Bounds(query: RealVectorValue<*>, marks: EquidistantVAFMarks) : Bounds()
         var sum = 0.0
         for (i in 0 until signature.size()) {
             val rij = signature[i]
-            sum += if (rij < this.rq[i]) {
-                this.lat[i][rij]
-            } else if (rij > this.rq[i]) {
-                this.lat[i][rij + 1]
+            val rq = this.rq[i]
+            val lat = this.lat[i]
+            sum += if (rij < rq) {
+                lat[rij]
+            } else if (rij > rq) {
+                lat[rij + 1]
             } else {
-                max(this.lat[i][rij + 1], this.lat[i][rij])
+                max(lat[rij + 1], lat[rij])
             }
             if (sum > threshold) break
         }
@@ -87,14 +91,16 @@ class L2Bounds(query: RealVectorValue<*>, marks: EquidistantVAFMarks) : Bounds()
         var ub = 0.0
         for (i in 0 until signature.size()) {
             val rij = signature[i]
-            if (rij < this.rq[i]) {
-                lb += this.lat[i][rij + 1]
-                ub += this.lat[i][rij]
-            } else if (rij > this.rq[i]) {
-                lb += this.lat[i][rij]
-                ub += this.lat[i][rij + 1]
+            val rq = this.rq[i]
+            val lat = this.lat[i]
+            if (rij < rq) {
+                lb += lat[rij + 1]
+                ub += lat[rij]
+            } else if (rij > rq) {
+                lb += lat[rij]
+                ub += lat[rij + 1]
             } else {
-                ub += max(this.lat[i][rij + 1], this.lat[i][rij])
+                ub += max(lat[rij + 1], lat[rij])
             }
         }
         return Pair(sqrt(lb), sqrt(ub))
