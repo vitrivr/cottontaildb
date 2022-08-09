@@ -277,6 +277,9 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                 throw DatabaseException.DataCorruptionException("DROP index $name failed: Failed to delete catalogue entry.")
             }
 
+            /* Deletes the index statistics entity associated with the index. */
+            this@DefaultEntity.catalogue.indexStatistics.deletePersistently(name, this.context.txn.xodusTx)
+
             /* Update entity catalogue entry. */
             EntityCatalogueEntry.write(entity.copy(indexes = (entity.indexes - name)), this@DefaultEntity.catalogue, this.context.txn.xodusTx)
 

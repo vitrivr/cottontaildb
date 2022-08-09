@@ -81,7 +81,7 @@ class IndexStatisticsManager(private val environment: Environment, transaction: 
     }
 
     /**
-     * Updates a statistic [IndexStatistic] in this [IndexStatisticsManager].
+     * Updates a [IndexStatistic] in this [IndexStatisticsManager].
      *
      * @param index The key to update the statistics [IndexStatistic] for.
      * @param item The [IndexStatistic] to update
@@ -93,6 +93,18 @@ class IndexStatisticsManager(private val environment: Environment, transaction: 
             map[item.key] = item
             map
         }
+    }
+
+    /**
+     * Removes a [IndexStatistic] from this [IndexStatisticsManager]. Deletes can only happen in a persistent fashion!
+     *
+     * @param index The [Name.IndexName] to remove [IndexStatistic] for.
+     */
+    fun deletePersistently(index: Name.IndexName, transaction: Transaction) {
+        this.dirty = true
+        this.statistics.remove(index)
+        this.store.delete(transaction, NameBinding.Index.objectToEntry(index))
+        this.dirty = false
     }
 
     /**
