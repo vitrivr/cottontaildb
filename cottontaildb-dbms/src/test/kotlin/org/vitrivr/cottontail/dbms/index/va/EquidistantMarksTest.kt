@@ -4,10 +4,12 @@ import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.RepeatedTest
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.core.values.generators.DoubleVectorValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.index.va.bounds.L1Bounds
+import org.vitrivr.cottontail.dbms.index.va.bounds.L2Bounds
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.test.TestConstants
@@ -85,6 +87,22 @@ class EquidistantMarksTest {
         val function = ManhattanDistance.DoubleVector(Types.DoubleVector(this.dimensions))
         val bounds = L1Bounds(query, this.marks)
 
+        this.testdata.forEach {
+            val signature =  this.marks.getSignature(it)
+            val distance = function(query, it)
+            val lb = bounds.lb(signature)
+            val ub = bounds.ub(signature)
+            assertTrue(lb <= distance.value)
+            assertTrue(ub >= distance.value)
+        }
+    }
+
+
+    @RepeatedTest(3)
+    fun testL2Bounds() {
+        val query = DoubleVectorValueGenerator.random(this.dimensions, this.random)
+        val function = EuclideanDistance.DoubleVector(Types.DoubleVector(this.dimensions))
+        val bounds = L2Bounds(query, this.marks)
         this.testdata.forEach {
             val signature =  this.marks.getSignature(it)
             val distance = function(query, it)
