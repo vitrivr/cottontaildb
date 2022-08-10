@@ -188,10 +188,12 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                 return false
             }
 
-            rebuilder.use { r ->
+            /* Register rebuilder as observer. */
+            this@AutoRebuilderService.manager.register(rebuilder)
+            try {
                 /* Start rebuilding. */
                 try {
-                    r.scan(context)
+                    rebuilder.scan(context)
                 } catch (e: Throwable) {
                     LOGGER.error("Index auto-rebuilding (SCAN) for $index failed due to exception: ${e.message}.")
                     return false
@@ -200,7 +202,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                 }
 
                 /* Step 1b: Make sanity check to prevent obtaining an exclusive transaction unnecessarily. */
-                if (r.state != IndexRebuilderState.SCANNED) {
+                if (rebuilder.state != IndexRebuilderState.SCANNED) {
                     LOGGER.error("Index auto-rebuilding (SCAN) seems to have failed. Aborting...")
                     return false
                 }
@@ -209,8 +211,8 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                 val transaction2 = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
                 val context2 = DefaultQueryContext("auto-rebuild-merge-${this@AutoRebuilderService.counter.incrementAndGet()}", this@AutoRebuilderService.catalogue, transaction2)
                 try {
-                    return if (r.state == IndexRebuilderState.SCANNED) {
-                        r.merge(context2)
+                    return if (rebuilder.state == IndexRebuilderState.SCANNED) {
+                        rebuilder.merge(context2)
                         transaction2.commit()
                         true
                     } else {
@@ -227,6 +229,9 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                     transaction2.rollback()
                     return false
                 }
+            } finally {
+                this@AutoRebuilderService.manager.deregister(rebuilder)
+                rebuilder.close()
             }
         }
     }
