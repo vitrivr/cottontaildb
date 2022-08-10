@@ -17,7 +17,6 @@ import org.vitrivr.cottontail.dbms.index.va.VAFIndexConfig
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
-import kotlin.concurrent.withLock
 
 /**
  * An [AbstractAsyncIndexRebuilder] that can be used to concurrently rebuild a [VAFIndex].
@@ -70,7 +69,8 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
                 if (this.state != IndexRebuilderState.SCANNING) return false
                 val value = cursor.value()
                 if (value is RealVectorValue<*>) {
-                    this.writeLatch.withLock {
+                    this.writeLatch.lock()
+                    try {
                         if (!dataStore.put(this.tmpTx, cursor.key().toKey(), this.newMarks!!.getSignature(value).toEntry())) {
                             return false
                         }
@@ -82,6 +82,8 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
                                 return false
                             }
                         }
+                    } finally {
+                        this.writeLatch.unlock()
                     }
                 }
             }
