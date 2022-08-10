@@ -23,6 +23,7 @@ import org.vitrivr.cottontail.dbms.index.pq.quantizer.SingleStageQuantizer
 import org.vitrivr.cottontail.dbms.index.pq.signature.SPQSignature
 import org.vitrivr.cottontail.dbms.index.va.rebuilder.AsyncVAFIndexRebuilder
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import kotlin.concurrent.withLock
 
 /**
  * An [AbstractAsyncIndexRebuilder] that can be used to concurrently rebuild a  [PQIndex].
@@ -75,15 +76,17 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
                     val sig = this.newQuantizer!!.quantize(value)
-                    if (!this.tmpDataStore.put(this.tmpTx, cursor.key().toKey(), sig.toEntry())) {
-                        return false
-                    }
-
-                    /* Data is flushed every once in a while. */
-                    if ((++counter) % 1_000_000 == 0) {
-                        LOGGER.debug("Rebuilding index (SCAN) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
-                        if (!this.tmpTx.flush()) {
+                    this.writeLatch.withLock {
+                        if (!this.tmpDataStore.put(this.tmpTx, cursor.key().toKey(), sig.toEntry())) {
                             return false
+                        }
+
+                        /* Data is flushed every once in a while. */
+                        if ((++counter) % 1_000_000 == 0) {
+                            LOGGER.debug("Rebuilding index (SCAN) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
+                            if (!this.tmpTx.flush()) {
+                                return false
+                            }
                         }
                     }
                 }

@@ -17,6 +17,7 @@ import org.vitrivr.cottontail.dbms.index.va.VAFIndexConfig
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
+import kotlin.concurrent.withLock
 
 /**
  * An [AbstractAsyncIndexRebuilder] that can be used to concurrently rebuild a [VAFIndex].
@@ -27,7 +28,7 @@ import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
 class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIndex>(index) {
 
     /** A temporary [Store] used to */
-    private val tmpDataStore:Store = this.tmpEnvironment.openStore(this.index.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.tmpTx, true)
+    private val tmpDataStore: Store = this.tmpEnvironment.openStore(this.index.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.tmpTx, true)
         ?: throw DatabaseException.DataCorruptionException("Temporary data store for index ${this.index.name} could not be created.")
 
     /** Reference to [EquidistantVAFMarks] used by this [AsyncVAFIndexRebuilder] (only available after [IndexRebuilderState.INITIALIZED]). */
@@ -69,15 +70,17 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
                 if (this.state != IndexRebuilderState.SCANNING) return false
                 val value = cursor.value()
                 if (value is RealVectorValue<*>) {
-                    if (!dataStore.put(this.tmpTx, cursor.key().toKey(), this.newMarks!!.getSignature(value).toEntry())) {
-                        return false
-                    }
-
-                    /* Data is flushed every once in a while. */
-                    if ((++counter) % 1_000_000 == 0) {
-                        LOGGER.debug("Rebuilding index (SCAN) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
-                        if (!this.tmpTx.flush()) {
+                    this.writeLatch.withLock {
+                        if (!dataStore.put(this.tmpTx, cursor.key().toKey(), this.newMarks!!.getSignature(value).toEntry())) {
                             return false
+                        }
+
+                        /* Data is flushed every once in a while. */
+                        if ((++counter) % 1_000_000 == 0) {
+                            LOGGER.debug("Rebuilding index (SCAN) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
+                            if (!this.tmpTx.flush()) {
+                                return false
+                            }
                         }
                     }
                 }
