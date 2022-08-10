@@ -109,6 +109,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
                 SequenceCatalogueEntries.init(this, tx)
                 ColumnCatalogueEntry.init(this, tx)
                 IndexCatalogueEntry.init(this, tx)
+                IndexStructCatalogueEntry.init(this, tx)
             }
 
             /** Initialize virtual file system. */
