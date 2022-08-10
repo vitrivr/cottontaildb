@@ -64,13 +64,13 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
 
     /** An [AbstractAsyncIndexRebuilder] is only interested in [DataEvent]s that concern the [Entity]. */
     override fun isRelevant(event: Event): Boolean
-        = event is DataEvent && event.entity == this.entityName
+        = this.state.trackChanges && event is DataEvent && event.entity == this.entityName
 
     /** A [ReentrantLock] that makes sure, that the two rebuild-steps are not invoked concurrently. */
-    private val rebuildLock = ReentrantLock()
+    private val rebuildLatch = ReentrantLock()
 
-    /** A [ReentrantLock] that makes sure that messaging from other transactions are processed sequentially. */
-    private val asyncLock = ReentrantLock()
+    /** A [ReentrantLock] that makes sure that writes to the underlying data structures are synchronised between threads. */
+    protected val writeLatch = ReentrantLock()
 
     /**
      * Scans the data necessary for this [AbstractAsyncIndexRebuilder]. Usually, this takes place within an existing [QueryContext].
@@ -78,7 +78,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
      * @param context1 The [QueryContext] to perform the SCAN in.
      */
     override fun scan(context1: QueryContext) {
-        this.rebuildLock.lock()
+        this.rebuildLatch.lock()
         try {
             require(this.state == IndexRebuilderState.INITIALIZED) { "Cannot perform SCAN with index builder because it is in the wrong state."}
 
@@ -95,7 +95,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
             LOGGER.debug("Scanning index ${this.index.name} (${this.index.type}) completed!")
         } finally {
             this.tmpTx.flush()
-            this.rebuildLock.unlock()
+            this.rebuildLatch.unlock()
         }
     }
 
@@ -105,7 +105,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
      * @param context2 The [QueryContext] to perform the MERGE in.
      */
     override fun merge(context2: QueryContext) {
-        this.rebuildLock.lock()
+        this.rebuildLatch.lock()
         try {
             /* Sanity check. */
             require(this.state  == IndexRebuilderState.SCANNED) { "Cannot perform MERGE with index builder because it is in the wrong state."}
@@ -139,7 +139,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
             LOGGER.debug("Merging index ${this.index.name} (${this.index.type}) completed!")
             this.state = IndexRebuilderState.MERGED
         } finally {
-            this.rebuildLock.unlock()
+            this.rebuildLatch.unlock()
         }
     }
 
@@ -193,9 +193,9 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
      */
     final override fun onCommit(txId: TransactionId, events: List<Event>) {
         /* Once IndexRebuilder has been merged, closed or aborted, we're no longer interested in updates. */
-        this.asyncLock.lock()
+        this.writeLatch.lock()
         try {
-            if (this.state !in setOf(IndexRebuilderState.INITIALIZED, IndexRebuilderState.ABORTED, IndexRebuilderState.MERGING, IndexRebuilderState.MERGED, IndexRebuilderState.FINISHED)) {
+            if (this.state.trackChanges) {
                 for (event in events) {
                     val success = when(event) {
                         is DataEvent.Insert -> {
@@ -220,7 +220,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
                 }
             }
         } finally {
-            this.asyncLock.unlock()
+            this.writeLatch.unlock()
         }
     }
 
@@ -230,19 +230,19 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
      * @param txId The [TransactionId] that is reporting.
      */
     final override fun onDeliveryFailure(txId: TransactionId) {
-        this.asyncLock.lock()
+        this.writeLatch.lock()
         if (this.state in setOf(IndexRebuilderState.SCANNING, IndexRebuilderState.SCANNED, IndexRebuilderState.MERGING)) {
             this.state = IndexRebuilderState.ABORTED
         }
-        this.asyncLock.unlock()
+        this.writeLatch.unlock()
     }
 
     /**
      * Closes this [AbstractAsyncIndexRebuilder].
      */
     override fun close() {
-        this.rebuildLock.lock()
-        this.asyncLock.lock()
+        this.rebuildLatch.lock()
+        this.writeLatch.lock()
         try {
             if (this.state != IndexRebuilderState.FINISHED) {
                 this.state = IndexRebuilderState.FINISHED
@@ -265,8 +265,8 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
         } catch (e: Throwable) {
             LOGGER.warn("Asynchronous index rebuilder for index ${this.index.name} (${this.index.type}) could not be discarded: ${e.message}")
         } finally {
-            this.rebuildLock.unlock()
-            this.asyncLock.unlock()
+            this.rebuildLatch.unlock()
+            this.writeLatch.unlock()
         }
     }
 

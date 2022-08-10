@@ -6,18 +6,18 @@ package org.vitrivr.cottontail.dbms.index.basic.rebuilder
  * @author Ralph Gasser
  * @version 1.0.0
  */
-enum class IndexRebuilderState {
-    INITIALIZED,
+enum class IndexRebuilderState(val trackChanges: Boolean) {
+    INITIALIZED(false),
 
-    SCANNING,
+    SCANNING(true),
 
-    SCANNED,
+    SCANNED(true),
 
-    MERGING,
+    MERGING(false),
 
-    MERGED,
+    MERGED(false),
 
-    ABORTED,
+    ABORTED(false),
 
-    FINISHED
+    FINISHED(false)
 }
