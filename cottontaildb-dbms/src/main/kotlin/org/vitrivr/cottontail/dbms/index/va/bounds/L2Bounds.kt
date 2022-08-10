@@ -63,6 +63,7 @@ class L2Bounds(query: RealVectorValue<*>, marks: EquidistantVAFMarks) : Bounds()
      * @return True if [VAFSignature] is a candidate, false otherwise.
      */
     override fun ub(signature: VAFSignature, threshold: Double): Double {
+        val t = threshold.pow(2)
         var sum = 0.0
         for (i in 0 until signature.size()) {
             val rij = signature[i]
@@ -75,7 +76,7 @@ class L2Bounds(query: RealVectorValue<*>, marks: EquidistantVAFMarks) : Bounds()
             } else {
                 max(lat[rij + 1], lat[rij])
             }
-            if (sum > threshold) break
+            if (sum > t) break
         }
         return sqrt(sum)
     }

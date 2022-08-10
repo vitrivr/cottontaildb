@@ -35,7 +35,7 @@ sealed class Bounds {
      * @param threshold Threshold for early abort.
      * @return Upper bound.
      */
-    abstract fun ub(signature: VAFSignature, threshold: Double = Double.MIN_VALUE): Double
+    abstract fun ub(signature: VAFSignature, threshold: Double = Double.MAX_VALUE): Double
 
     /**
      * Calculates and returns the bounds for this [Bounds].
