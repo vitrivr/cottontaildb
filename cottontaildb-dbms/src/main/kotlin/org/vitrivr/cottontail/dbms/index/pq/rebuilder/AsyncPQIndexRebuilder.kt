@@ -5,6 +5,7 @@ import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
+import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
@@ -24,7 +25,10 @@ import org.vitrivr.cottontail.dbms.index.va.rebuilder.AsyncVAFIndexRebuilder
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
+ * An [AbstractAsyncIndexRebuilder] that can be used to concurrently rebuild a  [PQIndex].
  *
+ * @author Ralph Gasser
+ * @version 1.0.0
  */
 class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex>(index) {
     /** The (temporary) Xodus [Store] used to store [SPQSignature]s. */
@@ -147,22 +151,15 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
         val oldValue = event.data[this.indexedColumn]?.first
         val newValue = event.data[this.indexedColumn]?.second
 
-        /* Remove signature to tuple ID mapping. */
-        if (oldValue != null) {
-            val oldSig = this.newQuantizer!!.quantize(oldValue as VectorValue<*>)
-            val cursor = this.tmpDataStore.openCursor(this.tmpTx)
-            if (cursor.getSearchBoth(oldSig.toEntry(), event.tupleId.toKey())) {
-                cursor.deleteCurrent()
-            }
-            cursor.close()
-        }
-
-        /* Generate signature and store it. */
-        if (newValue != null) {
+        /* Obtain marks and update them. */
+        return if (newValue is RealVectorValue<*>) { /* Case 1: New value is not null, i.e., update to new value. */
             val newSig = this.newQuantizer!!.quantize(newValue as VectorValue<*>)
-            return this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), newSig.toEntry())
+            this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), newSig.toEntry())
+        } else if (oldValue is RealVectorValue<*>) { /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
+            this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())
+        } else { /* Case 3: There is no value, there was no value, proceed. */
+            true
         }
-        return true
     }
 
     /**
@@ -172,11 +169,6 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
      * @return True on success, false otherwise.
      */
     override fun applyAsyncDelete(event: DataEvent.Delete): Boolean {
-        val cursor = this.tmpDataStore.openCursor(this.tmpTx)
-        if (cursor.getSearchKey(event.tupleId.toKey()) != null) {
-            cursor.deleteCurrent()
-        }
-        cursor.close()
-        return true
+        return event.data[this.indexedColumn] == null || this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())
     }
 }
