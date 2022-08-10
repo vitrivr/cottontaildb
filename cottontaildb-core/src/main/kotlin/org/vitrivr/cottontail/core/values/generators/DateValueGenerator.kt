@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.core.values.generators
 
-import org.apache.commons.math3.random.RandomGenerator
 import org.vitrivr.cottontail.core.values.DateValue
+import java.util.random.RandomGenerator
 import kotlin.math.absoluteValue
 
 /**

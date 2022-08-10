@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.index.pq.quantizer
 
-import org.apache.commons.math3.random.JDKRandomGenerator
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
@@ -10,6 +9,7 @@ import org.vitrivr.cottontail.dbms.index.pq.PQIndexConfig
 import org.vitrivr.cottontail.dbms.index.pq.signature.PQLookupTable
 import org.vitrivr.cottontail.dbms.index.pq.signature.SPQSignature
 import org.vitrivr.cottontail.utilities.math.clustering.KMeansClusterer
+import java.util.*
 
 /**
  * Single-stage Product Quantizer (PQ) that can be used to quantize vectors to a codebook given a certain [VectorDistance].
@@ -45,7 +45,8 @@ data class SingleStageQuantizer constructor(val codebooks: Array<PQCodebook>) {
 
             /* Prepare k-means clusterer. */
             val reshape = distance.copy(dimensionsPerSubspace)
-            val clusterer = KMeansClusterer(config.numCentroids, reshape, JDKRandomGenerator(config.seed))
+            val random = SplittableRandom(System.currentTimeMillis())
+            val clusterer = KMeansClusterer(config.numCentroids, reshape, random)
 
             /* Prepare codebooks. */
             val codebooks = Array(subspaces) { j ->

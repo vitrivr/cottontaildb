@@ -58,7 +58,10 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
         val distanceFunction: VectorDistance<*> = this.index.catalogue.functions.obtain(signature) as VectorDistance<*>
 
         /* Generates new product quantizer. */
-        this.newQuantizer = SingleStageQuantizer.learnFromData(distanceFunction, PQIndexRebuilderUtilites.acquireLearningData(columnTx, config.numCentroids, config.seed), config)
+        val fraction = ((3.0f * config.numCentroids) / count)
+        val seed = System.currentTimeMillis()
+        val learningData = DataCollectionUtilities.acquireLearningData(columnTx, fraction, seed)
+        this.newQuantizer = SingleStageQuantizer.learnFromData(distanceFunction, learningData, config)
 
         /* Iterate over entity and update index with entries. */
         var counter = 0

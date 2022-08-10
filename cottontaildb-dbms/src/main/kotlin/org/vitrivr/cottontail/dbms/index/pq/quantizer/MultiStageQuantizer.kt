@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.index.pq.quantizer
 
-import org.apache.commons.math3.random.JDKRandomGenerator
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
@@ -11,6 +10,7 @@ import org.vitrivr.cottontail.dbms.index.pq.IVFPQIndexConfig
 import org.vitrivr.cottontail.dbms.index.pq.signature.IVFPQSignature
 import org.vitrivr.cottontail.dbms.index.pq.signature.PQLookupTable
 import org.vitrivr.cottontail.utilities.math.clustering.KMeansClusterer
+import java.util.*
 
 /**
  * A Product Quantizer (PQ) can be used to quantize a [VectorValue]
@@ -42,8 +42,9 @@ data class MultiStageQuantizer(val coarse: PQCodebook, val fine: Array<PQCodeboo
 
             /* Prepare k-means clusterer. */
             val reshape = distance.copy(dimensionsPerSubspace)
-            val coarseClusterer = KMeansClusterer(config.numCoarseCentroids, distance, JDKRandomGenerator(config.seed))
-            val fineClusterer = KMeansClusterer(config.numCentroids, reshape, JDKRandomGenerator(config.seed))
+            val random = SplittableRandom(System.currentTimeMillis())
+            val coarseClusterer = KMeansClusterer(config.numCoarseCentroids, distance, random)
+            val fineClusterer = KMeansClusterer(config.numCentroids, reshape, random)
 
             /* Prepare codebooks. */
             val coarse = PQCodebook(distance, coarseClusterer.cluster(data).map { it.center }.toTypedArray())
