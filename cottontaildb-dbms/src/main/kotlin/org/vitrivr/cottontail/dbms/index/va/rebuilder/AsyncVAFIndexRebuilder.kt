@@ -16,6 +16,7 @@ import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.index.va.VAFIndexConfig
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import org.vitrivr.cottontail.dbms.statistics.index.IndexStatistic
 import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
 
 /**
@@ -120,6 +121,9 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
 
             /* Update stored VAFMarks. */
             IndexStructCatalogueEntry.write(this.index.name, this.newMarks!!, this.index.catalogue, context2.txn.xodusTx, EquidistantVAFMarks.Binding)
+
+            /* Reset to default efficiency of VAF after rebuild. */
+            this.index.catalogue.indexStatistics.updatePersistently(this.index.name, IndexStatistic(VAFIndex.FILTER_EFFICIENCY_CACHE_KEY, VAFIndex.DEFAULT_FILTER_EFFICIENCY.toString()), context2.txn.xodusTx)
             return true
         }
     }

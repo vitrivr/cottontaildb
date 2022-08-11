@@ -59,7 +59,10 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         internal val LOGGER: Logger = LoggerFactory.getLogger(VAFIndex::class.java)
 
         /** Key used to store efficiency co-efficient for [VAFIndex]. */
-        const val EFFICIENCY_CACHE_KEY = "vaf.efficiency"
+        const val FILTER_EFFICIENCY_CACHE_KEY = "vaf.efficiency"
+
+        /** Default filter efficiency co-efficient for [VAFIndex]. */
+        const val DEFAULT_FILTER_EFFICIENCY = 0.9f
 
         /** False since [VAFIndex] currently doesn't support incremental updates. */
         override val supportsIncrementalUpdate: Boolean = true
@@ -177,7 +180,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return Efficiency for this [VAFIndex].
          */
         internal fun getEfficiency(): Float {
-            val key = this@VAFIndex.catalogue.indexStatistics.get(this@VAFIndex.name, EFFICIENCY_CACHE_KEY)
+            val key = this@VAFIndex.catalogue.indexStatistics.get(this@VAFIndex.name, FILTER_EFFICIENCY_CACHE_KEY)
             return key?.asFloat() ?: 0.9f
         }
 
@@ -187,12 +190,12 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return Efficiency for this [VAFIndex].
          */
         internal fun updateEfficiency(float: Float) {
-            val key = this@VAFIndex.catalogue.indexStatistics.get(this@VAFIndex.name, EFFICIENCY_CACHE_KEY)
+            val key = this@VAFIndex.catalogue.indexStatistics.get(this@VAFIndex.name, FILTER_EFFICIENCY_CACHE_KEY)
             if (key == null) {
-                this@VAFIndex.catalogue.indexStatistics.update(this@VAFIndex.name, IndexStatistic(EFFICIENCY_CACHE_KEY, float.toString()))
+                this@VAFIndex.catalogue.indexStatistics.update(this@VAFIndex.name, IndexStatistic(FILTER_EFFICIENCY_CACHE_KEY, float.toString()))
             } else {
                 val avg = (key.asFloat() + float) / 2
-                this@VAFIndex.catalogue.indexStatistics.update(this@VAFIndex.name, IndexStatistic(EFFICIENCY_CACHE_KEY, avg.toString()))
+                this@VAFIndex.catalogue.indexStatistics.update(this@VAFIndex.name, IndexStatistic(FILTER_EFFICIENCY_CACHE_KEY, avg.toString()))
             }
         }
 

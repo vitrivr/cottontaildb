@@ -96,6 +96,23 @@ class IndexStatisticsManager(private val environment: Environment, transaction: 
     }
 
     /**
+     * Updates a [IndexStatistic] in this [IndexStatisticsManager] in a persistent fashion.
+     *
+     * @param index The key to update the statistics [IndexStatistic] for.
+     * @param item The [IndexStatistic] to update
+     */
+    fun updatePersistently(index: Name.IndexName, item: IndexStatistic, transaction: Transaction) = this.lock.write {
+        this.dirty = true /* Update dirty flag. */
+        this.statistics.compute(index) { k, v ->
+            val map = v ?: Object2ObjectLinkedOpenHashMap()
+            map[item.key] = item
+            map
+        }
+        this.store.put(transaction, NameBinding.Index.objectToEntry(index), IndexStatistic.objectToEntry(item))
+        this.dirty = false
+    }
+
+    /**
      * Removes a [IndexStatistic] from this [IndexStatisticsManager]. Deletes can only happen in a persistent fashion!
      *
      * @param index The [Name.IndexName] to remove [IndexStatistic] for.
