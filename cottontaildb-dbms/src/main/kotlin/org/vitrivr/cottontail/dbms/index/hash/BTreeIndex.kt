@@ -137,7 +137,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
     /**
      * Since [BTreeIndex] does not support asynchronous re-indexing, this method will throw an error.
      */
-    override fun newAsyncRebuilder(): AsyncIndexRebuilder<BTreeIndex>
+    override fun newAsyncRebuilder(context: QueryContext): AsyncIndexRebuilder<BTreeIndex>
         = throw UnsupportedOperationException("BTreeIndex does not support asynchronous index rebuilding.")
 
     /**

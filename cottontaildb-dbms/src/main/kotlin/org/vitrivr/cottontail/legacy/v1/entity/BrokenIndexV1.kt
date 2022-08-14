@@ -28,6 +28,6 @@ class BrokenIndexV1(override val name: Name.IndexName, override val parent: Enti
     override val supportsPartitioning: Boolean = false
     override fun newTx(context: QueryContext): IndexTx = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
     override fun newRebuilder(context: QueryContext): AbstractIndexRebuilder<*> = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-    override fun newAsyncRebuilder(): AsyncIndexRebuilder<*> = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+    override fun newAsyncRebuilder(context: QueryContext): AsyncIndexRebuilder<*> = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
     override fun close() = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
 }

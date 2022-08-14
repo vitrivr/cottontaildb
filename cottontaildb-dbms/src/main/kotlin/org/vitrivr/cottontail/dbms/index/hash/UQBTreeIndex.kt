@@ -137,7 +137,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
     /**
      * Since [UQBTreeIndex] does not support asynchronous re-indexing, this method will throw an error.
      */
-    override fun newAsyncRebuilder(): AsyncIndexRebuilder<UQBTreeIndex>
+    override fun newAsyncRebuilder(context: QueryContext): AsyncIndexRebuilder<UQBTreeIndex>
         = throw UnsupportedOperationException("BTreeIndex does not support asynchronous index rebuilding.")
 
     /**

@@ -25,17 +25,33 @@ import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIndex>(index) {
+class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAsyncIndexRebuilder<VAFIndex>(index, context) {
 
     /** A temporary [Store] used to */
     private val tmpDataStore: Store = this.tmpEnvironment.openStore(this.index.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.tmpTx, true)
         ?: throw DatabaseException.DataCorruptionException("Temporary data store for index ${this.index.name} could not be created.")
 
     /** Reference to [EquidistantVAFMarks] used by this [AsyncVAFIndexRebuilder] (only available after [IndexRebuilderState.INITIALIZED]). */
-    private var newMarks: EquidistantVAFMarks? = null
+    private val newMarks: EquidistantVAFMarks
 
     /** Reference to [EquidistantVAFMarks] used by this [AsyncVAFIndexRebuilder] (only available after [IndexRebuilderState.INITIALIZED]). */
-    private var indexedColumn: ColumnDef<*>? = null
+    private val indexedColumn: ColumnDef<*>
+
+    init {
+        /* Read basic index properties. */
+        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, context.txn.xodusTx)
+            ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
+        val config = entry.config as VAFIndexConfig
+        val column = entry.columns[0]
+
+        /* Tx objects required for index rebuilding. */
+        val entityTx = this.index.parent.newTx(context)
+        val columnTx = entityTx.columnForName(column).newTx(context)
+        this.indexedColumn = columnTx.columnDef
+
+        /* Generates new marks. */
+        this.newMarks = EquidistantVAFMarks(columnTx.statistics() as RealVectorValueStatistics<*>, config.marksPerDimension)
+    }
 
     /**
      * Internal scan method that is being executed when executing the SCAN stage of this [AsyncVAFIndexRebuilder].
@@ -47,17 +63,12 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
         /* Read basic index properties. */
         val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, context1.txn.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
-        val config = entry.config as VAFIndexConfig
         val column = entry.columns[0]
 
         /* Tx objects required for index rebuilding. */
         val entityTx = this.index.parent.newTx(context1)
         val columnTx = entityTx.columnForName(column).newTx(context1)
         val count = columnTx.count()
-        this.indexedColumn = columnTx.columnDef
-
-        /* Generates new marks. */
-        this.newMarks = EquidistantVAFMarks(columnTx.statistics() as RealVectorValueStatistics<*>, config.marksPerDimension)
 
         /* Creates temporary data store. */
         val dataStore = this.tmpEnvironment.openStore(this.index.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.tmpTx, true)
@@ -72,7 +83,7 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
                 if (value is RealVectorValue<*>) {
                     this.writeLatch.lock()
                     try {
-                        if (!dataStore.put(this.tmpTx, cursor.key().toKey(), this.newMarks!!.getSignature(value).toEntry())) {
+                        if (!dataStore.put(this.tmpTx, cursor.key().toKey(), this.newMarks.getSignature(value).toEntry())) {
                             return false
                         }
 
@@ -120,7 +131,7 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
             }
 
             /* Update stored VAFMarks. */
-            IndexStructCatalogueEntry.write(this.index.name, this.newMarks!!, this.index.catalogue, context2.txn.xodusTx, EquidistantVAFMarks.Binding)
+            IndexStructCatalogueEntry.write(this.index.name, this.newMarks, this.index.catalogue, context2.txn.xodusTx, EquidistantVAFMarks.Binding)
 
             /* Reset to default efficiency of VAF after rebuild. */
             this.index.catalogue.indexStatistics.updatePersistently(this.index.name, IndexStatistic(VAFIndex.FILTER_EFFICIENCY_CACHE_KEY, VAFIndex.DEFAULT_FILTER_EFFICIENCY.toString()), context2.txn.xodusTx)
@@ -135,8 +146,8 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
      * @return True on success, false otherwise.
      */
     override fun applyAsyncInsert(event: DataEvent.Insert): Boolean {
-        val value = event.data[this.indexedColumn!!] ?: return true
-        return this.tmpDataStore.add(this.tmpTx, event.tupleId.toKey(), this.newMarks!!.getSignature(value as RealVectorValue<*>).toEntry())
+        val value = event.data[this.indexedColumn] ?: return true
+        return this.tmpDataStore.add(this.tmpTx, event.tupleId.toKey(), this.newMarks.getSignature(value as RealVectorValue<*>).toEntry())
     }
 
     /**
@@ -146,12 +157,12 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
      * @return True on success, false otherwise.
      */
     override fun applyAsyncUpdate(event: DataEvent.Update): Boolean {
-        val oldValue = event.data[this.indexedColumn!!]?.first
-        val newValue = event.data[this.indexedColumn!!]?.second
+        val oldValue = event.data[this.indexedColumn]?.first
+        val newValue = event.data[this.indexedColumn]?.second
 
         /* Obtain marks and update them. */
         return if (newValue != null) { /* Case 1: New value is not null, i.e., update to new value. */
-            this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), this.newMarks!!.getSignature(newValue as RealVectorValue<*>).toEntry())
+            this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), this.newMarks.getSignature(newValue as RealVectorValue<*>).toEntry())
         } else if (oldValue != null) { /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
             this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())
         } else {
@@ -166,6 +177,6 @@ class AsyncVAFIndexRebuilder(index: VAFIndex): AbstractAsyncIndexRebuilder<VAFIn
      * @return True on success, false otherwise.
      */
     override fun applyAsyncDelete(event: DataEvent.Delete): Boolean {
-        return event.data[this.indexedColumn!!] == null || this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())
+        return event.data[this.indexedColumn] == null || this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())
     }
 }

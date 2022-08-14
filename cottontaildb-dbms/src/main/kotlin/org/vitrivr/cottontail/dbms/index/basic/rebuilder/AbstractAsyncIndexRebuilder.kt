@@ -34,7 +34,7 @@ import java.util.concurrent.locks.ReentrantLock
  * @author Ralph Gasser
  * @version 1.0.0
  */
-abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T): AsyncIndexRebuilder<T> {
+abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T, ctx: QueryContext): AsyncIndexRebuilder<T> {
 
     companion object {
         /** [Logger] instance used by [AbstractAsyncIndexRebuilder]. */
@@ -75,17 +75,16 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     /**
      * Scans the data necessary for this [AbstractAsyncIndexRebuilder]. Usually, this takes place within an existing [QueryContext].
      *
-     * @param context1 The [QueryContext] to perform the SCAN in.
+     * @param context The [QueryContext] to perform the SCAN in.
      */
-    override fun scan(context1: QueryContext) {
+    override fun scan(context: QueryContext) {
         this.rebuildLatch.lock()
         try {
             require(this.state == IndexRebuilderState.INITIALIZED) { "Cannot perform SCAN with index builder because it is in the wrong state."}
-
             LOGGER.debug("Scanning index ${this.index.name} (${this.index.type}).")
 
             this.state = IndexRebuilderState.SCANNING
-            if (!this.internalScan(context1)) {
+            if (!this.internalScan(context)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.debug("Scanning index ${this.index.name} (${this.index.type}) failed.")
                 return
@@ -102,20 +101,20 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     /**
      * Merges this [AbstractAsyncIndexRebuilder] with its [Index] using the given [QueryContext].
      *
-     * @param context2 The [QueryContext] to perform the MERGE in.
+     * @param context The [QueryContext] to perform the MERGE in.
      */
-    override fun merge(context2: QueryContext) {
+    override fun merge(context: QueryContext) {
         this.rebuildLatch.lock()
         try {
             /* Sanity check. */
             require(this.state  == IndexRebuilderState.SCANNED) { "Cannot perform MERGE with index builder because it is in the wrong state."}
-            require(context2.txn.xodusTx.isExclusive) { "Failed to rebuild index ${this.index.name} (${this.index.type}); merge operation requires exclusive transaction."}
+            require(context.txn.xodusTx.isExclusive) { "Failed to rebuild index ${this.index.name} (${this.index.type}); merge operation requires exclusive transaction."}
 
             LOGGER.debug("Merging index ${this.index.name} (${this.index.type}).")
 
             /* Clear store and update state of index (* ---> DIRTY). */
-            val dataStore: Store = this.clearAndOpenStore(context2.txn)
-            if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.DIRTY, context2.txn.xodusTx)) {
+            val dataStore: Store = this.clearAndOpenStore(context.txn)
+            if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.DIRTY, context.txn.xodusTx)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because index state could not be changed to DIRTY!")
                 return
@@ -123,14 +122,14 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
 
             /* Execute actual merging. */
             this.state = IndexRebuilderState.MERGING
-            if (!this.internalMerge(context2, dataStore)) {
+            if (!this.internalMerge(context, dataStore)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.debug("Merging index ${this.index.name} (${this.index.type}) failed.")
                 return
             }
 
             /* Update state of index (DIRTY ---> CLEAN). */
-            if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.CLEAN, context2.txn.xodusTx)) {
+            if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.CLEAN, context.txn.xodusTx)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because index state could not be changed to CLEAN!")
                 return

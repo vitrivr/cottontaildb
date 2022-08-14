@@ -156,9 +156,10 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
     /**
      * Opens and returns a new [AsyncPQIndexRebuilder] object that can be used to rebuild with this [PQIndex].
      *
+     * @param context If the [QueryContext] that requested the [AsyncPQIndexRebuilder].
      * @return [AsyncPQIndexRebuilder]
      */
-    override fun newAsyncRebuilder() = AsyncPQIndexRebuilder(this)
+    override fun newAsyncRebuilder(context: QueryContext) = AsyncPQIndexRebuilder(this, context)
 
     /**
      * A [IndexTx] that affects this [AbstractIndex].

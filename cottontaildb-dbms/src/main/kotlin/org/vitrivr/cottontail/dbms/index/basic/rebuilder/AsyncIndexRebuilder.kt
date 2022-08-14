@@ -31,14 +31,14 @@ interface AsyncIndexRebuilder <T: Index>: TransactionObserver, Closeable {
     /**
      * Scans the data necessary for this [AsyncIndexRebuilder]. Usually, this takes place within an existing [QueryContext].
      *
-     * @param context1 The [QueryContext] to perform the MERGE in.
+     * @param context The [QueryContext] to perform the SCAN in.
      */
-    fun scan(context1: QueryContext)
+    fun scan(context: QueryContext)
 
     /**
      * Merges this [AbstractAsyncIndexRebuilder] with its [IndexTx] using the given [QueryContext].
      *
-     * @param context2 The [QueryContext] to perform the MERGE in.
+     * @param context The [QueryContext] to perform the MERGE in.
      */
-    fun merge(context2: QueryContext)
+    fun merge(context: QueryContext)
 }

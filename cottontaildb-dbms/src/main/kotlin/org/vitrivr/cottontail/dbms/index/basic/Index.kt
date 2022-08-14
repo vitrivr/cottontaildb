@@ -58,7 +58,8 @@ interface Index : DBO {
     /**
      * Creates and returns a new [AsyncIndexRebuilder] for this [Index].
      *
+     * @param context If the [QueryContext] that requested the [AsyncIndexRebuilder].
      * @return [AsyncIndexRebuilder]
      */
-    fun newAsyncRebuilder(): AsyncIndexRebuilder<*>
+    fun newAsyncRebuilder(context: QueryContext): AsyncIndexRebuilder<*>
 }

@@ -134,7 +134,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
 
     override fun newRebuilder(context: QueryContext): IndexRebuilder<*> = IVFPQIndexRebuilder(this, context)
 
-    override fun newAsyncRebuilder(): AsyncIndexRebuilder<*> {
+    override fun newAsyncRebuilder(context: QueryContext): AsyncIndexRebuilder<*> {
         TODO("Not yet implemented")
     }
 

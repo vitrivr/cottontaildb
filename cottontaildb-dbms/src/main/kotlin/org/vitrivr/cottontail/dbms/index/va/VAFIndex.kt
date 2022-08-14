@@ -145,9 +145,10 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
     /**
      * Opens and returns a new [AsyncVAFIndexRebuilder] object that can be used to rebuild with this [VAFIndex].
      *
+     * @param context If the [QueryContext] that requested the [AsyncVAFIndexRebuilder].
      * @return [AsyncVAFIndexRebuilder]
      */
-    override fun newAsyncRebuilder() = AsyncVAFIndexRebuilder(this)
+    override fun newAsyncRebuilder(context: QueryContext) = AsyncVAFIndexRebuilder(this, context)
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [VAFIndex].

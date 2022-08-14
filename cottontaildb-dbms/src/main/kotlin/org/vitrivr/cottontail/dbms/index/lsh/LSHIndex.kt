@@ -152,7 +152,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
     /**
      * Since [LSHIndex] does not support asynchronous re-indexing, this method will throw an error.
      */
-    override fun newAsyncRebuilder(): AsyncIndexRebuilder<*>
+    override fun newAsyncRebuilder(context: QueryContext): AsyncIndexRebuilder<*>
         = throw UnsupportedOperationException("LSHIndex does not support asynchronous index rebuilding.")
 
     /**

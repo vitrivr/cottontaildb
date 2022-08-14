@@ -169,7 +169,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
     override fun newRebuilder(context: QueryContext): AbstractIndexRebuilder<*>
         = LuceneIndexRebuilder(this, context)
 
-    override fun newAsyncRebuilder(): AsyncIndexRebuilder<LuceneIndex>
+    override fun newAsyncRebuilder(context: QueryContext): AsyncIndexRebuilder<LuceneIndex>
         = throw UnsupportedOperationException("LuceneIndex does not support asynchronous index rebuilding.")
 
     /**

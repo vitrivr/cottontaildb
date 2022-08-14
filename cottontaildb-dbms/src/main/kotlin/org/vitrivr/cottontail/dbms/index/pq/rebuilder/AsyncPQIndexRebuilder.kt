@@ -30,16 +30,40 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex>(index) {
+class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyncIndexRebuilder<PQIndex>(index, context) {
     /** The (temporary) Xodus [Store] used to store [SPQSignature]s. */
     private val tmpDataStore: Store = this.tmpEnvironment.openStore(this.index.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.tmpTx, true)
         ?: throw DatabaseException.DataCorruptionException("Temporary data store for index ${this.index.name} could not be created.")
 
     /** Reference to [SingleStageQuantizer] used by this [AsyncPQIndexRebuilder] (only available after [IndexRebuilderState.INITIALIZED]). */
-    private var newQuantizer: SingleStageQuantizer? = null
+    private val newQuantizer: SingleStageQuantizer
 
     /** Reference to [ColumnDef] indexed by this [AsyncPQIndexRebuilder] (only available after [IndexRebuilderState.INITIALIZED]). */
-    private var indexedColumn: ColumnDef<*>? = null
+    private val indexedColumn: ColumnDef<*>?
+
+    init {
+        /* Read basic index properties. */
+        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, context.txn.xodusTx)
+            ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
+        val config = entry.config as PQIndexConfig
+        val column = entry.columns[0]
+
+        /* Tx objects required for index rebuilding. */
+        val entityTx = this.index.parent.newTx(context)
+        val columnTx = entityTx.columnForName(column).newTx(context)
+        val count = columnTx.count()
+        this.indexedColumn = columnTx.columnDef
+
+        /* Generate and obtain signature and distance function. */
+        val signature = Signature.Closed(config.distance, arrayOf(this.indexedColumn.type, this.indexedColumn.type), Types.Double)
+        val distanceFunction: VectorDistance<*> = this.index.catalogue.functions.obtain(signature) as VectorDistance<*>
+
+        /* Generates new product quantize. */
+        val fraction = ((3.0f * config.numCentroids) / count)
+        val seed = System.currentTimeMillis()
+        val learningData = DataCollectionUtilities.acquireLearningData(columnTx, fraction, seed)
+        this.newQuantizer = SingleStageQuantizer.learnFromData(distanceFunction, learningData, config)
+    }
 
     /**
      * Internal, modified rebuild method. This method basically scans the entity and writes all the changes to the surrounding snapshot.
@@ -48,24 +72,12 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
         /* Read basic index properties. */
         val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, context1.txn.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
-        val config = entry.config as PQIndexConfig
         val column = entry.columns[0]
 
         /* Tx objects required for index rebuilding. */
         val entityTx = this.index.parent.newTx(context1)
         val columnTx = entityTx.columnForName(column).newTx(context1)
         val count = columnTx.count()
-        this.indexedColumn = columnTx.columnDef
-
-        /* Generate and obtain signature and distance function. */
-        val signature = Signature.Closed(config.distance, arrayOf(this.indexedColumn!!.type, this.indexedColumn!!.type), Types.Double)
-        val distanceFunction: VectorDistance<*> = this.index.catalogue.functions.obtain(signature) as VectorDistance<*>
-
-        /* Generates new product quantizer. */
-        val fraction = ((3.0f * config.numCentroids) / count)
-        val seed = System.currentTimeMillis()
-        val learningData = DataCollectionUtilities.acquireLearningData(columnTx, fraction, seed)
-        this.newQuantizer = SingleStageQuantizer.learnFromData(distanceFunction, learningData, config)
 
         /* Iterate over entity and update index with entries. */
         var counter = 0
@@ -74,7 +86,7 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
                 if (this.state != IndexRebuilderState.SCANNING) return false
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
-                    val sig = this.newQuantizer!!.quantize(value)
+                    val sig = this.newQuantizer.quantize(value)
                     this.writeLatch.lock()
                     try {
                         if (!this.tmpDataStore.put(this.tmpTx, cursor.key().toKey(), sig.toEntry())) {
@@ -126,7 +138,7 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
         }
 
         /* Update stored ProductQuantizer. */
-        IndexStructCatalogueEntry.write(this.index.name, this.newQuantizer!!.toSerializableProductQuantizer(), this.index.catalogue, context2.txn.xodusTx, SerializableSingleStageProductQuantizer.Binding)
+        IndexStructCatalogueEntry.write(this.index.name, this.newQuantizer.toSerializableProductQuantizer(), this.index.catalogue, context2.txn.xodusTx, SerializableSingleStageProductQuantizer.Binding)
         return true
     }
 
@@ -141,7 +153,7 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
         val value = event.data[this.indexedColumn] ?: return true
 
         /* If value is NULL, return true. NULL values are simply ignored by the PQIndex. */
-        val sig = this.newQuantizer!!.quantize(value as VectorValue<*>)
+        val sig = this.newQuantizer.quantize(value as VectorValue<*>)
         return this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), sig.toEntry())
     }
 
@@ -158,7 +170,7 @@ class AsyncPQIndexRebuilder(index: PQIndex): AbstractAsyncIndexRebuilder<PQIndex
 
         /* Obtain marks and update them. */
         return if (newValue is RealVectorValue<*>) { /* Case 1: New value is not null, i.e., update to new value. */
-            val newSig = this.newQuantizer!!.quantize(newValue as VectorValue<*>)
+            val newSig = this.newQuantizer.quantize(newValue as VectorValue<*>)
             this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), newSig.toEntry())
         } else if (oldValue is RealVectorValue<*>) { /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
             this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())

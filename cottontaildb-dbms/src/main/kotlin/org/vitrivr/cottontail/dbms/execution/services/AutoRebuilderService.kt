@@ -168,15 +168,17 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
         private fun performConcurrentRebuild(): Boolean {
             /* Step 1a: Scan index (read-only). */
             val transaction1 = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
-            val context = DefaultQueryContext("auto-rebuild-scan-${this@AutoRebuilderService.counter.incrementAndGet()}", this@AutoRebuilderService.catalogue, transaction1)
+            val context1 = DefaultQueryContext("auto-rebuild-prepare-${this@AutoRebuilderService.counter.incrementAndGet()}", this@AutoRebuilderService.catalogue, transaction1)
             val rebuilder = try {
-                val catalogueTx = this@AutoRebuilderService.catalogue.newTx(context)
+                val catalogueTx = this@AutoRebuilderService.catalogue.newTx(context1)
                 val schema = catalogueTx.schemaForName(this.index.schema())
-                val schemaTx = schema.newTx(context)
+                val schemaTx = schema.newTx(context1)
                 val entity = schemaTx.entityForName(this.index.entity())
-                val entityTx = entity.newTx(context)
+                val entityTx = entity.newTx(context1)
                 val index = entityTx.indexForName(this.index)
-                index.newAsyncRebuilder()
+                val ret = index.newAsyncRebuilder(context1)
+                transaction1.commit()
+                ret
             } catch (e: Throwable) {
                 when (e) {
                     is DatabaseException.SchemaDoesNotExistException,
@@ -190,17 +192,19 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
 
             /* Register rebuilder as observer. */
             this@AutoRebuilderService.manager.register(rebuilder)
+
             try {
                 /* Start rebuilding. */
+                val transaction2 = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
+                val context2 = DefaultQueryContext("auto-rebuild-scan-${this@AutoRebuilderService.counter.incrementAndGet()}", this@AutoRebuilderService.catalogue, transaction2)
                 try {
-                    rebuilder.scan(context)
+                    rebuilder.scan(context2)
+                    transaction2.commit()
                 } catch (e: Throwable) {
                     LOGGER.error("Index auto-rebuilding (SCAN) for $index failed due to exception: ${e.message}.")
+                    transaction2.rollback()
                     return false
-                } finally {
-                    transaction1.rollback()
                 }
-
                 /* Step 1b: Make sanity check to prevent obtaining an exclusive transaction unnecessarily. */
                 if (rebuilder.state != IndexRebuilderState.SCANNED) {
                     LOGGER.error("Index auto-rebuilding (SCAN) seems to have failed. Aborting...")
@@ -208,15 +212,15 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                 }
 
                 /* Step 2: MERGE index (write). */
-                val transaction2 = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
-                val context2 = DefaultQueryContext("auto-rebuild-merge-${this@AutoRebuilderService.counter.incrementAndGet()}", this@AutoRebuilderService.catalogue, transaction2)
+                val transaction3 = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+                val context3 = DefaultQueryContext("auto-rebuild-merge-${this@AutoRebuilderService.counter.incrementAndGet()}", this@AutoRebuilderService.catalogue, transaction3)
                 try {
                     return if (rebuilder.state == IndexRebuilderState.SCANNED) {
-                        rebuilder.merge(context2)
-                        transaction2.commit()
+                        rebuilder.merge(context3)
+                        transaction3.commit()
                         true
                     } else {
-                        transaction2.rollback()
+                        transaction3.rollback()
                         false
                     }
                 } catch (e: Throwable) {
@@ -226,7 +230,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                         is DatabaseException.IndexDoesNotExistException -> LOGGER.warn("Index auto-rebuilding for $index failed because DBO no longer exists.")
                         else -> LOGGER.error("Index auto-rebuilding (MERGE) for $index failed due to exception: ${e.message}.")
                     }
-                    transaction2.rollback()
+                    transaction3.rollback()
                     return false
                 }
             } finally {
