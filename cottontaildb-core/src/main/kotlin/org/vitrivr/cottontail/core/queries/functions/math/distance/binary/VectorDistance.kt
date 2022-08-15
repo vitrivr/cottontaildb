@@ -29,6 +29,10 @@ sealed class VectorDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>): Fun
     override val signature: Signature.Closed<DoubleValue>
         get() = Signature.Closed(name, arrayOf(this.type, this.type), Types.Double)
 
+
+    /** */
+    open fun invokeOrMaximum(left: VectorValue<*>, right: VectorValue<*>, maximum: DoubleValue): DoubleValue? = this.invoke(left, right)
+
     /**
      * Creates a copy of this [VectorDistance].
      *

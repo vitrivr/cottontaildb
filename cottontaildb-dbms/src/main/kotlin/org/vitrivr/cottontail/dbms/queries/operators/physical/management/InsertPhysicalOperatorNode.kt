@@ -89,6 +89,11 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
     override fun toOperator(ctx: QueryContext): Operator = InsertOperator(this.groupId, this.entity, this.records, ctx)
 
     /**
+     * The [InsertPhysicalOperatorNode] cannot be partitioned.
+     */
+    override fun tryPartition(ctx: QueryContext, max: Int): Physical? = null
+
+    /**
      * Generates and returns a [Digest] for this [InsertPhysicalOperatorNode].
      *
      * @return [Digest]

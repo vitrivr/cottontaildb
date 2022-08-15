@@ -128,8 +128,21 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
             }
             return DoubleValue(sqrt(sum))
         }
+
+        override fun invokeOrMaximum(left: VectorValue<*>, right: VectorValue<*>, maximum: DoubleValue): DoubleValue {
+            val max = maximum.value.pow(2)
+            val probing = left as FloatVectorValue
+            val query = right as FloatVectorValue
+            var sum = 0.0
+            for (i in 0 until this.vectorSize) {
+                sum += (query.data[i] - probing.data[i]).pow(2)
+                if (sum >= max)  return maximum
+            }
+            return DoubleValue(sqrt(sum))
+        }
+
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
-        override fun vectorized() = FloatVectorVectorized(type)
+        override fun vectorized() = FloatVectorVectorized(this.type)
     }
 
     /**
