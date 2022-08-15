@@ -124,7 +124,8 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          * A [MutableMap] of all [TransactionObserver] and the [Event]s that were collected for them.
          *
          * Since a lot of [Event]s can build-up during a [Transaction], the [MutableList] is wrapped in a [SoftReference],
-         * which can be
+         * which can be claimed by the garbage collector. Such a situation will result in failure to notify observers. Consequently,
+         * the channel provided by this facility must be considered unreliable!
          */
         private val localObservers: MutableMap<TransactionObserver, SoftReference<MutableList<Event>>> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
@@ -185,7 +186,11 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
                 this@TransactionManager.transactionHistory.removeAt(0)
             }
 
-            /** Create transaction, local snapshot of the registered transaction observers. */
+            /**
+             * Create transaction, local snapshot of the registered transaction observers.
+             *
+             * Observers registered after the transaction has started, are considered! This is a design choice!
+             */
             for (observer in this@TransactionManager.observers) {
                 this.localObservers[observer] = SoftReference(LinkedList<Event>())
             }
