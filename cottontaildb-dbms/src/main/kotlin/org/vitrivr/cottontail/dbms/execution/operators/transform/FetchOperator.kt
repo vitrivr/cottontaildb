@@ -47,7 +47,9 @@ class FetchOperator(parent: Operator, private val entity: EntityTx, private val 
                         record[it]
                     } else {
                         val cursor = cursors[it-numberOfInputColumns]
-                        require(cursor.moveTo(record.tupleId)) { "TupleId ${record.tupleId} could not be obtained via cr"}
+                        require(cursor.moveTo(record.tupleId)) {
+                            "TupleId ${record.tupleId} could not be fetched! This is a programmer's error!"
+                        }
                         cursor.value()
                     }
                 }
