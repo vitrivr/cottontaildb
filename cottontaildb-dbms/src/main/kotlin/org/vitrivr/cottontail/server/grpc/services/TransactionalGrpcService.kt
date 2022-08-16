@@ -182,17 +182,20 @@ internal interface TransactionalGrpcService {
                     } catch (e: Throwable) {
                         val wrapped = context.toStatusException(e, true)
                         LOGGER.error("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} failed: ${wrapped.message}")
+                        LOGGER.error(e.stackTraceToString())
                         throw wrapped
                     }
                 } else {
                     val wrapped = context.toStatusException(it, true)
                     if (context.txn.type.autoRollback) context.txn.rollback() /* Handle auto-rollback. */
                     LOGGER.error("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} failed: ${wrapped.message}")
+                    LOGGER.error(it.toString())
                     throw wrapped
                 }
             }
         } catch (e: Throwable) {
             LOGGER.error("[${context.txn.txId}, ${context.queryId}] Preparation of query failed: ${e.message}")
+            LOGGER.error(e.stackTraceToString())
             if (context.txn.type.autoRollback) context.txn.rollback() /* Handle auto-rollback. */
             return flow { throw context.toStatusException(e, false) }
         }
