@@ -10,9 +10,9 @@ import org.vitrivr.cottontail.dbms.entity.Entity
  * An [Event] that signals change to the main data held in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
-interface DataEvent: Event {
+sealed interface DataEvent: Event {
     /** The name of the [Entity] affected by this [DataEvent]. */
     val entity: Name.EntityName
 
