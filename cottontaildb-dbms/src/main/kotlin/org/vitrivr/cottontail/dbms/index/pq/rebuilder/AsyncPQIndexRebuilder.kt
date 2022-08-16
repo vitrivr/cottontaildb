@@ -184,7 +184,7 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
     }
 
     /**
-     * Drains and processes all [DataEvent]s that are currently waiting on the [sideChannelQueue].
+     * Drains and processes all [PQIndexingEvent]s that are currently waiting on the [log].
      *
      * @return True on success, false otherwise.
      */

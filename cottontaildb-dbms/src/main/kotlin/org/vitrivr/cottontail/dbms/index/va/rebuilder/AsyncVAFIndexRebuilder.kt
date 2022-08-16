@@ -20,7 +20,6 @@ import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.index.IndexStatistic
 import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
-import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
@@ -138,7 +137,7 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
     }
 
     /**
-     * Processes a [DataEvent] received from the side-channel, converts it to a [PQIndexingEvent] and appends it to the log.
+     * Processes a [DataEvent] received from the side-channel, converts it to a [VAFIndexingEvent] and appends it to the log.
      *
      * @param event The [DataEvent] that should be processed,
      */
@@ -168,7 +167,7 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
             val newValue = event.data[this.indexedColumn]?.second
 
             /* Obtain marks and update them. */
-            if (newValue is RealVectorValue<*>) {                   /* Case 1: New value is not null, i.e., update to new value. */
+            if (newValue is RealVectorValue<*>) {               /* Case 1: New value is not null, i.e., update to new value. */
                 this.log.offer(VAFIndexingEvent.Set(event.tupleId, this.newMarks.getSignature(newValue)))
             } else if (oldValue is RealVectorValue<*>) {        /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
                 this.log.offer(VAFIndexingEvent.Unset(event.tupleId))
@@ -178,7 +177,7 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
     }
 
     /**
-     * Drains and processes all [DataEvent]s that are currently waiting on the [sideChannelQueue].
+     * Drains and processes all [VAFIndexingEvent]s that are currently waiting on the [log].
      *
      * @return True on success, false otherwise.
      */

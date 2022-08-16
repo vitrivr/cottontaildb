@@ -104,15 +104,6 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
                 return
             }
 
-            /* Drain and process all events that have accumulated on the side-channel. */
-            if (!this.drainAndMergeLog()) {
-                this.state = IndexRebuilderState.ABORTED
-                LOGGER.error("Scanning index ${this.index.name} (${this.index.type}) failed.")
-                context.txn.rollback()
-                return
-            }
-            this.tmpTx.flush()
-
             /* Commit transaction. */
             context.txn.commit()
             this.state = IndexRebuilderState.SCANNED
