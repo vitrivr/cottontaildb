@@ -14,11 +14,8 @@ import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.execution.locking.LockMode
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.sources.partitionFor
-import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.*
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager.TransactionImpl
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionStatus
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
@@ -261,8 +258,12 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         /** The [TransactionId] of the [MigrationContext]. */
         override val txId: TransactionId = transactionIdCounter.getAndIncrement()
 
-        /** The [TransactionId] of the [MigrationContext]. */
+        /** The [LegacyMigrationContext] does not hold a [jetbrains.exodus.env.Transaction] reference. */
         override val xodusTx: jetbrains.exodus.env.Transaction
+            get() = throw UnsupportedOperationException("Xodus transaction not available for LegacyMigrationContext.")
+
+        /** A [LegacyMigrationContext] does not have a reference to a [TransactionManager]. */
+        override val manager: TransactionManager
             get() = throw UnsupportedOperationException("Xodus transaction not available for LegacyMigrationContext.")
 
         /** The [TransactionType] of a [MigrationManager] is always [TransactionType.SYSTEM_EXCLUSIVE]. */
@@ -278,6 +279,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         @Volatile
         override var state: TransactionStatus = TransactionStatus.IDLE
             private set
+
 
         /** Map of all [Tx] that have been created as part of this [MigrationManager]. Used for final COMMIT or ROLLBACK. */
         private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
@@ -359,6 +361,10 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         @Volatile
         override var state: TransactionStatus = TransactionStatus.IDLE
             private set
+
+        /** A [MigrationContext] does not have a reference to a [TransactionManager]. */
+        override val manager: TransactionManager
+            get() = throw UnsupportedOperationException("Xodus transaction not available for LegacyMigrationContext.")
 
         /** [MigrationContext] do not provide any query workers. */
         override val availableQueryWorkers = 0

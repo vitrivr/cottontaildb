@@ -89,7 +89,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
      * A [TransactionImpl] can be of different [TransactionType]s. Their execution semantics may differ slightly.
      *
      * @author Ralph Gasser
-     * @version 1.5.0
+     * @version 1.6.0
      */
     inner class TransactionImpl(override val type: TransactionType) : LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()), Transaction, TransactionContext {
 
@@ -97,6 +97,10 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         @Volatile
         override var state: TransactionStatus = TransactionStatus.IDLE
             private set
+
+        /** Reference to the enclosing [TransactionManager]. */
+        override val manager: TransactionManager
+            get() = this@TransactionManager
 
         /** The Xodus [Transaction] associated with this [TransactionContext]. */
         override val xodusTx: jetbrains.exodus.env.Transaction = when {
