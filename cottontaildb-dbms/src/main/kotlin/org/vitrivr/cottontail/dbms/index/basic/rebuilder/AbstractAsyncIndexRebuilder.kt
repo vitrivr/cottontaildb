@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.index.basic.rebuilder
 import jetbrains.exodus.env.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
@@ -21,10 +22,9 @@ import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+
 import java.nio.file.Files
 import java.util.*
-import java.util.concurrent.ArrayBlockingQueue
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -79,9 +79,6 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     /** Internal sequence number for this [AbstractAsyncIndexRebuilder]. */
     private val sequenceNumber = COUNTER.incrementAndGet()
 
-    /** A [ConcurrentLinkedQueue] that collects all [DataEvent]s received on the side-channel. */
-    protected val sideChannelQueue = ArrayBlockingQueue<DataEvent>(100_000)
-
     /** An [AbstractAsyncIndexRebuilder] is only interested in [DataEvent]s that concern the [Entity]. */
     override fun isRelevant(event: Event): Boolean
         = this.state.trackChanges && event is DataEvent && event.entity == this.entityName
@@ -98,15 +95,26 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
         this.manager.register(this)
         val context = DefaultQueryContext("auto-rebuild-scan-$sequenceNumber", this.catalogue, this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY))
 
-        /* Start BUILD phase of process. */
         try {
+            /* Start BUILD phase of process. */
             if (!this.internalBuild(context)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Scanning index ${this.index.name} (${this.index.type}) failed.")
                 context.txn.rollback()
                 return
             }
-            context.txn.commit() /* Commit transaction. */
+
+            /* Drain and process all events that have accumulated on the side-channel. */
+            if (!this.drainAndMergeLog()) {
+                this.state = IndexRebuilderState.ABORTED
+                LOGGER.error("Scanning index ${this.index.name} (${this.index.type}) failed.")
+                context.txn.rollback()
+                return
+            }
+            this.tmpTx.flush()
+
+            /* Commit transaction. */
+            context.txn.commit()
             this.state = IndexRebuilderState.SCANNED
             LOGGER.debug("Scanning index ${this.index.name} (${this.index.type}) completed!")
         } catch (e: Throwable) {
@@ -137,15 +145,13 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
                 return
             }
 
-            /* Drain side-channel until it's empty. */
-            do {
-                if (!this.processSideChannelEvents()) {
-                    this.state = IndexRebuilderState.ABORTED
-                    LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because not all side-channel could be processed.")
-                    context.txn.rollback()
-                    return
-                }
-            } while (this.sideChannelQueue.isNotEmpty())
+            /* Drain side-channel. */
+            if (!this.drainAndMergeLog()) {
+                this.state = IndexRebuilderState.ABORTED
+                LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because not all side-channel could be processed.")
+                context.txn.rollback()
+                return
+            }
             this.tmpTx.flush()
 
             /* Execute actual merging. */
@@ -189,7 +195,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
             for (event in events) {
                 require(event is DataEvent) { "Event $event is not a DataEvent." }
                 require(event.entity == this.index.name.entity()) { "DataEvent $event received that does not concern this index. This is a programmer's error!" }
-                this.sideChannelQueue.offer(event)
+                this.processSideChannelEvent(event)
             }
         }
     }
@@ -202,7 +208,6 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     final override fun onDeliveryFailure(txId: TransactionId) {
         if (this.state.trackChanges) {
             this.state = IndexRebuilderState.ABORTED
-            this.sideChannelQueue.clear()
         }
     }
 
@@ -255,11 +260,19 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     abstract fun internalReplace(context: QueryContext, store: Store): Boolean
 
     /**
+     * Processes and usually enqueues a [DataEvent] for later persisting it in the index rebuilt by this [AbstractAsyncIndexRebuilder].
+     *
+     * @param event [DataEvent] that should be processed.
+     * @return True, if data event could be processed and enqueue, false otherwise.
+     */
+    abstract fun processSideChannelEvent(event: DataEvent): Boolean
+
+    /**
      * Drains and processes all [DataEvent]s that are currently waiting on the [sideChannelQueue].
      *
      * @return True on success, false otherwise.
      */
-    abstract fun processSideChannelEvents(): Boolean
+    abstract fun drainAndMergeLog(): Boolean
 
     /**
      * Clears and opens the data store associated with this [AbstractIndexRebuilder].

@@ -1,7 +1,5 @@
 package org.vitrivr.cottontail.dbms.index.pq.rebuilder
 
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet
-import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.database.ColumnDef
@@ -26,7 +24,7 @@ import org.vitrivr.cottontail.dbms.index.pq.quantizer.SingleStageQuantizer
 import org.vitrivr.cottontail.dbms.index.pq.signature.SPQSignature
 import org.vitrivr.cottontail.dbms.index.va.rebuilder.AsyncVAFIndexRebuilder
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import java.util.*
+import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * An [AbstractAsyncIndexRebuilder] that can be used to concurrently rebuild a  [PQIndex].
@@ -46,8 +44,8 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
     /** Reference to [ColumnDef] indexed by this [AsyncPQIndexRebuilder] (only available after [IndexRebuilderState.INITIALIZED]). */
     private val indexedColumn: ColumnDef<*>?
 
-    /** List of all deleted [TupleId]s. */
-    private val deletedTupleIds = Collections.synchronizedSet(LongOpenHashSet())
+    /** A [ConcurrentLinkedQueue] that acts as log for side-channel events. TODO: Make persistent. */
+    private val log = ConcurrentLinkedQueue<PQIndexingEvent>()
 
     init {
         /* Read basic index properties. */
@@ -94,10 +92,11 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
                 if (this.state != IndexRebuilderState.SCANNING) return false
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
-
                     /* Add signature. */
                     val sig = this.newQuantizer.quantize(value)
-                    this.tmpDataStore.put(this.tmpTx, cursor.key().toKey(), sig.toEntry())
+                    if (!this.tmpDataStore.add(this.tmpTx, cursor.key().toKey(), sig.toEntry())) {
+                        return false
+                    }
 
                     if ((++counter) % 1_000_000 == 0) {
                         LOGGER.debug("Rebuilding index (SCAN) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
@@ -105,11 +104,6 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
                             return false
                         }
                     }
-                }
-
-                /* Drain and process all events that appear on the side-channel; we do this every round. */
-                if (!this.processSideChannelEvents()) {
-                    return false
                 }
             }
         }
@@ -130,17 +124,15 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
             var counter = 0
             while (cursor.next) {
                 if (this.state != IndexRebuilderState.MERGING) return false
-                if (LongBinding.compressedEntryToLong(cursor.key) !in this.deletedTupleIds) {
-                    if (!store.add(context.txn.xodusTx, cursor.key, cursor.value)) {
-                        return false
-                    }
+                if (!store.add(context.txn.xodusTx, cursor.key, cursor.value)) {
+                    return false
+                }
 
-                    /* Data is flushed every once in a while. */
-                    if ((++counter) % 1_000_000 == 0) {
-                        LOGGER.debug("Rebuilding index (MERGE) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
-                        if (!context.txn.xodusTx.flush()) {
-                            return false
-                        }
+                /* Data is flushed every once in a while. */
+                if ((++counter) % 1_000_000 == 0) {
+                    LOGGER.debug("Rebuilding index (MERGE) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
+                    if (!context.txn.xodusTx.flush()) {
+                        return false
                     }
                 }
             }
@@ -152,59 +144,80 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
     }
 
     /**
+     * Processes a [DataEvent] received from the side-channel, converts it to a [PQIndexingEvent] and appends it to the log.
+     *
+     * @param event The [DataEvent] that should be processed,
+     */
+    override fun processSideChannelEvent(event: DataEvent): Boolean = when(event) {
+        /* Process side-channel INSERT. */
+        is DataEvent.Insert -> {
+            val value = event.data[this.indexedColumn]
+            if (value is VectorValue<*>) {
+                this.log.offer(PQIndexingEvent.Set(event.tupleId, this.newQuantizer.quantize(value)))
+            }
+            true
+        }
+
+        /* Process side-channel DELETE. */
+        is DataEvent.Delete -> {
+            val value = event.data[this.indexedColumn]
+            if (value != null) {
+                this.log.offer(PQIndexingEvent.Unset(event.tupleId))
+            }
+            true
+        }
+
+        /* Process side-channel UPDATE. */
+        is DataEvent.Update -> {
+            /* Extract value and perform sanity check. */
+            val oldValue = event.data[this.indexedColumn]?.first
+            val newValue = event.data[this.indexedColumn]?.second
+
+            /* Obtain marks and update them. */
+            if (newValue is VectorValue<*>) {                   /* Case 1: New value is not null, i.e., update to new value. */
+                this.log.offer(PQIndexingEvent.Set(event.tupleId, this.newQuantizer.quantize(newValue)))
+            } else if (oldValue is RealVectorValue<*>) {        /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
+                this.log.offer(PQIndexingEvent.Unset(event.tupleId))
+            }
+            true
+        }
+    }
+
+    /**
      * Drains and processes all [DataEvent]s that are currently waiting on the [sideChannelQueue].
      *
      * @return True on success, false otherwise.
      */
-    override fun processSideChannelEvents(): Boolean {
-        val local = LinkedList<DataEvent>()
-        this.sideChannelQueue.drainTo(local)
-        for (event in local) {
-            when(event) {
-                /* Process side-channel INSERT. */
-                is DataEvent.Insert -> {
-                    val value = event.data[this.indexedColumn]
-                    if (value is VectorValue<*>) {
-                        val sig = this.newQuantizer.quantize(value)
-                        if (!this.tmpDataStore.add(this.tmpTx, event.tupleId.toKey(), sig.toEntry())) {
-                            return false
-                        }
-                    }
-                }
-
-                /* Process side-channel DELETE. */
-                is DataEvent.Delete -> {
-                    val value = event.data[this.indexedColumn]
-                    if (value != null) {
-                        if (!this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())) {
-                            if (!this.deletedTupleIds.add(event.tupleId)) {
-                                return false
-                            }
-                        }
-                    }
-                }
-
-                /* Process side-channel UPDATE. */
-                is DataEvent.Update -> {
-                    /* Extract value and perform sanity check. */
-                    val oldValue = event.data[this.indexedColumn]?.first
-                    val newValue = event.data[this.indexedColumn]?.second
-
-                    /* Obtain marks and update them. */
-                    if (newValue is RealVectorValue<*>) {               /* Case 1: New value is not null, i.e., update to new value. */
-                        val newSig = this.newQuantizer.quantize(newValue as VectorValue<*>)
-                        if (this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), newSig.toEntry())) {
-                            return false
-                        }
-                        this.deletedTupleIds.remove(event.tupleId)
-                    } else if (oldValue is RealVectorValue<*>) {        /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
-                        if (!this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())) {
-                            this.deletedTupleIds.add(event.tupleId)     /* Defer delete into the future (if worker has not inserted tupleId yet). */
-                        }
-                    }
-                }
+    override fun drainAndMergeLog(): Boolean {
+        var next = this.log.poll()
+        while (next != null) {
+            val success = when (next) {
+                is PQIndexingEvent.Set -> this.tmpDataStore.put(this.tmpTx, next.tupleId.toKey(), next.signature.toEntry())
+                is PQIndexingEvent.Unset -> this.tmpDataStore.delete(this.tmpTx, next.tupleId.toKey())
             }
+            if (!success) return false
+            next = this.log.poll()
         }
         return true
+    }
+
+    /**
+     * An internal helper interface used by the [AsyncPQIndexRebuilder].
+     *
+     * Every [DataEvent] is converted to a [PQIndexingEvent.Set] or [PQIndexingEvent.Unset].
+     * Order of operations is ensured by the log.
+     */
+    private sealed interface PQIndexingEvent {
+        val tupleId: TupleId
+
+        /**
+         * A log entry that signifies the appending of a [SPQSignature] to the index.
+         */
+        data class Set(override val tupleId: TupleId, val signature: SPQSignature): PQIndexingEvent
+
+        /**
+         * A log entry that signifies the removal of a [SPQSignature] from the index.
+         */
+        data class Unset(override val tupleId: TupleId): PQIndexingEvent
     }
 }

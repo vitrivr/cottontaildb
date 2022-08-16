@@ -1,7 +1,5 @@
 package org.vitrivr.cottontail.dbms.index.va.rebuilder
 
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet
-import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.database.ColumnDef
@@ -18,10 +16,12 @@ import org.vitrivr.cottontail.dbms.index.basic.rebuilder.IndexRebuilderState
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.index.va.VAFIndexConfig
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
+import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.index.IndexStatistic
 import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
 import java.util.*
+import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * An [AbstractAsyncIndexRebuilder] that can be used to concurrently rebuild a [VAFIndex].
@@ -41,8 +41,8 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
     /** Reference to [EquidistantVAFMarks] used by this [AsyncVAFIndexRebuilder] (only available after [IndexRebuilderState.INITIALIZED]). */
     private val indexedColumn: ColumnDef<*>
 
-    /** A [Set] of [TupleId]s that should be deleted. */
-    private val deletedTupleIds= Collections.synchronizedSet(LongOpenHashSet())
+    /** A [ConcurrentLinkedQueue] that acts as log for side-channel events. TODO: Make persistent. */
+    private val log = ConcurrentLinkedQueue<VAFIndexingEvent>()
 
     init {
         /* Read basic index properties. */
@@ -84,7 +84,9 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
                 if (this.state != IndexRebuilderState.SCANNING) return false
                 val value = cursor.value()
                 if (value is RealVectorValue<*>) {
-                    this.tmpDataStore.put(this.tmpTx, cursor.key().toKey(), this.newMarks.getSignature(value).toEntry())
+                    if (!this.tmpDataStore.add(this.tmpTx, cursor.key().toKey(), this.newMarks.getSignature(value).toEntry())) {
+                        return false
+                    }
 
                     /* Data is flushed every once in a while. */
                     if ((++counter) % 1_000_000 == 0) {
@@ -93,11 +95,6 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
                             return false
                         }
                     }
-                }
-
-                /* Drain and process all events that appear on the side-channel; we do this every round. */
-                if (!this.processSideChannelEvents()) {
-                    return false
                 }
             }
         }
@@ -118,17 +115,15 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
             var counter = 0
             while (cursor.next) {
                 if (this.state != IndexRebuilderState.MERGING) return false
-                if (LongBinding.compressedEntryToLong(cursor.key) !in this.deletedTupleIds) {
-                    if (!store.put(context.txn.xodusTx, cursor.key, cursor.value)) {
-                        return false
-                    }
+                if (!store.add(context.txn.xodusTx, cursor.key, cursor.value)) {
+                    return false
+                }
 
-                    /* Data is flushed every once in a while. */
-                    if ((++counter) % 1_000_000 == 0) {
-                        LOGGER.debug("Rebuilding index (MERGE) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
-                        if (!context.txn.xodusTx.flush()) {
-                            return false
-                        }
+                /* Data is flushed every once in a while. */
+                if ((++counter) % 1_000_000 == 0) {
+                    LOGGER.debug("Rebuilding index (MERGE) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
+                    if (!context.txn.xodusTx.flush()) {
+                        return false
                     }
                 }
             }
@@ -143,59 +138,80 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
     }
 
     /**
+     * Processes a [DataEvent] received from the side-channel, converts it to a [PQIndexingEvent] and appends it to the log.
+     *
+     * @param event The [DataEvent] that should be processed,
+     */
+    override fun processSideChannelEvent(event: DataEvent): Boolean = when(event) {
+        /* Process side-channel INSERT. */
+        is DataEvent.Insert -> {
+            val value = event.data[this.indexedColumn]
+            if (value is RealVectorValue<*>) {
+                this.log.offer(VAFIndexingEvent.Set(event.tupleId, this.newMarks.getSignature(value)))
+            }
+            true
+        }
+
+        /* Process side-channel DELETE. */
+        is DataEvent.Delete -> {
+            val value = event.data[this.indexedColumn]
+            if (value != null) {
+                this.log.offer(VAFIndexingEvent.Unset(event.tupleId))
+            }
+            true
+        }
+
+        /* Process side-channel UPDATE. */
+        is DataEvent.Update -> {
+            /* Extract value and perform sanity check. */
+            val oldValue = event.data[this.indexedColumn]?.first
+            val newValue = event.data[this.indexedColumn]?.second
+
+            /* Obtain marks and update them. */
+            if (newValue is RealVectorValue<*>) {                   /* Case 1: New value is not null, i.e., update to new value. */
+                this.log.offer(VAFIndexingEvent.Set(event.tupleId, this.newMarks.getSignature(newValue)))
+            } else if (oldValue is RealVectorValue<*>) {        /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
+                this.log.offer(VAFIndexingEvent.Unset(event.tupleId))
+            }
+            true
+        }
+    }
+
+    /**
      * Drains and processes all [DataEvent]s that are currently waiting on the [sideChannelQueue].
      *
      * @return True on success, false otherwise.
      */
-    override fun processSideChannelEvents(): Boolean {
-        val local = LinkedList<DataEvent>()
-        this.sideChannelQueue.drainTo(local)
-        for (event in local) {
-            when(event) {
-                /* Process side-channel INSERT. */
-                is DataEvent.Insert -> {
-                    val value = event.data[this.indexedColumn]
-                    if (value is RealVectorValue<*>) {
-                        val sig = this.newMarks.getSignature(value)
-                        if (!this.tmpDataStore.add(this.tmpTx, event.tupleId.toKey(), sig.toEntry())) {
-                            return false
-                        }
-                    }
-                }
-
-                /* Process side-channel DELETE. */
-                is DataEvent.Delete -> {
-                    val value = event.data[this.indexedColumn]
-                    if (value != null) {
-                        if (!this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())) {
-                            if (!this.deletedTupleIds.add(event.tupleId)) {
-                                return false
-                            }
-                        }
-                    }
-                }
-
-                /* Process side-channel UPDATE. */
-                is DataEvent.Update -> {
-                    /* Extract value and perform sanity check. */
-                    val oldValue = event.data[this.indexedColumn]?.first
-                    val newValue = event.data[this.indexedColumn]?.second
-
-                    /* Obtain marks and update them. */
-                    if (newValue is RealVectorValue<*>) {               /* Case 1: New value is not null, i.e., update to new value. */
-                        val newSig = this.newMarks.getSignature(newValue)
-                        if (!this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), newSig.toEntry())) {
-                            return false
-                        }
-                        this.deletedTupleIds.remove(event.tupleId)
-                    } else if (oldValue is RealVectorValue<*>) {        /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
-                        if (!this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())) {
-                            this.deletedTupleIds.add(event.tupleId)     /* Defer delete into the future (if worker has not inserted tupleId yet). */
-                        }
-                    }
-                }
+    override fun drainAndMergeLog(): Boolean {
+        var next = this.log.poll()
+        while (next != null) {
+            val success = when (next) {
+                is VAFIndexingEvent.Set -> this.tmpDataStore.put(this.tmpTx, next.tupleId.toKey(), next.signature.toEntry())
+                is VAFIndexingEvent.Unset -> this.tmpDataStore.delete(this.tmpTx, next.tupleId.toKey())
             }
+            if (!success) return false
+            next = this.log.poll()
         }
         return true
+    }
+
+    /**
+     * An internal helper interface used by the [AsyncVAFIndexRebuilder].
+     *
+     * Every [DataEvent] is converted to a [VAFIndexingEvent.Set] or [VAFIndexingEvent.Unset].
+     * Order of operations is ensured by the log.
+     */
+    private sealed interface VAFIndexingEvent {
+        val tupleId: TupleId
+
+        /**
+         * A log entry that signifies the appending of a [VAFSignature] to the [VAFIndex].
+         */
+        data class Set(override val tupleId: TupleId, val signature: VAFSignature): VAFIndexingEvent
+
+        /**
+         * A log entry that signifies the removal of a [VAFSignature] from the [VAFIndex].
+         */
+        data class Unset(override val tupleId: TupleId): VAFIndexingEvent
     }
 }
