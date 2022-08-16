@@ -130,7 +130,6 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
 
         /* Clear store and update state of index (* ---> DIRTY). */
         try {
-            val dataStore: Store = this.clearAndOpenStore(context.txn)
             if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.DIRTY, context.txn.xodusTx)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because index state could not be changed to DIRTY!")
@@ -139,12 +138,18 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
             }
 
             /* Drain side-channel until it's empty. */
-            while (!this.sideChannelQueue.isEmpty()) {
-                this.processSideChannelEvents()
-            }
+            do {
+                if (!this.processSideChannelEvents()) {
+                    this.state = IndexRebuilderState.ABORTED
+                    LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because not all side-channel could be processed.")
+                    context.txn.rollback()
+                    return
+                }
+            } while (this.sideChannelQueue.isNotEmpty())
             this.tmpTx.flush()
 
             /* Execute actual merging. */
+            val dataStore: Store = this.clearAndOpenStore(context.txn)
             if (!this.internalReplace(context, dataStore)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed.")
@@ -195,8 +200,9 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
      * @param txId The [TransactionId] that is reporting.
      */
     final override fun onDeliveryFailure(txId: TransactionId) {
-        if (this.state in setOf(IndexRebuilderState.SCANNING, IndexRebuilderState.SCANNED, IndexRebuilderState.MERGING)) {
+        if (this.state.trackChanges) {
             this.state = IndexRebuilderState.ABORTED
+            this.sideChannelQueue.clear()
         }
     }
 
@@ -209,7 +215,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
                 this.state = IndexRebuilderState.FINISHED
 
                 /* Just to make sure! */
-                this.manager.register(this)
+                this.manager.deregister(this)
 
                 /* Abort transaction and close environment. */
                 this.tmpTx.abort()
@@ -224,10 +230,10 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
                     }
                 }
 
-                LOGGER.debug("Asynchronous index rebuilder index ${this.index.name} (${this.index.type}) discarded!")
+                LOGGER.debug("Asynchronous index re-builder index ${this.index.name} (${this.index.type}) discarded!")
             }
         } catch (e: Throwable) {
-            LOGGER.warn("Asynchronous index rebuilder for index ${this.index.name} (${this.index.type}) could not be discarded: ${e.message}")
+            LOGGER.warn("Asynchronous index re-builder for index ${this.index.name} (${this.index.type}) could not be discarded: ${e.message}")
         }
     }
 
