@@ -192,15 +192,17 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                     val value = this.columnCursor.value()
                     val distance = this.predicate.distance(this.query, value)!!
                     localSelection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))
-                } while (this.cursor.key < this.endKey && localSelection.size < localSelection.k && this.cursor.next)
+                } while (localSelection.size < localSelection.k && this.cursor.next && this.cursor.key <= this.endKey)
 
                 /* Second phase: Use lower-bound to decide whether entry should be added. */
                 threshold = (localSelection.peek()!![0] as DoubleValue).value
-                while (this.cursor.key < this.endKey && this.cursor.next){
+                while (this.cursor.next && this.cursor.key <= this.endKey) {
                     val signature = VAFSignature.fromEntry(cursor.value)
                     if (this.bounds.lb(signature, threshold) < threshold) {
                         val tupleId = LongBinding.compressedEntryToLong(cursor.key)
-                        require(this.columnCursor.moveTo(tupleId)) { "Column cursor failed to seek tuple with ID ${tupleId}." }
+                        require(this.columnCursor.moveTo(tupleId)) {
+                            "Column cursor failed to seek tuple with ID ${tupleId}."
+                        }
                         val value = this.columnCursor.value()
                         val distance = this.predicate.distance(this.query, value)!!
                         threshold = (localSelection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
@@ -236,11 +238,11 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                     val value = this.columnCursor.value()
                     val distance = this.predicate.distance(this.query, value)!!
                     localSelection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))
-                } while (this.cursor.key < this.endKey && localSelection.size < localSelection.k && this.cursor.next && this.columnCursor.moveNext())
+                } while (localSelection.size < localSelection.k && this.cursor.next && this.cursor.key <= this.endKey)
 
                 /* Second phase: Use lower-bound to decide whether entry should be added. */
                 threshold = (localSelection.peek()!![0] as DoubleValue).value
-                while (this.cursor.key < this.endKey && this.cursor.next) {
+                while (this.cursor.next && this.cursor.key <= this.endKey) {
                     val signature = VAFSignature.fromEntry(cursor.value)
                     if (this.bounds.ub(signature, threshold) < threshold) {
                         val tupleId = LongBinding.compressedEntryToLong(cursor.key)

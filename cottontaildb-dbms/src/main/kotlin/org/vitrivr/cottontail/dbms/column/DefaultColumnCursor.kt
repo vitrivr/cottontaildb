@@ -47,16 +47,14 @@ class DefaultColumnCursor<T: Value>(private val partition: LongRange, private va
      *
      * @return True on success, false otherwise,
      */
-    override fun moveNext(): Boolean
-        = (this.boc.compareAndExchange(true, false) || (this.cursor.key < this.endKey && this.cursor.next))
+    override fun moveNext(): Boolean = (this.boc.compareAndExchange(true, false) || (this.cursor.next && this.cursor.key <= this.endKey))
 
     /**
      * Tries to move this [Cursor] to the previous [TupleId].
      *
      * @return True on success, false otherwise,
      */
-    override fun movePrevious(): Boolean
-        = (this.cursor.key > this.startKey && this.cursor.prev)
+    override fun movePrevious(): Boolean = (this.cursor.prev && this.cursor.key >= this.startKey)
 
     /**
      * Tries to move this [Cursor] to the provided [TupleId].
@@ -64,8 +62,7 @@ class DefaultColumnCursor<T: Value>(private val partition: LongRange, private va
      * @param tupleId The [TupleId] to move to.
      * @return True on success, false otherwise,
      */
-    override fun moveTo(tupleId: TupleId): Boolean
-        = this.partition.contains(tupleId) && this.cursor.getSearchKey(tupleId.toKey()) != null
+    override fun moveTo(tupleId: TupleId): Boolean = this.partition.contains(tupleId) && this.cursor.getSearchKey(tupleId.toKey()) != null
 
     /**
      * Returns the [TupleId] this [DefaultColumnCursor] is currently pointing to.

@@ -59,7 +59,7 @@ class PQIndexCursor(partition: LongRange, val predicate: ProximityPredicate.Scan
      * Moves the internal cursor and return true, as long as new candidates appear.
      */
     override fun moveNext(): Boolean
-        = (this.boc.compareAndExchange(true, false) || (this.cursor.key < this.endKey && this.cursor.next))
+        = (this.boc.compareAndExchange(true, false) || (this.cursor.next && this.cursor.key <= this.endKey))
 
     /**
      * Returns the current [TupleId] this [Cursor] is pointing to.

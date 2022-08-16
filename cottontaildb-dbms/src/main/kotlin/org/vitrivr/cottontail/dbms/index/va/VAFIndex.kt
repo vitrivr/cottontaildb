@@ -170,10 +170,8 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         }
 
         /** The Xodus [Store] used to store [VAFSignature]s. */
-        internal val dataStore: Store by lazy {
-            this@VAFIndex.catalogue.environment.openStore(this@VAFIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false) ?:
-                throw DatabaseException.DataCorruptionException("Store for VAF index ${this@VAFIndex.name} is missing.")
-        }
+        internal val dataStore: Store = this@VAFIndex.catalogue.environment.openStore(this@VAFIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
+            ?: throw DatabaseException.DataCorruptionException("Store for VAF index ${this@VAFIndex.name} is missing.")
 
         /**
          * Retrieves this [VAFIndex]'s efficiency co-efficient from the [IndexStatisticsManager].
@@ -289,7 +287,8 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             val value = event.data[this.columns[0]] ?: return true
 
             /* Obtain marks and add them. */
-            return this.dataStore.add(this.context.txn.xodusTx, event.tupleId.toKey(), this.marks.getSignature(value as RealVectorValue<*>).toEntry())
+            val sig = this.marks.getSignature(value as RealVectorValue<*>)
+            return this.dataStore.add(this.context.txn.xodusTx, event.tupleId.toKey(), sig.toEntry())
         }
 
         /**
@@ -305,7 +304,8 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
 
             /* Obtain marks and update them. */
             return if (newValue is RealVectorValue<*>) { /* Case 1: New value is not null, i.e., update to new value. */
-                this.dataStore.put(this.context.txn.xodusTx, event.tupleId.toKey(), this.marks.getSignature(newValue).toEntry())
+                val newSig = this.marks.getSignature(newValue)
+                this.dataStore.put(this.context.txn.xodusTx, event.tupleId.toKey(), newSig.toEntry())
             } else if (oldValue is RealVectorValue<*>) { /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
                 this.dataStore.delete(this.context.txn.xodusTx, event.tupleId.toKey())
             } else { /* Case 3: There is no value, there was no value, proceed. */
