@@ -1,8 +1,11 @@
 package org.vitrivr.cottontail.dbms.index.pq.rebuilder
 
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet
+import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
@@ -23,6 +26,7 @@ import org.vitrivr.cottontail.dbms.index.pq.quantizer.SingleStageQuantizer
 import org.vitrivr.cottontail.dbms.index.pq.signature.SPQSignature
 import org.vitrivr.cottontail.dbms.index.va.rebuilder.AsyncVAFIndexRebuilder
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import java.util.*
 
 /**
  * An [AbstractAsyncIndexRebuilder] that can be used to concurrently rebuild a  [PQIndex].
@@ -30,7 +34,8 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyncIndexRebuilder<PQIndex>(index, context) {
+class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyncIndexRebuilder<PQIndex>(index, context.catalogue, context.txn.manager) {
+
     /** The (temporary) Xodus [Store] used to store [SPQSignature]s. */
     private val tmpDataStore: Store = this.tmpEnvironment.openStore(this.index.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.tmpTx, true)
         ?: throw DatabaseException.DataCorruptionException("Temporary data store for index ${this.index.name} could not be created.")
@@ -40,6 +45,9 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
 
     /** Reference to [ColumnDef] indexed by this [AsyncPQIndexRebuilder] (only available after [IndexRebuilderState.INITIALIZED]). */
     private val indexedColumn: ColumnDef<*>?
+
+    /** List of all deleted [TupleId]s. */
+    private val deletedTupleIds = Collections.synchronizedSet(LongOpenHashSet())
 
     init {
         /* Read basic index properties. */
@@ -68,15 +76,15 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
     /**
      * Internal, modified rebuild method. This method basically scans the entity and writes all the changes to the surrounding snapshot.
      */
-    override fun internalScan(context1: QueryContext): Boolean {
+    override fun internalBuild(context: QueryContext): Boolean {
         /* Read basic index properties. */
-        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, context1.txn.xodusTx)
+        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, context.txn.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
         val column = entry.columns[0]
 
         /* Tx objects required for index rebuilding. */
-        val entityTx = this.index.parent.newTx(context1)
-        val columnTx = entityTx.columnForName(column).newTx(context1)
+        val entityTx = this.index.parent.newTx(context)
+        val columnTx = entityTx.columnForName(column).newTx(context)
         val count = columnTx.count()
 
         /* Iterate over entity and update index with entries. */
@@ -86,106 +94,109 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
                 if (this.state != IndexRebuilderState.SCANNING) return false
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
+
+                    /* Add signature. */
                     val sig = this.newQuantizer.quantize(value)
-                    this.writeLatch.lock()
-                    try {
-                        if (!this.tmpDataStore.put(this.tmpTx, cursor.key().toKey(), sig.toEntry())) {
+                    this.tmpDataStore.put(this.tmpTx, cursor.key().toKey(), sig.toEntry())
+
+                    if ((++counter) % 1_000_000 == 0) {
+                        LOGGER.debug("Rebuilding index (SCAN) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
+                        if (!this.tmpTx.flush()) {
                             return false
                         }
-
-                        /* Data is flushed every once in a while. */
-                        if ((++counter) % 1_000_000 == 0) {
-                            LOGGER.debug("Rebuilding index (SCAN) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
-                            if (!this.tmpTx.flush()) {
-                                return false
-                            }
-                        }
-                    } finally {
-                        this.writeLatch.unlock()
                     }
                 }
+
+                /* Drain and process all events that appear on the side-channel; we do this every round. */
+                this.processSideChannelEvents()
             }
         }
-
-        return this.tmpTx.flush()
+        return true
     }
 
     /**
      * Internal merge method that is being executed when executing the MERGE stage of this [AsyncVAFIndexRebuilder].
      *
-     * @param context2 The [QueryContext] to execute the MERGE stage in.
+     * @param context The [QueryContext] to execute the MERGE stage in.
      * @param store The [Store] to merge data into.
      * @return True on success, false otherwise.
      */
-    override fun internalMerge(context2: QueryContext, store: Store): Boolean {
+    override fun internalReplace(context: QueryContext, store: Store): Boolean {
+        /* Start replacement process. */
         val count = this.tmpDataStore.count(this.tmpTx)
         this.tmpDataStore.openCursor(this.tmpTx).use { cursor ->
             var counter = 0
             while (cursor.next) {
                 if (this.state != IndexRebuilderState.MERGING) return false
-                if (!store.put(context2.txn.xodusTx, cursor.key, cursor.value)) {
-                    return false
-                }
-
-                /* Data is flushed every once in a while. */
-                if ((++counter) % 1_000_000 == 0) {
-                    LOGGER.debug("Rebuilding index (MERGE) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
-                    if (!context2.txn.xodusTx.flush()) {
+                if (!this.deletedTupleIds.contains(LongBinding.compressedEntryToLong(cursor.key))) {
+                    if (!store.add(context.txn.xodusTx, cursor.key, cursor.value)) {
                         return false
+                    }
+
+                    /* Data is flushed every once in a while. */
+                    if ((++counter) % 1_000_000 == 0) {
+                        LOGGER.debug("Rebuilding index (MERGE) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
+                        if (!context.txn.xodusTx.flush()) {
+                            return false
+                        }
                     }
                 }
             }
         }
 
         /* Update stored ProductQuantizer. */
-        IndexStructCatalogueEntry.write(this.index.name, this.newQuantizer.toSerializableProductQuantizer(), this.index.catalogue, context2.txn.xodusTx, SerializableSingleStageProductQuantizer.Binding)
+        IndexStructCatalogueEntry.write(this.index.name, this.newQuantizer.toSerializableProductQuantizer(), this.index.catalogue, context.txn.xodusTx, SerializableSingleStageProductQuantizer.Binding)
         return true
     }
 
     /**
-     * Internal method that apples a [DataEvent.Insert] from an external transaction to this [PQIndexRebuilder].
      *
-     * @param event The [DataEvent.Insert] to process.
-     * @return True on success, false otherwise.
      */
-    override fun applyAsyncInsert(event: DataEvent.Insert): Boolean {
-        /* Extract value and perform sanity check. */
-        val value = event.data[this.indexedColumn] ?: return true
+    override fun processSideChannelEvents(): Boolean {
+        val local = LinkedList<DataEvent>()
+        this.sideChannelQueue.drainTo(local)
+        for (event in local) {
+            when(event) {
+                /* Process side-channel INSERT. */
+                is DataEvent.Insert -> {
+                    val value = event.data[this.indexedColumn] ?: return true
+                    val sig = this.newQuantizer.quantize(value as VectorValue<*>)
+                    if (!this.tmpDataStore.add(this.tmpTx, event.tupleId.toKey(), sig.toEntry())) {
+                        return false
+                    }
+                }
 
-        /* If value is NULL, return true. NULL values are simply ignored by the PQIndex. */
-        val sig = this.newQuantizer.quantize(value as VectorValue<*>)
-        return this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), sig.toEntry())
-    }
+                /* Process side-channel DELETE. */
+                is DataEvent.Delete -> {
+                    if (event.data[this.indexedColumn] != null) {
+                        if (!this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())) {
+                            if (!this.deletedTupleIds.add(event.tupleId)) {
+                                return false
+                            }
+                        }
+                    }
+                }
 
-    /**
-     * Internal method that apples a [DataEvent.Update] from an external transaction to this [PQIndexRebuilder].
-     *
-     * @param event The [DataEvent.Update] to process.
-     * @return True on success, false otherwise.
-     */
-    override fun applyAsyncUpdate(event: DataEvent.Update): Boolean {
-        /* Extract value and perform sanity check. */
-        val oldValue = event.data[this.indexedColumn]?.first
-        val newValue = event.data[this.indexedColumn]?.second
+                /* Process side-channel UPDATE. */
+                is DataEvent.Update -> {
+                    /* Extract value and perform sanity check. */
+                    val oldValue = event.data[this.indexedColumn]?.first
+                    val newValue = event.data[this.indexedColumn]?.second
 
-        /* Obtain marks and update them. */
-        return if (newValue is RealVectorValue<*>) { /* Case 1: New value is not null, i.e., update to new value. */
-            val newSig = this.newQuantizer.quantize(newValue as VectorValue<*>)
-            this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), newSig.toEntry())
-        } else if (oldValue is RealVectorValue<*>) { /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
-            this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())
-        } else { /* Case 3: There is no value, there was no value, proceed. */
-            true
+                    /* Obtain marks and update them. */
+                    if (newValue is RealVectorValue<*>) {               /* Case 1: New value is not null, i.e., update to new value. */
+                        val newSig = this.newQuantizer.quantize(newValue as VectorValue<*>)
+                        if (this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), newSig.toEntry())) {
+                            this.deletedTupleIds.remove(event.tupleId)
+                        }
+                    } else if (oldValue is RealVectorValue<*>) {        /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
+                        if (!this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())) {
+                            this.deletedTupleIds.add(event.tupleId)     /* Defer delete into the future (if worker has not inserted tupleId yet). */
+                        }
+                    }
+                }
+            }
         }
-    }
-
-    /**
-     * Internal method that apples a [DataEvent.Delete] from an external transaction to this [PQIndexRebuilder].
-     *
-     * @param event The [DataEvent.Delete] to process.
-     * @return True on success, false otherwise.
-     */
-    override fun applyAsyncDelete(event: DataEvent.Delete): Boolean {
-        return event.data[this.indexedColumn] == null || this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())
+        return true
     }
 }

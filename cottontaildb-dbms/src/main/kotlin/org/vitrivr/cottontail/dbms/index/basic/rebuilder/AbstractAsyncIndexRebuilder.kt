@@ -5,6 +5,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
+import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
@@ -13,13 +14,20 @@ import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import java.nio.file.Files
 import java.util.*
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * A [AbstractAsyncIndexRebuilder] de-couples the step uf building-up and merging the changes with the actual [Index] structure.
@@ -32,13 +40,16 @@ import java.util.concurrent.locks.ReentrantLock
  * [TransactionObserver], which it uses to be informed about changes to the data.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
-abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T, ctx: QueryContext): AsyncIndexRebuilder<T> {
+abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T, private val catalogue: Catalogue, private val manager: TransactionManager): AsyncIndexRebuilder<T> {
 
     companion object {
         /** [Logger] instance used by [AbstractAsyncIndexRebuilder]. */
         internal val LOGGER: Logger = LoggerFactory.getLogger(AbstractAsyncIndexRebuilder::class.java)
+
+        /** Internal counter to keep track of then umber of spawned [AbstractAsyncIndexRebuilder]. */
+        private val COUNTER = AtomicLong(0L)
     }
 
     /** The [IndexRebuilderState] of this [AbstractAsyncIndexRebuilder] */
@@ -62,57 +73,62 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
      */
     protected val entityName: Name.EntityName = this.index.name.entity()
 
+    /** A [ReentrantLock] that makes sure, that the two rebuild-steps are not invoked concurrently. */
+    private val rebuildLatch = ReentrantLock()
+
+    /** Internal sequence number for this [AbstractAsyncIndexRebuilder]. */
+    private val sequenceNumber = COUNTER.incrementAndGet()
+
+    /** A [ConcurrentLinkedQueue] that collects all [DataEvent]s received on the side-channel. */
+    protected val sideChannelQueue = ArrayBlockingQueue<DataEvent>(100_000)
+
     /** An [AbstractAsyncIndexRebuilder] is only interested in [DataEvent]s that concern the [Entity]. */
     override fun isRelevant(event: Event): Boolean
         = this.state.trackChanges && event is DataEvent && event.entity == this.entityName
 
-    /** A [ReentrantLock] that makes sure, that the two rebuild-steps are not invoked concurrently. */
-    private val rebuildLatch = ReentrantLock()
-
-    /** A [ReentrantLock] that makes sure that writes to the underlying data structures are synchronised between threads. */
-    protected val writeLatch = ReentrantLock()
-
     /**
      * Scans the data necessary for this [AbstractAsyncIndexRebuilder]. Usually, this takes place within an existing [QueryContext].
-     *
-     * @param context The [QueryContext] to perform the SCAN in.
      */
-    override fun scan(context: QueryContext) {
-        this.rebuildLatch.lock()
-        try {
-            require(this.state == IndexRebuilderState.INITIALIZED) { "Cannot perform SCAN with index builder because it is in the wrong state."}
-            LOGGER.debug("Scanning index ${this.index.name} (${this.index.type}).")
+    override fun build() = this.rebuildLatch.withLock {
+        require(this.state == IndexRebuilderState.INITIALIZED) { "Cannot perform SCAN with index builder because it is in the wrong state."}
+        LOGGER.debug("Scanning index ${this.index.name} (${this.index.type}).")
 
-            this.state = IndexRebuilderState.SCANNING
-            if (!this.internalScan(context)) {
+        /* Acquire query context; requires write-latch to prevent concurrent data events from "seeping" through. */
+        this.state = IndexRebuilderState.SCANNING
+        this.manager.register(this)
+        val context = DefaultQueryContext("auto-rebuild-scan-$sequenceNumber", this.catalogue, this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY))
+
+        /* Start BUILD phase of process. */
+        try {
+            if (!this.internalBuild(context)) {
                 this.state = IndexRebuilderState.ABORTED
-                LOGGER.debug("Scanning index ${this.index.name} (${this.index.type}) failed.")
+                LOGGER.error("Scanning index ${this.index.name} (${this.index.type}) failed.")
                 return
             }
             this.state = IndexRebuilderState.SCANNED
-
+            context.txn.commit() /* Commit transaction. */
             LOGGER.debug("Scanning index ${this.index.name} (${this.index.type}) completed!")
-        } finally {
-            this.tmpTx.flush()
-            this.rebuildLatch.unlock()
+        } catch (e: Throwable) {
+            context.txn.rollback()
+            LOGGER.error("Scanning index ${this.index.name} (${this.index.type}) failed due to exception: ${e.message}")
         }
     }
 
     /**
      * Merges this [AbstractAsyncIndexRebuilder] with its [Index] using the given [QueryContext].
      *
-     * @param context The [QueryContext] to perform the MERGE in.
      */
-    override fun merge(context: QueryContext) {
-        this.rebuildLatch.lock()
+    override fun replace() = this.rebuildLatch.withLock {
+        require(this.state == IndexRebuilderState.SCANNED) { "Cannot perform MERGE with index builder because it is in the wrong state."}
+        LOGGER.debug("Merging index ${this.index.name} (${this.index.type}).")
+
+        /* Acquire query context; requires write-latch to prevent concurrent data events from "seeping" through. */
+        val context: QueryContext = DefaultQueryContext("auto-rebuild-replace-$sequenceNumber", this.catalogue, this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE))
+        this.state = IndexRebuilderState.MERGING
+        this.manager.deregister(this)
+
+        /* Clear store and update state of index (* ---> DIRTY). */
         try {
-            /* Sanity check. */
-            require(this.state  == IndexRebuilderState.SCANNED) { "Cannot perform MERGE with index builder because it is in the wrong state."}
-            require(context.txn.xodusTx.isExclusive) { "Failed to rebuild index ${this.index.name} (${this.index.type}); merge operation requires exclusive transaction."}
-
-            LOGGER.debug("Merging index ${this.index.name} (${this.index.type}).")
-
-            /* Clear store and update state of index (* ---> DIRTY). */
             val dataStore: Store = this.clearAndOpenStore(context.txn)
             if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.DIRTY, context.txn.xodusTx)) {
                 this.state = IndexRebuilderState.ABORTED
@@ -120,11 +136,16 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
                 return
             }
 
+            /* Drain side-channel until it's empty. */
+            while (!this.sideChannelQueue.isEmpty()) {
+                this.processSideChannelEvents()
+            }
+            this.tmpTx.flush()
+
             /* Execute actual merging. */
-            this.state = IndexRebuilderState.MERGING
-            if (!this.internalMerge(context, dataStore)) {
+            if (!this.internalReplace(context, dataStore)) {
                 this.state = IndexRebuilderState.ABORTED
-                LOGGER.debug("Merging index ${this.index.name} (${this.index.type}) failed.")
+                LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed.")
                 return
             }
 
@@ -135,53 +156,17 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
                 return
             }
 
-            LOGGER.debug("Merging index ${this.index.name} (${this.index.type}) completed!")
+            /* Commit transaction. */
+            context.txn.commit()
+
             this.state = IndexRebuilderState.MERGED
-        } finally {
-            this.rebuildLatch.unlock()
+            LOGGER.debug("Merging index ${this.index.name} (${this.index.type}) completed!")
+        } catch (e: Throwable) {
+            LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because of exception: ${e.message}")
+            context.txn.rollback()
+            this.state = IndexRebuilderState.ABORTED
         }
     }
-
-    /**
-     * Internal scan method that is being executed when executing the SCAN stage of this [AbstractAsyncIndexRebuilder].
-     *
-     * @param context1 The [QueryContext] to execute the SCAN stage in.
-     * @return True on success, false otherwise.
-     */
-    abstract fun internalScan(context1: QueryContext): Boolean
-
-    /**
-     * Internal merge method that is being executed when executing the MERGE stage of this [AbstractAsyncIndexRebuilder].
-     *
-     * @param context2 The [QueryContext] to execute the MERGE stage in.
-     * @param store The [Store] to merge data into.
-     * @return True on success, false otherwise.
-     */
-    abstract fun internalMerge(context2: QueryContext, store: Store): Boolean
-
-    /**
-     * Internal method that applies a [DataEvent.Insert] from an external transaction to this [AbstractAsyncIndexRebuilder].
-     *
-     * @param event The [DataEvent.Insert] to process.
-     * @return True on success, false otherwise.
-     */
-    protected abstract fun applyAsyncInsert(event: DataEvent.Insert): Boolean
-
-    /**
-     * Internal method that applies a [DataEvent.Update] from an external transaction to this [AbstractAsyncIndexRebuilder].
-     *
-     * @param event The [DataEvent.Update] to process.
-     * @return True on success, false otherwise.
-     */
-    protected abstract fun applyAsyncUpdate(event: DataEvent.Update): Boolean
-
-    /**
-     * Internal method that apples a [DataEvent.Delete] from an external transaction to this [AbstractAsyncIndexRebuilder].
-     *
-     * @param event The [DataEvent.Delete] to process.
-     * @return True on success, false otherwise.
-     */
-    protected abstract fun applyAsyncDelete(event: DataEvent.Delete): Boolean
 
     /**
      * If an external transaction reports a successful COMMIT, the committed information must be considered by this [AbstractAsyncIndexRebuilder].
@@ -191,35 +176,12 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
      * @see TransactionObserver
      */
     final override fun onCommit(txId: TransactionId, events: List<Event>) {
-        /* Once IndexRebuilder has been merged, closed or aborted, we're no longer interested in updates. */
-        this.writeLatch.lock()
-        try {
-            if (this.state.trackChanges) {
-                for (event in events) {
-                    val success = when(event) {
-                        is DataEvent.Insert -> {
-                            require(event.entity == this.index.name.entity()) { "DataEvent $event received that does not concern this index. This is a programmer's error!" }
-                            this.applyAsyncInsert(event)
-                        }
-                        is DataEvent.Update -> {
-                            require(event.entity == this.index.name.entity()) { "DataEvent $event received that does not concern this index. This is a programmer's error!" }
-                            this.applyAsyncUpdate(event)
-                        }
-                        is DataEvent.Delete -> {
-                            require(event.entity == this.index.name.entity()) { "DataEvent $event received that does not concern this index. This is a programmer's error!" }
-                            this.applyAsyncDelete(event)
-                        }
-                        else -> continue
-                    }
-                    /* Check status of event processing. */
-                    if (!success) {
-                        this.state = IndexRebuilderState.ABORTED
-                        break
-                    }
-                }
+        if (this.state.trackChanges) {
+            for (event in events) {
+                require(event is DataEvent) { "Event $event is not a DataEvent." }
+                require(event.entity == this.index.name.entity()) { "DataEvent $event received that does not concern this index. This is a programmer's error!" }
+                this.sideChannelQueue.offer(event)
             }
-        } finally {
-            this.writeLatch.unlock()
         }
     }
 
@@ -229,28 +191,27 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
      * @param txId The [TransactionId] that is reporting.
      */
     final override fun onDeliveryFailure(txId: TransactionId) {
-        this.writeLatch.lock()
         if (this.state in setOf(IndexRebuilderState.SCANNING, IndexRebuilderState.SCANNED, IndexRebuilderState.MERGING)) {
             this.state = IndexRebuilderState.ABORTED
         }
-        this.writeLatch.unlock()
     }
 
     /**
      * Closes this [AbstractAsyncIndexRebuilder].
      */
-    override fun close() {
-        this.rebuildLatch.lock()
-        this.writeLatch.lock()
+    override fun close() = this.rebuildLatch.withLock {
         try {
             if (this.state != IndexRebuilderState.FINISHED) {
                 this.state = IndexRebuilderState.FINISHED
+
+                /* Just to make sure! */
+                this.manager.register(this)
 
                 /* Abort transaction and close environment. */
                 this.tmpTx.abort()
                 this.tmpEnvironment.clear()
 
-                /* Tries to cleanup the temporary environment. */
+                /* Tries to clean-up the temporary environment. */
                 Files.walk(this.tmpPath).sorted(Comparator.reverseOrder()).forEach {
                     try {
                         Files.delete(it)
@@ -263,11 +224,32 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
             }
         } catch (e: Throwable) {
             LOGGER.warn("Asynchronous index rebuilder for index ${this.index.name} (${this.index.type}) could not be discarded: ${e.message}")
-        } finally {
-            this.rebuildLatch.unlock()
-            this.writeLatch.unlock()
         }
     }
+
+    /**
+     * Internal scan method that is being executed when executing the BUILD stage of this [AbstractAsyncIndexRebuilder].
+     *
+     * @param context The [QueryContext] to execute the BUILD stage in.
+     * @return True on success, false otherwise.
+     */
+    abstract fun internalBuild(context: QueryContext): Boolean
+
+    /**
+     * Internal merge method that is being executed when executing the REPLACE stage of this [AbstractAsyncIndexRebuilder].
+     *
+     * @param context The [QueryContext] to execute the REPLACE stage in.
+     * @param store The [Store] to merge data into.
+     * @return True on success, false otherwise.
+     */
+    abstract fun internalReplace(context: QueryContext, store: Store): Boolean
+
+    /**
+     * Drains and processes all [DataEvent]s that are currently waiting on the [sideChannelQueue].
+     *
+     * @return True on success, false otherwise.
+     */
+    abstract fun processSideChannelEvents(): Boolean
 
     /**
      * Clears and opens the data store associated with this [AbstractIndexRebuilder].

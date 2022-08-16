@@ -19,7 +19,7 @@ import java.io.Closeable
  * [TransactionObserver], which it uses to be informed about changes to the data.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 interface AsyncIndexRebuilder <T: Index>: TransactionObserver, Closeable {
     /** The [Index] that this [AsyncIndexRebuilder] can rebuild. */
@@ -29,16 +29,12 @@ interface AsyncIndexRebuilder <T: Index>: TransactionObserver, Closeable {
     val state: IndexRebuilderState
 
     /**
-     * Scans the data necessary for this [AsyncIndexRebuilder]. Usually, this takes place within an existing [QueryContext].
-     *
-     * @param context The [QueryContext] to perform the SCAN in.
+     * Scans the data necessary for this [AsyncIndexRebuilder]. Typically uses a read-only [QueryContext].
      */
-    fun scan(context: QueryContext)
+    fun build()
 
     /**
-     * Merges this [AbstractAsyncIndexRebuilder] with its [IndexTx] using the given [QueryContext].
-     *
-     * @param context The [QueryContext] to perform the MERGE in.
+     * Replaces this [AbstractAsyncIndexRebuilder]. Requires uses an exclusive [QueryContext].
      */
-    fun merge(context: QueryContext)
+    fun replace()
 }
