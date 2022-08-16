@@ -81,7 +81,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
 
     /** An [AbstractAsyncIndexRebuilder] is only interested in [DataEvent]s that concern the [Entity]. */
     override fun isRelevant(event: Event): Boolean
-        = this.state.trackChanges && event is DataEvent && event.entity == this.entityName
+        = event is DataEvent && event.entity == this.entityName
 
     /**
      * Scans the data necessary for this [AbstractAsyncIndexRebuilder]. Usually, this takes place within an existing [QueryContext].
@@ -124,8 +124,8 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
 
         /* Acquire query context; requires write-latch to prevent concurrent data events from "seeping" through. */
         val context: QueryContext = DefaultQueryContext("auto-rebuild-replace-$sequenceNumber", this.catalogue, this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE))
-        this.state = IndexRebuilderState.MERGING
         this.manager.deregister(this)
+        this.state = IndexRebuilderState.MERGING
 
         /* Clear store and update state of index (* ---> DIRTY). */
         try {
@@ -182,12 +182,10 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
      * @see TransactionObserver
      */
     final override fun onCommit(txId: TransactionId, events: List<Event>) {
-        if (this.state.trackChanges) {
-            for (event in events) {
-                require(event is DataEvent) { "Event $event is not a DataEvent." }
-                require(event.entity == this.index.name.entity()) { "DataEvent $event received that does not concern this index. This is a programmer's error!" }
-                this.processSideChannelEvent(event)
-            }
+        for (event in events) {
+            require(event is DataEvent) { "Event $event is not a DataEvent." }
+            require(event.entity == this.index.name.entity()) { "DataEvent $event received that does not concern this index. This is a programmer's error!" }
+            this.processSideChannelEvent(event)
         }
     }
 
