@@ -103,10 +103,11 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
             if (!this.internalBuild(context)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Scanning index ${this.index.name} (${this.index.type}) failed.")
+                context.txn.rollback()
                 return
             }
-            this.state = IndexRebuilderState.SCANNED
             context.txn.commit() /* Commit transaction. */
+            this.state = IndexRebuilderState.SCANNED
             LOGGER.debug("Scanning index ${this.index.name} (${this.index.type}) completed!")
         } catch (e: Throwable) {
             context.txn.rollback()
@@ -133,6 +134,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
             if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.DIRTY, context.txn.xodusTx)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because index state could not be changed to DIRTY!")
+                context.txn.rollback()
                 return
             }
 
@@ -146,6 +148,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
             if (!this.internalReplace(context, dataStore)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed.")
+                context.txn.rollback()
                 return
             }
 
@@ -153,6 +156,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
             if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.CLEAN, context.txn.xodusTx)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because index state could not be changed to CLEAN!")
+                context.txn.rollback()
                 return
             }
 
