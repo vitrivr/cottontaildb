@@ -65,6 +65,11 @@ class UpdatePhysicalOperatorNode(input: Physical, val entity: EntityTx, val valu
      */
      override fun toOperator(ctx: QueryContext) = UpdateOperator(this.input.toOperator(ctx), this.entity, this.values.map { it.first to it.second }, ctx)
 
+    /**
+     * The [UpdatePhysicalOperatorNode] cannot be partitioned.
+     */
+    override fun tryPartition(ctx: QueryContext, max: Int): Physical? = null
+
     override fun toString(): String = "${super.toString()}[${this.values.map { it.first.name }.joinToString(",")}]"
 
     /**

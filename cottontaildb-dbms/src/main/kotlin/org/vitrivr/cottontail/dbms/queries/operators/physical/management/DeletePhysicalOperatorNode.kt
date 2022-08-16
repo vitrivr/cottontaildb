@@ -67,16 +67,14 @@ class DeletePhysicalOperatorNode(input: Physical, val entity: EntityTx) : UnaryP
      */
     override fun toOperator(ctx: QueryContext): Operator = DeleteOperator(this.input.toOperator(ctx), this.entity, ctx)
 
+    /**
+     * The [DeletePhysicalOperatorNode] cannot be partitioned.
+     */
+    override fun tryPartition(ctx: QueryContext, max: Int): Physical? = null
+
+
     override fun toString(): String = "${super.toString()}[${this.entity.dbo.name}]"
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is DeletePhysicalOperatorNode) return false
-        if (entity != other.entity) return false
-        return true
-    }
-
-    override fun hashCode(): Int = this.entity.hashCode()
 
     /**
      * Generates and returns a [Digest] for this [DeletePhysicalOperatorNode].
