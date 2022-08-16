@@ -128,7 +128,7 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
             var counter = 0
             while (cursor.next) {
                 if (this.state != IndexRebuilderState.MERGING) return false
-                if (!this.deletedTupleIds.contains(LongBinding.compressedEntryToLong(cursor.key))) {
+                if (LongBinding.compressedEntryToLong(cursor.key) !in this.deletedTupleIds) {
                     if (!store.add(context.txn.xodusTx, cursor.key, cursor.value)) {
                         return false
                     }
@@ -150,7 +150,9 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
     }
 
     /**
+     * Drains and processes all [DataEvent]s that are currently waiting on the [sideChannelQueue].
      *
+     * @return True on success, false otherwise.
      */
     override fun processSideChannelEvents(): Boolean {
         val local = LinkedList<DataEvent>()
@@ -159,16 +161,19 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
             when(event) {
                 /* Process side-channel INSERT. */
                 is DataEvent.Insert -> {
-                    val value = event.data[this.indexedColumn] ?: return true
-                    val sig = this.newQuantizer.quantize(value as VectorValue<*>)
-                    if (!this.tmpDataStore.add(this.tmpTx, event.tupleId.toKey(), sig.toEntry())) {
-                        return false
+                    val value = event.data[this.indexedColumn]
+                    if (value is VectorValue<*>) {
+                        val sig = this.newQuantizer.quantize(value)
+                        if (!this.tmpDataStore.add(this.tmpTx, event.tupleId.toKey(), sig.toEntry())) {
+                            return false
+                        }
                     }
                 }
 
                 /* Process side-channel DELETE. */
                 is DataEvent.Delete -> {
-                    if (event.data[this.indexedColumn] != null) {
+                    val value = event.data[this.indexedColumn]
+                    if (value != null) {
                         if (!this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())) {
                             if (!this.deletedTupleIds.add(event.tupleId)) {
                                 return false

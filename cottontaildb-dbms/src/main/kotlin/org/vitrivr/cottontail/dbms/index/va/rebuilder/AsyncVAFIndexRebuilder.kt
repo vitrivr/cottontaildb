@@ -142,7 +142,9 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
     }
 
     /**
+     * Drains and processes all [DataEvent]s that are currently waiting on the [sideChannelQueue].
      *
+     * @return True on success, false otherwise.
      */
     override fun processSideChannelEvents(): Boolean {
         val local = LinkedList<DataEvent>()
@@ -151,16 +153,19 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
             when(event) {
                 /* Process side-channel INSERT. */
                 is DataEvent.Insert -> {
-                    val value = event.data[this.indexedColumn] ?: return true
-                    val sig = this.newMarks.getSignature(value as RealVectorValue<*>)
-                    if (!this.tmpDataStore.add(this.tmpTx, event.tupleId.toKey(), sig.toEntry())) {
-                        return false
+                    val value = event.data[this.indexedColumn]
+                    if (value is RealVectorValue<*>) {
+                        val sig = this.newMarks.getSignature(value)
+                        if (!this.tmpDataStore.add(this.tmpTx, event.tupleId.toKey(), sig.toEntry())) {
+                            return false
+                        }
                     }
                 }
 
                 /* Process side-channel DELETE. */
                 is DataEvent.Delete -> {
-                    if (event.data[this.indexedColumn] != null) {
+                    val value = event.data[this.indexedColumn]
+                    if (value != null) {
                         if (!this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())) {
                             if (!this.deletedTupleIds.add(event.tupleId)) {
                                 return false
