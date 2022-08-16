@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.index.va.rebuilder
 
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
+import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.database.ColumnDef
@@ -95,7 +96,9 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
                 }
 
                 /* Drain and process all events that appear on the side-channel; we do this every round. */
-                this.processSideChannelEvents()
+                if (!this.processSideChannelEvents()) {
+                    return false
+                }
             }
         }
         return true
@@ -109,25 +112,23 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
      * @return True on success, false otherwise.
      */
     override fun internalReplace(context: QueryContext, store: Store): Boolean {
-        /* Apply all outstanding deletes. */
-        this.deletedTupleIds.removeIf { t -> this@AsyncVAFIndexRebuilder.tmpDataStore.delete(this@AsyncVAFIndexRebuilder.tmpTx, t.toKey()) }
-        this.tmpTx.flush()
-
         /* Begin replacement process. */
         val count = this.tmpDataStore.count(this.tmpTx)
         this.tmpDataStore.openCursor(this.tmpTx).use {cursor ->
             var counter = 0
             while (cursor.next) {
                 if (this.state != IndexRebuilderState.MERGING) return false
-                if (!store.put(context.txn.xodusTx, cursor.key, cursor.value)) {
-                    return false
-                }
-
-                /* Data is flushed every once in a while. */
-                if ((++counter) % 1_000_000 == 0) {
-                    LOGGER.debug("Rebuilding index (MERGE) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
-                    if (!context.txn.xodusTx.flush()) {
+                if (LongBinding.compressedEntryToLong(cursor.key) !in this.deletedTupleIds) {
+                    if (!store.put(context.txn.xodusTx, cursor.key, cursor.value)) {
                         return false
+                    }
+
+                    /* Data is flushed every once in a while. */
+                    if ((++counter) % 1_000_000 == 0) {
+                        LOGGER.debug("Rebuilding index (MERGE) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
+                        if (!context.txn.xodusTx.flush()) {
+                            return false
+                        }
                     }
                 }
             }
@@ -183,9 +184,10 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
                     /* Obtain marks and update them. */
                     if (newValue is RealVectorValue<*>) {               /* Case 1: New value is not null, i.e., update to new value. */
                         val newSig = this.newMarks.getSignature(newValue)
-                        if (this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), newSig.toEntry())) {
-                            this.deletedTupleIds.remove(event.tupleId)
+                        if (!this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), newSig.toEntry())) {
+                            return false
                         }
+                        this.deletedTupleIds.remove(event.tupleId)
                     } else if (oldValue is RealVectorValue<*>) {        /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
                         if (!this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())) {
                             this.deletedTupleIds.add(event.tupleId)     /* Defer delete into the future (if worker has not inserted tupleId yet). */

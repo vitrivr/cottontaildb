@@ -108,7 +108,9 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
                 }
 
                 /* Drain and process all events that appear on the side-channel; we do this every round. */
-                this.processSideChannelEvents()
+                if (!this.processSideChannelEvents()) {
+                    return false
+                }
             }
         }
         return true
@@ -192,8 +194,9 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
                     if (newValue is RealVectorValue<*>) {               /* Case 1: New value is not null, i.e., update to new value. */
                         val newSig = this.newQuantizer.quantize(newValue as VectorValue<*>)
                         if (this.tmpDataStore.put(this.tmpTx, event.tupleId.toKey(), newSig.toEntry())) {
-                            this.deletedTupleIds.remove(event.tupleId)
+                            return false
                         }
+                        this.deletedTupleIds.remove(event.tupleId)
                     } else if (oldValue is RealVectorValue<*>) {        /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
                         if (!this.tmpDataStore.delete(this.tmpTx, event.tupleId.toKey())) {
                             this.deletedTupleIds.add(event.tupleId)     /* Defer delete into the future (if worker has not inserted tupleId yet). */
