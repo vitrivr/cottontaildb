@@ -2,11 +2,11 @@ package org.vitrivr.cottontail.server.grpc.services
 
 import io.grpc.Status
 import io.grpc.StatusException
+import jetbrains.exodus.ExodusException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.flow.transform
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.client.language.basics.Constants
 import org.vitrivr.cottontail.core.basics.Record
@@ -55,7 +55,7 @@ internal interface TransactionalGrpcService {
      * @param readOnly Flag indicating whether the query that requested the [DefaultQueryContext] is a readonly query.
      * @return [DefaultQueryContext]
      */
-    fun queryContextFromMetadata(metadata: CottontailGrpc.RequestMetadata, readOnly: Boolean): DefaultQueryContext? {
+    fun queryContextFromMetadata(metadata: CottontailGrpc.RequestMetadata, readOnly: Boolean): DefaultQueryContext {
         val queryId = if (metadata.queryId.isNullOrEmpty()) {
             UUID.randomUUID().toString()
         } else {
@@ -72,7 +72,7 @@ internal interface TransactionalGrpcService {
         } else { /* Reuse existing transaction. */
             val txn = this.manager[metadata.transactionId]
             if (txn === null || txn.type.autoCommit) {
-                return null
+                throw Status.FAILED_PRECONDITION.withDescription( "Execution failed because transaction ${metadata.transactionId} could not be resumed because it doesn't exist or has the wrong type.").asException()
             }
             txn
         }
@@ -116,13 +116,13 @@ internal interface TransactionalGrpcService {
      * @param prepare The action that prepares the query [Operator]
      * @return [Flow] of [CottontailGrpc.QueryResponseMessage]
      */
-    fun prepareAndExecute(metadata: CottontailGrpc.RequestMetadata, readOnly: Boolean, prepare: (ctx: DefaultQueryContext) -> Operator): Flow<CottontailGrpc.QueryResponseMessage> {
+    fun prepareAndExecute(metadata: CottontailGrpc.RequestMetadata, readOnly: Boolean, prepare: (ctx: DefaultQueryContext) -> Operator): Flow<CottontailGrpc.QueryResponseMessage> = flow {
         /* Phase 1a: Obtain query context. */
         val m1 = TimeSource.Monotonic.markNow()
-        val context = this.queryContextFromMetadata(metadata, readOnly) ?: return flow {
-            val message = "Execution failed because transaction ${metadata.transactionId} could not be resumed."
-            LOGGER.warn(message)
-            throw Status.FAILED_PRECONDITION.withDescription(message).asException()
+        val context = try {
+            this@TransactionalGrpcService.queryContextFromMetadata(metadata, readOnly)
+        } catch (e: ExodusException) {
+            throw Status.RESOURCE_EXHAUSTED.withCause(e).withDescription("Could not start transaction. Please try again later!").asException()
         }
 
         try {
@@ -154,20 +154,7 @@ internal interface TransactionalGrpcService {
             var results = 0
 
             /* Phase 2b: Execute query and stream back results. */
-            return context.txn.execute(operator).transform<Record, CottontailGrpc.QueryResponseMessage> {
-                val tuple = it.toTuple()
-                results += 1
-                if (accumulatedSize + tuple.serializedSize >= Constants.MAX_PAGE_SIZE_BYTES) {
-                    responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS) /* Query duration is, re-evaluated for every batch. */
-                    emit(responseBuilder.build())
-                    responseBuilder.clearTuples()
-                    accumulatedSize = headerSize
-                }
-
-                /* Add entry to page and increment counter. */
-                responseBuilder.addTuples(tuple)
-                accumulatedSize += tuple.serializedSize
-            }.onCompletion {
+            context.txn.execute(operator).onCompletion {
                 if (it == null) {
                     if (results == 0 || responseBuilder.tuplesCount > 0) {
                         responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS)
@@ -192,12 +179,25 @@ internal interface TransactionalGrpcService {
                     LOGGER.error(it.toString())
                     throw wrapped
                 }
+            }.collect {
+                val tuple = it.toTuple()
+                results += 1
+                if (accumulatedSize + tuple.serializedSize >= Constants.MAX_PAGE_SIZE_BYTES) {
+                    responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS) /* Query duration is, re-evaluated for every batch. */
+                    emit(responseBuilder.build())
+                    responseBuilder.clearTuples()
+                    accumulatedSize = headerSize
+                }
+
+                /* Add entry to page and increment counter. */
+                responseBuilder.addTuples(tuple)
+                accumulatedSize += tuple.serializedSize
             }
         } catch (e: Throwable) {
             LOGGER.error("[${context.txn.txId}, ${context.queryId}] Preparation of query failed: ${e.message}")
             LOGGER.error(e.stackTraceToString())
             if (context.txn.type.autoRollback) context.txn.rollback() /* Handle auto-rollback. */
-            return flow { throw context.toStatusException(e, false) }
+            throw context.toStatusException(e, false)
         }
     }
 
