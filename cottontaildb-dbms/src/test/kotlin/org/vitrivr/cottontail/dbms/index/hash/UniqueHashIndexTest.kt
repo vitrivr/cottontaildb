@@ -49,7 +49,7 @@ class UniqueHashIndexTest : AbstractIndexTest() {
      */
     @RepeatedTest(3)
     fun testFilterEqualPositive() {
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
 
         /* Obtain necessary transactions. */
@@ -90,7 +90,7 @@ class UniqueHashIndexTest : AbstractIndexTest() {
      */
     @RepeatedTest(3)
     fun testFilterEqualNegative() {
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
 
         /* Obtain necessary transactions. */

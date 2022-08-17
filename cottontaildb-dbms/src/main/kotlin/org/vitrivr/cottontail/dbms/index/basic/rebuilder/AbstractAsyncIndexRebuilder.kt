@@ -91,9 +91,12 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
         LOGGER.debug("Scanning index ${this.index.name} (${this.index.type}).")
 
         /* Acquire query context; requires write-latch to prevent concurrent data events from "seeping" through. */
-        this.state = IndexRebuilderState.SCANNING
-        this.manager.register(this)
-        val context = DefaultQueryContext("auto-rebuild-scan-$sequenceNumber", this.catalogue, this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY))
+        val context = this.manager.startTransaction(TransactionType.SYSTEM_READONLY) {
+            val context = DefaultQueryContext("auto-rebuild-scan-$sequenceNumber", this.catalogue, it)
+            this.manager.register(this)
+            this.state = IndexRebuilderState.REBUILDING
+            context
+        }
 
         try {
             /* Start BUILD phase of process. */
@@ -106,7 +109,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
 
             /* Commit transaction. */
             context.txn.commit()
-            this.state = IndexRebuilderState.SCANNED
+            this.state = IndexRebuilderState.REBUILT
             LOGGER.debug("Scanning index ${this.index.name} (${this.index.type}) completed!")
         } catch (e: Throwable) {
             context.txn.rollback()
@@ -119,13 +122,15 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
      *
      */
     override fun replace() = this.rebuildLatch.withLock {
-        require(this.state == IndexRebuilderState.SCANNED) { "Cannot perform MERGE with index builder because it is in the wrong state."}
+        require(this.state == IndexRebuilderState.REBUILT) { "Cannot perform MERGE with index builder because it is in the wrong state."}
         LOGGER.debug("Merging index ${this.index.name} (${this.index.type}).")
 
         /* Acquire query context; requires write-latch to prevent concurrent data events from "seeping" through. */
-        val context: QueryContext = DefaultQueryContext("auto-rebuild-replace-$sequenceNumber", this.catalogue, this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE))
-        this.manager.deregister(this)
-        this.state = IndexRebuilderState.MERGING
+        val context: QueryContext = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE) {
+            val context = DefaultQueryContext("auto-rebuild-replace-$sequenceNumber", this.catalogue, it)
+            this.manager.deregister(this)
+            context
+        }
 
         /* Clear store and update state of index (* ---> DIRTY). */
         try {
@@ -145,7 +150,8 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
             }
             this.tmpTx.flush()
 
-            /* Execute actual merging. */
+            /* Execute actual REPLACEMENT phase. */
+            this.state = IndexRebuilderState.REPLACING
             val dataStore: Store = this.clearAndOpenStore(context.txn)
             if (!this.internalReplace(context, dataStore)) {
                 this.state = IndexRebuilderState.ABORTED
@@ -165,7 +171,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
             /* Commit transaction. */
             context.txn.commit()
 
-            this.state = IndexRebuilderState.MERGED
+            this.state = IndexRebuilderState.FINISHED
             LOGGER.debug("Merging index ${this.index.name} (${this.index.type}) completed!")
         } catch (e: Throwable) {
             LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because of exception: ${e.message}")
@@ -185,7 +191,11 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
         for (event in events) {
             require(event is DataEvent) { "Event $event is not a DataEvent." }
             require(event.entity == this.index.name.entity()) { "DataEvent $event received that does not concern this index. This is a programmer's error!" }
-            this.processSideChannelEvent(event)
+            if (!this.processSideChannelEvent(event)) {
+                this.state = IndexRebuilderState.ABORTED
+                LOGGER.error("Index rebuild failed due to side-channel message processing failure: $event")
+                break
+            }
         }
     }
 
@@ -195,9 +205,8 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
      * @param txId The [TransactionId] that is reporting.
      */
     final override fun onDeliveryFailure(txId: TransactionId) {
-        if (this.state.trackChanges) {
-            this.state = IndexRebuilderState.ABORTED
-        }
+        this.state = IndexRebuilderState.ABORTED
+        LOGGER.error("Index rebuild failed due to side-channel message delivery failure.")
     }
 
     /**
@@ -257,7 +266,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     abstract fun processSideChannelEvent(event: DataEvent): Boolean
 
     /**
-     * Drains and processes all [DataEvent]s that are currently waiting on the [sideChannelQueue].
+     * Drains and processes all [DataEvent]s that are currently waiting on the side-channel.
      *
      * @return True on success, false otherwise.
      */

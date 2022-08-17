@@ -88,7 +88,7 @@ class PQDoubleIndexTest : AbstractIndexTest() {
     @MethodSource("kernels")
     @ExperimentalTime
     fun test(distance: Name.FunctionName) {
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
         val k = 100
         val query = DoubleVectorValue(DoubleArray(this.indexColumn.type.logicalSize) {

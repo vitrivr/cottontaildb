@@ -37,7 +37,7 @@ class SchemaTest: AbstractDatabaseTest() {
         val entityNames = arrayOf(this.schemaName.entity("one"), this.schemaName.entity("two"), this.schemaName.entity("three"))
 
         /* Transaction 1: Create entity. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx1 = DefaultQueryContext("create-entity-test-01", this.catalogue, txn1)
 
         try {
@@ -54,7 +54,7 @@ class SchemaTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Query. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx2 = DefaultQueryContext("create-entity-test-02", this.catalogue, txn2)
         try {
             val catalogueTx2 = this.catalogue.newTx(ctx2)
@@ -84,7 +84,7 @@ class SchemaTest: AbstractDatabaseTest() {
         val entityNames = arrayOf(this.schemaName.entity("one"), this.schemaName.entity("two"), this.schemaName.entity("three"))
 
         /* Transaction 1: Create entity. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx1 = DefaultQueryContext("create-entity-test-01", this.catalogue, txn1)
         try {
             val catalogueTx1 = this.catalogue.newTx(ctx1)
@@ -110,7 +110,7 @@ class SchemaTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Query. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx2 = DefaultQueryContext("create-entity-test-02", this.catalogue, txn2)
         try {
             val catalogueTx2 = this.catalogue.newTx(ctx2)
@@ -137,7 +137,7 @@ class SchemaTest: AbstractDatabaseTest() {
     @Test
     fun createEntityWithRollbackTest() {
         /* Transaction 0: Create schema (as preparation). */
-        val txn0 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn0 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx0 = DefaultQueryContext("create-entity-test-01", this.catalogue, txn0)
         try {
             val catalogueTx0 = this.catalogue.newTx(ctx0)
@@ -147,7 +147,7 @@ class SchemaTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 1: Create entity. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx1 = DefaultQueryContext("create-entity-test-02", this.catalogue, txn1)
         try {
             val catalogueTx1 = this.catalogue.newTx(ctx1)
@@ -161,7 +161,7 @@ class SchemaTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Query. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx2 = DefaultQueryContext("create-entity-test-03", this.catalogue, txn2)
         try {
             val catalogueTx2 = this.catalogue.newTx(ctx2)
@@ -183,7 +183,7 @@ class SchemaTest: AbstractDatabaseTest() {
     @Test
     fun replaceEntityWithCommitTest() {
         /* Transaction 1: Create entity. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx1 = DefaultQueryContext("create-entity-test-01", this.catalogue, txn1)
         try {
             val catalogueTx1 = this.catalogue.newTx(ctx1)
@@ -197,7 +197,7 @@ class SchemaTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Truncate. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx2 = DefaultQueryContext("create-entity-test-02", this.catalogue, txn2)
         try {
             val catalogueTx2 = this.catalogue.newTx(ctx2)
@@ -219,7 +219,7 @@ class SchemaTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Truncate. */
-        val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn3 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx3 = DefaultQueryContext("create-entity-test-02", this.catalogue, txn3)
         try {
             val catalogueTx3 = this.catalogue.newTx(ctx3)

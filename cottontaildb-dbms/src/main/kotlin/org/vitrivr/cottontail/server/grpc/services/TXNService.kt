@@ -29,8 +29,8 @@ class TXNService constructor(override val catalogue: Catalogue, override val man
     override suspend fun begin(request: CottontailGrpc.BeginTransaction): CottontailGrpc.ResponseMetadata {
         try {
             val txn = when(request.mode) {
-                CottontailGrpc.TransactionMode.READONLY -> this.manager.TransactionImpl(TransactionType.USER_READONLY)
-                else -> this.manager.TransactionImpl(TransactionType.USER_EXCLUSIVE)
+                CottontailGrpc.TransactionMode.READONLY -> this.manager.startTransaction(TransactionType.USER_READONLY)
+                else -> this.manager.startTransaction(TransactionType.USER_EXCLUSIVE)
             }
             return CottontailGrpc.ResponseMetadata.newBuilder().setTransactionId(txn.txId).setTransactionMode(request.mode).build()
         } catch (e: ExodusException) {

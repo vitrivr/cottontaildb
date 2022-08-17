@@ -78,7 +78,7 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
      */
     protected fun prepareSchema(): Schema {
         log("Creating schema ${this.schemaName}.")
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("index-test-prepare-schema", this.catalogue, txn)
         try {
             val catalogueTx = this.catalogue.newTx(ctx)
@@ -96,7 +96,7 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
      */
     protected fun prepareEntity() {
         log("Creating schema ${this.entityName}.")
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("index-test-prepare-entity", this.catalogue, txn)
         try {
             val catalogueTx = this.catalogue.newTx(ctx)
@@ -115,7 +115,7 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
      */
     protected fun prepareIndex() {
         log("Creating index ${this.indexName}.")
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("index-test-prepare-index", this.catalogue, txn)
         try {
             val catalogueTx = this.catalogue.newTx(ctx)
@@ -137,7 +137,7 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
      */
     protected fun updateIndex() {
         log("Updating index ${this.indexName}.")
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("index-test-update-index", this.catalogue, txn)
 
         try {
@@ -161,7 +161,7 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
      */
     protected fun populateDatabase() {
         log("Inserting data (${collectionSize} items).")
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("index-test-populate", this.catalogue, txn)
         try {
             val catalogueTx = this.catalogue.newTx(ctx)
@@ -194,7 +194,7 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
         log("Optimizing entity ${this.entityName}.")
 
         /* Create entry. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx1 = DefaultQueryContext("index-test-optimize", this.catalogue, txn1)
         try {
             val catalogueTx = this.catalogue.newTx(ctx1)
@@ -210,7 +210,7 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
             txn1.commit()
 
             /* Test count. */
-            val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+            val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
             val ctx2 = DefaultQueryContext("index-test-optimize-02", this.catalogue, txn2)
             try {
                 val countTx = entity.newTx(ctx2)

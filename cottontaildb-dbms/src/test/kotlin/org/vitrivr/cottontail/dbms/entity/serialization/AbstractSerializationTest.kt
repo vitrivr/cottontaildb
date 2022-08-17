@@ -62,7 +62,7 @@ abstract class AbstractSerializationTest: AbstractEntityTest() {
         this.random.setSeed(this.seed)
 
         /* Start testing. */
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("serialization", this.catalogue, txn)
         try {
             val catalogueTx = this.catalogue.newTx(ctx)
@@ -92,7 +92,7 @@ abstract class AbstractSerializationTest: AbstractEntityTest() {
         this.random.setSeed(this.seed)
 
         /* Start inserting. */
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("serialization-populate", this.catalogue, txn)
         val catalogueTx = this.catalogue.newTx(ctx)
         val schema = catalogueTx.schemaForName(this.schemaName)

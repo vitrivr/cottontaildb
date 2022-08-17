@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
  * A [Transaction] that can be used to execute [Operator]s in a given [DefaultQueryContext].
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.20
  */
 interface Transaction: TransactionContext {
 
@@ -18,6 +18,12 @@ interface Transaction: TransactionContext {
 
     /** The [TransactionStatus] of this [Transaction]. */
     val state: TransactionStatus
+
+    /** The timestamp at which this [Transaction] was created. */
+    val created: Long
+
+    /** The timestamp at which this [Transaction] has ended. May be null if it is still ongoing. */
+    val ended: Long?
 
     /** The [TransactionManager] this [Transaction] belongs to. */
     val manager: TransactionManager

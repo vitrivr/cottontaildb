@@ -66,7 +66,7 @@ class VAFFloatIndexTest : AbstractIndexTest() {
     @MethodSource("kernels")
     @ExperimentalTime
     fun test(distance: Name.FunctionName) {
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
         try {
             val k = 1000L

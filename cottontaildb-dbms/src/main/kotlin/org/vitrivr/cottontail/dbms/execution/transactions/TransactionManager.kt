@@ -37,7 +37,7 @@ import kotlin.coroutines.CoroutineContext
  * create and execute queries within different [TransactionImpl]s.
  *
  * @author Ralph Gasser
- * @version 1.7.0
+ * @version 1.8.0
  */
 class TransactionManager(val executionManager: ExecutionManager, transactionTableSize: Int, val transactionHistorySize: Int, private val catalogue: DefaultCatalogue) {
     /** Map of [TransactionImpl]s that are currently PENDING or RUNNING. */
@@ -53,15 +53,15 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
     internal val lockManager = LockManager<DBO>()
 
     /** List of ongoing or past transactions (limited to [transactionHistorySize] entries). */
-    internal val transactionHistory: MutableList<TransactionImpl> = Collections.synchronizedList(ArrayList(this.transactionHistorySize))
+    internal val transactionHistory: MutableList<Transaction> = Collections.synchronizedList(ArrayList(this.transactionHistorySize))
 
     /**
-     * Returns the [TransactionImpl] for the provided [TransactionId].
+     * Returns the [Transaction] for the provided [TransactionId].
      *
-     * @param txId [TransactionId] to return the [TransactionImpl] for.
-     * @return [TransactionImpl] or null
+     * @param txId [TransactionId] to return the [Transaction] for.
+     * @return [Transaction] or null
      */
-    operator fun get(txId: TransactionId): TransactionImpl? = this.transactions[txId]
+    operator fun get(txId: TransactionId): Transaction? = this.transactions[txId]
 
     /**
      * Registers a [TransactionObserver] with this.
@@ -84,6 +84,26 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
     }
 
     /**
+     * Starts a new [Transaction] through this [TransactionManager].
+     *
+     * @param type The [TransactionType] of the [Transaction] to start.
+     */
+    @Synchronized
+    fun startTransaction(type: TransactionType): Transaction = TransactionImpl(type)
+
+    /**
+     * Starts a new [Transaction] through this [TransactionManager] and executes the provided [callback] once that [Transaction] is read.
+     *
+     * @param type The [TransactionType] of the [Transaction] to start.
+     * @param callback The [callback] function to execute.
+     */
+    @Synchronized
+    fun <T> startTransaction(type: TransactionType, callback: ((Transaction) -> T)): T {
+        val ret = TransactionImpl(type)
+        return callback(ret)
+    }
+
+    /**
      * A concrete [TransactionImpl] used for executing a query.
      *
      * A [TransactionImpl] can be of different [TransactionType]s. Their execution semantics may differ slightly.
@@ -91,7 +111,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
      * @author Ralph Gasser
      * @version 1.6.0
      */
-    inner class TransactionImpl(override val type: TransactionType) : LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()), Transaction, TransactionContext {
+    private inner class TransactionImpl constructor(override val type: TransactionType) : LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()), Transaction, TransactionContext {
 
         /** The [TransactionStatus] of this [TransactionImpl]. */
         @Volatile
@@ -110,10 +130,11 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         }
 
         /**
+         * Caches a [Tx] in this [TransactionManager.TransactionImpl]s cache.
          *
+         * @return The [Tx] to cache
          */
-        override fun cacheTxForDBO(tx: Tx): Boolean
-            = this.txns.putIfAbsent(tx.dbo.name, tx) != null
+        override fun cacheTxForDBO(tx: Tx): Boolean = this.txns.putIfAbsent(tx.dbo.name, tx) != null
 
         /**
          * Tries to retrieve a cached [Tx] from this [TransactionManager.TransactionImpl]s cache.
@@ -121,8 +142,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          * @param dbo The [DBO] to obtain the [Tx] for.
          * @return The [Tx] or null
          */
-        override fun <T : Tx> getCachedTxForDBO(dbo: DBO): T?
-            = this.txns[dbo.name] as T?
+        override fun <T : Tx> getCachedTxForDBO(dbo: DBO): T? = this.txns[dbo.name] as T?
 
         /**
          * A [MutableMap] of all [TransactionObserver] and the [Event]s that were collected for them.
@@ -150,11 +170,11 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
             get() = this.txns.size
 
         /** Timestamp of when this [TransactionImpl] was created. */
-        val created
+        override val created
             get() = this.xodusTx.startTime
 
         /** Timestamp of when this [TransactionImpl] was either COMMITTED or ABORTED. */
-        var ended: Long? = null
+        override var ended: Long? = null
             private set
 
         /** Number of queries executed successfully in this [TransactionImpl]. */

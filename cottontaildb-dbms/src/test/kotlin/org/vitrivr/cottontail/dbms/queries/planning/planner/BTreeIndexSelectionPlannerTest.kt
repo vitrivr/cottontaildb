@@ -91,7 +91,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
     @Test
     fun testEqualsWithoutHint() {
         for (i in 0 until 1000) {
-            val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
+            val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
             try {
                 val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
                 val catalogueTx = this.catalogue.newTx(ctx)
@@ -131,7 +131,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
      */
     @Test
     fun testEqualsWithNoIndexHint() {
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn, setOf(QueryHint.IndexHint.None))
             val catalogueTx = this.catalogue.newTx(ctx)
@@ -167,7 +167,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
     @Test
     fun testInWithoutHint() {
         for (i in 0 until 1000) {
-            val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
+            val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
             try {
                 val ctx = DefaultQueryContext("test", this.catalogue, txn)
                 val catalogueTx = this.catalogue.newTx(ctx)
@@ -207,7 +207,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
     @Test
     fun testInWithoutHintButWithAndCondition() {
         for (i in 0 until 1000) {
-            val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
+            val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
             try {
                 val ctx = DefaultQueryContext("test", this.catalogue, txn)
                 val catalogueTx = this.catalogue.newTx(ctx)
@@ -247,7 +247,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
      */
     @Test
     fun testInWithNoIndexHint() {
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn, setOf(QueryHint.IndexHint.None))
             val catalogueTx = this.catalogue.newTx(ctx)

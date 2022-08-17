@@ -89,7 +89,7 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
         var counter = 0
         columnTx.cursor().use { cursor ->
             while (cursor.hasNext()) {
-                if (this.state != IndexRebuilderState.SCANNING) return false
+                if (this.state != IndexRebuilderState.REBUILDING) return false
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
                     /* Add signature. */
@@ -123,7 +123,7 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
         this.tmpDataStore.openCursor(this.tmpTx).use { cursor ->
             var counter = 0
             while (cursor.next) {
-                if (this.state != IndexRebuilderState.MERGING) return false
+                if (this.state != IndexRebuilderState.REPLACING) return false
                 if (!store.add(context.txn.xodusTx, cursor.key, cursor.value)) {
                     return false
                 }
@@ -190,12 +190,14 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
      */
     override fun drainAndMergeLog(): Boolean {
         var next = this.log.poll()
+        var r = 0
         while (next != null) {
             val success = when (next) {
                 is PQIndexingEvent.Set -> this.tmpDataStore.put(this.tmpTx, next.tupleId.toKey(), next.signature.toEntry())
                 is PQIndexingEvent.Unset -> this.tmpDataStore.delete(this.tmpTx, next.tupleId.toKey())
             }
             if (!success) return false
+            if ((r++) % 1000 == 0) Thread.yield()
             next = this.log.poll()
         }
         return true

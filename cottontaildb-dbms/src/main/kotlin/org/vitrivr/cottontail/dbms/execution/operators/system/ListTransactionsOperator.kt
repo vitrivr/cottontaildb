@@ -5,7 +5,10 @@ import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.*
+import org.vitrivr.cottontail.core.values.DateValue
+import org.vitrivr.cottontail.core.values.DoubleValue
+import org.vitrivr.cottontail.core.values.LongValue
+import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
@@ -30,8 +33,6 @@ class ListTransactionsOperator(val manager: TransactionManager, override val con
                 LongValue(it.txId),
                 StringValue(it.type.toString()),
                 StringValue(it.state.toString()),
-                IntValue(it.numberOfLocks),
-                IntValue(it.numberOfTxs),
                 DateValue(it.created),
                 if (it.ended != null) {
                     DateValue(it.ended!!)

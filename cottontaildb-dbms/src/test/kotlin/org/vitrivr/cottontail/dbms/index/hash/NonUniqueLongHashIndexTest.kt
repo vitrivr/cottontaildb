@@ -49,7 +49,7 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
     @RepeatedTest(3)
     fun testFilterEqualPositive() {
         /* Obtain necessary transactions. */
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
         try {
             val catalogueTx = this.catalogue.newTx(ctx)
@@ -96,7 +96,7 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
     @RepeatedTest(3)
     fun testFilterEqualNegative() {
         /* Obtain necessary transactions. */
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
         val catalogueTx = this.catalogue.newTx(ctx)
         val schema = catalogueTx.schemaForName(this.schemaName)

@@ -132,7 +132,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
          * @return True on success, false otherwise.
          */
         private fun performRebuild(): Boolean {
-            val transaction = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+            val transaction = this@AutoRebuilderService.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
             val context = DefaultQueryContext("auto-rebuild-${this@AutoRebuilderService.counter.incrementAndGet()}", this@AutoRebuilderService.catalogue, transaction)
             try {
                 val catalogueTx = this@AutoRebuilderService.catalogue.newTx(context)
@@ -167,7 +167,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
          */
         private fun performConcurrentRebuild(): Boolean {
             /* Step 1a: Scan index (read-only). */
-            val transaction = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
+            val transaction = this@AutoRebuilderService.manager.startTransaction(TransactionType.SYSTEM_READONLY)
             val context = DefaultQueryContext("auto-rebuild-prepare", this@AutoRebuilderService.catalogue, transaction)
             val rebuilder = try {
                 val catalogueTx = this@AutoRebuilderService.catalogue.newTx(context)
@@ -190,16 +190,17 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                 return false
             }
 
-            /* Step 1: Start BUILD process and perform sanity check to prevent obtaining an exclusive transaction unnecessarily. */
+            this@AutoRebuilderService.manager.register(rebuilder)
             try {
+                /* Step 1: Start BUILD process and perform sanity check to prevent obtaining an exclusive transaction unnecessarily. */
                 rebuilder.build()
-                if (rebuilder.state != IndexRebuilderState.SCANNED) {
+                if (rebuilder.state != IndexRebuilderState.REBUILT) {
                     return false
                 }
 
                 /* Step 2: Start REPLACE process (write). */
                 rebuilder.replace()
-                if (rebuilder.state != IndexRebuilderState.MERGED) {
+                if (rebuilder.state != IndexRebuilderState.FINISHED) {
                     return false
                 }
 
@@ -208,6 +209,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                 LOGGER.error("Index auto-rebuilding (MERGE) for $index failed due to exception: ${e.message}.")
                 return false
             } finally {
+                this@AutoRebuilderService.manager.deregister(rebuilder)
                 rebuilder.close()
             }
         }

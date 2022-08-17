@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.index.pq
 
 import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
@@ -106,7 +107,7 @@ class PQDoubleVectorCodebookTest {
         val vector1 = this.testdata[index1]
         val vector2 = this.testdata[index2]
 
-        /* Test definition of lookup dable. */
+        /* Test definition of lookup table. */
         val signature = this.quantizer.quantize(vector2)
         val lat = this.quantizer.createLookupTable(vector1)
         Assertions.assertEquals(sqrt(signature.cells.mapIndexed { i, c -> lat.data[i][c.toInt()] }.sum()), lat.approximateDistance(signature))
@@ -115,7 +116,7 @@ class PQDoubleVectorCodebookTest {
     /**
      * Makes sure that the signature always points to the smallest distance in the lookup table created for the same vector
      */
-    @Test
+    @RepeatedTest(3)
     fun testDistanceCalculation() {
         val index = this.random.nextInt(0, this.testdata.size)
         val query = this.testdata[index]
@@ -128,16 +129,16 @@ class PQDoubleVectorCodebookTest {
             results.add(Triple(i, distance.value, approximation))
         }
 
-        /* Check: The first  numberOfClusters entries should be assigned to the same cluster. */
+        /* Check: The first numberOfClusters entries should be assigned to the same cluster. */
         val sorted1 = results.sortedBy { it.second }
         val idx = sorted1[0].first % numberOfClusters
-        for (i in 1 until floorDiv(this.testdata.size, this.numberOfClusters)) {
+        for (i in 0 until floorDiv(this.testdata.size, this.numberOfClusters)) {
             Assertions.assertEquals(idx,sorted1[i].first % numberOfClusters)
         }
 
         /* Check: The first numberOfClusters entries should be assigned to the same cluster. */
         val sorted2 = results.sortedBy { it.third }
-        for (i in 1 until floorDiv(this.testdata.size, this.numberOfClusters)) {
+        for (i in 0 until floorDiv(this.testdata.size, this.numberOfClusters)) {
             Assertions.assertEquals(idx,sorted2[i].first % numberOfClusters)
         }
     }

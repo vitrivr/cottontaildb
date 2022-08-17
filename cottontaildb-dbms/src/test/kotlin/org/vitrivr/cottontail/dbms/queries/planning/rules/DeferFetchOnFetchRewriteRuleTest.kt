@@ -50,7 +50,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
      */
     @Test
     fun testNoMatch() {
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn)
             val catalogueTx = this.catalogue.newTx(ctx)
@@ -78,7 +78,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
      */
     @Test
     fun testDeferAfterFilter() {
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn)
             val catalogueTx = this.catalogue.newTx(ctx)
@@ -143,7 +143,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
      */
     @Test
     fun testRemoveUnnecessaryFetch() {
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn)
             val catalogueTx = this.catalogue.newTx(ctx)
@@ -186,7 +186,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
      * We don't need data for this test.
      */
     override fun populateDatabase() {
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("populate-database", this.catalogue, txn)
         try {
             val catalogueTx = this.catalogue.newTx(ctx)

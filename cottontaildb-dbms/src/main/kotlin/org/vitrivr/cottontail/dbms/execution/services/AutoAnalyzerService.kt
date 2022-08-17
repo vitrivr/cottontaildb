@@ -81,7 +81,7 @@ class AutoAnalyzerService(private val catalogue: Catalogue, private val manager:
      */
     inner class Task(private val column: Name.ColumnName): Runnable {
         override fun run() {
-            val transaction = this@AutoAnalyzerService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+            val transaction = this@AutoAnalyzerService.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
             val context = DefaultQueryContext("auto-analysis-${this@AutoAnalyzerService.counter.incrementAndGet()}", this@AutoAnalyzerService.catalogue, transaction)
             try {
                 LOGGER.info("Starting auto-analysis of column $column...")

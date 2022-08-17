@@ -15,7 +15,6 @@ import org.vitrivr.cottontail.dbms.execution.locking.LockMode
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.sources.partitionFor
 import org.vitrivr.cottontail.dbms.execution.transactions.*
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager.TransactionImpl
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
@@ -36,7 +35,7 @@ import kotlin.time.measureTime
  * An abstract implementation of the [MigrationManager].
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.2.0
  */
 @ExperimentalTime
 abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Path) : MigrationManager {
@@ -280,6 +279,12 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         override var state: TransactionStatus = TransactionStatus.IDLE
             private set
 
+        /** The timestamp at which this [Transaction] was created. */
+        override val created: Long = System.currentTimeMillis()
+
+        /** The timestamp at which this [Transaction] has ended created. */
+        override var ended: Long? = null
+            private set
 
         /** Map of all [Tx] that have been created as part of this [MigrationManager]. Used for final COMMIT or ROLLBACK. */
         private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
@@ -296,13 +301,12 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
 
         /**
          * Returns the [Tx] for the provided [DBO]. Creating [Tx] through this method makes sure,
-         * that only on [Tx] per [DBO] and [TransactionImpl] is created.
+         * that only on [Tx] per [DBO] and [Transaction] is created.
          *
          * @param dbo [DBO] to return the [Tx] for.
          * @return entity [Tx]
          */
-        override fun <T: Tx>getCachedTxForDBO(dbo: DBO): T
-            = this.txns[dbo] as T
+        override fun <T: Tx>getCachedTxForDBO(dbo: DBO): T = this.txns[dbo] as T
 
         override fun requestLock(dbo: DBO, mode: LockMode) {
             /* No op. */
@@ -323,6 +327,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
             check(this.state === TransactionStatus.IDLE) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             this.txns.clear()
+            this.ended = System.currentTimeMillis()
             this.state = TransactionStatus.COMMIT
         }
 
@@ -333,6 +338,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
             check(this.state === TransactionStatus.IDLE || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             this.txns.clear()
+            this.ended = System.currentTimeMillis()
             this.state = TransactionStatus.ROLLBACK
         }
 
@@ -360,6 +366,13 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         /** The [TransactionStatus] of this [MigrationContext]. */
         @Volatile
         override var state: TransactionStatus = TransactionStatus.IDLE
+            private set
+
+        /** The timestamp at which this [MigrationContext] was created. */
+        override val created: Long = System.currentTimeMillis()
+
+        /** The timestamp at which this [MigrationContext] has ended created. */
+        override var ended: Long? = null
             private set
 
         /** A [MigrationContext] does not have a reference to a [TransactionManager]. */
@@ -426,6 +439,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
                 this.txns.clear()
                 this.notifyOnCommit.clear()
                 this.notifyOnRollback.clear()
+                this.ended = System.currentTimeMillis()
                 this.state = TransactionStatus.COMMIT
             }
         }
@@ -448,6 +462,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
                 this.txns.clear()
                 this.notifyOnCommit.clear()
                 this.notifyOnRollback.clear()
+                this.ended = System.currentTimeMillis()
                 this.state = TransactionStatus.ROLLBACK
             }
         }

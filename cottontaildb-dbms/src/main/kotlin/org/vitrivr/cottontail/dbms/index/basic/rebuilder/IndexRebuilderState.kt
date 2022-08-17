@@ -6,18 +6,22 @@ package org.vitrivr.cottontail.dbms.index.basic.rebuilder
  * @author Ralph Gasser
  * @version 1.0.0
  */
-enum class IndexRebuilderState(val trackChanges: Boolean) {
-    INITIALIZED(false),
+enum class IndexRebuilderState {
+    /** Index rebuilder is ready and waiting for the process to start. */
+    INITIALIZED,
 
-    SCANNING(true),
+    /**Index is currently being rebuilt. */
+    REBUILDING,
 
-    SCANNED(true),
+    /** Index has been rebuilt and is waiting for replacement phase to start.*/
+    REBUILT,
 
-    MERGING(false),
+    /** Index is being replaced. */
+    REPLACING,
 
-    MERGED(false),
+    /** Index rebuilding has been aborted. */
+    ABORTED,
 
-    ABORTED(false),
-
-    FINISHED(false)
+    /** Index rebuilding has been completed successfully. */
+    FINISHED
 }

@@ -37,7 +37,7 @@ class CatalogueTest: AbstractDatabaseTest() {
     @Test
     fun createSchemaCommitTest() {
         /* Transaction 1: Create schema. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx1 = DefaultQueryContext("create-schema-01", this.catalogue, txn1)
         try {
             val catalogueTxn1 = this.catalogue.newTx(ctx1)
@@ -49,7 +49,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Read and compare schema. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx2 = DefaultQueryContext("create-schema-02", this.catalogue, txn2)
         try {
             val catalogueTxn2 = this.catalogue.newTx(ctx2)
@@ -69,7 +69,7 @@ class CatalogueTest: AbstractDatabaseTest() {
     @Test
     fun createSchemaRollbackTest() {
         /* Transaction 1: Create schema. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx1 = DefaultQueryContext("create-schema-01", this.catalogue, txn1)
         try {
             val catalogueTxn1 = this.catalogue.newTx(ctx1)
@@ -79,7 +79,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Read and compare schema. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx2 = DefaultQueryContext("create-schema-02", this.catalogue, txn2)
         try {
             val catalogueTxn2 = this.catalogue.newTx(ctx2)
@@ -101,7 +101,7 @@ class CatalogueTest: AbstractDatabaseTest() {
     @Test
     fun dropSchemaCommitTest() {
         /* Transaction 1: Create schema. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx1 = DefaultQueryContext("drop-schema-01", this.catalogue, txn1)
         try {
             val catalogueTxn1 = this.catalogue.newTx(ctx1)
@@ -114,7 +114,7 @@ class CatalogueTest: AbstractDatabaseTest() {
 
 
         /* Transaction 2: Read, check and drop schema. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx2 = DefaultQueryContext("drop-schema-02", this.catalogue, txn2)
         try {
             val catalogueTxn2 = this.catalogue.newTx(ctx2)
@@ -129,7 +129,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 3: Read and compare schema. */
-        val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn3 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx3 = DefaultQueryContext("drop-schema-03", this.catalogue, txn3)
 
         try {
@@ -152,7 +152,7 @@ class CatalogueTest: AbstractDatabaseTest() {
     @Test
     fun dropSchemaRollbackTest() {
         /* Transaction 1: Create schema. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx1 = DefaultQueryContext("drop-schema-01", this.catalogue, txn1)
         try {
             val catalogueTxn1 = this.catalogue.newTx(ctx1)
@@ -165,7 +165,7 @@ class CatalogueTest: AbstractDatabaseTest() {
 
 
         /* Transaction 2: Read, check and drop schema. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx2 = DefaultQueryContext("drop-schema-02", this.catalogue, txn2)
         try {
             val catalogueTxn2 = this.catalogue.newTx(ctx2)
@@ -181,7 +181,7 @@ class CatalogueTest: AbstractDatabaseTest() {
 
 
         /* Transaction 3: Read and compare schema. */
-        val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn3 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx3 = DefaultQueryContext("drop-schema-03", this.catalogue, txn3)
         try {
             val catalogueTxn3 = this.catalogue.newTx(ctx3)
@@ -201,7 +201,7 @@ class CatalogueTest: AbstractDatabaseTest() {
     @Test
     fun createAndDropSchemaSingleTransactionTest() {
         /* Transaction 1: Create schema. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx1 = DefaultQueryContext("create-drop-schema-01", this.catalogue, txn1)
         try {
             val catalogueTxn1 = this.catalogue.newTx(ctx1)
@@ -214,7 +214,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Read and compare schema. */
-        val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
+        val txn3 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx3 = DefaultQueryContext("create-drop-schema-01", this.catalogue, txn3)
         try {
             val catalogueTxn3 = this.catalogue.newTx(ctx3)

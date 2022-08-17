@@ -80,7 +80,7 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
         var counter = 0
         columnTx.cursor().use { cursor ->
             while (cursor.hasNext()) {
-                if (this.state != IndexRebuilderState.SCANNING) return false
+                if (this.state != IndexRebuilderState.REBUILDING) return false
                 val value = cursor.value()
                 if (value is RealVectorValue<*>) {
                     if (!this.tmpDataStore.add(this.tmpTx, cursor.key().toKey(), this.newMarks.getSignature(value).toEntry())) {
@@ -113,7 +113,7 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
         this.tmpDataStore.openCursor(this.tmpTx).use {cursor ->
             var counter = 0
             while (cursor.next) {
-                if (this.state != IndexRebuilderState.MERGING) return false
+                if (this.state != IndexRebuilderState.REPLACING) return false
                 if (!store.add(context.txn.xodusTx, cursor.key, cursor.value)) {
                     return false
                 }
