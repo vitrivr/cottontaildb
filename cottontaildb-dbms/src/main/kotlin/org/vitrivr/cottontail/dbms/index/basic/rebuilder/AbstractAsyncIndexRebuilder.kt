@@ -121,7 +121,6 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
 
     /**
      * Merges this [AbstractAsyncIndexRebuilder] with its [Index] using the given [QueryContext].
-     *
      */
     override fun replace() = this.rebuildLatch.withLock {
         require(this.state == IndexRebuilderState.REBUILT) { "Cannot perform MERGE with index builder because it is in the wrong state."}

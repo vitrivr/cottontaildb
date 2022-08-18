@@ -60,9 +60,9 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
     }
 
     /**
-     * Internal scan method that is being executed when executing the SCAN stage of this [AsyncVAFIndexRebuilder].
+     * Internal scan method that is being executed when executing the BUILD stage of this [AsyncVAFIndexRebuilder].
      *
-     * @param context The [QueryContext] to execute the SCAN stage in.
+     * @param context The [QueryContext] to execute the BUILD stage in.
      * @return True on success, false otherwise.
      */
     override fun internalBuild(context: QueryContext): Boolean {
@@ -87,7 +87,6 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
                         return false
                     }
 
-                    /* Data is flushed every once in a while. */
                     if ((++counter) % 1_000_000 == 0) {
                         LOGGER.debug("Rebuilding index (SCAN) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
                         if (!this.tmpTx.flush()) {
@@ -126,14 +125,14 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
                     }
                 }
             }
-
-            /* Update stored VAFMarks. */
-            IndexStructCatalogueEntry.write(this.index.name, this.newMarks, this.index.catalogue, context.txn.xodusTx, EquidistantVAFMarks.Binding)
-
-            /* Reset to default efficiency of VAF after rebuild. */
-            this.index.catalogue.indexStatistics.updatePersistently(this.index.name, IndexStatistic(VAFIndex.FILTER_EFFICIENCY_CACHE_KEY, VAFIndex.DEFAULT_FILTER_EFFICIENCY.toString()), context.txn.xodusTx)
-            return true
         }
+
+        /* Update stored VAFMarks. */
+        IndexStructCatalogueEntry.write(this.index.name, this.newMarks, this.index.catalogue, context.txn.xodusTx, EquidistantVAFMarks.Binding)
+
+        /* Reset to default efficiency of VAF after rebuild. */
+        this.index.catalogue.indexStatistics.updatePersistently(this.index.name, IndexStatistic(VAFIndex.FILTER_EFFICIENCY_CACHE_KEY, VAFIndex.DEFAULT_FILTER_EFFICIENCY.toString()), context.txn.xodusTx)
+        return true
     }
 
     /**

@@ -72,7 +72,10 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
     }
 
     /**
-     * Internal, modified rebuild method. This method basically scans the entity and writes all the changes to the surrounding snapshot.
+     * Internal scan method that is being executed when executing the BUILD stage of this [AsyncPQIndexRebuilder].
+     *
+     * @param context The [QueryContext] to execute the BUILD stage in.
+     * @return True on success, false otherwise.
      */
     override fun internalBuild(context: QueryContext): Boolean {
         /* Read basic index properties. */
@@ -92,9 +95,7 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
                 if (this.state != IndexRebuilderState.REBUILDING) return false
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
-                    /* Add signature. */
-                    val sig = this.newQuantizer.quantize(value)
-                    if (!this.tmpDataStore.add(this.tmpTx, cursor.key().toKey(), sig.toEntry())) {
+                    if (!this.tmpDataStore.add(this.tmpTx, cursor.key().toKey(),this.newQuantizer.quantize(value).toEntry())) {
                         return false
                     }
 
@@ -190,14 +191,12 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
      */
     override fun drainAndMergeLog(): Boolean {
         var next = this.log.poll()
-        var r = 0
         while (next != null) {
             val success = when (next) {
                 is PQIndexingEvent.Set -> this.tmpDataStore.put(this.tmpTx, next.tupleId.toKey(), next.signature.toEntry())
                 is PQIndexingEvent.Unset -> this.tmpDataStore.delete(this.tmpTx, next.tupleId.toKey())
             }
             if (!success) return false
-            if ((r++) % 1000 == 0) Thread.yield()
             next = this.log.poll()
         }
         return true
