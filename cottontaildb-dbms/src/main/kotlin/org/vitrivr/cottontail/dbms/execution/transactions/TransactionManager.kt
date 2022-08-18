@@ -5,6 +5,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
+
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
@@ -27,9 +29,12 @@ import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager.TransactionImpl
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
+import org.vitrivr.cottontail.utilities.extensions.write
+
 import java.lang.ref.SoftReference
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.locks.StampedLock
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -55,6 +60,9 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
     /** List of ongoing or past transactions (limited to [transactionHistorySize] entries). */
     internal val transactionHistory: MutableList<Transaction> = Collections.synchronizedList(ArrayList(this.transactionHistorySize))
 
+    /** This lock synchronises exclusive transactions (TODO: More granularity). */
+    private val exclusiveLock = StampedLock()
+
     /**
      * Returns the [Transaction] for the provided [TransactionId].
      *
@@ -64,7 +72,9 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
     operator fun get(txId: TransactionId): Transaction? = this.transactions[txId]
 
     /**
-     * Registers a [TransactionObserver] with this.
+     * Registers a [TransactionObserver] with this [TransactionManager].
+     *
+     * The mechanism makes sure, that all ongoing transactions finish before registration.
      *
      * @param observer [TransactionObserver] to register.
      * @return True on success, false otherwise.
@@ -76,11 +86,20 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
     /**
      * De-registers the given [TransactionObserver] with this [TransactionManager].
      *
+     * The mechanism makes sure, that all ongoing transactions finish before de-registration.
+     *
      * @param observer [TransactionObserver] to de-register.
      * @return True on success, false otherwise.
      */
     fun deregister(observer: TransactionObserver) {
-        this.observers.remove(observer)
+        this.observers.add(observer)
+    }
+
+    /**
+     *
+     */
+    fun <T> computeExclusively(callback: () -> T): T = this.exclusiveLock.write {
+        callback()
     }
 
     /**
@@ -88,7 +107,6 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
      *
      * @param type The [TransactionType] of the [Transaction] to start.
      */
-    @Synchronized
     fun startTransaction(type: TransactionType): Transaction = TransactionImpl(type)
 
     /**
@@ -97,7 +115,6 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
      * @param type The [TransactionType] of the [Transaction] to start.
      * @param callback The [callback] function to execute.
      */
-    @Synchronized
     fun <T> startTransaction(type: TransactionType, callback: ((Transaction) -> T)): T {
         val ret = TransactionImpl(type)
         return callback(ret)
@@ -123,26 +140,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
             get() = this@TransactionManager
 
         /** The Xodus [Transaction] associated with this [TransactionContext]. */
-        override val xodusTx: jetbrains.exodus.env.Transaction = when {
-            this.type.readonly -> this@TransactionManager.catalogue.environment.beginReadonlyTransaction()   /* Read-only transaction. */
-            this.type.exclusive -> this@TransactionManager.catalogue.environment.beginExclusiveTransaction() /* Exclusive write transaction. */
-            else -> this@TransactionManager.catalogue.environment.beginTransaction()                         /* Optimistic write transaction. */
-        }
-
-        /**
-         * Caches a [Tx] in this [TransactionManager.TransactionImpl]s cache.
-         *
-         * @return The [Tx] to cache
-         */
-        override fun cacheTxForDBO(tx: Tx): Boolean = this.txns.putIfAbsent(tx.dbo.name, tx) != null
-
-        /**
-         * Tries to retrieve a cached [Tx] from this [TransactionManager.TransactionImpl]s cache.
-         *
-         * @param dbo The [DBO] to obtain the [Tx] for.
-         * @return The [Tx] or null
-         */
-        override fun <T : Tx> getCachedTxForDBO(dbo: DBO): T? = this.txns[dbo.name] as T?
+        override val xodusTx: jetbrains.exodus.env.Transaction
 
         /**
          * A [MutableMap] of all [TransactionObserver] and the [Event]s that were collected for them.
@@ -202,7 +200,19 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         override val availableIntraQueryWorkers: Int
             get() = this@TransactionManager.executionManager.availableIntraQueryWorkers()
 
+        /** */
+        private val stamp: Long?
+
         init {
+            /** Try to start transaction. */
+            if (this.type.exclusive) {
+                this.stamp = this@TransactionManager.exclusiveLock.writeLock()
+                this.xodusTx = this@TransactionManager.catalogue.environment.beginTransaction()
+            } else {
+                this.stamp = null
+                this.xodusTx = this@TransactionManager.catalogue.environment.beginReadonlyTransaction()
+            }
+
             /** Add this to transaction history and transaction table. */
             this@TransactionManager.transactions[this.txId] = this
             this@TransactionManager.transactionHistory.add(this)
@@ -219,6 +229,20 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
                 this.localObservers[observer] = SoftReference(LinkedList<Event>())
             }
         }
+        /**
+         * Caches a [Tx] in this [TransactionManager.TransactionImpl]s cache.
+         *
+         * @return The [Tx] to cache
+         */
+        override fun cacheTxForDBO(tx: Tx): Boolean = this.txns.putIfAbsent(tx.dbo.name, tx) != null
+
+        /**
+         * Tries to retrieve a cached [Tx] from this [TransactionManager.TransactionImpl]s cache.
+         *
+         * @param dbo The [DBO] to obtain the [Tx] for.
+         * @return The [Tx] or null
+         */
+        override fun <T : Tx> getCachedTxForDBO(dbo: DBO): T? = this.txns[dbo.name] as T?
 
         /**
          * Tries to acquire a [Lock] on a [DBO] for the given [LockMode]. This call is delegated to the
@@ -291,7 +315,9 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
                         this@TransactionImpl.xodusTx.abort()
                     } else {
                         commit = this@TransactionImpl.xodusTx.commit()
-                        if (!commit) throw TransactionException.InConflict(this@TransactionImpl.txId)
+                        if (!commit) {
+                            throw TransactionException.InConflict(this@TransactionImpl.txId)
+                        }
                     }
                 } catch (e: Throwable) {
                     this@TransactionImpl.xodusTx.abort()
@@ -351,6 +377,9 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          * @param committed True if [TransactionImpl] was committed, false otherwise.
          */
         private fun finalize(committed: Boolean) {
+            if (this.stamp != null) {
+                this@TransactionManager.exclusiveLock.unlock(this.stamp)
+            }
             this@TransactionImpl.allLocks().forEach { this@TransactionManager.lockManager.unlock(this@TransactionImpl, it.obj) }
             this@TransactionImpl.txns.clear()
             this@TransactionImpl.notifyOnCommit.clear()

@@ -91,11 +91,13 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
         LOGGER.debug("Scanning index ${this.index.name} (${this.index.type}).")
 
         /* Acquire query context; requires write-latch to prevent concurrent data events from "seeping" through. */
-        val context = this.manager.startTransaction(TransactionType.SYSTEM_READONLY) {
-            val context = DefaultQueryContext("auto-rebuild-scan-$sequenceNumber", this.catalogue, it)
-            this.manager.register(this)
-            this.state = IndexRebuilderState.REBUILDING
-            context
+        val context = this.manager.computeExclusively {
+            this.manager.startTransaction(TransactionType.SYSTEM_READONLY) {
+                val context = DefaultQueryContext("auto-rebuild-scan-$sequenceNumber", this.catalogue, it)
+                this.manager.register(this)
+                this.state = IndexRebuilderState.REBUILDING
+                context
+            }
         }
 
         try {
