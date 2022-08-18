@@ -190,7 +190,6 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                 return false
             }
 
-            this@AutoRebuilderService.manager.register(rebuilder)
             try {
                 /* Step 1: Start BUILD process and perform sanity check to prevent obtaining an exclusive transaction unnecessarily. */
                 rebuilder.build()
