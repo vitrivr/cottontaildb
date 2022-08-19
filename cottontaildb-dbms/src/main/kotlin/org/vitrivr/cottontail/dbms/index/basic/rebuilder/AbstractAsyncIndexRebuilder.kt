@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.dbms.index.basic.rebuilder
 import jetbrains.exodus.env.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
@@ -22,12 +21,9 @@ import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-
 import java.nio.file.Files
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 
 /**
  * A [AbstractAsyncIndexRebuilder] de-couples the step uf building-up and merging the changes with the actual [Index] structure.
@@ -73,9 +69,6 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
      */
     protected val entityName: Name.EntityName = this.index.name.entity()
 
-    /** A [ReentrantLock] that makes sure, that the two rebuild-steps are not invoked concurrently. */
-    private val rebuildLatch = ReentrantLock()
-
     /** Internal sequence number for this [AbstractAsyncIndexRebuilder]. */
     private val sequenceNumber = COUNTER.incrementAndGet()
 
@@ -86,18 +79,18 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     /**
      * Scans the data necessary for this [AbstractAsyncIndexRebuilder]. Usually, this takes place within an existing [QueryContext].
      */
-    override fun build() = this.rebuildLatch.withLock {
+    @Synchronized
+    override fun build() {
         require(this.state == IndexRebuilderState.INITIALIZED) { "Cannot perform SCAN with index builder because it is in the wrong state."}
         LOGGER.debug("Scanning index ${this.index.name} (${this.index.type}).")
 
         /* Acquire query context; requires write-latch to prevent concurrent data events from "seeping" through. */
         val context = this.manager.computeExclusively {
-            this.manager.startTransaction(TransactionType.SYSTEM_READONLY) {
-                val context = DefaultQueryContext("auto-rebuild-scan-$sequenceNumber", this.catalogue, it)
-                this.manager.register(this)
-                this.state = IndexRebuilderState.REBUILDING
-                context
-            }
+            val transaction = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
+            val context = DefaultQueryContext("auto-rebuild-scan-$sequenceNumber", this.catalogue, transaction)
+            this.manager.register(this)
+            this.state = IndexRebuilderState.REBUILDING
+            context
         }
 
         try {
@@ -122,16 +115,15 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     /**
      * Merges this [AbstractAsyncIndexRebuilder] with its [Index] using the given [QueryContext].
      */
-    override fun replace() = this.rebuildLatch.withLock {
+    @Synchronized
+    override fun replace() {
         require(this.state == IndexRebuilderState.REBUILT) { "Cannot perform MERGE with index builder because it is in the wrong state."}
         LOGGER.debug("Merging index ${this.index.name} (${this.index.type}).")
 
         /* Acquire query context; requires write-latch to prevent concurrent data events from "seeping" through. */
-        val context: QueryContext = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE) {
-            val context = DefaultQueryContext("auto-rebuild-replace-$sequenceNumber", this.catalogue, it)
-            this.manager.deregister(this)
-            context
-        }
+        val transaction = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val context = DefaultQueryContext("auto-rebuild-replace-$sequenceNumber", this.catalogue, transaction)
+        this.manager.deregister(this)
 
         /* Clear store and update state of index (* ---> DIRTY). */
         try {
@@ -213,7 +205,8 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     /**
      * Closes this [AbstractAsyncIndexRebuilder].
      */
-    override fun close() = this.rebuildLatch.withLock {
+    @Synchronized
+    override fun close() {
         try {
             if (this.state != IndexRebuilderState.FINISHED) {
                 this.state = IndexRebuilderState.FINISHED

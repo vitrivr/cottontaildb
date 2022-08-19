@@ -6,7 +6,6 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
-import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
@@ -95,7 +94,7 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
                 if (this.state != IndexRebuilderState.REBUILDING) return false
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
-                    if (!this.tmpDataStore.add(this.tmpTx, cursor.key().toKey(),this.newQuantizer.quantize(value).toEntry())) {
+                    if (!this.tmpDataStore.add(this.tmpTx, cursor.key().toKey(), this.newQuantizer.quantize(value).toEntry())) {
                         return false
                     }
 
@@ -177,7 +176,7 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
             /* Obtain marks and update them. */
             if (newValue is VectorValue<*>) {                   /* Case 1: New value is not null, i.e., update to new value. */
                 this.log.offer(PQIndexingEvent.Set(event.tupleId, this.newQuantizer.quantize(newValue)))
-            } else if (oldValue is RealVectorValue<*>) {        /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
+            } else if (oldValue is VectorValue<*>) {        /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
                 this.log.offer(PQIndexingEvent.Unset(event.tupleId))
             }
             true
