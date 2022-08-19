@@ -92,11 +92,14 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
      * @return True on success, false otherwise.
      */
     fun deregister(observer: TransactionObserver) {
-        this.observers.add(observer)
+        this.observers.remove(observer)
     }
 
     /**
+     * Computes a block of code with exclusive access to the database, i.e., making sure that no concurrent write transaction is running.
      *
+     * @param callback The [callback] to execute.
+     * @return [T]
      */
     fun <T> computeExclusively(callback: () -> T): T = this.exclusiveLock.write {
         callback()
@@ -108,17 +111,6 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
      * @param type The [TransactionType] of the [Transaction] to start.
      */
     fun startTransaction(type: TransactionType): Transaction = TransactionImpl(type)
-
-    /**
-     * Starts a new [Transaction] through this [TransactionManager] and executes the provided [callback] once that [Transaction] is read.
-     *
-     * @param type The [TransactionType] of the [Transaction] to start.
-     * @param callback The [callback] function to execute.
-     */
-    fun <T> startTransaction(type: TransactionType, callback: ((Transaction) -> T)): T {
-        val ret = TransactionImpl(type)
-        return callback(ret)
-    }
 
     /**
      * A concrete [TransactionImpl] used for executing a query.
