@@ -369,27 +369,35 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          * @param committed True if [TransactionImpl] was committed, false otherwise.
          */
         private fun finalize(committed: Boolean) {
-            if (this.stamp != null) {
-                this@TransactionManager.exclusiveLock.unlock(this.stamp)
-            }
-            this@TransactionImpl.allLocks().forEach { this@TransactionManager.lockManager.unlock(this@TransactionImpl, it.obj) }
-            this@TransactionImpl.txns.clear()
-            this@TransactionImpl.notifyOnCommit.clear()
-            this@TransactionImpl.notifyOnRollback.clear()
-            this@TransactionImpl.ended = System.currentTimeMillis()
-            this@TransactionManager.transactions.remove(this@TransactionImpl.txId)
-            if (committed) {
-                this@TransactionImpl.state = TransactionStatus.COMMIT
-                for ((observer, listRef) in this.localObservers) {
-                    val list = listRef.get()
-                    if (list != null) {
-                        observer.onCommit(this.txId, list)    /* Signal COMMIT to local observers. */
-                    } else {
-                        observer.onDeliveryFailure(this.txId) /* Signal DELIVERY FAILURE to local observers. */
-                    }
+            try {
+                if (committed) this.notifyObservers()
+            } finally {
+                this@TransactionImpl.txns.clear()
+                this@TransactionImpl.notifyOnCommit.clear()
+                this@TransactionImpl.notifyOnRollback.clear()
+                this@TransactionImpl.ended = System.currentTimeMillis()
+                this@TransactionManager.transactions.remove(this@TransactionImpl.txId)
+                this@TransactionImpl.state = if (committed) {
+                     TransactionStatus.COMMIT
+                } else {
+                    TransactionStatus.ROLLBACK
                 }
-            } else {
-                this@TransactionImpl.state = TransactionStatus.ROLLBACK
+                this@TransactionImpl.allLocks().forEach { this@TransactionManager.lockManager.unlock(this@TransactionImpl, it.obj) }
+                if (this.stamp != null) this@TransactionManager.exclusiveLock.unlock(this.stamp)
+            }
+        }
+
+        /**
+         * Notifies all [TransactionObserver]s about a successfull commit.
+         */
+        private fun notifyObservers(){
+            for ((observer, listRef) in this.localObservers) {
+                val list = listRef.get()
+                if (list != null) {
+                    observer.onCommit(this.txId, list)    /* Signal COMMIT to local observers. */
+                } else {
+                    observer.onDeliveryFailure(this.txId) /* Signal DELIVERY FAILURE to local observers. */
+                }
             }
 
             /* Clear local observers to release memory. */
