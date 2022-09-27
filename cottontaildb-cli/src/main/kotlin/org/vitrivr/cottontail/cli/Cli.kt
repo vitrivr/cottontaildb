@@ -276,6 +276,7 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                     OptimizeEntityCommand(this@Cli.client),
                     CreateIndexCommand(this@Cli.client),
                     DropIndexCommand(this@Cli.client),
+                    DropRowCommand(this@Cli.client),
                     DumpEntityCommand(this@Cli.client),
                     ImportDataCommand(this@Cli.client)
                 ),
