@@ -17,10 +17,10 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 
 /**
- * Command to drop, i.e., remove a [org.vitrivr.cottontail.dbms.entity.DefaultEntity] by its name.
+ * Command to drop, i.e., remove a row from an [org.vitrivr.cottontail.dbms.entity.DefaultEntity] by its value in a specific column.
  *
- * @author Ralph Gasser
- * @version 2.0.0
+ * @author Silvan Heller
+ * @version 1.0.0
  */
 @ExperimentalTime
 class DropRowCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "drop-row", help = "Drops all rows where a given column matches a given value from the database. Usage: entity drop-row -c <col> -v <value> <schema>.<entity>") {
