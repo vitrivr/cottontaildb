@@ -1,0 +1,17 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.title {
+  margin: 0px;
+  height: 200px;
+  background-color: red;
+  text-align: center;
+  line-height: 200px;
+}
+.overview {
+  background-color: green;
+  flex-grow: 1;
+}
+

@@ -1,0 +1,12 @@
+.drop-zone{
+  height: 300px;
+  width: 500px;
+  background-color: darkblue;
+}
+.header {
+  color: white;
+  text-align: center;
+  line-height: 300px;
+}
+
+
