@@ -73,6 +73,7 @@ class JsonDataImporter(override val path: Path, override val schema: List<Column
                 is Types.BooleanVector -> this.readBooleanVector(column.type.logicalSize)
                 is Types.Complex32Vector -> this.readComplex32Vector(column.type.logicalSize)
                 is Types.Complex64Vector -> this.readComplex64Vector(column.type.logicalSize)
+                is Types.ByteString -> TODO()
             }
         }
         this.reader.endObject()
