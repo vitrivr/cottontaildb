@@ -93,6 +93,7 @@ subprojects {
         implementation group: 'com.google.protobuf', name: 'protobuf-java', version: version_protobuf
 
         ////// Log4j2 & SLF4j
+        implementation group: 'org.slf4j', name: 'slf4j-api', version:  version_slf4j
         implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: version_log4j2
         implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: version_log4j2
         implementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: version_log4j2
