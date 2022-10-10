@@ -1,7 +1,14 @@
-.header {
+.content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
 
+.header {
+  width: 100%;
+  background: darkblue;
+  height: 80px;
 }
 
 .tabs {
-  padding: 100px;
 }

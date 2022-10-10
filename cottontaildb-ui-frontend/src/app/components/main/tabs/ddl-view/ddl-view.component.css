@@ -1,7 +1,14 @@
+* {
+  display: flex;
+}
+
 .drop-zone{
-  height: 300px;
-  width: 500px;
-  background-color: darkblue;
+  border: #ccc dashed 2px;
+  padding: 20px 10px;
+  box-sizing: border-box;
+  margin-top: 15px;
+  height: 100px;
+  width: 100px;
 }
 .header {
   color: white;

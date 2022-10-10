@@ -3,7 +3,7 @@
   height: 100%;
 }
 .sidebar {
-  width: 400px;
+  width: min(400px, 20%);
 }
 .main {
   flex-grow: 1;

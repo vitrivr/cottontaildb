@@ -1,5 +1,8 @@
-<div class="drop-zone">
-  <h1 class="header">
-    Drop Zone
-  </h1>
+<div>
+  {{dropZoneText}}
 </div>
+
+<div class="drop-zone" cdkDropList id="list-2" cdkDropListConnectedTo="list-1" (cdkDropListDropped)="drop($event)">
+</div>
+
+

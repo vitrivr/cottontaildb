@@ -6,12 +6,16 @@
 .title {
   margin: 0px;
   height: 200px;
-  background-color: red;
-  text-align: center;
-  line-height: 200px;
+  text-align: left;
+  padding-left: 10px;
+  min-height: 80px;
+  height: 80px;
+  line-height: 80px;
+  background-color: darkblue;
+  color: white;
 }
+
 .overview {
-  background-color: green;
   flex-grow: 1;
 }
 

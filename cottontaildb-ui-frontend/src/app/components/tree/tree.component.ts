@@ -5,6 +5,7 @@ import {CdkDragEnd} from "@angular/cdk/drag-drop";
 import {TreeNode} from "../../interfaces/TreeNode";
 import {TreeDataService} from "../../services/tree-data.service";
 
+
 /**
  * Food data with nested structure.
  * Each node has a name and an optional list of children.
