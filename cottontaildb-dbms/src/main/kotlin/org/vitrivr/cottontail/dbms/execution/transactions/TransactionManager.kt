@@ -192,16 +192,11 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         override val availableIntraQueryWorkers: Int
             get() = this@TransactionManager.executionManager.availableIntraQueryWorkers()
 
-        /** */
-        private val stamp: Long?
-
         init {
             /** Try to start transaction. */
             if (this.type.exclusive) {
-                this.stamp = this@TransactionManager.exclusiveLock.writeLock()
-                this.xodusTx = this@TransactionManager.catalogue.environment.beginTransaction()
+                this.xodusTx = this@TransactionManager.catalogue.environment.beginExclusiveTransaction()
             } else {
-                this.stamp = null
                 this.xodusTx = this@TransactionManager.catalogue.environment.beginReadonlyTransaction()
             }
 
@@ -383,7 +378,6 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
                     TransactionStatus.ROLLBACK
                 }
                 this@TransactionImpl.allLocks().forEach { this@TransactionManager.lockManager.unlock(this@TransactionImpl, it.obj) }
-                if (this.stamp != null) this@TransactionManager.exclusiveLock.unlock(this.stamp)
             }
         }
 
