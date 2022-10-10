@@ -96,7 +96,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
                 val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
                 /* Bind EQUALS operator. */
-                val op = ComparisonOperator.Binary.Equal(bindings[0].first, ctx.bindings.bind(this.inList[this.random.nextInt(0, this.inList.size - 1)]))
+                val op = ComparisonOperator.Binary.Equal(bindings[0].first, ctx.bindings.bind(this.inList[this.random.nextInt(this.inList.size - 1)]))
 
                 /* Prepare simple scan with projection. */
                 val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
@@ -136,7 +136,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
             /* Bind EQUALS operator. */
-            val op = ComparisonOperator.Binary.Equal(bindings[0].first, ctx.bindings.bind(this.inList[this.random.nextInt(0, this.inList.size - 1)]))
+            val op = ComparisonOperator.Binary.Equal(bindings[0].first, ctx.bindings.bind(this.inList[this.random.nextInt(this.inList.size - 1)]))
 
             /* Prepare simple scan with projection. */
             val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
@@ -274,9 +274,9 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
      * Generates and returns a new, random [StandaloneRecord] for inserting into the database.
      */
     override fun nextRecord(): StandaloneRecord {
-        val size = this.random.nextInt(10, 25)
+        val size = this.random.nextInt(15)+10
         val id = StringValueGenerator.random(size)
-        val value = LongValue(this.random.nextLong(-100000L, 10000L))
+        val value = LongValue(this.random.nextInt(110000)-100000L)
         if (this.inList.size < 50000 && this.random.nextFloat() <= 0.1f) {
             this.inList.add(id)
         }
