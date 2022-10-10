@@ -154,28 +154,29 @@ internal interface TransactionalGrpcService {
 
         /* Phase 2b: Execute query and stream back results. */
         context.txn.execute(operator).onCompletion {
-            if (it == null) {
-                if (results == 0 || responseBuilder.tuplesCount > 0) {
-                    responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS)
-                    emit(responseBuilder.build()) /* Emit final response. */
-                }
-
-                try {
-                    if (context.txn.type.autoCommit) {
-                        context.txn.commit() /* Handle auto-commit. */
-                    }
-                    LOGGER.info("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} completed successfully in ${m2.elapsedNow()}.")
-                } catch (e: Throwable) {
-                    val wrapped = context.toStatusException(e, true)
-                    LOGGER.error("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} failed: ${wrapped.message}")
-                    LOGGER.error(e.stackTraceToString())
-                    throw wrapped
-                }
-            } else {
+            if (it != null) {
                 val wrapped = context.toStatusException(it, true)
                 if (context.txn.type.autoRollback) context.txn.rollback() /* Handle auto-rollback. */
                 LOGGER.error("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} failed: ${wrapped.message}")
                 LOGGER.error(it.toString())
+                throw wrapped
+            }
+
+            /* Flush remaining results. */
+            if (results == 0 || responseBuilder.tuplesCount > 0) {
+                responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS)
+                emit(responseBuilder.build()) /* Emit final response. */
+            }
+
+            try {
+                if (context.txn.type.autoCommit) {
+                    context.txn.commit() /* Handle auto-commit. */
+                }
+                LOGGER.info("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} completed successfully in ${m2.elapsedNow()}.")
+            } catch (e: Throwable) {
+                val wrapped = context.toStatusException(e, true)
+                LOGGER.error("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} failed: ${wrapped.message}")
+                LOGGER.error(e.stackTraceToString())
                 throw wrapped
             }
         }.collect {
