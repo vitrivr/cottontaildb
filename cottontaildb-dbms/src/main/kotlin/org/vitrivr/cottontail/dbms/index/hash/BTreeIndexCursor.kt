@@ -25,17 +25,19 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
     /** Internal cursor used for navigation. */
     protected val cursor: jetbrains.exodus.env.Cursor
 
-    /** A begin of cursor (BoC) flag. */
+    /** A beginning of cursor (BoC) flag. */
     protected val boc = AtomicBoolean(false)
+
+    /** Flag indicating, that this [BTreeIndexCursor] is empty. */
+    protected val empty: Boolean
 
     /* Perform initial sanity checks. */
     init {
         this.cursor = this.index.dataStore.openCursor(this.subTransaction)
         with(this@BTreeIndexCursor.index.context.bindings) {
             with(MissingRecord) {
-                if (this@BTreeIndexCursor.initialize()) {
-                    this@BTreeIndexCursor.boc.compareAndExchange(false, true)
-                }
+                this@BTreeIndexCursor.boc.compareAndExchange(false, this@BTreeIndexCursor.initialize())
+                this@BTreeIndexCursor.empty = !this@BTreeIndexCursor.boc.get()
             }
         }
     }
@@ -57,7 +59,7 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
     class Equals(operator: ComparisonOperator.Binary.Equal, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.Binary.Equal>(operator, index) {
         context(BindingContext,Record)
         override fun initialize(): Boolean = this@Equals.cursor.getSearchKey(this@Equals.index.binding.valueToEntry(this.operator.right.getValue())) != null
-        override fun moveNext(): Boolean = (this.boc.compareAndExchange(true, false) || (this.cursor.nextDup))
+        override fun moveNext(): Boolean = !this.empty && (this.boc.compareAndExchange(true, false) || (this.cursor.nextDup))
     }
 
     /**
@@ -67,6 +69,7 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
 
         /** Internal list of query values for IN predicate. */
         private val queryValueQueue = LinkedList<Value>()
+
         context(BindingContext,Record)
         override fun initialize(): Boolean {
             this.queryValueQueue.addAll(this.operator.right.mapNotNull { it.getValue() })
@@ -95,7 +98,7 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
     class GreaterEqual(operator: ComparisonOperator.Binary.GreaterEqual, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.Binary.GreaterEqual>(operator, index) {
         context(BindingContext,Record)
         override fun initialize(): Boolean = this.cursor.getSearchKeyRange(this.index.binding.valueToEntry(this.operator.right.getValue())) != null
-        override fun moveNext(): Boolean = (this.boc.compareAndExchange(true, false) || (this.cursor.next))
+        override fun moveNext(): Boolean = !this.empty && (this.boc.compareAndExchange(true, false) || (this.cursor.next))
     }
 
     /**
@@ -116,7 +119,7 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
             return false
         }
 
-        override fun moveNext(): Boolean = (this.boc.compareAndExchange(true, false) || (this.cursor.next))
+        override fun moveNext(): Boolean = !this.empty && (this.boc.compareAndExchange(true, false) || (this.cursor.next))
     }
 
     /**
@@ -126,7 +129,7 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
         context(BindingContext,Record)
         override fun initialize(): Boolean = this.cursor.getSearchKeyRange(this.index.binding.valueToEntry(this.operator.right.getValue())) != null
 
-        override fun moveNext(): Boolean = (this.boc.compareAndExchange(true, false) || (this.cursor.prev))
+        override fun moveNext(): Boolean = !this.empty && (this.boc.compareAndExchange(true, false) || (this.cursor.prev))
     }
 
     /**
@@ -147,6 +150,6 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
             return false
         }
 
-        override fun moveNext(): Boolean = (this.boc.compareAndExchange(true, false) || (this.cursor.prev))
+        override fun moveNext(): Boolean = !this.empty && (this.boc.compareAndExchange(true, false) || (this.cursor.prev))
     }
 }
