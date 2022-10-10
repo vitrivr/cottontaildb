@@ -169,16 +169,20 @@ class DQLServiceTest {
     }
 
     @Test
-    fun luceneBasics(){
+    fun luceneBasics() {
         luceneInsertLookupTest("test", "test")
+        luceneInsertLookupTest("test", "t*", false)
     }
 
     @Test
     fun luceneNonAlphanumericCharacters() {
-        luceneInsertLookupTest("test-test", "-")
+        luceneInsertLookupTest("test", "tast~")
+        luceneInsertLookupTest("test-", "test\\-", false)
+        luceneInsertLookupTest("a - b", "\\-", false)
+        luceneInsertLookupTest("a - b", "-", false)
     }
 
-    fun luceneInsertLookupTest(str: String, queryString: String){
+    fun luceneInsertLookupTest(str: String, queryString: String, createIndex: Boolean = true) {
         val txId = this.client.begin()
         val insert = Insert().into(TEST_ENTITY_NAME.fqn)
             .value(STRING_COLUMN_NAME, str)
@@ -187,7 +191,9 @@ class DQLServiceTest {
             .txId(txId)
         this.client.insert(insert)
         this.client.commit(txId)
-        createLuceneIndexOnTestEntity(this.client)
+        if (createIndex) {
+            createLuceneIndexOnTestEntity(this.client)
+        }
         val query = Query().from(TEST_ENTITY_NAME.fqn)
             .select("*")
             .fulltext(STRING_COLUMN_NAME, queryString, "distance")
