@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.execution.operators.sources
 
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import java.lang.Long.max
 import java.lang.Long.min
 import java.lang.Math.floorDiv
 
@@ -17,6 +18,7 @@ fun EntityTx.partitionFor(partitionIndex: Int, partitions: Int): LongRange {
     require(partitionIndex < partitions) { "Partition index must be smaller than the total number of partitions!" }
     val maxTupleId = this.largestTupleId()
     val minTupleId = this.smallestTupleId()
+    if (minTupleId == maxTupleId) return 0L .. 0L
     val range = maxTupleId - minTupleId
     val partitionSize = floorDiv(range, partitions) + 1L
     val start = minTupleId + partitionIndex * partitionSize
@@ -36,6 +38,7 @@ fun ColumnTx<*>.partitionFor(partitionIndex: Int, partitions: Int): LongRange {
     require(partitionIndex < partitions) { "Partition index must be smaller than the total number of partitions!" }
     val maxTupleId = this.largestTupleId()
     val minTupleId = this.smallestTupleId()
+    if (minTupleId == maxTupleId) return 0L .. 0L
     val range = maxTupleId - minTupleId
     val partitionSize = floorDiv(range, partitions) + 1L
     val start = minTupleId + partitionIndex * partitionSize
