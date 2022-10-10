@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.statistics.columns
+package org.vitrivr.cottontail.dbms.statistics.values
 
 import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.IntegerBinding
@@ -73,6 +73,4 @@ class ByteStringValueStatistics : AbstractValueStatistics<ByteStringValue>(Types
         copy.maxWidth = this.maxWidth
         return copy
     }
-
-
 }

@@ -36,6 +36,7 @@ data class ColumnStatistic(val name: Name.ColumnName, val type: Types<*>, val st
             Types.Int -> IntValueStatistics()
             Types.Long -> LongValueStatistics()
             Types.String -> StringValueStatistics()
+            Types.ByteString -> ByteStringValueStatistics()
             Types.Complex32 -> Complex32ValueStatistics()
             Types.Complex64 -> Complex64ValueStatistics()
             is Types.BooleanVector -> BooleanVectorValueStatistics(def.type.logicalSize)
