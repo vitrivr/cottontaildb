@@ -38,7 +38,7 @@ object TestController {
 
             val entities = this.client.list(ListEntities(schemaName))
                 entities.forEach { itEntity ->
-                    val entityName = itEntity[0].toString()
+                    val entityName = itEntity[0].toString().replace("$schemaName.","")
                     context.json(entityName)
                     subtree.add(TreeNode(entityName, null))
                 }
