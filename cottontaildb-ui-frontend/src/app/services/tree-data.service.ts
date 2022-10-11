@@ -7,7 +7,8 @@ import {HttpClient} from "@angular/common/http";
   providedIn: 'root'
 })
 export class TreeDataService {
-  private apiURL = 'https://63418c9f16ffb7e275d3b122.mockapi.io/TreeNodeArray'
+
+  private apiURL = 'http://localhost:7070/list'
 
   constructor(private httpClient:HttpClient) {
   }
