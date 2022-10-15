@@ -3,22 +3,26 @@
   height: 100%;
 }
 .sidebar {
-  width: min(400px, 20%);
+  width: 400px;
+  height: 100vh;
+  overflow: auto;
+  resize: both;
 }
 .main {
   flex-grow: 1;
 }
 
-@media all and (max-width: 1080px) {
+@media all and (max-width: 900px) {
   .content {
     flex-wrap: wrap;
   }
   .sidebar {
-    order: 2;
+    height: auto;
+    order: 1;
     min-width: 100%;
   }
   .main {
-    order: 1;
+    order: 2;
     min-width: 100%;
   }
 }

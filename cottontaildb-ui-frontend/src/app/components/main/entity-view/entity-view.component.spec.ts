@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { DbTreeComponent } from './db-tree.component';
+import { EntityViewComponent } from './entity-view.component';
 
-describe('DbTreeComponent', () => {
-  let component: DbTreeComponent;
-  let fixture: ComponentFixture<DbTreeComponent>;
+describe('EntityViewComponent', () => {
+  let component: EntityViewComponent;
+  let fixture: ComponentFixture<EntityViewComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ DbTreeComponent ]
+      declarations: [ EntityViewComponent ]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(DbTreeComponent);
+    fixture = TestBed.createComponent(EntityViewComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

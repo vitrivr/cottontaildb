@@ -1,0 +1,46 @@
+<!--from: https://material.angular.io/components/tree/examples-->
+
+<mat-tree class="list"
+          [dataSource]="dataSource"
+          [treeControl]="treeControl"
+          cdkDropList id="list-1"
+          cdkDropListConnectedTo="list-2">
+
+  <!--schema Node -->
+  <mat-tree-node class="schemaNode"
+                 *matTreeNodeDef="let node;when: isRoot"
+                 matTreeNodePadding
+                 cdkDrag
+                 [cdkDragData]="node">
+    <button
+      mat-icon-button
+      matTreeNodeToggle
+      [disabled]="!treeControl.isExpandable(node)"
+      [attr.aria-label]="'Toggle ' + node.name">
+      <mat-icon class="material-icons-outlined">
+        {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
+      </mat-icon>
+    </button>
+    {{node.name}}
+    <button mat-icon-button
+            (click)="onDropSchema(node.name)">
+      <mat-icon class="material-icons-outlined">
+        delete
+      </mat-icon>
+    </button>
+    <div [class.example-tree-invisible]="!treeControl.isExpanded(node)"
+         role="group">
+      <ng-container matTreeNodeOutlet></ng-container>
+    </div>
+  </mat-tree-node>
+
+  <mat-tree-node class="entityNode"
+                 *matTreeNodeDef="let node;"
+                 matTreeNodePadding
+                 matTreeNodeToggle
+                 cdkDrag
+                 [cdkDragData]="node">
+    {{node.name}}
+  </mat-tree-node>
+
+</mat-tree>

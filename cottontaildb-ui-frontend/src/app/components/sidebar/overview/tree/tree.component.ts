@@ -1,15 +1,9 @@
 import {FlatTreeControl} from '@angular/cdk/tree';
 import {Component, OnInit} from '@angular/core';
 import {MatTreeFlatDataSource, MatTreeFlattener} from '@angular/material/tree';
-import {CdkDragEnd} from "@angular/cdk/drag-drop";
-import {TreeNode} from "../../interfaces/TreeNode";
-import {TreeDataService} from "../../services/tree-data.service";
-
-
-/**
- * Food data with nested structure.
- * Each node has a name and an optional list of children.
- */
+import {TreeNode} from "../../../../interfaces/TreeNode";
+import {TreeDataService} from "../../../../services/tree-data.service";
+import {Schema, SchemaService} from "../../../../services/schema.service";
 
 
 /** Flat node with expandable and level information */
@@ -48,19 +42,30 @@ export class TreeComponent implements OnInit {
     node => node.children,
   );
 
+
   dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
 
-  constructor(private treeDataService: TreeDataService) {
+  constructor(private treeDataService: TreeDataService,
+              private schemaService : SchemaService) {
 
   }
+
+
 
   ngOnInit() {
-    this.treeDataService.getTreeData().subscribe((datasource) => this.dataSource.data = datasource)
+    this.treeDataService.fetchTreeData();
+    this.treeDataService.getTreeData().subscribe((datasource) => this.dataSource.data = datasource);
   }
 
-
   hasChild = (_: number, node: ExampleFlatNode) => node.expandable;
+  isRoot = (_: number, node: ExampleFlatNode) => (node.level === 0);
 
+  public onDropSchema(schema : Schema){
+    this.schemaService.dropSchema(schema).subscribe({
+      next: () => this.treeDataService.fetchTreeData(),
+      error: (err) => console.error(err)
+    });
+  }
 
 }
 

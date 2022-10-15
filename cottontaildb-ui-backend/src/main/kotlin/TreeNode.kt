@@ -1,1 +1,1 @@
-class TreeNode (var name: String, var children : MutableList<TreeNode>? = null){}
+class TreeNode (var name: String?, var children : MutableList<TreeNode>? = null){}

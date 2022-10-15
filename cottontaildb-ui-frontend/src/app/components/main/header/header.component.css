@@ -1,3 +1,22 @@
-* {
-
+.container {
+  background-color: darkblue;
+  display: grid;
+  grid-template-columns: repeat(5,1fr);
+  grid-template-rows: 1fr;
 }
+
+.button{
+  margin-top: 20px;
+  background-color: lightsteelblue;
+  text-align: center;
+  line-height: 60px;
+}
+
+.is-active {
+  background-color: white;
+}
+
+.button:hover{
+  background-color: white;
+}
+

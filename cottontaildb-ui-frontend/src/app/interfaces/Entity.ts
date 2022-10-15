@@ -1,8 +1,7 @@
-import {Schema} from "./Schema";
 
 export interface Entity {
 
-  schema : Schema;
+  schema : string;
   name : string;
   rows : number;
 

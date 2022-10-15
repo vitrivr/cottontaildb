@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { TabsComponent } from './tabs.component';
+import { SchemaViewComponent } from './schema-view.component';
 
-describe('TabsComponent', () => {
-  let component: TabsComponent;
-  let fixture: ComponentFixture<TabsComponent>;
+describe('SchemaViewComponent', () => {
+  let component: SchemaViewComponent;
+  let fixture: ComponentFixture<SchemaViewComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ TabsComponent ]
+      declarations: [ SchemaViewComponent ]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(TabsComponent);
+    fixture = TestBed.createComponent(SchemaViewComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

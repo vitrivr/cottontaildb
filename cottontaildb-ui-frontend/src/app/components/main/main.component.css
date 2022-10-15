@@ -1,14 +1,14 @@
 .content {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 80px;
+  grid-auto-rows: 1fr;
+  height:100vh;
 }
 
 .header {
-  width: 100%;
-  background: darkblue;
-  height: 80px;
 }
 
-.tabs {
+.router-outlet{
 }
+
