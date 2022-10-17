@@ -22,7 +22,7 @@ fun main() {
             ctx.header(Header.CONTENT_TYPE, "application/json")
         }
         path("list") {
-            get(TestController::getList)
+            get(ListController::getList)
         }
         path("schemas") {
             get(SchemaController::listAllSchemas)

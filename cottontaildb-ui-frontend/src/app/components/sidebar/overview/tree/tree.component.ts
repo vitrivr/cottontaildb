@@ -4,6 +4,7 @@ import {MatTreeFlatDataSource, MatTreeFlattener} from '@angular/material/tree';
 import {TreeNode} from "../../../../interfaces/TreeNode";
 import {TreeDataService} from "../../../../services/tree-data.service";
 import {Schema, SchemaService} from "../../../../services/schema.service";
+import {EntityService} from "../../../../services/entity.service";
 
 
 /** Flat node with expandable and level information */
@@ -46,7 +47,8 @@ export class TreeComponent implements OnInit {
   dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
 
   constructor(private treeDataService: TreeDataService,
-              private schemaService : SchemaService) {
+              private schemaService : SchemaService,
+              private entityService : EntityService) {
 
   }
 
@@ -57,15 +59,25 @@ export class TreeComponent implements OnInit {
     this.treeDataService.getTreeData().subscribe((datasource) => this.dataSource.data = datasource);
   }
 
-  hasChild = (_: number, node: ExampleFlatNode) => node.expandable;
   isRoot = (_: number, node: ExampleFlatNode) => (node.level === 0);
 
   public onDropSchema(schema : Schema){
-    this.schemaService.dropSchema(schema).subscribe({
-      next: () => this.treeDataService.fetchTreeData(),
-      error: (err) => console.error(err)
-    });
+    if(confirm("are you sure you want to delete the schema " + schema + "?")){
+      this.schemaService.dropSchema(schema).subscribe({
+        next: () => this.treeDataService.fetchTreeData(),
+        error: (err) => console.error(err)
+      });
+    }
   }
 
+  public onDropEntity(entityName : string){
+    if(confirm("are you sure you want to delete the entity " + entityName + "?")){
+      console.log(entityName)
+      this.entityService.dropEntity(entityName).subscribe({
+        next: () => this.treeDataService.fetchTreeData(),
+        error: (err) => console.error(err)
+      });
+    }
+  }
 }
 

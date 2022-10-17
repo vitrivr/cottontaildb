@@ -1,0 +1,147 @@
+<div class="container">
+
+  <h1>Create new entity</h1>
+
+  <mat-stepper
+    orientation="vertical" [linear]="false" #stepper>
+
+    <mat-step>
+      <div class="drop-step">
+        <ng-template matStepLabel>Choose the schema</ng-template>
+        <app-drop-zone (itemDroppedEvent)="setSchemaName(stepper, $event)"></app-drop-zone>
+        <button mat-button
+                matStepperNext
+                class="btn btn-primary"
+                type="submit"
+                [disabled]="!schemaNameSet">
+          next
+        </button>
+      </div>
+    </mat-step>
+
+    <mat-step>
+
+        <form #entityName="ngForm"
+              (ngSubmit)="submitEntityName()"
+              [formGroup]="entityForm">
+          <ng-template matStepLabel>Specify the entity name</ng-template>
+            <mat-form-field appearance="outline">
+              <mat-label>entity name</mat-label>
+              <input matInput class="form-control" type="text" name= "name" placeholder="Last name, First name" formControlName="name" ngModel>
+            </mat-form-field>
+          <button mat-button
+                  matStepperNext
+                  class="btn btn-primary"
+                  type="submit"
+                  [disabled]="entityForm.invalid || entityNameSet">
+            next
+          </button>
+        </form>
+
+
+    </mat-step>
+
+    <mat-step>
+
+        <form #name="ngForm"
+              (ngSubmit)="submitColumn()"
+              [formGroup]="columnForm">
+
+          <ng-template matStepLabel>Define columns</ng-template>
+          <mat-form-field appearance="outline">
+            <mat-label>column name</mat-label>
+            <input matInput type="text"
+                   formControlName="name"
+                   name= "name"
+                   class="form-control"
+                   ngModel>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+
+            <mat-label>Type</mat-label>
+            <mat-select  formControlName="type"  class="form-control">
+              <mat-option>--- None ---</mat-option>
+              <mat-option value="{{type}}" *ngFor="let type of types">{{type}}</mat-option>
+            </mat-select>
+
+            <span class="mat-error" *ngIf="name.invalid&&name.touched"> </span>
+
+          </mat-form-field>
+
+
+          <section>
+            <mat-checkbox
+                   formControlName="nullable"
+                   name= "nullable"
+                   class="form-control"
+                   ngModel>
+              nullable
+            </mat-checkbox>
+            <span class="mat-error" *ngIf="name.invalid&&name.touched"> </span>
+          </section>
+
+          <button class="btn btn-primary"
+                  mat-button
+                  [disabled]="columnForm.invalid">
+            add column
+          </button>
+
+        </form>
+
+
+    </mat-step>
+    <mat-step>
+      <ng-template matStepLabel>Submit new entity</ng-template>
+      <mat-label>Are you sure you want to create the entity with the following columns?</mat-label>
+      <button mat-button
+              type="button"
+              class="btn btn-primary"
+              (click)="onCreateEntity()" [disabled]="!entityNameSet || (columnData.length === 0)">
+        submit
+      </button>
+    </mat-step>
+
+  </mat-stepper>
+
+  <h2> Preview: </h2>
+  <h3> Entity name: {{schemaName}}.{{entityForm.value.name}} </h3>
+
+  <div class="table">
+    <table>
+      <thead>
+      <tr>
+        <th>name</th>
+        <th>type</th>
+        <th>nullable</th>
+        <th>size</th>
+        <th>action</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr *ngFor="let item of columnData">
+        <td><span>{{item.name}}</span></td>
+        <td><span>{{item.type}}</span></td>
+        <td><span>{{item.nullable}}</span></td>
+        <td><span>-1</span></td>
+        <td><button mat-button type="button" class="btn btn-primary" (click)="removeItem(item)">Remove</button></td>
+      </tr>
+      </tbody>
+    </table>
+
+    <button class="btn btn-primary"
+            (click)="onReset()"
+            mat-button>
+      Reset
+    </button>
+
+  </div>
+
+
+
+
+
+</div>
+
+
+

@@ -1,0 +1,22 @@
+.container {
+  display: grid;
+  height: 100%;
+  grid-template-columns: 700px 1fr 1fr;
+  grid-auto-rows: 1fr;
+
+}
+h1{
+  padding: 10px;
+}
+
+.create-entity{
+  margin: 10px;
+  border-radius: 5px;
+  border: lightgrey solid 1px;
+  padding: 10px;
+  height: fit-content;
+
+}
+
+
+

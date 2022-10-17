@@ -3,7 +3,7 @@ import org.vitrivr.cottontail.client.language.ddl.ListSchemas
 import org.vitrivr.cottontail.client.iterators.TupleIterator
 import org.vitrivr.cottontail.client.language.ddl.ListEntities
 
-object TestController {
+object ListController {
 
     fun getList(context: Context) {
 
@@ -16,14 +16,13 @@ object TestController {
 
             /** first value of tuple is the name */
             /**val schemaName = itSchema.asString(0)*/
-            val schemaName = itSchema[0].toString().replace("warren.","")
-
+            val schemaName = itSchema[0].toString().split(".").last()
             /** subtree for entities in schema */
             val subtree: MutableList<TreeNode> = mutableListOf()
             /** using this ClientConfig's client, sending ListEntities message to cottontaildb*/
             val entities = ClientConfig.client.list(ListEntities(schemaName))
                 entities.forEach { itEntity ->
-                    val entityName = itEntity[0].toString().replace("$schemaName.","")
+                    val entityName = itEntity[0].toString()
                     subtree.add(TreeNode(entityName, null))
                 }
             tree.add(TreeNode(schemaName, subtree))

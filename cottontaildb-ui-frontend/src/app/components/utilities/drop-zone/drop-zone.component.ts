@@ -1,7 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import {Component, EventEmitter, OnInit, Output} from '@angular/core';
 import {CdkDragDrop} from "@angular/cdk/drag-drop";
 import {MatTreeNode} from "@angular/material/tree";
-import {Router} from "@angular/router";
 
 @Component({
   selector: 'app-drop-zone',
@@ -10,17 +9,18 @@ import {Router} from "@angular/router";
 })
 export class DropZoneComponent implements OnInit {
 
-  constructor(private router : Router) {
+  constructor() {
   }
 
   ngOnInit(): void {
   }
 
+  @Output() itemDroppedEvent = new EventEmitter<string>();
+
+
   drop($event: CdkDragDrop<MatTreeNode<any>, any>) {
-    if ($event.item.data.level === 0) {
-      this.router.navigate(['schema']).then(r => console.log(r));
-    } else {
-      this.router.navigate(['entity']).then(r => console.log(r));    }
+    this.itemDroppedEvent.emit($event.item.data.name)
   }
+
 }
 

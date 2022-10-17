@@ -12,35 +12,55 @@
                  matTreeNodePadding
                  cdkDrag
                  [cdkDragData]="node">
-    <button
-      mat-icon-button
-      matTreeNodeToggle
-      [disabled]="!treeControl.isExpandable(node)"
-      [attr.aria-label]="'Toggle ' + node.name">
+
+    <button mat-icon-button
+            matTreeNodeToggle
+            [disabled]="!treeControl.isExpandable(node)"
+            [attr.aria-label]="'Toggle ' + node.name">
+
       <mat-icon class="material-icons-outlined">
         {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
       </mat-icon>
     </button>
+
     {{node.name}}
-    <button mat-icon-button
-            (click)="onDropSchema(node.name)">
-      <mat-icon class="material-icons-outlined">
-        delete
-      </mat-icon>
+
+    <button mat-icon-button [matMenuTriggerFor]="menu">
+      <mat-icon>more_vert</mat-icon>
     </button>
+    <mat-menu #menu="matMenu">
+      <button mat-menu-item (click)="onDropSchema(node.name)">
+        <mat-icon>delete</mat-icon>
+        <span>dump</span>
+      </button>
+    </mat-menu>
+
     <div [class.example-tree-invisible]="!treeControl.isExpanded(node)"
          role="group">
       <ng-container matTreeNodeOutlet></ng-container>
     </div>
   </mat-tree-node>
 
+  <!--entity node-->
   <mat-tree-node class="entityNode"
                  *matTreeNodeDef="let node;"
                  matTreeNodePadding
                  matTreeNodeToggle
                  cdkDrag
                  [cdkDragData]="node">
-    {{node.name}}
+
+    {{node.name.split(".")[2]}}
+
+    <button mat-icon-button [matMenuTriggerFor]="menu">
+      <mat-icon>more_vert</mat-icon>
+    </button>
+    <mat-menu #menu="matMenu">
+      <button mat-menu-item (click)="onDropEntity(node.name)">
+        <mat-icon>delete</mat-icon>
+        <span>dump</span>
+      </button>
+    </mat-menu>
+
   </mat-tree-node>
 
 </mat-tree>

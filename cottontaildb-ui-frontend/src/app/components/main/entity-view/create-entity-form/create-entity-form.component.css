@@ -1,0 +1,59 @@
+.container {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+.form-card{
+  padding: 10px;
+  height: fit-content;
+  outline: darkgrey auto 5px;
+}
+.drop-step{
+  display: flex;
+  flex-direction: row;
+}
+
+app-drop-zone{
+  min-width: 400px;
+}
+
+form{
+ text-align: center;
+  display: flex;
+  flex-direction: row;
+}
+
+.error{
+  color: red;
+}
+table{
+  border-collapse: collapse;
+  min-width: 400px;
+}
+
+thead tr{
+  color: white;
+  background-color: mediumblue;
+  text-align: left;
+  font-weight: bold;
+}
+
+th,td{
+  padding: 12px 15px;
+}
+
+tbody tr{
+  border-bottom: 1px solid lightgrey;
+}
+
+mat-stepper {
+}
+
+.mat-form-field {
+  margin-top: 16px;
+}
+
+mat-checkbox{
+  margin: 10px;
+  line-height: 70px;
+}

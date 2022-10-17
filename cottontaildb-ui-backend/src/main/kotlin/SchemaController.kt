@@ -6,11 +6,11 @@ import org.vitrivr.cottontail.client.language.ddl.DropSchema
 import org.vitrivr.cottontail.client.language.ddl.ListSchemas
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
-
 object SchemaController {
 
+    private val gson = Gson()
+
     fun createSchema(context: Context){
-        val gson = Gson()
         val schema: Schema = gson.fromJson(context.body(), Schema::class.java)
         val result : TupleIterator = ClientConfig.client.create(CreateSchema(schema.name))
         context.json(result)
@@ -19,7 +19,6 @@ object SchemaController {
     fun dropSchema(context: Context){
         val schemaName = context.pathParam("name")
         val result : TupleIterator = ClientConfig.client.drop(DropSchema(schemaName))
-        println("hello")
         context.json(result)
     }
     fun dumpSchema(context: Context){
@@ -61,5 +60,6 @@ object SchemaController {
         }
         context.json(entities)
     }
+
 
 }

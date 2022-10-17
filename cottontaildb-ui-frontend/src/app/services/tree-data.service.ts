@@ -18,7 +18,7 @@ export class TreeDataService {
       .subscribe({
         next: (value => this.treeDataObs$.next(value)),
         error: (err => console.log(err))
-      }).add(() => console.log("will be executed whatsoever"))
+      }).add()
   }
 
   getTreeData() : Observable<TreeNode[]> {

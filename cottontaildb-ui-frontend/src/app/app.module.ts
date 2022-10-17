@@ -24,7 +24,15 @@ import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatButtonModule } from "@angular/material/button";
 import { MatInputModule } from "@angular/material/input";
 import { ReactiveFormsModule, FormsModule}  from "@angular/forms";
-import { CreateSchemaFormComponent } from './components/main/schema-view/create-schema-form/create-schema-form.component';
+import { CreateSchemaFormComponent } from './components/sidebar/overview/create-schema-form/create-schema-form.component';
+import { CreateEntityFormComponent } from './components/main/entity-view/create-entity-form/create-entity-form.component';
+import {MatStepperModule} from "@angular/material/stepper";
+import {MatSelectModule} from "@angular/material/select";
+import {MatCheckboxModule} from "@angular/material/checkbox";
+import {MatTableModule} from "@angular/material/table";
+import { MatPaginatorModule } from '@angular/material/paginator';
+import { MatSortModule } from '@angular/material/sort';
+import {MatMenuModule} from "@angular/material/menu";
 
 @NgModule({
   declarations: [
@@ -41,23 +49,31 @@ import { CreateSchemaFormComponent } from './components/main/schema-view/create-
     DropZoneComponent,
     SchemaViewComponent,
     EntityViewComponent,
-    CreateSchemaFormComponent
+    CreateSchemaFormComponent,
+    CreateEntityFormComponent
   ],
-  imports: [
-    BrowserModule,
-    BrowserAnimationsModule,
-    MatTabsModule,
-    MatTreeModule,
-    MatIconModule,
-    DragDropModule,
-    HttpClientModule,
-    AppRoutingModule,
-    MatTooltipModule,
-    MatButtonModule,
-    MatInputModule,
-    ReactiveFormsModule,
-    FormsModule
-  ],
+    imports: [
+        BrowserModule,
+        BrowserAnimationsModule,
+        MatTabsModule,
+        MatTreeModule,
+        MatIconModule,
+        DragDropModule,
+        HttpClientModule,
+        AppRoutingModule,
+        MatTooltipModule,
+        MatButtonModule,
+        MatInputModule,
+        ReactiveFormsModule,
+        FormsModule,
+        MatStepperModule,
+        MatSelectModule,
+        MatCheckboxModule,
+        MatTableModule,
+        MatPaginatorModule,
+        MatSortModule,
+        MatMenuModule
+    ],
   providers: [],
   exports: [
   ],
