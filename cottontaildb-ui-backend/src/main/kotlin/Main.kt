@@ -1,10 +1,12 @@
+import entity.EntityController
 import io.javalin.Javalin
 import io.javalin.apibuilder.ApiBuilder.*
 import io.javalin.config.JavalinConfig
 import io.javalin.http.Header
 import io.javalin.plugin.bundled.CorsContainer
 import io.javalin.plugin.bundled.CorsPluginConfig
-
+import list.ListController
+import schema.SchemaController
 
 
 fun main() {
@@ -43,6 +45,15 @@ fun main() {
             get(EntityController::aboutEntity)
             post(EntityController::createEntity)
             delete(EntityController::dropEntity)
+            path("truncate"){
+                delete(EntityController::truncateEntity)
+            }
+            path("clear"){
+                delete(EntityController::clearEntity)
+            }
+            path("data"){
+                get(EntityController::dumpEntity)
+            }
         }
     }
 

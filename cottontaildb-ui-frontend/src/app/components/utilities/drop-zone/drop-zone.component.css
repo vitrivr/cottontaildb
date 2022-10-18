@@ -3,7 +3,13 @@
   line-height: 48px;
   grid-column: 1;
   height: 48px;
-  border: #ccc dashed 2px;
+  border: lightgrey solid 1px;
+
+  border-radius: 5px;
+  margin-top: 20px;
+}
+.drop-zone:hover{
+  background-color: #80cbc4;
 }
 
 .list {

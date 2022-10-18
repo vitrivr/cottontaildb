@@ -1,9 +1,14 @@
+package entity
+
+import ClientConfig
 import com.google.gson.Gson
 import io.javalin.http.Context
 import org.vitrivr.cottontail.client.iterators.TupleIterator
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.client.language.dml.Delete
+import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import java.nio.file.Path
 
 
 object EntityController {
@@ -74,7 +79,19 @@ object EntityController {
         TODO()
     }
     fun dumpEntity(context: Context){
+
+
+        val format = context.pathParam("format")
+        val entityName = context.pathParam("name")
+
+        val path = Path.of(context.pathParam("path"))
+            .resolve("${entityName}.${format}")
+
+        val qm = Query(context.pathParam("name"))
+
         TODO()
+
+
     }
     fun importData(context: Context){
         TODO()

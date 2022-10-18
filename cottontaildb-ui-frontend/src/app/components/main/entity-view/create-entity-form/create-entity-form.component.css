@@ -1,8 +1,44 @@
 .container {
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: 1fr;
+  display: flex;
+  flex-direction: row;
 }
+
+@media all and (max-width: 1290px) {
+  .container{
+    flex-direction: column;
+  }
+}
+.preview-title{
+  display: flex;
+}
+h2{
+  margin-right: auto;
+}
+
+.step-container{
+  border-radius: 5px;
+}
+.step-content{
+  display: grid;
+  grid-template-columns: repeat(3,120px) 50px;
+  grid-auto-rows: 1fr;
+  align-content: center;
+  align-items: center;
+}
+.preview-container{
+  display:flex;
+  flex-direction: column;
+  border-radius: 5px;
+  padding: 5px;
+  margin-left: 10px;
+  width:100%;
+}
+.btn-primary{
+  width: fit-content;
+  height: fit-content;
+  grid-column: 4;
+}
+
 .form-card{
   padding: 10px;
   height: fit-content;
@@ -14,7 +50,7 @@
 }
 
 app-drop-zone{
-  min-width: 400px;
+  min-width: 380px;
 }
 
 form{
@@ -28,12 +64,15 @@ form{
 }
 table{
   border-collapse: collapse;
-  min-width: 400px;
+  width: 100%;
+  border-radius: 4px 4px  0 0;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
 }
 
 thead tr{
   color: white;
-  background-color: mediumblue;
+  background-color: #4a148c;
   text-align: left;
   font-weight: bold;
 }

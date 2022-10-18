@@ -24,4 +24,12 @@ export class EntityService {
   dropEntity (entityName: string) {
     return this.httpClient.delete(this.apiURL + "/entities/" + entityName)
   }
+
+  truncateEntity(entityName: string) {
+    return this.httpClient.delete(this.apiURL + "/entities/" + entityName + "/truncate/")
+  }
+
+  clearEntity(entityName: string) : Observable<Object>{
+    return this.httpClient.delete(this.apiURL + "/entities/" + entityName + "/clear/")
+  }
 }

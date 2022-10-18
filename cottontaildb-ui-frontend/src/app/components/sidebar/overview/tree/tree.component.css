@@ -1,8 +1,10 @@
 .schemaNode{
-  background-color: lightsteelblue;
+  background-color: #4a148c;
+  color: white;
 }
 .entityNode{
-  background-color: aliceblue;
+  background-color: #6a1b9a;
+  color: white;
 }
 
 .list .mat-tree-node div[role=group] {
@@ -22,13 +24,6 @@
   list-style-type: none;
 }
 
-
-
-/*
- * Padding for leaf nodes.
- * Leaf nodes need to have padding so as to align with other non-leaf nodes
- * under the same parent.
- */
 .list div[role=group] > .mat-tree-node {
   padding-left: 40px;
 }
@@ -39,6 +34,8 @@
   border-radius: 4px;
   overflow: hidden;
   display: block;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+
 }
 
 

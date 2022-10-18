@@ -1,3 +1,6 @@
+package list
+
+import ClientConfig
 import io.javalin.http.Context
 import org.vitrivr.cottontail.client.language.ddl.ListSchemas
 import org.vitrivr.cottontail.client.iterators.TupleIterator

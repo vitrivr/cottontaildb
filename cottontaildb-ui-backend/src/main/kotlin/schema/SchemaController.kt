@@ -1,3 +1,6 @@
+package schema
+
+import ClientConfig
 import com.google.gson.Gson
 import io.javalin.http.Context
 import org.vitrivr.cottontail.client.iterators.TupleIterator

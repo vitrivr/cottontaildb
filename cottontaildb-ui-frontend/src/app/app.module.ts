@@ -33,6 +33,8 @@ import {MatTableModule} from "@angular/material/table";
 import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatSortModule } from '@angular/material/sort';
 import {MatMenuModule} from "@angular/material/menu";
+import {MatSnackBarModule} from "@angular/material/snack-bar";
+import {MatDialogModule} from "@angular/material/dialog";
 
 @NgModule({
   declarations: [
@@ -52,28 +54,30 @@ import {MatMenuModule} from "@angular/material/menu";
     CreateSchemaFormComponent,
     CreateEntityFormComponent
   ],
-    imports: [
-        BrowserModule,
-        BrowserAnimationsModule,
-        MatTabsModule,
-        MatTreeModule,
-        MatIconModule,
-        DragDropModule,
-        HttpClientModule,
-        AppRoutingModule,
-        MatTooltipModule,
-        MatButtonModule,
-        MatInputModule,
-        ReactiveFormsModule,
-        FormsModule,
-        MatStepperModule,
-        MatSelectModule,
-        MatCheckboxModule,
-        MatTableModule,
-        MatPaginatorModule,
-        MatSortModule,
-        MatMenuModule
-    ],
+  imports: [
+    BrowserModule,
+    BrowserAnimationsModule,
+    MatTabsModule,
+    MatTreeModule,
+    MatIconModule,
+    DragDropModule,
+    HttpClientModule,
+    AppRoutingModule,
+    MatTooltipModule,
+    MatButtonModule,
+    MatInputModule,
+    ReactiveFormsModule,
+    FormsModule,
+    MatStepperModule,
+    MatSelectModule,
+    MatCheckboxModule,
+    MatTableModule,
+    MatPaginatorModule,
+    MatSortModule,
+    MatMenuModule,
+    MatSnackBarModule,
+    MatDialogModule
+  ],
   providers: [],
   exports: [
   ],

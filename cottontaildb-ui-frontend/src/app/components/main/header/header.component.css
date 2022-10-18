@@ -1,19 +1,26 @@
 .container {
-  background-color: darkblue;
-  display: grid;
-  grid-template-columns: repeat(5,1fr);
-  grid-template-rows: 1fr;
+  background-color: #4a148c;
+  display: flex;
+
 }
 
 .button{
-  margin-top: 20px;
-  background-color: lightsteelblue;
+  margin-top: 30px;
+  background-color: #009688;
   text-align: center;
-  line-height: 60px;
+  font-size: 1.3em;
+  line-height: 50px;
+  width: 120px;
+  border-radius: 4px 4px  0 0;
+  overflow: hidden;
+  margin-right: 10px;
+  font-weight: bold;
+  color: white;
 }
 
 .is-active {
   background-color: white;
+  color: #303030;
 }
 
 .button:hover{

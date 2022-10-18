@@ -2,12 +2,15 @@ html,
 body {
   height: 100%;
   margin: 0;
+
 }
 
 .content {
   display: flex;
   flex-flow: column;
   height: 100%;
+  border-right: #4a148c solid 2px;
+
 }
 
 .header {
@@ -18,12 +21,13 @@ body {
   min-height: 80px;
   height: 80px;
   line-height: 80px;
-  background-color: darkblue;
+  background-color: #4a148c;
   color: white;
 }
 
 .overview {
-  background-color: #6581AE;
+  background-color: white;
   flex: 1 1 auto;
+
 }
 

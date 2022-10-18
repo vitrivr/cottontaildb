@@ -31,7 +31,7 @@
     <mat-menu #menu="matMenu">
       <button mat-menu-item (click)="onDropSchema(node.name)">
         <mat-icon>delete</mat-icon>
-        <span>dump</span>
+        <span>drop</span>
       </button>
     </mat-menu>
 
@@ -57,7 +57,15 @@
     <mat-menu #menu="matMenu">
       <button mat-menu-item (click)="onDropEntity(node.name)">
         <mat-icon>delete</mat-icon>
-        <span>dump</span>
+        <span>drop</span>
+      </button>
+      <button mat-menu-item (click)="onTruncateEntity(node.name)">
+        <mat-icon>delete_sweep</mat-icon>
+        <span>truncate</span>
+      </button>
+      <button mat-menu-item (click)="onClearEntity(node.name)">
+        <mat-icon>delete_sweep</mat-icon>
+        <span>clear</span>
       </button>
     </mat-menu>
 

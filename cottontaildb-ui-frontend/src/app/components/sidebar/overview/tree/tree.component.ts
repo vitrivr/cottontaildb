@@ -5,6 +5,8 @@ import {TreeNode} from "../../../../interfaces/TreeNode";
 import {TreeDataService} from "../../../../services/tree-data.service";
 import {Schema, SchemaService} from "../../../../services/schema.service";
 import {EntityService} from "../../../../services/entity.service";
+import {MatSnackBar} from '@angular/material/snack-bar';
+
 
 
 /** Flat node with expandable and level information */
@@ -48,7 +50,8 @@ export class TreeComponent implements OnInit {
 
   constructor(private treeDataService: TreeDataService,
               private schemaService : SchemaService,
-              private entityService : EntityService) {
+              private entityService : EntityService,
+              private _snackBar: MatSnackBar) {
 
   }
 
@@ -62,20 +65,52 @@ export class TreeComponent implements OnInit {
   isRoot = (_: number, node: ExampleFlatNode) => (node.level === 0);
 
   public onDropSchema(schema : Schema){
-    if(confirm("are you sure you want to delete the schema " + schema + "?")){
+    if(confirm("are you sure you want to drop the schema " + schema + "?")){
       this.schemaService.dropSchema(schema).subscribe({
-        next: () => this.treeDataService.fetchTreeData(),
-        error: (err) => console.error(err)
+        next: () => {
+          this.treeDataService.fetchTreeData();
+          this._snackBar.open( "dropped schema successfully", "ok", {duration:2000})
+        },
+        error: () => this._snackBar.open("error", "ok", {duration:2000})
       });
     }
   }
 
   public onDropEntity(entityName : string){
-    if(confirm("are you sure you want to delete the entity " + entityName + "?")){
+    if(confirm("are you sure you want to drop the entity " + entityName + "?")){
       console.log(entityName)
       this.entityService.dropEntity(entityName).subscribe({
-        next: () => this.treeDataService.fetchTreeData(),
-        error: (err) => console.error(err)
+        next: () => {
+          this.treeDataService.fetchTreeData();
+          this._snackBar.open( "dropped entity successfully", "ok", {duration:2000})
+        },
+        error: () => this._snackBar.open("error", "ok", {duration:2000})
+      });
+    }
+  }
+
+  onTruncateEntity(entityName : string) {
+    if(confirm("are you sure you want to delete the entity " + entityName + "?")){
+      console.log(entityName)
+      this.entityService.truncateEntity(entityName).subscribe({
+        next: () => {
+          this.treeDataService.fetchTreeData();
+          this._snackBar.open( "truncated entity successfully", "ok", {duration:2000})
+        },
+        error: () => this._snackBar.open("error", "ok", {duration:2000})
+      });
+    }
+  }
+
+  onClearEntity(entityName : string) {
+    if(confirm("are you sure you want to delete the entity " + entityName + "?")){
+      console.log(entityName)
+      this.entityService.clearEntity(entityName).subscribe({
+        next: () => {
+          this.treeDataService.fetchTreeData();
+          this._snackBar.open( "cleared entity successfully", "ok", {duration:2000})
+        },
+        error: () => this._snackBar.open("error", "ok", {duration:2000})
       });
     }
   }

@@ -5,5 +5,8 @@
   background-color: white;
   padding: 10px;
   margin-bottom: 10px;
-  border-radius: 5px;
+  border: #4a148c solid 2px;
+  border-radius: 4px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+
 }

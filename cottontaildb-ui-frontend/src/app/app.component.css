@@ -3,10 +3,9 @@
   height: 100%;
 }
 .sidebar {
-  width: 400px;
+  min-width: 400px;
   height: 100vh;
   overflow: auto;
-  resize: both;
 }
 .main {
   flex-grow: 1;
