@@ -8,6 +8,9 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.values.IntValue
+import org.vitrivr.cottontail.core.values.LongValue
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.*
@@ -385,12 +388,23 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /* Execute INSERT on column level. */
             val inserts = Object2ObjectArrayMap<ColumnDef<*>, Value>(this.columns.size)
             for (column in this.columns.values) {
+                /* Make necessary checks for value. */
                 val value = record[column.columnDef]
-                inserts[column.columnDef] = value
+                inserts[column.columnDef] = when {
+                    column.columnDef.serial -> {
+                        val nextValue = SequenceCatalogueEntries.next(this@DefaultEntity.name.sequence(column.name.simple), this@DefaultEntity.catalogue, this.context.xodusTx)
+                        check(nextValue != null) { "Failed to generate next value in sequence for column ${column.name}. This is a programmer's error!"}
+                        when (column.type) {
+                            Types.Int -> IntValue(nextValue)
+                            Types.Long -> LongValue(nextValue)
+                            else -> throw IllegalStateException("Columns of types ${column.type} do not allow for serial values. This is a programmer's error!")
+                        }
+                    }
+                    column.columnDef.nullable -> value
+                    else -> value ?: throw DatabaseException.ValidationException("Cannot INSERT a NULL value into column ${column.columnDef}.")
+                }
 
-                /* Check if null value is allowed. */
-                if (value == null && !column.columnDef.nullable)
-                    throw DatabaseException.ValidationException("Cannot INSERT a NULL value into column ${column.columnDef}.")
+                /* Perform insert. */
                 (this.context.getTx(column) as ColumnTx<Value>).add(nextTupleId, value)
             }
 

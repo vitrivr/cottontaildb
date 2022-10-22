@@ -8,9 +8,16 @@ import org.vitrivr.cottontail.core.values.types.Value
  * of such and facilitates validation of [Value]s with respect to the [ColumnDef].
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 1.7.0
  */
-data class ColumnDef<T : Value>(val name: Name.ColumnName, val type: Types<T>, val nullable: Boolean = true, val primary: Boolean = false) {
+data class ColumnDef<T : Value>(val name: Name.ColumnName, val type: Types<T>, val nullable: Boolean = true, val primary: Boolean = false, val serial: Boolean = false) {
+
+    init {
+        if (this.serial) {
+            require(this.type == Types.Int || this.type == Types.Long) { "The option 'serial' can only be applied to types of Integer and Long. "}
+        }
+    }
+    
     /**
      * Validates a value with regard to this [ColumnDef] return a flag indicating whether validation was passed.
      *
