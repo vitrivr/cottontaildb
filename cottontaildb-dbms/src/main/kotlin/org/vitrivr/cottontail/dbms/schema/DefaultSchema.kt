@@ -163,7 +163,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
                 }
 
                 /* Write sequence catalogue entry. */
-                if (it.serial && !SequenceCatalogueEntries.create(name.sequence(it.name.simple), this@DefaultSchema.catalogue, this.context.xodusTx)) {
+                if (it.autoIncrement && !SequenceCatalogueEntries.create(name.sequence(it.name.simple), this@DefaultSchema.catalogue, this.context.xodusTx)) {
                     throw DatabaseException.DataCorruptionException("CREATE entity $name failed: Failed to create sequence entry for column ${it.name}.")
                 }
 

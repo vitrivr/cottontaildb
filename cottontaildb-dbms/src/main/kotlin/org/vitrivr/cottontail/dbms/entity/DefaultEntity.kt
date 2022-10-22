@@ -391,7 +391,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                 /* Make necessary checks for value. */
                 val value = record[column.columnDef]
                 inserts[column.columnDef] = when {
-                    column.columnDef.serial -> {
+                    column.columnDef.autoIncrement -> {
                         val nextValue = SequenceCatalogueEntries.next(this@DefaultEntity.name.sequence(column.name.simple), this@DefaultEntity.catalogue, this.context.xodusTx)
                         check(nextValue != null) { "Failed to generate next value in sequence for column ${column.name}. This is a programmer's error!"}
                         when (column.type) {
