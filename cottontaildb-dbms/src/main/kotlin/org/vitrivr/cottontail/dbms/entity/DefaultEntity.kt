@@ -389,8 +389,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             val inserts = Object2ObjectArrayMap<ColumnDef<*>, Value>(this.columns.size)
             for (column in this.columns.values) {
                 /* Make necessary checks for value. */
-                val value = record[column.columnDef]
-                inserts[column.columnDef] = when {
+                val value = when {
                     column.columnDef.autoIncrement -> {
                         val nextValue = SequenceCatalogueEntries.next(this@DefaultEntity.name.sequence(column.name.simple), this@DefaultEntity.catalogue, this.context.xodusTx)
                         check(nextValue != null) { "Failed to generate next value in sequence for column ${column.name}. This is a programmer's error!"}
@@ -400,11 +399,12 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                             else -> throw IllegalStateException("Columns of types ${column.type} do not allow for serial values. This is a programmer's error!")
                         }
                     }
-                    column.columnDef.nullable -> value
-                    else -> value ?: throw DatabaseException.ValidationException("Cannot INSERT a NULL value into column ${column.columnDef}.")
+                    column.columnDef.nullable -> record[column.columnDef]
+                    else -> record[column.columnDef] ?: throw DatabaseException.ValidationException("Cannot INSERT a NULL value into column ${column.columnDef}.")
                 }
 
-                /* Perform insert. */
+                /* Record and perform insert. */
+                inserts[column.columnDef] = value
                 (this.context.getTx(column) as ColumnTx<Value>).add(nextTupleId, value)
             }
 
