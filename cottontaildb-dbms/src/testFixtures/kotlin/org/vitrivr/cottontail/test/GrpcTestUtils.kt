@@ -10,11 +10,17 @@ import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.test.TestConstants.DOUBLE_COLUMN_NAME
+import org.vitrivr.cottontail.test.TestConstants.ID_COLUMN_NAME
 import org.vitrivr.cottontail.test.TestConstants.INT_COLUMN_NAME
 import org.vitrivr.cottontail.test.TestConstants.STRING_COLUMN_NAME
 import kotlin.random.Random
 
-
+/**
+ *
+ *
+ * @author Silvan Heller & Ralph Gasser
+ * @version 1.1.0
+ */
 object GrpcTestUtils {
 
     /**
@@ -47,6 +53,7 @@ object GrpcTestUtils {
      */
     fun createTestEntity(client: SimpleClient) {
         val create = CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn)
+            .column(ID_COLUMN_NAME, Type.LONG, autoIncrement = true)
             .column(STRING_COLUMN_NAME, Type.STRING)
             .column(INT_COLUMN_NAME, Type.INTEGER)
             .column(DOUBLE_COLUMN_NAME, Type.DOUBLE)
@@ -60,6 +67,7 @@ object GrpcTestUtils {
      */
     fun createTestVectorEntity(client: SimpleClient) {
         val create = CreateEntity(TestConstants.TEST_VECTOR_ENTITY_NAME.fqn)
+            .column(ID_COLUMN_NAME, Type.LONG, autoIncrement = true)
             .column(STRING_COLUMN_NAME, Type.STRING)
             .column(INT_COLUMN_NAME, Type.INTEGER)
             .column(TestConstants.TWOD_COLUMN_NAME, Type.FLOAT_VECTOR, 2)
@@ -72,10 +80,11 @@ object GrpcTestUtils {
      * @param client [SimpleClient] to use.
      */
     fun populateTestEntity(client: SimpleClient) {
-        val batch = BatchInsert().into(TestConstants.TEST_ENTITY_NAME.fqn).columns(STRING_COLUMN_NAME, INT_COLUMN_NAME, DOUBLE_COLUMN_NAME)
+        val batch = BatchInsert().into(TestConstants.TEST_ENTITY_NAME.fqn).columns(ID_COLUMN_NAME, STRING_COLUMN_NAME, INT_COLUMN_NAME, DOUBLE_COLUMN_NAME)
         val random = Random.Default
         repeat(TestConstants.TEST_COLLECTION_SIZE) {
             batch.append(
+                null,
                 RandomStringUtils.randomAlphabetic(5),
                 random.nextInt(0, 100),
                 random.nextDouble(1.0)
@@ -104,13 +113,14 @@ object GrpcTestUtils {
      */
     fun populateVectorEntity(client: SimpleClient) {
         val batch = BatchInsert().into(TestConstants.TEST_VECTOR_ENTITY_NAME.fqn)
-            .columns(STRING_COLUMN_NAME, INT_COLUMN_NAME, TestConstants.TWOD_COLUMN_NAME)
+            .columns(ID_COLUMN_NAME, STRING_COLUMN_NAME, INT_COLUMN_NAME, TestConstants.TWOD_COLUMN_NAME)
         val random = Random.Default
         repeat(TestConstants.TEST_COLLECTION_SIZE) {
             val lat = random.nextFloat() + random.nextInt(0, 50)
             val lon = random.nextFloat() + random.nextInt(0, 50)
             val arr = floatArrayOf(lat, lon)
             batch.append(
+                null,
                 RandomStringUtils.randomAlphabetic(5),
                 random.nextInt(0, 10),
                 arr

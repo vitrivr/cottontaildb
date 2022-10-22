@@ -35,6 +35,9 @@ object TestConstants {
     /** The [Name.EntityName] of the vector test entity used during gRPC tests. */
     val TEST_VECTOR_ENTITY_NAME = TEST_SCHEMA.entity("test-vector-entity")
 
+    /** The [Name.ColumnName] of the id test column. */
+    val ID_COLUMN_NAME = "id_col"
+
     /** The [Name.ColumnName] of the string test column. */
     val STRING_COLUMN_NAME = "string_col"
 
