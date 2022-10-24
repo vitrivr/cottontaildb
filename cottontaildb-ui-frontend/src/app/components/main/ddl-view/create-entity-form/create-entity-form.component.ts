@@ -2,13 +2,12 @@ import {Component, OnInit} from '@angular/core';
 import {TreeDataService} from "../../../../services/tree-data.service";
 import {FormControl, FormGroup, Validators} from "@angular/forms";
 import {EntityService} from "../../../../services/entity.service";
-import {MatStepper} from "@angular/material/stepper";
+import {MAT_DIALOG_DATA} from '@angular/material/dialog';
+import { Inject } from '@angular/core';
+import {MatDialogRef} from "@angular/material/dialog";
+import {MatSnackBar} from "@angular/material/snack-bar";
+import {ColumnDefinition} from "../../../../interfaces/ColumnDefinition";
 
-export interface ColumnDef {
-  name : string;
-  type: string;
-  nullable: boolean;
-}
 
 @Component({
   selector: 'app-create-entity-form',
@@ -23,13 +22,18 @@ export class CreateEntityFormComponent implements OnInit {
   columnData: any;
   entityNameSet: boolean;
   displayedColumns: string[] = ['name', 'type', 'nullable'];
-  schemaNameSet: boolean;
 
-  constructor(private entityService : EntityService, private treeDataService : TreeDataService ) {
-    this.schemaName = "";
-    this.columnData = [];
-    this.entityNameSet = false;
-    this.schemaNameSet = false;
+  constructor(
+    @Inject(MAT_DIALOG_DATA) public data: {name: string},
+    private entityService : EntityService,
+    private treeDataService : TreeDataService,
+    private dialogRef : MatDialogRef<CreateEntityFormComponent>,
+    private snackBar: MatSnackBar)
+  {
+    console.log(data)
+      this.schemaName = data.name
+      this.columnData = []
+      this.entityNameSet = false
   }
 
   ngOnInit(): void {
@@ -64,8 +68,8 @@ export class CreateEntityFormComponent implements OnInit {
   }
 
 
-  removeItem(element : ColumnDef) {
-    this.columnData.forEach( (value : ColumnDef, index: number) => {
+  removeItem(element : ColumnDefinition) {
+    this.columnData.forEach( (value : ColumnDefinition, index: number) => {
       if (value == element){ this.columnData.splice(index,1) }
     });
   }
@@ -78,26 +82,21 @@ export class CreateEntityFormComponent implements OnInit {
       next: () => this.treeDataService.fetchTreeData(),
       error: err => console.log(err)
     });
-    console.log("fetch")
-
+    this.dialogRef.close()
+    this.snackBar.open( "created entity "+entityName+" successfully", "ok", {duration:2000})
   }
 
   onReset(){
-    this.schemaName = "";
     this.entityForm.reset()
     this.columnForm.reset()
     this.entityNameSet = false
-    this.columnData.forEach( (value : ColumnDef, index: number) => {
+    this.columnData.forEach( (value : ColumnDefinition, index: number) => {
       this.columnData.splice(index,1)
     });
 
   }
 
-  setSchemaName(stepper: MatStepper, name : string) {
-    this.schemaName = name
-    this.schemaNameSet = true
-    stepper.next()
-  }
+
 
 
 }

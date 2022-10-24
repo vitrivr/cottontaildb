@@ -6,11 +6,14 @@ import {TreeDataService} from "../../../../services/tree-data.service";
 import {Schema, SchemaService} from "../../../../services/schema.service";
 import {EntityService} from "../../../../services/entity.service";
 import {MatSnackBar} from '@angular/material/snack-bar';
+import {MatDialog} from "@angular/material/dialog";
+import {CreateEntityFormComponent} from "../../../main/ddl-view/create-entity-form/create-entity-form.component";
+import {SelectionService} from "../../../../services/selection.service";
 
 
 
 /** Flat node with expandable and level information */
-interface ExampleFlatNode {
+interface FlatNode {
   expandable: boolean;
   name: string;
   level: number;
@@ -33,7 +36,7 @@ export class TreeComponent implements OnInit {
     };
   };
 
-  treeControl = new FlatTreeControl<ExampleFlatNode>(
+  treeControl = new FlatTreeControl<FlatNode>(
     node => node.level,
     node => node.expandable,
   );
@@ -46,12 +49,16 @@ export class TreeComponent implements OnInit {
   );
 
 
-  dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
+  dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener)
+
 
   constructor(private treeDataService: TreeDataService,
               private schemaService : SchemaService,
               private entityService : EntityService,
-              private _snackBar: MatSnackBar) {
+              private _snackBar: MatSnackBar,
+              private createEntityFormComponent : CreateEntityFormComponent,
+              private dialog : MatDialog,
+              private selectionService : SelectionService) {
 
   }
 
@@ -62,7 +69,7 @@ export class TreeComponent implements OnInit {
     this.treeDataService.getTreeData().subscribe((datasource) => this.dataSource.data = datasource);
   }
 
-  isRoot = (_: number, node: ExampleFlatNode) => (node.level === 0);
+  isRoot = (_: number, node: FlatNode) => (node.level === 0);
 
   public onDropSchema(schema : Schema){
     if(confirm("are you sure you want to drop the schema " + schema + "?")){
@@ -114,5 +121,20 @@ export class TreeComponent implements OnInit {
       });
     }
   }
+
+  onCreateEntity(name : string) {
+    this.dialog.open<CreateEntityFormComponent>(CreateEntityFormComponent, {
+      width: 'fit-content',
+      height: 'fit-content',
+      data: {
+        name
+      }
+    });
+  }
+
+  onSelect(nodeName : string) {
+    this.selectionService.changeSelection(nodeName)
+  }
+
 }
 

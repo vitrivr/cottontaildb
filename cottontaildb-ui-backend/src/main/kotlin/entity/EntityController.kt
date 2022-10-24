@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.client.language.dml.Delete
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.grpc.CottontailGrpc.IndexType
 import java.nio.file.Path
 
 
@@ -27,10 +28,22 @@ object EntityController {
         }
     }
 
-    fun aboutEntity(context: Context){
+    data class IndexInfo(val skipBuild : Boolean, val attribute : String, val index : IndexType){}
+
+
+    fun aboutEntity(context: Context) {
+
         val result = ClientConfig.client.about(AboutEntity(context.pathParam("name")))
-        context.json(result)
+        val entityDetails: MutableList<EntityDetails> = mutableListOf()
+
+        result.forEach {
+            entityDetails.add(EntityDetails(it))
+        }
+        println(entityDetails)
+        context.json(entityDetails)
+
     }
+
     fun clearEntity(context: Context){
         val result = ClientConfig.client.delete(Delete(context.pathParam("name")))
         context.json(result)
@@ -38,13 +51,12 @@ object EntityController {
 
     fun createEntity(context: Context) {
 
-        val columnDefinition = context.body()
-        val columnArray: Array<ColumnInfo> = gson.fromJson(columnDefinition, Array<ColumnInfo>::class.java)
+        val columnArray: Array<ColumnInfo> = gson.fromJson(context.body(), Array<ColumnInfo>::class.java)
         val list = columnArray.map { it.toDefinition() }
 
         val temp = context.pathParam("name").split(".")
 
-        val colDef = CottontailGrpc.EntityDefinition.newBuilder()
+        val columnDefinition = CottontailGrpc.EntityDefinition.newBuilder()
             .setEntity(CottontailGrpc.EntityName.newBuilder().setName(temp[1])
                 .setSchema(CottontailGrpc.SchemaName.newBuilder()
                     .setName(temp[0]).build())
@@ -53,9 +65,9 @@ object EntityController {
 
         if (list.isNotEmpty()) {
             list.forEach {
-                colDef.addColumns(it)
+                columnDefinition.addColumns(it)
             }
-            val result : TupleIterator = ClientConfig.client.create(CottontailGrpc.CreateEntityMessage.newBuilder().setDefinition(colDef).build())
+            val result : TupleIterator = ClientConfig.client.create(CottontailGrpc.CreateEntityMessage.newBuilder().setDefinition(columnDefinition).build())
             context.json(result)
 
         } else {
@@ -66,8 +78,16 @@ object EntityController {
     }
 
     fun createIndex(context: Context){
-        TODO()
-    }
+
+        val indexDefinition: IndexInfo = gson.fromJson(context.body(), IndexInfo::class.java)
+
+        val create = CreateIndex(context.pathParam("name"), indexDefinition.attribute, indexDefinition.index)
+        if (!indexDefinition.skipBuild) {
+            create.rebuild()
+        }
+
+        ClientConfig.client.create(create.rebuild())
+        }
     fun deleteRow(context: Context){
         TODO()
     }
@@ -76,7 +96,9 @@ object EntityController {
         context.json(result)
     }
     fun dropIndex(context: Context){
-        TODO()
+        println("recieved")
+        val result = ClientConfig.client.drop(DropIndex(context.pathParam("name")))
+        context.json(result)
     }
     fun dumpEntity(context: Context){
 

@@ -1,13 +1,17 @@
 import { Injectable } from '@angular/core';
-import {Observable} from "rxjs";
+import {BehaviorSubject, Observable, shareReplay} from "rxjs";
 import {Entity} from "../interfaces/Entity";
 import {HttpClient} from "@angular/common/http";
-import {ColumnDef} from "../components/main/entity-view/create-entity-form/create-entity-form.component";
+import {ColumnDefinition} from "../interfaces/ColumnDefinition";
+import {TreeNode} from "../interfaces/TreeNode";
+import {IndexDefinition} from "../interfaces/IndexDefinition";
 
 @Injectable({
   providedIn: 'root'
 })
 export class EntityService {
+
+  aboutEntitySubject = new BehaviorSubject<any>(null);
 
   private apiURL = 'http://localhost:7070'
 
@@ -17,7 +21,7 @@ export class EntityService {
     return this.httpClient.get<Entity[]>('${apiURL}/entity/all');
   }
 
-  public createEntity (schemaName: string,entityName: string, columnDef : ColumnDef){
+  public createEntity (schemaName: string,entityName: string, columnDef : ColumnDefinition){
     return this.httpClient.post(this.apiURL + "/entities/" + schemaName + "." +entityName , columnDef);
   }
 
@@ -31,5 +35,17 @@ export class EntityService {
 
   clearEntity(entityName: string) : Observable<Object>{
     return this.httpClient.delete(this.apiURL + "/entities/" + entityName + "/clear/")
+  }
+
+  aboutEntity(entityName: string) {
+    this.httpClient.get(this.apiURL + "/entities/" + entityName).subscribe(value => this.aboutEntitySubject.next(value))
+  }
+
+  dropIndex(dbo: string) {
+    return this.httpClient.delete(this.apiURL + "/indexes/" + dbo)
+  }
+
+  createIndex(dbo: string, indexDefinition: IndexDefinition) {
+    return this.httpClient.post(this.apiURL + "/indexes/" + dbo, indexDefinition)
   }
 }

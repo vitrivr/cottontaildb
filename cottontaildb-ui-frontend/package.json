@@ -22,6 +22,7 @@
     "@angular/router": "^14.2.0",
     "rxjs": "~7.5.0",
     "tslib": "^2.3.0",
+    "yarn": "^1.22.19",
     "zone.js": "~0.11.4"
   },
   "devDependencies": {

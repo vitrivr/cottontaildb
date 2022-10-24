@@ -5,70 +5,83 @@
           [treeControl]="treeControl"
           cdkDropList id="list-1"
           cdkDropListConnectedTo="list-2">
+  <mat-button-toggle-group>
+    <!--schema Node -->
+    <mat-tree-node class="schemaNode"
+                   *matTreeNodeDef="let node;when: isRoot"
+                   matTreeNodePadding
+                   cdkDrag
+                   [cdkDragData]="node">
 
-  <!--schema Node -->
-  <mat-tree-node class="schemaNode"
-                 *matTreeNodeDef="let node;when: isRoot"
-                 matTreeNodePadding
-                 cdkDrag
-                 [cdkDragData]="node">
 
-    <button mat-icon-button
-            matTreeNodeToggle
-            [disabled]="!treeControl.isExpandable(node)"
-            [attr.aria-label]="'Toggle ' + node.name">
+        <button mat-icon-button
+                matTreeNodeToggle
+                [disabled]="!treeControl.isExpandable(node)"
+                [attr.aria-label]="'Toggle ' + node.name">
 
-      <mat-icon class="material-icons-outlined">
-        {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
-      </mat-icon>
-    </button>
+          <mat-icon class="material-icons-outlined">
+            {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
+          </mat-icon>
+        </button>
 
-    {{node.name}}
+          {{node.name}}
 
-    <button mat-icon-button [matMenuTriggerFor]="menu">
-      <mat-icon>more_vert</mat-icon>
-    </button>
-    <mat-menu #menu="matMenu">
-      <button mat-menu-item (click)="onDropSchema(node.name)">
-        <mat-icon>delete</mat-icon>
-        <span>drop</span>
+      <div [class.example-tree-invisible]="!treeControl.isExpanded(node)"
+           role="group">
+        <ng-container matTreeNodeOutlet></ng-container>
+      </div>
+
+      <button mat-icon-button [matMenuTriggerFor]="menu" class="menu-button">
+        <mat-icon>more_vert</mat-icon>
       </button>
-    </mat-menu>
+      <mat-menu #menu="matMenu">
+        <button mat-menu-item (click)="onCreateEntity(node.name)">
+          <mat-icon>add_box</mat-icon>
+          <span>new entity</span>
+        </button>
+        <button mat-menu-item (click)="onDropSchema(node.name)">
+          <mat-icon>delete</mat-icon>
+          <span>drop</span>
+        </button>
+      </mat-menu>
 
-    <div [class.example-tree-invisible]="!treeControl.isExpanded(node)"
-         role="group">
-      <ng-container matTreeNodeOutlet></ng-container>
-    </div>
-  </mat-tree-node>
 
-  <!--entity node-->
-  <mat-tree-node class="entityNode"
-                 *matTreeNodeDef="let node;"
-                 matTreeNodePadding
-                 matTreeNodeToggle
-                 cdkDrag
-                 [cdkDragData]="node">
+    </mat-tree-node>
 
-    {{node.name.split(".")[2]}}
+    <!--entity node-->
+    <mat-tree-node class="entityNode"
+                   *matTreeNodeDef="let node;"
+                   matTreeNodePadding
+                   matTreeNodeToggle
+                   cdkDrag
+                   [cdkDragData]="node">
 
-    <button mat-icon-button [matMenuTriggerFor]="menu">
-      <mat-icon>more_vert</mat-icon>
-    </button>
-    <mat-menu #menu="matMenu">
-      <button mat-menu-item (click)="onDropEntity(node.name)">
-        <mat-icon>delete</mat-icon>
-        <span>drop</span>
+      <mat-button-toggle
+        (click)="onSelect(node.name)">
+        {{node.name.split(".")[2]}}
+      </mat-button-toggle>
+
+
+      <button mat-icon-button [matMenuTriggerFor]="menu" class="menu-button">
+        <mat-icon>more_vert</mat-icon>
       </button>
-      <button mat-menu-item (click)="onTruncateEntity(node.name)">
-        <mat-icon>delete_sweep</mat-icon>
-        <span>truncate</span>
-      </button>
-      <button mat-menu-item (click)="onClearEntity(node.name)">
-        <mat-icon>delete_sweep</mat-icon>
-        <span>clear</span>
-      </button>
-    </mat-menu>
+      <mat-menu #menu="matMenu">
+        <button mat-menu-item (click)="onDropEntity(node.name)">
+          <mat-icon>delete</mat-icon>
+          <span>drop</span>
+        </button>
+        <button mat-menu-item (click)="onTruncateEntity(node.name)">
+          <mat-icon>delete_sweep</mat-icon>
+          <span>truncate</span>
+        </button>
+        <button mat-menu-item (click)="onClearEntity(node.name)">
+          <mat-icon>delete_sweep</mat-icon>
+          <span>clear</span>
 
-  </mat-tree-node>
+        </button>
+      </mat-menu>
 
+    </mat-tree-node>
+  </mat-button-toggle-group>
 </mat-tree>
+

@@ -19,13 +19,12 @@ import { DropZoneComponent } from './components/utilities/drop-zone/drop-zone.co
 import { HttpClientModule } from '@angular/common/http';
 import { AppRoutingModule } from './app-routing.module';
 import { SchemaViewComponent } from './components/main/schema-view/schema-view.component';
-import { EntityViewComponent } from './components/main/entity-view/entity-view.component';
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatButtonModule } from "@angular/material/button";
 import { MatInputModule } from "@angular/material/input";
 import { ReactiveFormsModule, FormsModule}  from "@angular/forms";
 import { CreateSchemaFormComponent } from './components/sidebar/overview/create-schema-form/create-schema-form.component';
-import { CreateEntityFormComponent } from './components/main/entity-view/create-entity-form/create-entity-form.component';
+import { CreateEntityFormComponent } from './components/main/ddl-view/create-entity-form/create-entity-form.component';
 import {MatStepperModule} from "@angular/material/stepper";
 import {MatSelectModule} from "@angular/material/select";
 import {MatCheckboxModule} from "@angular/material/checkbox";
@@ -34,7 +33,10 @@ import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatSortModule } from '@angular/material/sort';
 import {MatMenuModule} from "@angular/material/menu";
 import {MatSnackBarModule} from "@angular/material/snack-bar";
-import {MatDialogModule} from "@angular/material/dialog";
+import {MAT_DIALOG_DATA, MatDialogModule, MatDialogRef} from "@angular/material/dialog";
+import {DdlViewComponent} from "./components/main/ddl-view/ddl-view.component";
+import {SelectionService} from "./services/selection.service";
+import {MatButtonToggleModule} from "@angular/material/button-toggle";
 
 @NgModule({
   declarations: [
@@ -50,7 +52,7 @@ import {MatDialogModule} from "@angular/material/dialog";
     ButtonComponent,
     DropZoneComponent,
     SchemaViewComponent,
-    EntityViewComponent,
+    DdlViewComponent,
     CreateSchemaFormComponent,
     CreateEntityFormComponent
   ],
@@ -76,9 +78,15 @@ import {MatDialogModule} from "@angular/material/dialog";
     MatSortModule,
     MatMenuModule,
     MatSnackBarModule,
-    MatDialogModule
+    MatDialogModule,
+    MatButtonToggleModule
   ],
-  providers: [],
+  providers: [
+    CreateEntityFormComponent,
+    SelectionService,
+    { provide: MAT_DIALOG_DATA, useValue: {} },
+    { provide: MatDialogRef, useValue: {} }
+  ],
   exports: [
   ],
   bootstrap: [AppComponent]
