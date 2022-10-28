@@ -1,9 +1,23 @@
-<div class="container">
-  <div class="create-schema">
-    <app-create-schema-form></app-create-schema-form>
+
+
+<div class="container" >
+  <div *ngFor="let connection of connections">
+    <div class="connection-header">
+      <h2>
+        Port: {{connection}}
+      </h2>
+      <button mat-flat-button
+              color="accent"
+              (click)="onCreateSchema()">
+        CREATE SCHEMA
+      </button>
+
+    </div>
+    <app-tree class="tree" [port]="connection"></app-tree>
   </div>
-  <h2>
-    Database Structure
-  </h2>
-  <app-tree class="tree"></app-tree>
+  <button mat-flat-button
+          color="accent"
+          (click)="onAddConnection()">
+    ADD CONNECTION
+  </button>
 </div>

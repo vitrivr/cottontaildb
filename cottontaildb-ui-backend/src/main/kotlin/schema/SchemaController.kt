@@ -14,14 +14,16 @@ object SchemaController {
     private val gson = Gson()
 
     fun createSchema(context: Context){
+        val clientConfig = ClientConfig(context.pathParam("port").toInt())
         val schema: Schema = gson.fromJson(context.body(), Schema::class.java)
-        val result : TupleIterator = ClientConfig.client.create(CreateSchema(schema.name))
+        val result : TupleIterator = clientConfig.client.create(CreateSchema(schema.name))
         context.json(result)
 
     }
     fun dropSchema(context: Context){
+        val clientConfig = ClientConfig(context.pathParam("port").toInt())
         val schemaName = context.pathParam("name")
-        val result : TupleIterator = ClientConfig.client.drop(DropSchema(schemaName))
+        val result : TupleIterator = clientConfig.client.drop(DropSchema(schemaName))
         context.json(result)
     }
     fun dumpSchema(context: Context){
@@ -29,8 +31,9 @@ object SchemaController {
     }
 
     fun listAllSchemas(context: Context) {
+        val clientConfig = ClientConfig(context.pathParam("port").toInt())
         /** using ClientConfig's client, sending ListSchemas message to cottontaildb*/
-        val result: TupleIterator = ClientConfig.client.list(ListSchemas())
+        val result: TupleIterator = clientConfig.client.list(ListSchemas())
         val schemas: MutableList<Schema> = mutableListOf()
         /** iterate through schemas*/
         result.forEach {
@@ -47,10 +50,10 @@ object SchemaController {
     }
 
     fun listEntities(context: Context){
-
+        val clientConfig = ClientConfig(context.pathParam("port").toInt())
         val schemaName = context.pathParam("name")
 
-        val result: TupleIterator = ClientConfig.client
+        val result: TupleIterator = clientConfig.client
             .list(
                 CottontailGrpc.ListEntityMessage.newBuilder().setSchema(
                     CottontailGrpc.SchemaName.newBuilder()

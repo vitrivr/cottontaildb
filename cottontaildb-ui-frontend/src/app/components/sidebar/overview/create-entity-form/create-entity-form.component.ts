@@ -1,4 +1,4 @@
-import {Component, OnInit} from '@angular/core';
+import {Component, Input, OnInit} from '@angular/core';
 import {TreeDataService} from "../../../../services/tree-data.service";
 import {FormControl, FormGroup, Validators} from "@angular/forms";
 import {EntityService} from "../../../../services/entity.service";
@@ -21,7 +21,7 @@ export class CreateEntityFormComponent implements OnInit {
   schemaName: string;
   columnData: any;
   entityNameSet: boolean;
-  displayedColumns: string[] = ['name', 'type', 'nullable'];
+
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: {name: string},
@@ -30,7 +30,6 @@ export class CreateEntityFormComponent implements OnInit {
     private dialogRef : MatDialogRef<CreateEntityFormComponent>,
     private snackBar: MatSnackBar)
   {
-    console.log(data)
       this.schemaName = data.name
       this.columnData = []
       this.entityNameSet = false
@@ -55,14 +54,13 @@ export class CreateEntityFormComponent implements OnInit {
     "LONG_VEC", "INT_VEC", "BOOL_VEC", "COMPLEX32_VEC",
     "COMPLEX64_VEC", "BYTESTRING", "UNRECOGNIZED"];
 
-
+  @Input() port = 0;
 
   submitEntityName() {
     this.entityNameSet = true;
   }
 
   submitColumn() : void {
-
     this.columnData.push(this.columnForm.value);
     this.columnForm.reset();
   }
@@ -78,8 +76,8 @@ export class CreateEntityFormComponent implements OnInit {
     console.log(this.columnData)
     let entityName = this.entityForm.value.name
     console.log(entityName)
-    this.entityService.createEntity(this.schemaName, entityName!, this.columnData).subscribe({
-      next: () => this.treeDataService.fetchTreeData(),
+    this.entityService.createEntity(this.port, this.schemaName, entityName!, this.columnData).subscribe({
+      next: () => this.treeDataService.fetchTreeData(this.port),
       error: err => console.log(err)
     });
     this.dialogRef.close()

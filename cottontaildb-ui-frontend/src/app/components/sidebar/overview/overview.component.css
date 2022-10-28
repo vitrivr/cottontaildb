@@ -1,12 +1,15 @@
 .container{
   padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
-.create-schema{
-  background-color: white;
-  padding: 10px;
-  margin-bottom: 10px;
-  border: #4a148c solid 2px;
-  border-radius: 4px;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+.connection-header{
+  display:flex;
+  justify-content: space-between;
+}
+button{
+  width: fit-content;
+  height: fit-content;
+}
 
-}

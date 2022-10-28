@@ -2,6 +2,7 @@
   background-color: #4a148c;
   color: white;
 }
+
 .entityNode{
   background-color: #6a1b9a;
   color: white;
@@ -12,15 +13,15 @@
   color: white;
   border-radius: 4px;
 }
+.mat-button-toggle{
+
+}
 
 .mat-button-toggle-checked{
   background-color: white;
   color: black;
 }
-.mat-button-toggle-label{
-  display: flex;
-  flex-direction: row;
-}
+
 .list .mat-tree-node div[role=group] {
   padding-left: 40px;
 }

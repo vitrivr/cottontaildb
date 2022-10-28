@@ -9,7 +9,7 @@
     <!--schema Node -->
     <mat-tree-node class="schemaNode"
                    *matTreeNodeDef="let node;when: isRoot"
-                   matTreeNodePadding
+                   matTreeNodePadding="40px"
                    cdkDrag
                    [cdkDragData]="node">
 
@@ -51,7 +51,7 @@
     <!--entity node-->
     <mat-tree-node class="entityNode"
                    *matTreeNodeDef="let node;"
-                   matTreeNodePadding
+                   matTreeNodePadding="40px"
                    matTreeNodeToggle
                    cdkDrag
                    [cdkDragData]="node">

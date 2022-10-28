@@ -24,7 +24,7 @@ task buildFrontend(type: YarnTask) {
   outputs.upToDateWhen {
     return file("$buildDir/dist").isDirectory()
   }
-  args = ['run']
+  args = ['run','build']
   dependsOn yarn_install
 }
 

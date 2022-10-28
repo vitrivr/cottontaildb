@@ -11,20 +11,20 @@ import { TreeComponent } from './components/sidebar/overview/tree/tree.component
 import { MatTreeModule } from '@angular/material/tree';
 import { MatIconModule } from '@angular/material/icon';
 import {DragDropModule} from "@angular/cdk/drag-drop";
-import { DmlViewComponent } from './components/main/dml-view/dml-view.component';
-import { QueryViewComponent } from './components/main/query-view/query-view.component';
-import { SystemViewComponent } from './components/main/system-view/system-view.component';
+import { DmlViewComponent } from './components/main/views/dml-view/dml-view.component';
+import { QueryViewComponent } from './components/main/views/query-view/query-view.component';
+import { SystemViewComponent } from './components/main/views/system-view/system-view.component';
 import { ButtonComponent } from './components/utilities/button/button.component';
 import { DropZoneComponent } from './components/utilities/drop-zone/drop-zone.component';
 import { HttpClientModule } from '@angular/common/http';
 import { AppRoutingModule } from './app-routing.module';
-import { SchemaViewComponent } from './components/main/schema-view/schema-view.component';
+import { SchemaViewComponent } from './components/main/views/schema-view/schema-view.component';
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatButtonModule } from "@angular/material/button";
 import { MatInputModule } from "@angular/material/input";
 import { ReactiveFormsModule, FormsModule}  from "@angular/forms";
 import { CreateSchemaFormComponent } from './components/sidebar/overview/create-schema-form/create-schema-form.component';
-import { CreateEntityFormComponent } from './components/main/ddl-view/create-entity-form/create-entity-form.component';
+import { CreateEntityFormComponent } from './components/sidebar/overview/create-entity-form/create-entity-form.component';
 import {MatStepperModule} from "@angular/material/stepper";
 import {MatSelectModule} from "@angular/material/select";
 import {MatCheckboxModule} from "@angular/material/checkbox";
@@ -34,9 +34,13 @@ import { MatSortModule } from '@angular/material/sort';
 import {MatMenuModule} from "@angular/material/menu";
 import {MatSnackBarModule} from "@angular/material/snack-bar";
 import {MAT_DIALOG_DATA, MatDialogModule, MatDialogRef} from "@angular/material/dialog";
-import {DdlViewComponent} from "./components/main/ddl-view/ddl-view.component";
+import {DdlViewComponent} from "./components/main/views/ddl-view/ddl-view.component";
 import {SelectionService} from "./services/selection.service";
 import {MatButtonToggleModule} from "@angular/material/button-toggle";
+import { CreateIndexFormComponent } from './components/main/views/ddl-view/create-index-form/create-index-form.component';
+import { AddConnectionFormComponent } from './components/sidebar/overview/add-connection-form/add-connection-form.component';
+import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
+import {MatProgressBarModule} from "@angular/material/progress-bar";
 
 @NgModule({
   declarations: [
@@ -54,7 +58,9 @@ import {MatButtonToggleModule} from "@angular/material/button-toggle";
     SchemaViewComponent,
     DdlViewComponent,
     CreateSchemaFormComponent,
-    CreateEntityFormComponent
+    CreateEntityFormComponent,
+    CreateIndexFormComponent,
+    AddConnectionFormComponent
   ],
   imports: [
     BrowserModule,
@@ -79,7 +85,9 @@ import {MatButtonToggleModule} from "@angular/material/button-toggle";
     MatMenuModule,
     MatSnackBarModule,
     MatDialogModule,
-    MatButtonToggleModule
+    MatButtonToggleModule,
+    MatProgressSpinnerModule,
+    MatProgressBarModule
   ],
   providers: [
     CreateEntityFormComponent,

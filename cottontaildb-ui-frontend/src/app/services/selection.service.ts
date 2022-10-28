@@ -2,16 +2,22 @@
 import { Injectable } from '@angular/core';
 import {Subject} from 'rxjs';
 
+export interface Selection {
+  entity : string;
+  port : number;
+}
+
 @Injectable()
 export class SelectionService {
 
-  private selectionSource = new Subject();
-  currentSelection = this.selectionSource.asObservable();
+
+  private selectionSubject = new Subject<Selection>();
+  currentSelection = this.selectionSubject.asObservable();
 
   constructor() { }
 
-  changeSelection(selection: string) {
-    this.selectionSource.next(selection)
+  changeSelection(entity: string, port: number) {
+    this.selectionSubject.next({entity, port})
   }
 
 }

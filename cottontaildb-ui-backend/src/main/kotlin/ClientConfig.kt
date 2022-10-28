@@ -2,10 +2,10 @@ import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import org.vitrivr.cottontail.client.SimpleClient
 
-object ClientConfig {
+class ClientConfig (port : Int) {
 
-    private const val host: String = "localhost"
-    private const val port: Int = 1865
+    private val host: String = "localhost"
+
 
     private val channel: ManagedChannel = ManagedChannelBuilder.forAddress(host, port)
         .enableFullStreamDecompression()

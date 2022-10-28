@@ -1,5 +1,6 @@
 package system
 
+import ClientConfig
 import io.javalin.http.Context
 import org.vitrivr.cottontail.client.iterators.Tuple
 
@@ -27,8 +28,8 @@ object SystemController {
 
 
     fun listTransactions(context: Context) {
-
-        val result = ClientConfig.client.transactions()
+        val clientConfig = ClientConfig(context.pathParam("port").toInt())
+        val result = clientConfig.client.transactions()
         val txInfoArray : MutableList<TxInfo> = mutableListOf()
         result.forEach {
             if (it.asString("state") == "RUNNING" || it.asString("state") == "ERROR") {
@@ -40,12 +41,13 @@ object SystemController {
     }
 
     fun killTransaction(context: Context) {
-        TODO()
+        val clientConfig = ClientConfig(context.pathParam("port").toInt())
+        clientConfig.client.kill(context.pathParam("txId").toLong())
     }
 
     fun listLocks(context: Context) {
-
-        val result = ClientConfig.client.locks()
+        val clientConfig = ClientConfig(context.pathParam("port").toInt())
+        val result = clientConfig.client.locks()
         val locksInfoArray = mutableListOf<LocksInfo>()
         result.forEach {
             locksInfoArray.add(LocksInfo(it))

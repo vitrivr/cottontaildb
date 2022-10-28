@@ -1,29 +1,37 @@
-import { Injectable } from '@angular/core';
+import {Injectable} from '@angular/core';
 import {TreeNode} from "../interfaces/TreeNode";
 import {BehaviorSubject, Observable, shareReplay} from "rxjs";
 import {HttpClient} from "@angular/common/http";
 
+
+
 @Injectable({
   providedIn: 'root'
 })
+
 export class TreeDataService {
 
+
+
   private apiURL = 'http://localhost:7070/'
-  public readonly treeDataObs$: BehaviorSubject<TreeNode[]> = new BehaviorSubject<TreeNode[]>([]);
-  constructor(private httpClient:HttpClient) {
+
+  public readonly treeDataObs$ = new BehaviorSubject<Map<number, TreeNode[]>>(new Map);
+
+  constructor(private httpClient:HttpClient){
   }
 
-  fetchTreeData() {
-    this.httpClient.get<TreeNode[]>(this.apiURL + "list").pipe(shareReplay(1))
+  fetchTreeData(port : number) {
+    this.httpClient.get<TreeNode[]>(this.apiURL + port + "/list").pipe(shareReplay(1))
       .subscribe({
-        next: (value => this.treeDataObs$.next(value)),
+        next: (value => this.treeDataObs$.next(this.treeDataObs$.getValue().set(port, value))),
         error: (err => console.log(err))
       }).add()
   }
 
-  getTreeData() : Observable<TreeNode[]> {
+  getTreeData() : Observable<Map<number, TreeNode[]>> {
     return this.treeDataObs$.asObservable()
   }
+
 
 
 
