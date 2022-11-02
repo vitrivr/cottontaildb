@@ -41,6 +41,9 @@ import { CreateIndexFormComponent } from './components/main/views/ddl-view/creat
 import { AddConnectionFormComponent } from './components/sidebar/overview/add-connection-form/add-connection-form.component';
 import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
 import {MatProgressBarModule} from "@angular/material/progress-bar";
+import { GroupControlComponent } from './components/main/views/query-view/group-control/group-control.component';
+import { ConditionFormComponent } from './components/main/views/query-view/condition-form/condition-form.component';
+import { ActionButtonsComponent } from './components/main/views/query-view/action-buttons/action-buttons.component';
 
 @NgModule({
   declarations: [
@@ -60,7 +63,10 @@ import {MatProgressBarModule} from "@angular/material/progress-bar";
     CreateSchemaFormComponent,
     CreateEntityFormComponent,
     CreateIndexFormComponent,
-    AddConnectionFormComponent
+    AddConnectionFormComponent,
+    GroupControlComponent,
+    ConditionFormComponent,
+    ActionButtonsComponent
   ],
   imports: [
     BrowserModule,

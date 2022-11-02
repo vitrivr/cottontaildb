@@ -9,7 +9,7 @@ export class ConnectionService {
 
   public apiURL = 'http://localhost:7070/'
 
-  connectionSubject = new BehaviorSubject<Array<number>>([]);
+  connectionSubject = new BehaviorSubject<Array<number>>([1865]);
 
   constructor(private snackBar: MatSnackBar) {
   }
