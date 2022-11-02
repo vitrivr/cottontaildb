@@ -30,7 +30,7 @@ dependencies {
     implementation group: 'io.javalin', name: 'javalin', version: version_javalin
 
     /* Jackson databind. */
-    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: version_jackson
+    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: version_jackson
 }
 
 test {
