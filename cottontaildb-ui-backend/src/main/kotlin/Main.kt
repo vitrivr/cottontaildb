@@ -2,6 +2,7 @@ import entity.EntityController
 import io.javalin.Javalin
 import io.javalin.apibuilder.ApiBuilder.*
 import io.javalin.http.Header
+import io.javalin.http.staticfiles.Location
 import io.javalin.plugin.bundled.CorsContainer
 import io.javalin.plugin.bundled.CorsPluginConfig
 import list.ListController
@@ -10,13 +11,12 @@ import system.SystemController
 
 
 fun main() {
-
     val app = Javalin.create { config ->
-       /** config.staticFiles.add{
+        config.staticFiles.add{
             it.directory = "html"
             it.location = Location.CLASSPATH
         }
-        config.spaRoot.addFile("/", "html/index.html")*/
+        config.spaRoot.addFile("/", "html/index.html")
         config.plugins.enableCors { cors: CorsContainer -> cors.add { it: CorsPluginConfig -> it.anyHost() } }
     }.start(7070)
 
@@ -28,6 +28,7 @@ fun main() {
             ctx.header(Header.ACCESS_CONTROL_ALLOW_HEADERS, "Authorization, Content-Type")
             ctx.header(Header.CONTENT_TYPE, "application/json")
         }
+
         path("{port}") {
             path("list") {
                 get(ListController::getList)

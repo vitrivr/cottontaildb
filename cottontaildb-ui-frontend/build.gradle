@@ -1,5 +1,6 @@
 plugins {
-  id "com.github.node-gradle.node" version "3.5.0"
+  id 'base'
+  id 'com.github.node-gradle.node' version '3.5.0'
 }
 
 configurations {
@@ -8,9 +9,6 @@ configurations {
     canBeResolved = false
   }
 }
-
-/** If the flag -DincludeConfig is passed, we include it */
-def includeConfig = project.hasProperty('includeConfig')
 
 node {
   version = '18.1.0'
@@ -24,7 +22,7 @@ task buildFrontend(type: YarnTask) {
   outputs.upToDateWhen {
     return file("$buildDir/dist").isDirectory()
   }
-  args = ['run','build']
+  args = ['run','pbuild']
   dependsOn yarn_install
 }
 
@@ -38,10 +36,6 @@ task packageFrontend(type: Zip) {
   extension 'jar'
   destinationDir file("$buildDir/lib")
   from("$buildDir/dist") {
-    println("includeConfig: "+includeConfig)
-    if(!includeConfig){
-      exclude '**/config.json'
-    }
     into 'html'
   }
 }

@@ -1,9 +1,4 @@
-plugins {
-    id 'java'
-}
-
-group 'org.vitrivr'
-version '0.15.1'
+apply plugin: 'application'
 
 repositories {
     mavenCentral()
@@ -17,15 +12,25 @@ configurations {
     }
 }
 
-dependencies {
-    implementation 'io.javalin:javalin:5.0.1'
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.14.0-rc1'
-    api project(':cottontaildb-core')
-    ///// Frontend files (produced by sub-project).
-    //implementation frontendClasspath(project(path: ":cottontaildb-ui-frontend", configuration: 'frontendFiles'))
+/* General application attributes. */
+application {
+    applicationName = 'cottontaildb-ui'
+    applicationDefaultJvmArgs = ["-Xms256M", "-Xmx1G"]
+    mainClassName = 'MainKt'
+}
 
+dependencies {
+    /* Frontend artifact (HTML, JavaScript, CSS). */
+    implementation frontendClasspath(project(path: ":cottontaildb-ui-frontend", configuration: 'frontendFiles'))
+
+    /* Cottontail DB core project artifact. */
+    api project(':cottontaildb-core')
+
+    /* Javalin 5 */
+    implementation group: 'io.javalin', name: 'javalin', version: version_javalin
+
+    /* Jackson databind. */
+    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: version_jackson
 }
 
 test {
