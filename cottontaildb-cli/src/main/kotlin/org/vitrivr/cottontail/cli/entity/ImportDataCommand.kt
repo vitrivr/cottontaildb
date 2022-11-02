@@ -13,6 +13,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.data.Format
+import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc.BatchInsertMessage
 import org.vitrivr.cottontail.utilities.extensions.proto
 import org.vitrivr.cottontail.utilities.extensions.protoFrom
@@ -70,7 +71,12 @@ class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
                     iterator.forEach {
                         val element = BatchInsertMessage.Insert.newBuilder()
                         for (c in schema) {
-                            element.addValues(it[c]?.toLiteral())
+                            val literal = it[c]?.toLiteral()
+                            if (literal != null) {
+                                element.addValues(literal)
+                            } else {
+                                element.addValues(CottontailGrpc.Literal.newBuilder().build())
+                            }
                         }
                         val built = element.build()
                         if ((cummulativeSize + built.serializedSize) >= Constants.MAX_PAGE_SIZE_BYTES) {
@@ -144,7 +150,7 @@ class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
     private val input: Path by option(
         "-i",
         "--input",
-        help = "Limits the amount of printed results"
+        help = "Path of file to be imported"
     ).convert { Paths.get(it) }.required()
 
     /** Flag indicating, whether the import should be executed in a single transaction or not. */

@@ -10,9 +10,9 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Logical] implementation that has exactly two [OperatorNode.Logical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.6.0
+ * @version 2.7.0
  */
-abstract class BinaryLogicalOperatorNode(left: Logical? = null, right: Logical? = null) : org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical() {
+abstract class BinaryLogicalOperatorNode(left: Logical? = null, right: Logical? = null): OperatorNode.Logical() {
 
     /** Input arity of [UnaryLogicalOperatorNode] is always two. */
     final override val inputArity: Int = 2
@@ -74,28 +74,19 @@ abstract class BinaryLogicalOperatorNode(left: Logical? = null, right: Logical? 
      *
      * @return Copy of this [BinaryLogicalOperatorNode].
      */
-    abstract override fun copy(): org.vitrivr.cottontail.dbms.queries.operators.logical.BinaryLogicalOperatorNode
+    abstract override fun copy(): BinaryLogicalOperatorNode
 
     /**
-     * Creates and returns a copy of this [BinaryLogicalOperatorNode] and all its inputs that belong to the same [GroupId],
-     * up and until the base of the tree.
+     * Creates and returns a copy of this [BinaryLogicalOperatorNode] using the given parents as input.
      *
-     * @return Copy of this [OperatorNode.Logical].
+     * @param input The [OperatorNode.Logical]s that act as input.
+     * @return Copy of this [BinaryLogicalOperatorNode].
      */
-    final override fun copyWithGroupInputs(): org.vitrivr.cottontail.dbms.queries.operators.logical.BinaryLogicalOperatorNode {
+    override fun copy(vararg input: Logical): BinaryLogicalOperatorNode {
+        require(input.size <= this.inputArity) { "Cannot provide more than ${this.inputArity} inputs for ${this.javaClass.simpleName}." }
         val copy = this.copy()
-        copy.left = this.left?.copyWithGroupInputs()
-        return copy
-    }
-
-    /**
-     * Creates and returns a copy of this [BinaryLogicalOperatorNode] and all its inputs up and until the base of the tree.
-     *
-     * @return Copy of this [OperatorNode.Logical].
-     */
-    final override fun copyWithInputs(): org.vitrivr.cottontail.dbms.queries.operators.logical.BinaryLogicalOperatorNode {
-        val copy = this.copyWithGroupInputs()
-        copy.right = this.right?.copyWithInputs()
+        copy.left = input.getOrNull(0)
+        copy.right = input.getOrNull(1)
         return copy
     }
 
@@ -107,11 +98,30 @@ abstract class BinaryLogicalOperatorNode(left: Logical? = null, right: Logical? 
      * @return Copy of this [OperatorNode.Logical] with its output.
      */
     override fun copyWithOutput(vararg input: Logical): Logical {
-        require(input.size <= this.inputArity) { "Cannot provide more than ${this.inputArity} inputs for ${this.javaClass.simpleName}." }
-        val copy = this.copy()
-        copy.left = input.getOrNull(0)
-        copy.right = input.getOrNull(1)
+        val copy = this.copy(*input)
         return (this.output?.copyWithOutput(copy) ?: copy).root
+    }
+
+    /**
+     * Creates and returns a copy of this [BinaryLogicalOperatorNode] and the entire input [OperatorNode.Logical] tree that belong to the same [GroupId].
+     *
+     * @return Copy of this [OperatorNode.Logical].
+     */
+    final override fun copyWithGroupInputs(): BinaryLogicalOperatorNode {
+        val copy = this.copy()
+        copy.left = this.left?.copyWithGroupInputs()
+        return copy
+    }
+
+    /**
+     * Creates and returns a copy of this [BinaryLogicalOperatorNode] and the entire input [OperatorNode.Logical] tree.
+     *
+     * @return Copy of this [OperatorNode.Logical].
+     */
+    final override fun copyWithInputs(): BinaryLogicalOperatorNode {
+        val copy = this.copyWithGroupInputs()
+        copy.right = this.right?.copyWithInputs()
+        return copy
     }
 
     /**

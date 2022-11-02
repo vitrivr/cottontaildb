@@ -49,6 +49,7 @@ data class StatisticsCatalogueEntry(val name: Name.ColumnName, val type: Types<*
         is Types.LongVector -> LongVectorValueStatistics(def.type.logicalSize)
         is Types.Complex32Vector -> Complex32VectorValueStatistics(def.type.logicalSize)
         is Types.Complex64Vector -> Complex64VectorValueStatistics(def.type.logicalSize)
+        is Types.ByteString -> ByteStringValueStatistics()
     })
 
     /**

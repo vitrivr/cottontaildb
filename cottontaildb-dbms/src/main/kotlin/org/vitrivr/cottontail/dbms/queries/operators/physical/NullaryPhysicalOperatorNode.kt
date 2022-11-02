@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.logical.NullaryLogicalOpera
  * An abstract [OperatorNode.Physical] implementation that has no input node, i.e., acts as a source.
  *
  * @author Ralph Gasser
- * @version 2.6.0
+ * @version 2.7.0
  */
 abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical() {
     /** The arity of the [NullaryPhysicalOperatorNode] is always on. */
@@ -57,6 +57,28 @@ abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical() {
     abstract override fun copy(): NullaryPhysicalOperatorNode
 
     /**
+     * Creates and returns a copy of this [NullaryPhysicalOperatorNode] using the provided nodes as input.
+     *
+     * @param input The [OperatorNode.Physical]s that act as input to this [NullaryPhysicalOperatorNode].
+     * @return Copy of this [NullaryPhysicalOperatorNode] with new input.
+     */
+    final override fun copy(vararg input: Physical): NullaryPhysicalOperatorNode {
+        require(input.isEmpty()) { "Cannot provide input for NullaryPhysicalOperatorNode." }
+        return this.copy()
+    }
+
+    /**
+     * Creates and returns a copy of this [NullaryPhysicalOperatorNode] and its entire output [OperatorNode.Physical] tree using the provided nodes as input.
+     *
+     * @param input The [OperatorNode.Physical]s that act as input. Must be empty!
+     * @return Copy of this [NullaryPhysicalOperatorNode] with its output.
+     */
+    final override fun copyWithOutput(vararg input: Physical): Physical {
+        val copy = this.copy(*input)
+        return (this.output?.copyWithOutput(copy) ?: copy).root
+    }
+
+    /**
      * Creates and returns a copy of this [NullaryLogicalOperatorNode].
      *
      * @return Copy of this [OperatorNode.Logical].
@@ -69,18 +91,6 @@ abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical() {
      * @return Copy of this [OperatorNode.Logical].
      */
     final override fun copyWithInputs(): NullaryPhysicalOperatorNode = this.copy()
-
-    /**
-     * Creates and returns a copy of this [NullaryPhysicalOperatorNode] with its output reaching down to the [root] of the tree.
-     *
-     * @param input The [OperatorNode.Physical]s that act as input. Must be empty!
-     * @return Copy of this [NullaryPhysicalOperatorNode] with its output.
-     */
-    override fun copyWithOutput(vararg input: Physical): Physical {
-        require(input.isEmpty()) { "Cannot provide input for NullaryPhysicalOperatorNode." }
-        val copy = this.copy()
-        return (this.output?.copyWithOutput(copy) ?: copy).root
-    }
 
     /**
      * By default, a [NullaryPhysicalOperatorNode] cannot be partitioned and hence this method returns null.

@@ -10,9 +10,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
  * An abstract [OperatorNode.Logical] implementation that has no input.
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.7.0
  */
-abstract class NullaryLogicalOperatorNode() : org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical() {
+abstract class NullaryLogicalOperatorNode: OperatorNode.Logical() {
     /** Input arity of [NullaryLogicalOperatorNode] is always zero. */
     final override val inputArity: Int = 0
 
@@ -37,6 +37,17 @@ abstract class NullaryLogicalOperatorNode() : org.vitrivr.cottontail.dbms.querie
      * @return Copy of this [NullaryLogicalOperatorNode].
      */
     abstract override fun copy(): NullaryLogicalOperatorNode
+
+    /**
+     * Creates and returns a copy of this [NullaryLogicalOperatorNode] using the provided [OperatorNode.Logical] as input.
+     *
+     * @param input The [OperatorNode.Logical]s that act as input to this [NullaryLogicalOperatorNode].
+     * @return Copy of this [NullaryLogicalOperatorNode] with new input.
+     */
+    final override fun copy(vararg input: Logical): NullaryLogicalOperatorNode {
+        require(input.isEmpty()) { "Cannot provide input for NullaryPhysicalOperatorNode." }
+        return this.copy()
+    }
 
     /**
      * Creates and returns a copy of this [NullaryLogicalOperatorNode].

@@ -1,0 +1,15 @@
+.container{
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.connection-header{
+  display:flex;
+  justify-content: space-between;
+}
+button{
+  width: fit-content;
+  height: fit-content;
+}
+

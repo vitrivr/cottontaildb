@@ -18,7 +18,7 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Physical] implementation that has a single [OperatorNode] as input.
  *
  * @author Ralph Gasser
- * @version 2.6.0
+ * @version 2.7.0
  */
 abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode.Physical() {
 
@@ -101,8 +101,32 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
     abstract override fun copy(): UnaryPhysicalOperatorNode
 
     /**
-     * Creates and returns a copy of this [UnaryPhysicalOperatorNode] and all its inputs that belong to the same [GroupId],
-     * up and until the base of the tree.
+     * Creates and returns a copy of this [UnaryPhysicalOperatorNode] using the given parents as input.
+     *
+     * @param input The [OperatorNode.Physical]s that act as input.
+     * @return Copy of this [UnaryPhysicalOperatorNode].
+     */
+    final override fun copy(vararg input: Physical): UnaryPhysicalOperatorNode {
+        require(input.size <= this.inputArity) { "Cannot provide more than ${this.inputArity} inputs for ${this.javaClass.simpleName}." }
+        val copy = this.copy()
+        copy.input = input.getOrNull(0)
+        return copy
+    }
+
+    /**
+     * Creates and returns a copy of this [UnaryPhysicalOperatorNode] and its entire output [OperatorNode.Physical] tree using the provided nodes as input.
+     *
+     * @param input The [OperatorNode.Physical]s that act as input.
+     * @return Copy of this [UnaryPhysicalOperatorNode] with its output.
+     */
+    final override fun copyWithOutput(vararg input: Physical): Physical {
+        require(input.size <= this.inputArity) { "Cannot provide more than ${this.inputArity} inputs for ${this.javaClass.simpleName}." }
+        val copy = this.copy(*input)
+        return (this.output?.copyWithOutput(copy) ?: copy).root
+    }
+
+    /**
+     * Creates and returns a copy of this [UnaryPhysicalOperatorNode] and the entire input [OperatorNode.Physical] tree that belong to the same [GroupId].
      *
      * @return Copy of this [OperatorNode.Logical].
      */
@@ -113,25 +137,11 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
     }
 
     /**
-     * Creates and returns a copy of this [UnaryPhysicalOperatorNode] and all its inputs, up and until the base of the tree.
+     * Creates and returns a copy of this [UnaryPhysicalOperatorNode] and the entire input [OperatorNode.Physical] tree.
      *
      * @return Copy of this [OperatorNode.Physical].
      */
     final override fun copyWithInputs() = this.copyWithGroupInputs()
-
-    /**
-     * Creates and returns a copy of this [UnaryPhysicalOperatorNode] with its output reaching down to the [root] of the tree.
-     * Furthermore, connects the provided [input] to the copied [UnaryPhysicalOperatorNode]s.
-     *
-     * @param input The [OperatorNode.Physical]s that act as input.
-     * @return Copy of this [UnaryPhysicalOperatorNode] with its output.
-     */
-    override fun copyWithOutput(vararg input: Physical): Physical {
-        require(input.size <= this.inputArity) { "Cannot provide more than ${this.inputArity} inputs for ${this.javaClass.simpleName}." }
-        val copy = this.copy()
-        copy.input = input.getOrNull(0)
-        return (this.output?.copyWithOutput(copy) ?: copy).root
-    }
 
     /**
      * Tries to create a partitioned version of this [UnaryPhysicalOperatorNode] and its parents.

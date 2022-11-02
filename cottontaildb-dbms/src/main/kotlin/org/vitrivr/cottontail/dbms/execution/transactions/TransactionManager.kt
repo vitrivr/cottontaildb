@@ -13,6 +13,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
@@ -82,7 +83,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         override val xodusTx: jetbrains.exodus.env.Transaction = this@TransactionManager.catalogue.environment.beginTransaction()
 
         /** Map of all [Tx] that have been created as part of this [TransactionImpl]. */
-        private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
+        private val txns: MutableMap<Name, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
         /** A [Mutex] data structure used for synchronisation on the [TransactionImpl]. */
         private val mutex = Mutex()
@@ -143,7 +144,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          * @param dbo [DBO] to return the [Tx] for.
          * @return entity [Tx]
          */
-        override fun getTx(dbo: DBO): Tx = this.txns.computeIfAbsent(dbo) {
+        override fun getTx(dbo: DBO): Tx = this.txns.computeIfAbsent(dbo.name) {
             dbo.newTx(this)
         }
 
@@ -202,9 +203,8 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          */
         override fun commit() = runBlocking {
             this@TransactionImpl.mutex.withLock { /* Synchronise with ongoing COMMITS, ROLLBACKS or queries that are being scheduled. */
-                check(this@TransactionImpl.state.canCommit) {
-                    "Unable to commit transaction ${this@TransactionImpl.txId} because it is in wrong state (s = ${this@TransactionImpl.state})."
-                }
+                if (!this@TransactionImpl.state.canCommit)
+                    throw TransactionException.Commit(this@TransactionImpl.txId, "Unable to COMMIT because transaction is in wrong state (s = ${this@TransactionImpl.state}).")
                 this@TransactionImpl.state = TransactionStatus.FINALIZING
                 var commit = false
                 try {
@@ -232,9 +232,8 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          */
         override fun rollback() = runBlocking {
             this@TransactionImpl.mutex.withLock {
-                check(this@TransactionImpl.state.canRollback) {
-                    "Unable to rollback transaction ${this@TransactionImpl.txId} because it is in wrong state (s = ${this@TransactionImpl.state})."
-                }
+                if (!this@TransactionImpl.state.canRollback)
+                    throw TransactionException.Rollback(this@TransactionImpl.txId, "Unable to ROLLBACK because transaction is in wrong state (s = ${this@TransactionImpl.state}).")
                 this@TransactionImpl.performRollback()
             }
         }

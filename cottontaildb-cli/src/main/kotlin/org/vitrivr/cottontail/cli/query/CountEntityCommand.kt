@@ -15,7 +15,7 @@ import kotlin.time.ExperimentalTime
  * @version 1.0.2
  */
 @ExperimentalTime
-class CountEntityCommand(client: SimpleClient): AbstractCottontailCommand.Query(client, name = "count", help = "Counts the number of entries in the given entity. Usage: entity count <schema>.<entity>") {
+class CountEntityCommand(client: SimpleClient): AbstractCottontailCommand.Query(client, name = "count", help = "Counts the number of entries in the given entity") {
 
     private val entityName: Name.EntityName by argument(name = "entity", help = "The fully qualified entity name targeted by the command. Has the form of [\"warren\"].<schema>.<entity>").convert {
         val split = it.split(Name.DELIMITER)

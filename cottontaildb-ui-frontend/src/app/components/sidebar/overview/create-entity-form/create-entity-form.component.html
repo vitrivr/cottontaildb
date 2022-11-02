@@ -1,0 +1,122 @@
+<div class="container">
+
+  <h1> Create a new entity for {{schemaName}}</h1>
+
+  <div class="body">
+
+    <form #entityName="ngForm"
+          (ngSubmit)="submitEntityName()"
+          [formGroup]="entityForm">
+      <div class="content">
+
+        <mat-form-field appearance="outline" class="entity-name">
+          <mat-label>entity name</mat-label>
+          <input matInput class="form-control" type="text" name= "name" placeholder="Last name, First name" formControlName="name" ngModel>
+        </mat-form-field>
+
+        <div class="reset-button">
+          <button (click)="onReset()"
+                  mat-flat-button
+                  color="accent">
+            Reset
+          </button>
+        </div>
+
+        <div class="create-button">
+          <button mat-flat-button
+                  color="accent"
+                  type="button"
+                  (click)="onCreateEntity()" [disabled]="(entityName.invalid)|| (columnData.length === 0)">
+            Create
+          </button>
+        </div>
+
+      </div>
+
+
+    </form>
+
+    <form #name="ngForm"
+          (ngSubmit)="submitColumn()"
+          [formGroup]="columnForm">
+      <div class="content">
+        <mat-form-field appearance="outline">
+          <mat-label>column name</mat-label>
+          <input matInput type="text"
+                 formControlName="name"
+                 name= "name"
+                 class="form-control"
+                 ngModel>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Type</mat-label>
+          <mat-select  formControlName="type"  class="form-control">
+            <mat-option>--- None ---</mat-option>
+            <mat-option value="{{type}}" *ngFor="let type of types">{{type}}</mat-option>
+          </mat-select>
+          <span class="mat-error" *ngIf="name.invalid&&name.touched"> </span>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Nullable</mat-label>
+          <mat-select  formControlName="nullable"  class="form-control">
+            <mat-option>--- None ---</mat-option>
+            <mat-option value="{{nullable}}" *ngFor="let nullable of [true,false]">{{nullable}}</mat-option>
+          </mat-select>
+          <span class="mat-error" *ngIf="name.invalid&&name.touched"> </span>
+        </mat-form-field>
+
+        <button class="add-button"
+                mat-flat-button
+                color="accent"
+                [disabled]="columnForm.invalid">
+          Add
+        </button>
+
+      </div>
+    </form>
+
+    <div class="content">
+
+    </div>
+
+    <h3> Columns Preview </h3>
+
+
+    <div class="table">
+      <table>
+        <thead>
+        <tr *ngIf="columnData.length > 0">
+          <th>name</th>
+          <th>type</th>
+          <th>nullable</th>
+          <th>size</th>
+          <th>action</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr *ngFor="let item of columnData">
+          <td><span>{{item.name}}</span></td>
+          <td><span>{{item.type}}</span></td>
+          <td><span>{{item.nullable}}</span></td>
+          <td><span>-1</span></td>
+          <td><button mat-button type="button" class="btn btn-primary" (click)="removeItem(item)">Remove</button></td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+
+
+
+
+  </div>
+
+
+
+
+
+</div>
+
+
+

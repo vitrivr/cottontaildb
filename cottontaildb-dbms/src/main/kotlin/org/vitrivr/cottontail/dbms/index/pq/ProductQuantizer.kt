@@ -68,13 +68,13 @@ class ProductQuantizer private constructor(private val codebooks: Array<PQCodebo
             val dimensionsPerSubspace = logicalSize / numSubspaces
 
             val reshaped = distance.copy(dimensionsPerSubspace)
-            val codebooks = Array(numSubspaces) { i ->
-                PQCodebook(reshaped, Array(config.numCentroids) { j ->
+            val codebooks = Array(numSubspaces) { j ->
+                PQCodebook(reshaped, Array(config.numCentroids) { i ->
                     when(distance.type) {
-                        is Types.DoubleVector -> DoubleVectorValue(config.centroids[j * i + j])
-                        is Types.FloatVector -> FloatVectorValue(config.centroids[j * i + j])
-                        is Types.LongVector -> LongVectorValue(config.centroids[j * i + j].toList())
-                        is Types.IntVector -> IntVectorValue(config.centroids[j * i + j].toList())
+                        is Types.DoubleVector -> DoubleVectorValue(config.centroids[j * config.numCentroids + i])
+                        is Types.FloatVector -> FloatVectorValue(config.centroids[j * config.numCentroids + i])
+                        is Types.LongVector -> LongVectorValue(config.centroids[j * config.numCentroids + i].toList())
+                        is Types.IntVector -> IntVectorValue(config.centroids[j * config.numCentroids + i].toList())
                         else -> throw IllegalArgumentException("Reconstruction of product quantizer not possible; type ${distance.type} not supported.")
                     }
                 })

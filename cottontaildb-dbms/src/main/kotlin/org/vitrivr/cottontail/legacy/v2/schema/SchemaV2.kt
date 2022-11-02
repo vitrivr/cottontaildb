@@ -156,6 +156,10 @@ class SchemaV2(val path: Path, override val parent: CatalogueV2) : Schema, AutoC
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
+        override fun truncateEntity(name: Name.EntityName) {
+            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
+
         /**
          * Releases the [closeLock] on the [SchemaV2].
          */

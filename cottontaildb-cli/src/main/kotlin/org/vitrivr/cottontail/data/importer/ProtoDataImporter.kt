@@ -63,6 +63,7 @@ class ProtoDataImporter(override val path: Path, override val schema: List<Colum
                 is Types.BooleanVector -> element.value.vectorData.toBooleanVectorValue()
                 is Types.Complex32Vector -> element.value.vectorData.toComplex32VectorValue()
                 is Types.Complex64Vector -> element.value.vectorData.toComplex64VectorValue()
+                is Types.ByteString -> TODO()
             }
         }
         return value

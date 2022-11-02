@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.*
 import org.vitrivr.cottontail.dbms.catalogue.storeName
+import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
@@ -15,6 +16,7 @@ import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
+import org.vitrivr.cottontail.dbms.index.IndexTx
 import kotlin.concurrent.withLock
 
 /**
@@ -199,6 +201,36 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             }
             if (!SequenceCatalogueEntries.delete(name.tid(), this@DefaultSchema.catalogue, this.context.xodusTx)) {
                 throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to delete tuple ID sequence entry.")
+            }
+        }
+
+        /**
+         * Truncates an [Entity] in the [DefaultSchema] underlying this [DefaultSchema.Tx].
+         *
+         * @param name The name of the [Entity] that should be truncated.
+         */
+        override fun truncateEntity(name: Name.EntityName) = this.txLatch.withLock {
+            /* Obtain entity entry and thereby check if it exists. */
+            val entry = EntityCatalogueEntry.read(name, this@DefaultSchema.catalogue, this.context.xodusTx) ?: throw DatabaseException.EntityDoesNotExistException(name)
+
+            /* Clears all indexes. */
+            val entityTx = this.context.getTx(DefaultEntity(name, this@DefaultSchema)) as EntityTx
+            entry.indexes.forEach {
+                val indexTx = this.context.getTx(entityTx.indexForName(it)) as IndexTx
+                indexTx.clear()
+            }
+
+            /* Clears all columns. */
+            entry.columns.forEach {
+                val columnTx = this.context.getTx(entityTx.columnForName(it)) as ColumnTx<*>
+                columnTx.clear()
+            }
+
+            /* Resets the tuple ID counter. */
+            if (!SequenceCatalogueEntries.reset(name.tid(), this@DefaultSchema.catalogue, this.context.xodusTx)) {
+                if (SequenceCatalogueEntries.read(name.tid(), this@DefaultSchema.catalogue, this.context.xodusTx) == null) {
+                    throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to reset tuple ID sequence entry.")
+                }
             }
         }
 

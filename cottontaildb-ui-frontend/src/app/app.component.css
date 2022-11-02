@@ -1,0 +1,28 @@
+.content {
+  display: flex;
+  height: 100%;
+}
+.sidebar {
+  min-width: 400px;
+  height: 100vh;
+  overflow: auto;
+}
+.main {
+  flex-grow: 1;
+}
+
+@media all and (max-width: 900px) {
+  .content {
+    flex-wrap: wrap;
+  }
+  .sidebar {
+    height: auto;
+    order: 1;
+    min-width: 100%;
+  }
+  .main {
+    order: 2;
+    min-width: 100%;
+  }
+}
+

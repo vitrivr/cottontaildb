@@ -71,22 +71,26 @@ internal interface TransactionalGrpcService {
         }
 
         /* Parse all the query hints provided by the user. */
-        val hints = metadata.hintList.mapNotNull {
-            when (it.hintCase) {
-                CottontailGrpc.Hint.HintCase.NOINDEXHINT -> QueryHint.NoIndex
-                CottontailGrpc.Hint.HintCase.PARALLELINDEXHINT -> QueryHint.NoParallel
-                CottontailGrpc.Hint.HintCase.POLICYHINT -> QueryHint.CostPolicy(
-                    it.policyHint.weightIo,
-                    it.policyHint.weightCpu,
-                    it.policyHint.weightMemory,
-                    it.policyHint.weightAccuracy,
-                    this.catalogue.config.cost.speedupPerWorker, /* Setting is inherited from global config. */
-                    this.catalogue.config.cost.nonParallelisableIO /* Setting is inherited from global config. */
-                )
-                CottontailGrpc.Hint.HintCase.NAMEINDEXHINT -> TODO()
-                else -> null
-            }
-        }.toSet()
+//        val hints = metadata.hintList.mapNotNull {
+//            when (it.hintCase) {
+//                CottontailGrpc.Hint.HintCase.NOINDEXHINT -> QueryHint.NoIndex
+//                CottontailGrpc.Hint.HintCase.PARALLELINDEXHINT -> QueryHint.NoParallel
+//                CottontailGrpc.Hint.HintCase.POLICYHINT -> QueryHint.CostPolicy(
+//                    it.policyHint.weightIo,
+//                    it.policyHint.weightCpu,
+//                    it.policyHint.weightMemory,
+//                    it.policyHint.weightAccuracy,
+//                    this.catalogue.config.cost.speedupPerWorker, /* Setting is inherited from global config. */
+//                    this.catalogue.config.cost.nonParallelisableIO /* Setting is inherited from global config. */
+//                )
+//                CottontailGrpc.Hint.HintCase.NAMEINDEXHINT -> TODO()
+//                else -> null
+//            }
+//        }.toSet()
+
+        val hints = mutableSetOf<QueryHint>()
+
+        //TODO parse new hint format
 
         return DefaultQueryContext(queryId, this.catalogue, transactionContext, hints)
     }
@@ -191,7 +195,8 @@ internal interface TransactionalGrpcService {
             is DatabaseException.EntityAlreadyExistsException,
             is DatabaseException.IndexAlreadyExistsException -> Status.ALREADY_EXISTS.withCause(e)
             is DatabaseException.NoColumnException,
-            is DatabaseException.DuplicateColumnException -> Status.INVALID_ARGUMENT.withCause(e)
+            is DatabaseException.DuplicateColumnException,
+            is DatabaseException.ValidationException -> Status.INVALID_ARGUMENT.withCause(e)
             is DeadlockException,
             is TransactionException.InConflict -> Status.ABORTED.withCause(e)
             is ExecutionException,

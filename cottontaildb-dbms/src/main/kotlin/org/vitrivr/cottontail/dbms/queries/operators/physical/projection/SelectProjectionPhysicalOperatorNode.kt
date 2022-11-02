@@ -5,26 +5,17 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.operators.projection.SelectDistinctProjectionOperator
 import org.vitrivr.cottontail.dbms.execution.operators.projection.SelectProjectionOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
 
 /**
- * Formalizes a [UnaryPhysicalOperatorNode] operation in the Cottontail DB query execution engine.
+ * A [AbstractProjectionPhysicalOperatorNode] that formalizes a [Projection.SELECT] operation in a Cottontail DB query plan.
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 1.0.0
  */
-class SelectProjectionPhysicalOperatorNode(input: Physical? = null, type: Projection, val fields: List<Name.ColumnName>): AbstractProjectionPhysicalOperatorNode(input, type) {
-
-    init {
-        /* Sanity check. */
-        require(this.type in arrayOf(Projection.SELECT, Projection.SELECT_DISTINCT)) {
-            "Projection of type ${this.type} cannot be used with instances of AggregatingProjectionLogicalNodeExpression."
-        }
-    }
+class SelectProjectionPhysicalOperatorNode(input: Physical? = null, val fields: List<Name.ColumnName>): AbstractProjectionPhysicalOperatorNode(input, Projection.SELECT) {
 
     /** The name of this [SelectProjectionPhysicalOperatorNode]. */
     override val name: String
@@ -54,7 +45,7 @@ class SelectProjectionPhysicalOperatorNode(input: Physical? = null, type: Projec
      *
      * @return Copy of this [SelectProjectionPhysicalOperatorNode].
      */
-    override fun copy() = SelectProjectionPhysicalOperatorNode(type = this.type, fields = this.fields)
+    override fun copy() = SelectProjectionPhysicalOperatorNode(fields = this.fields)
 
     /**
      * Converts this [SelectProjectionPhysicalOperatorNode] to a [SelectProjectionOperator].
@@ -63,11 +54,7 @@ class SelectProjectionPhysicalOperatorNode(input: Physical? = null, type: Projec
      */
     override fun toOperator(ctx: QueryContext): Operator {
         val input = this.input ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
-        return when (this.type) {
-            Projection.SELECT -> SelectProjectionOperator(input.toOperator(ctx), this.fields)
-            Projection.SELECT_DISTINCT -> SelectDistinctProjectionOperator(input.toOperator(ctx), this.fields, input.outputSize)
-            else -> throw IllegalArgumentException("SelectProjectionPhysicalOperatorNode can only have type SELECT or SELECT_DISTINCT. This is a programmer's error!")
-        }
+        return SelectProjectionOperator(input.toOperator(ctx), this.fields)
     }
 
     override fun equals(other: Any?): Boolean {

@@ -1,70 +1,58 @@
 package org.vitrivr.cottontail.dbms.execution.operators.projection
 
-import com.google.common.hash.BloomFilter
-import com.google.common.hash.Funnel
-import com.google.common.hash.PrimitiveSink
-import kotlinx.coroutines.flow.*
+import jetbrains.exodus.ArrayByteIterable
+import jetbrains.exodus.env.Environment
+import jetbrains.exodus.env.Environments
+import jetbrains.exodus.env.Store
+import jetbrains.exodus.env.StoreConfig
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.onCompletion
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.*
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import java.nio.charset.Charset
+import org.vitrivr.cottontail.utilities.hashing.RecordHasher
+import java.nio.file.Files
+import java.util.*
 
 /**
- * An [Operator.PipelineOperator] used during query execution. It generates new [Record]s for
- * each incoming [Record] and removes / renames field according to the [fields] definition provided.
+ * An [Operator.PipelineOperator] used during query execution. It projects on the defined fields and makes sure, that the combination of specified [ColumnDef] remains unique.
  *
  * Only produces a single [Record].
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 2.0.0
  */
-class SelectDistinctProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, expected: Long) : Operator.PipelineOperator(parent) {
-
-    /** [Funnel] implementation for [Record]s. */
-    object ValueFunnel : Funnel<Array<Value?>> {
-        override fun funnel(from: Array<Value?>, into: PrimitiveSink) {
-            from.forEach { value ->
-                when (value) {
-                    is BooleanValue -> into.putBoolean(value.value)
-                    is ByteValue -> into.putByte(value.value)
-                    is ShortValue -> into.putShort(value.value)
-                    is IntValue -> into.putInt(value.value)
-                    is LongValue -> into.putLong(value.value)
-                    is FloatValue -> into.putFloat(value.value)
-                    is DoubleValue -> into.putDouble(value.value)
-                    is DateValue -> into.putLong(value.value)
-                    is Complex32Value -> {
-                        into.putFloat(value.real.value)
-                        into.putFloat(value.imaginary.value)
-                    }
-                    is Complex64Value -> {
-                        into.putDouble(value.real.value)
-                        into.putDouble(value.imaginary.value)
-                    }
-                    is StringValue -> into.putString(value.value, Charset.defaultCharset())
-                    is BooleanVectorValue -> value.data.forEach { into.putBoolean(it) }
-                    is IntVectorValue -> value.data.forEach { into.putInt(it) }
-                    is LongVectorValue -> value.data.forEach { into.putLong(it) }
-                    is FloatVectorValue -> value.data.forEach { into.putFloat(it) }
-                    is DoubleVectorValue -> value.data.forEach { into.putDouble(it) }
-                    is Complex32VectorValue -> value.data.forEach { into.putFloat(it) }
-                    is Complex64VectorValue -> value.data.forEach { into.putDouble(it) }
-                    else -> into.putLong(-1L)
-                }
-            }
-        }
+class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.ColumnName, Boolean>>, config: Config) : Operator.PipelineOperator(parent) {
+    companion object {
+        /** [Logger] instance used by [SelectDistinctProjectionOperator]. */
+        private val LOGGER: Logger = LoggerFactory.getLogger(SelectDistinctProjectionOperator::class.java)
     }
 
-    /** Columns produced by [SelectProjectionOperator]. */
-    override val columns: List<ColumnDef<*>> = this.parent.columns.filter { c -> fields.any { f -> f == c.name }}
+    /** Columns produced by [SelectDistinctProjectionOperator]. */
+    override val columns: List<ColumnDef<*>> = this.parent.columns.filter { c -> fields.any { f -> f.first == c.name }}
 
-    /** The [BloomFilter] used for SELECT DISTINCT. */
-    private val bloomFilter = BloomFilter.create(ValueFunnel, expected)
+    /** The columns marked as distinct for this [SelectDistinctProjectionOperator]. */
+    private val distinctColumns = this.parent.columns.filter { c -> fields.any { f -> f.first == c.name && f.second}}
+
+    /** The name of the temporary [Store] used to execute this [SelectDistinctProjectionOperator] operation. */
+    private val tmpPath = config.temporaryDataFolder().resolve("${UUID.randomUUID()}")
+
+    /** The Xodus [Environment] used by Cottontail DB. This is an internal variable and not part of the official interface. */
+    private val tmpEnvironment: Environment = Environments.newInstance(this.tmpPath.toFile(), config.xodus.toEnvironmentConfig())
+
+    /** Start an exclusive transaction. */
+    private val tmpTxn = this.tmpEnvironment.beginExclusiveTransaction()
+
+    /** The [Store] used to execute this [SelectDistinctProjectionOperator] operation. */
+    private val store: Store = this.tmpEnvironment.openStore("distinct", StoreConfig.WITHOUT_DUPLICATES, this.tmpTxn)
 
     /** [SelectProjectionOperator] does not act as a pipeline breaker. */
     override val breaker: Boolean = false
@@ -77,14 +65,27 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Name.Colum
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val columns = this.columns.toTypedArray()
-        val values = arrayOfNulls<Value?>(columns.size)
+        val hasher = RecordHasher(this.distinctColumns)
         return this.parent.toFlow(context).mapNotNull { r ->
-            columns.forEachIndexed { i, c -> values[i] = r[c]  }
-            if (!this.bloomFilter.mightContain(values)) {
-                this.bloomFilter.put(values)
-                StandaloneRecord(r.tupleId, columns, values)
+            /* Generates hash from record. */
+            val hash = ArrayByteIterable(hasher.hash(r))
+
+            /* If record could be added to list of seen records (i.e., is the first of its kind) then entry is returned. */
+            if (this.store.add(this.tmpTxn, hash, r.tupleId.toKey())) {
+                StandaloneRecord(r.tupleId, columns, Array(columns.size) { r[columns[it]]})
             } else {
                 null
+            }
+        }.onCompletion {
+            try {
+                /* Abort transaction and close environment. */
+                this@SelectDistinctProjectionOperator.tmpTxn.abort()
+                this@SelectDistinctProjectionOperator.tmpEnvironment.close()
+
+                /* Delete temporary environments. */
+                Files.walk(this@SelectDistinctProjectionOperator.tmpPath).sorted(Comparator.reverseOrder()).forEach { Files.delete(it) }
+            } catch (e: Throwable) {
+                LOGGER.warn("Failed to cleanup temporary data structures after query has concluded: ${e.message}")
             }
         }
     }
