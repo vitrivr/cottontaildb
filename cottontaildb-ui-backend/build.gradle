@@ -31,6 +31,10 @@ dependencies {
 
     /* Jackson databind. */
     implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: version_jackson
+
+    /* Caffeine 3 */
+    implementation group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: version_caffeine
+
 }
 
 test {
