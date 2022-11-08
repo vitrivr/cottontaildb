@@ -28,6 +28,8 @@ object EntityController {
         }
     }
 
+
+
     data class IndexInfo(val index : IndexType, val skipBuild : Boolean){}
 
 
@@ -86,6 +88,7 @@ object EntityController {
 
         val clientConfig = ClientConfig(context.pathParam("port").toInt())
 
+        Query()
         val indexName = context.pathParam("name")
 
         val i = indexName.lastIndexOf(".")

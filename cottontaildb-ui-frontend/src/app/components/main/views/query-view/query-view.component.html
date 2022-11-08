@@ -1,1 +1,26 @@
-<p>query-view works!</p>
+<div>
+  <ng-container [formGroup]="queryForm">
+    <ng-container formArrayName="queryFunctions">
+      <ng-container *ngFor="let item of queryFunctions.controls; index as i">
+        <ng-container [ngSwitch]="item.value.function">
+          <ng-container *ngSwitchCase="'select'">
+            <app-select-form [index]="i">
+            </app-select-form>
+          </ng-container>
+        </ng-container>
+      </ng-container>
+    </ng-container>
+  </ng-container>
+
+  <button mat-button [matMenuTriggerFor]="menu">ADD</button>
+  <mat-menu #menu="matMenu">
+    <button mat-flat-button (click)="addSelect()">SELECT</button>
+  </mat-menu>
+
+  <button mat-button (click)="onLog()">LOG</button>
+  <button mat-button (click)="onQuery()">QUERY</button>
+
+</div>
+
+
+

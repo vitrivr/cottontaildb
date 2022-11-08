@@ -18,7 +18,6 @@ object SchemaController {
         val schema: Schema = gson.fromJson(context.body(), Schema::class.java)
         val result : TupleIterator = clientConfig.client.create(CreateSchema(schema.name))
         context.json(result)
-
     }
     fun dropSchema(context: Context){
         val clientConfig = ClientConfig(context.pathParam("port").toInt())

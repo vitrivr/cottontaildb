@@ -1,0 +1,8 @@
+<ng-container>
+  <form [formGroup]="conditions">
+    <div *ngFor="let item of aboutEntityData">
+      <mat-label> {{item.dbo}} </mat-label>
+      <mat-checkbox [formControlName]="item.dbo"> </mat-checkbox>
+    </div>
+  </form>
+</ng-container>
