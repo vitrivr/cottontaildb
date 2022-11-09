@@ -55,7 +55,7 @@ export class QueryService {
     return this.http.get(this.connectionService.apiURL + port + "/query/", {params}).pipe(
       map((queryData: QueryData) => queryData),
       catchError(err => throwError(err))
-    ).subscribe()
+    )
 
 
   }

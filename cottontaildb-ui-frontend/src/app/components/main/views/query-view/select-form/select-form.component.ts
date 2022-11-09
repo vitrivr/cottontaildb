@@ -48,9 +48,11 @@ export class SelectFormComponent implements OnInit {
 
 
     this.entityService.aboutEntitySubject.subscribe(() => {
-      this.aboutEntityData.forEach((item: { dbo: string; }) => {
-        this.conditions.addControl(item.dbo, new FormControl(false))
-      })
+      if(this.aboutEntityData != null){
+        this.aboutEntityData.forEach((item: { dbo: string; }) => {
+          this.conditions.addControl(item.dbo, new FormControl(false))
+        })
+      }
     })
 
 

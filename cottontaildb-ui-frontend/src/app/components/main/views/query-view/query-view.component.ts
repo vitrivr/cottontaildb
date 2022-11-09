@@ -2,7 +2,6 @@ import {Component, OnInit} from '@angular/core';
 import {FormArray, FormBuilder, FormControl, FormRecord} from "@angular/forms";
 import {QueryFunction, QueryMessage, QueryService, Select} from "../../../../services/query.service";
 import {SelectionService} from "../../../../services/selection.service";
-import {ConnectionService} from "../../../../services/connection.service";
 
 
 
@@ -19,6 +18,8 @@ export class QueryViewComponent implements OnInit {
   queryForm = this.fb.group({
     queryFunctions: this.fb.array([])
   })
+
+  queryData: any;
 
   constructor(private fb: FormBuilder,
               private queryService: QueryService,
@@ -48,10 +49,8 @@ export class QueryViewComponent implements OnInit {
         let select = new Select(item.conditions)
         qm.push(select)
       }
-      console.log(qm)
     })
-    console.log(this.selection.port)
-    console.log(this.queryService.query(this.selection.port, this.selection.entity, new QueryMessage(qm)))
+    this.queryService.query(this.selection.port, this.selection.entity, new QueryMessage(qm)).subscribe(qd => this.queryData = qd)
   }
 
 

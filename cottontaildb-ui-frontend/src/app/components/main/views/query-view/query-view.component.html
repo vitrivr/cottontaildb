@@ -20,6 +20,26 @@
   <button mat-button (click)="onLog()">LOG</button>
   <button mat-button (click)="onQuery()">QUERY</button>
 
+
+  <div *ngIf="queryData">
+
+    <table mat-table [dataSource]="queryData.rows">
+
+
+      <mat-header-row *matHeaderRowDef="queryData.columnNames"></mat-header-row>
+      <mat-row *matRowDef="let row; columns: queryData.columnNames"></mat-row>
+
+      <ng-container *ngFor="let col of queryData.columnNames; index as i">
+        <ng-container [matColumnDef]="col">
+          <mat-header-cell  *matHeaderCellDef > {{col}} </mat-header-cell>
+          <mat-cell *matCellDef="let row"> {{row[i]}} </mat-cell>
+        </ng-container>
+      </ng-container>
+
+
+    </table>
+  </div>
+
 </div>
 
 

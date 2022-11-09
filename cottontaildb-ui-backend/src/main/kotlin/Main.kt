@@ -11,8 +11,6 @@ import list.ListController
 import org.eclipse.jetty.server.session.DefaultSessionCache
 import org.eclipse.jetty.server.session.FileSessionDataStore
 import org.eclipse.jetty.server.session.SessionHandler
-import org.vitrivr.cottontail.client.SimpleClient
-import org.vitrivr.cottontail.client.iterators.TupleIterator
 import query.QueryController
 import schema.SchemaController
 import system.SystemController
@@ -20,11 +18,11 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 
-// TODO:  
-/*var cache: LoadingCache<Pair<SimpleClient, QueryController.Query>, TupleIterator> =  Caffeine.newBuilder()
+
+var cache: LoadingCache<Triple<String, MutableMap<String, List<String>>, Int>, QueryController.QueryData> =  Caffeine.newBuilder()
     .maximumSize(10000)
     .expireAfterWrite(10, TimeUnit.MINUTES)
-    .build { key: Pair<SimpleClient, QueryController.Query> -> QueryController.executeQuery(key.first, key.second) };*/
+    .build { key: Triple<String, MutableMap<String, List<String>>, Int> -> QueryController.executeQuery(key.second, key.third) }
 
 fun fileSessionHandler() = SessionHandler().apply {
     sessionCache = DefaultSessionCache(this).apply {
