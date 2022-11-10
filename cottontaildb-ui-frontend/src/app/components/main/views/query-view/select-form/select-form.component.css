@@ -1,0 +1,20 @@
+.form-container{
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  width: 200px;
+  background-color: white;
+  border-bottom: solid 1px grey;
+  border-left: solid 1px grey;
+  border-right: solid 1px grey;
+}
+.select-form{
+  width: fit-content;
+  border-radius: 4px;
+  background-color: #4a148c;
+  padding-bottom: 20px;
+}
+.title{
+  padding: 10px;
+  color: white
+}

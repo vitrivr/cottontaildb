@@ -32,6 +32,7 @@ export class QueryViewComponent implements OnInit {
 
   ngOnInit(): void {
     this.selectionService.currentSelection.subscribe(selection => this.selection = selection)
+    this.addSelect()
   }
 
   addSelect(){

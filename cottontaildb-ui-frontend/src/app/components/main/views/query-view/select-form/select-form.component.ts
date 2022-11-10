@@ -27,6 +27,7 @@ export class SelectFormComponent implements OnInit {
   selection: any
   aboutEntityData: any
   conditions: any;
+  objectValues = Object.keys
 
   constructor(private fb: FormBuilder,
               private selectionService: SelectionService,
@@ -49,8 +50,10 @@ export class SelectFormComponent implements OnInit {
 
     this.entityService.aboutEntitySubject.subscribe(() => {
       if(this.aboutEntityData != null){
-        this.aboutEntityData.forEach((item: { dbo: string; }) => {
-          this.conditions.addControl(item.dbo, new FormControl(false))
+        this.aboutEntityData.forEach((item: { dbo: string; _class: string }) => {
+          if(item._class === "COLUMN"){
+            this.conditions.addControl(item.dbo, new FormControl(false))
+          }
         })
       }
     })

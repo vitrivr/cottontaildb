@@ -19,10 +19,19 @@ import java.util.concurrent.TimeUnit
 
 
 
-var cache: LoadingCache<Triple<String, MutableMap<String, List<String>>, Int>, QueryController.QueryData> =  Caffeine.newBuilder()
+var cache: LoadingCache<QueryController.QueryKey, QueryController.QueryData> =  Caffeine.newBuilder()
+    .maximumSize(100)
+    .expireAfterWrite(10, TimeUnit.MINUTES)
+    .build { key: QueryController.QueryKey ->
+        QueryController.executeQuery(key.queryMessage, key.port) }
+
+
+//request -> page size, page, query
+var pagedCache: LoadingCache<QueryController.QueryPageKey, QueryController.Page> =  Caffeine.newBuilder()
     .maximumSize(10000)
     .expireAfterWrite(10, TimeUnit.MINUTES)
-    .build { key: Triple<String, MutableMap<String, List<String>>, Int> -> QueryController.executeQuery(key.second, key.third) }
+    .build { key: QueryController.QueryPageKey -> QueryController.computePages(key.sessionID, key.queryMessage, key.port)[key.page] }
+
 
 fun fileSessionHandler() = SessionHandler().apply {
     sessionCache = DefaultSessionCache(this).apply {

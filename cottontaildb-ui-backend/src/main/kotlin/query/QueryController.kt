@@ -4,11 +4,28 @@ import ClientConfig
 import cache
 import io.javalin.http.Context
 import org.vitrivr.cottontail.client.language.dql.Query
-
+import pagedCache
 
 object QueryController {
 
-    class QueryData(val columnNames: List<String>, val rows: MutableList<List<String>>){
+    class QueryPageKey(val sessionID: String,
+                       val queryMessage : QueryMessage,
+                       val pageSize: Int,
+                       val page: Int,
+                       val port: Int){
+
+    }
+
+    class QueryKey(val sessionID: String, val queryMessage: QueryMessage, val port: Int)
+
+
+    class QueryMessage (val queryMap:  Map<String, List<String>>){
+    }
+
+    class QueryData(private val columnNames: List<String>, private val rows: MutableList<List<String>>, size: Int){
+
+        val pages = paginate(size)
+
         fun paginate(size: Int) : List<Page>{
             val chunks = rows.chunked(size)
             val pages = mutableListOf<Page>()
@@ -25,23 +42,29 @@ object QueryController {
 
     fun query(context: Context)  {
 
+        val sessionId = context.req().getSession(true).id
+
         val pageSize = 10
         val page = 0
 
         val port = context.pathParam("port").toInt()
         val queryMap = context.queryParamMap().toMutableMap()
         // Remove pagination parameters -> queryMap.remove()
-        val key = Triple(context.req().session.id, queryMap, port)
+        val key = QueryPageKey(sessionId, QueryMessage((queryMap)),pageSize,page,port)
 
         println("key: ")
         print(key)
 
-        context.json(cache.get(key).paginate(pageSize)[page])
+        context.json(pagedCache.get(key))
 
 
     }
 
-    fun executeQuery(queryMap: MutableMap<String, List<String>>, port: Int): QueryData {
+    fun executeQuery(queryMessage: QueryMessage, port: Int): QueryData {
+
+        println("EXECUTE")
+
+        val queryMap = queryMessage.queryMap
 
         val client = ClientConfig(port).client
         var query = Query(queryMap["FROM"]?.elementAt(0))
@@ -64,10 +87,14 @@ object QueryController {
             tuples.add(list)
         }
 
-        return QueryData(result.columnNames, tuples)
+        client.close()
+        return QueryData(result.columnNames, tuples, 10)
 
     }
 
+    fun computePages(sessionID: String, queryMessage: QueryMessage, port: Int) : List<Page> {
+        return cache.get(QueryKey(sessionID,queryMessage,port)).pages
+    }
 
 
 }

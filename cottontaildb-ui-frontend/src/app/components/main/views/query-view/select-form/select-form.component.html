@@ -1,8 +1,11 @@
 <ng-container>
-  <form [formGroup]="conditions">
-    <div *ngFor="let item of aboutEntityData">
-      <mat-label> {{item.dbo}} </mat-label>
-      <mat-checkbox [formControlName]="item.dbo"> </mat-checkbox>
-    </div>
-  </form>
+  <div [formGroup]="conditions" class="select-form">
+    <div class="title">SELECT</div>
+    <ng-container *ngFor="let item of aboutEntityData">
+      <div class="form-container" *ngIf="item._class === 'COLUMN'">
+        <mat-label> {{item.dbo.split(".")[3]}} </mat-label>
+        <mat-checkbox [formControlName]="item.dbo"> </mat-checkbox>
+      </div>
+    </ng-container>
+  </div>
 </ng-container>
