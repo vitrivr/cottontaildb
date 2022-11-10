@@ -1,6 +1,8 @@
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.LoadingCache
 import entity.EntityController
+import io.grpc.ManagedChannel
+import io.grpc.ManagedChannelBuilder
 import io.javalin.Javalin
 import io.javalin.apibuilder.ApiBuilder.*
 import io.javalin.http.Header
@@ -18,6 +20,11 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 
+var channelCache: LoadingCache<Pair<Int,String>, ManagedChannel> =  Caffeine.newBuilder()
+    .maximumSize(1000)
+    .expireAfterWrite(10, TimeUnit.MINUTES)
+    .build { key: Pair<Int,String> ->  ManagedChannelBuilder.forAddress(key.second, key.first).enableFullStreamDecompression().usePlaintext().build() }
+
 
 var cache: LoadingCache<QueryController.QueryKey, QueryController.QueryData> =  Caffeine.newBuilder()
     .maximumSize(100)
@@ -30,7 +37,7 @@ var cache: LoadingCache<QueryController.QueryKey, QueryController.QueryData> =  
 var pagedCache: LoadingCache<QueryController.QueryPageKey, QueryController.Page> =  Caffeine.newBuilder()
     .maximumSize(10000)
     .expireAfterWrite(10, TimeUnit.MINUTES)
-    .build { key: QueryController.QueryPageKey -> QueryController.computePages(key.sessionID, key.queryMessage, key.port)[key.page] }
+    .build { key: QueryController.QueryPageKey -> QueryController.computePages(key.sessionID, key.queryMessage, key.port, key.pageSize)[key.page] }
 
 
 fun fileSessionHandler() = SessionHandler().apply {
@@ -64,6 +71,7 @@ fun main() {
             ctx.header(Header.ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, PATCH, PUT, DELETE, OPTIONS")
             ctx.header(Header.ACCESS_CONTROL_ALLOW_HEADERS, "Authorization, Content-Type")
             ctx.header(Header.CONTENT_TYPE, "application/json")
+
         }
 
         path("{port}") {
