@@ -1,27 +1,24 @@
 package query
 
-import cache
 import channelCache
 import io.javalin.http.Context
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.dql.Query
 import pagedCache
-import java.io.Serializable
+import queryCache
 
 object QueryController {
 
-    class QueryPageKey (val sessionID: String,
-                       val queryMessage : QueryMessage,
+    data class QueryPageKey (val sessionID: String,
+                       val queryMap : Map<String, List<String>>,
                        val pageSize: Int,
                        val page: Int,
-                       val port: Int) : Serializable {
+                       val port: Int)  {
     }
 
-    class QueryKey(val sessionID: String, val queryMessage: QueryMessage, val port: Int)
+    data class QueryKey(val sessionID: String, val queryMap: Map<String, List<String>>, val port: Int)
 
 
-    class QueryMessage (val queryMap:  Map<String, List<String>>){
-    }
 
     class QueryData(private val columnNames: List<String>, private val rows: MutableList<List<String>>){
 
@@ -43,27 +40,26 @@ object QueryController {
     fun query(context: Context)  {
 
         println("QUERY CALL")
-        val session = context.req().session
-        println(session)
+        val sessionId = context.req().session.id
+        println(sessionId)
 
         val pageSize = 10
         val page = 0
 
         val port = context.pathParam("port").toInt()
         val queryMap = context.queryParamMap().toMutableMap()
-        // Remove pagination parameters -> queryMap.remove()
-        val key = QueryPageKey(session.id, QueryMessage((queryMap)),pageSize,page,port)
 
+        val key = QueryPageKey(sessionId, queryMap,pageSize,page,port)
+        println(key)
         context.json(pagedCache.get(key))
 
 
     }
 
-    fun executeQuery(queryMessage: QueryMessage, port: Int): QueryData {
+    fun executeQuery(queryMap: Map<String, List<String>>, port: Int): QueryData {
 
         println("EXECUTE")
 
-        val queryMap = queryMessage.queryMap
 
         val channel = channelCache.get(Pair(port,"localhost"))
         val client = SimpleClient(channel)
@@ -93,9 +89,9 @@ object QueryController {
 
     }
 
-    fun computePages(sessionID: String, queryMessage: QueryMessage, port: Int, pageSize: Int) : List<Page> {
+    fun computePages(sessionID: String, queryMessage: Map<String, List<String>>, port: Int, pageSize: Int) : List<Page> {
         println("COMPUTE PAGES")
-        return cache.get(QueryKey(sessionID,queryMessage,port)).paginate(pageSize)
+        return queryCache.get(QueryKey(sessionID,queryMessage,port)).paginate(pageSize)
     }
 
 

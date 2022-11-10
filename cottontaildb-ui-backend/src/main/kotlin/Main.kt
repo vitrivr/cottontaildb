@@ -21,23 +21,20 @@ import java.util.concurrent.TimeUnit
 
 
 var channelCache: LoadingCache<Pair<Int,String>, ManagedChannel> =  Caffeine.newBuilder()
-    .maximumSize(1000)
+    .maximumSize(100)
     .expireAfterWrite(10, TimeUnit.MINUTES)
     .build { key: Pair<Int,String> ->  ManagedChannelBuilder.forAddress(key.second, key.first).enableFullStreamDecompression().usePlaintext().build() }
 
-
-var cache: LoadingCache<QueryController.QueryKey, QueryController.QueryData> =  Caffeine.newBuilder()
+var queryCache: LoadingCache<QueryController.QueryKey, QueryController.QueryData> =  Caffeine.newBuilder()
     .maximumSize(100)
     .expireAfterWrite(10, TimeUnit.MINUTES)
     .build { key: QueryController.QueryKey ->
-        QueryController.executeQuery(key.queryMessage, key.port) }
+        QueryController.executeQuery(key.queryMap, key.port) }
 
-
-//request -> page size, page, query
 var pagedCache: LoadingCache<QueryController.QueryPageKey, QueryController.Page> =  Caffeine.newBuilder()
     .maximumSize(10000)
     .expireAfterWrite(10, TimeUnit.MINUTES)
-    .build { key: QueryController.QueryPageKey -> QueryController.computePages(key.sessionID, key.queryMessage, key.port, key.pageSize)[key.page] }
+    .build { key: QueryController.QueryPageKey -> QueryController.computePages(key.sessionID, key.queryMap, key.port, key.pageSize)[key.page] }
 
 
 fun fileSessionHandler() = SessionHandler().apply {
@@ -51,7 +48,6 @@ fun fileSessionHandler() = SessionHandler().apply {
 }
 
 fun main() {
-
 
     val app = Javalin.create { config ->
         config.staticFiles.add{
@@ -71,7 +67,6 @@ fun main() {
             ctx.header(Header.ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, PATCH, PUT, DELETE, OPTIONS")
             ctx.header(Header.ACCESS_CONTROL_ALLOW_HEADERS, "Authorization, Content-Type")
             ctx.header(Header.CONTENT_TYPE, "application/json")
-
         }
 
         path("{port}") {
