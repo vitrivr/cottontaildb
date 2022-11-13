@@ -3,32 +3,29 @@ import {HttpClient, HttpParams} from "@angular/common/http";
 import {catchError, map, throwError} from "rxjs";
 import {ConnectionService} from "./connection.service";
 
-export class QueryData{
+export class QueryData {
 }
 
 export interface QueryFunction {
   name: string
-  parameters: Array<any>
 }
 
 export class Select implements QueryFunction{
-  name: string = "SELECT"
-  parameters: Array<string> = []
-
-  constructor(conditions: object) {
-    let len = Object.values(conditions).length
-    for (let i = 0; i < len ; i++){
-      if (Object.values(conditions)[i]){
-        this.parameters.push(Object.keys(conditions)[i])
-      }}}
-}
-
-export class QueryMessage {
-  functions: Array<QueryFunction> = []
-  constructor(functions: Array<QueryFunction>) {
-    this.functions = functions
+  name = "SELECT";
+  parameters: [string]
+  constructor(column: string) {
+    this.parameters = [column]
   }
 }
+
+export class From implements QueryFunction{
+  name = "FROM";
+  parameters: [string]
+  constructor(entity: string) {
+    this.parameters = [entity]
+  }
+}
+
 
 
 @Injectable({
@@ -39,20 +36,13 @@ export class QueryService {
   constructor(private http:HttpClient,
               private connectionService: ConnectionService) {}
 
-  query(port: number, entity: string, queryMessage: QueryMessage){
+  query(port: number, entity: string, queryMessage: Array<QueryFunction>, page: number, pageSize: number){
 
-    let params = new HttpParams().set('FROM', entity)
+    let params = new HttpParams()
+      .set("pageSize", pageSize)
+      .set("page", page)
 
-    queryMessage.functions.forEach(queryFunction => {
-      console.log(queryFunction.name)
-        queryFunction.parameters.forEach(param => {
-          params = params.append(queryFunction.name, param)
-          console.log(params)
-          console.log(param)
-        })
-    })
-
-    return this.http.get(this.connectionService.apiURL + port + "/query/", {params}).pipe(
+    return this.http.post(this.connectionService.apiURL + port + "/query/", queryMessage,{params}).pipe(
       map((queryData: QueryData) => queryData),
       catchError(err => throwError(err))
     )

@@ -1,21 +1,44 @@
 <div class="container">
-  <h3>{{selection.entity.split(".")[2]}}</h3>
+  <ng-container *ngIf="(selection != null)">
+    <h3>{{selection.entity.split(".")[2]}}</h3>
+  </ng-container>
   <ng-container [formGroup]="queryForm">
     <div formArrayName="queryFunctions" class="function-list">
       <ng-container *ngFor="let item of queryFunctions.controls; index as i">
         <ng-container [ngSwitch]="item.value.function">
+
           <div *ngSwitchCase="'select'">
             <app-select-form [index]="i">
             </app-select-form>
           </div>
+
+          <div *ngSwitchCase="'order'">
+            <app-order-form [index]="i">
+            </app-order-form>
+          </div>
+
+          <div *ngSwitchCase="'distance'">
+            <app-distance-form [index]="i">
+            </app-distance-form>
+          </div>
+
+          <div *ngSwitchCase="'limit'">
+            <app-limit-form [index]="i">
+            </app-limit-form>
+          </div>
+
+
         </ng-container>
       </ng-container>
     </div>
   </ng-container>
 
+  {{queryForm.value | json}}
+
   <button mat-button [matMenuTriggerFor]="menu">ADD</button>
   <mat-menu #menu="matMenu">
     <button mat-flat-button (click)="addSelect()">SELECT</button>
+    <button mat-flat-button (click)="addOrder()">ORDER</button>
   </mat-menu>
 
   <button mat-button (click)="onLog()">LOG</button>
@@ -23,7 +46,7 @@
 
   <div *ngIf="queryData">
 
-    <table mat-table [dataSource]="queryData.rows">
+    <mat-table [dataSource]="queryData.rows">
 
 
       <mat-header-row *matHeaderRowDef="queryData.columnNames"></mat-header-row>
@@ -35,8 +58,15 @@
           <mat-cell *matCellDef="let row"> {{row[i]}} </mat-cell>
         </ng-container>
       </ng-container>
+    </mat-table>
 
-    </table>
+    <mat-paginator [length]="queryData.numberOfRows"
+                   [pageSize]="queryData.pageSize"
+                   [pageSizeOptions]="[5,10]"
+                   (page)="pageEvent = $event; onPageChange($event)">
+
+    </mat-paginator>
+
   </div>
 
 </div>

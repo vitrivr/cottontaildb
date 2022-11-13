@@ -34,17 +34,13 @@ export class EntityService {
 
   aboutEntity(port: number, entityName: string) {
     this.httpClient.get(this.connectionService.apiURL.concat(port.toString(),"/entities/",entityName)).subscribe(value => this.aboutEntitySubject.next(value))
-    console.log(port)
-    console.log(this.connectionService.apiURL.concat(port.toString(),"/entities/",entityName))
   }
 
   dropIndex(port: number, dbo: string) {
-    console.log("drop index")
     return this.httpClient.delete(this.connectionService.apiURL + port.toString() + "/indexes/" + dbo)
   }
 
   createIndex(port: number, dbo: string, indexDefinition: IndexDefinition) {
-    console.log(indexDefinition)
     return this.httpClient.post(this.connectionService.apiURL + port + "/indexes/" + dbo, indexDefinition)
   }
 

@@ -29,13 +29,17 @@ var queryCache: LoadingCache<QueryController.QueryKey, QueryController.QueryData
     .maximumSize(100)
     .expireAfterWrite(10, TimeUnit.MINUTES)
     .build { key: QueryController.QueryKey ->
-        QueryController.executeQuery(key.queryMap, key.port) }
+        QueryController.executeQuery(key.queryRequest, key.port) }
 
-var pagedCache: LoadingCache<QueryController.QueryPageKey, QueryController.Page> =  Caffeine.newBuilder()
+var pagedCache: LoadingCache<QueryController.QueryPagesKey, List<QueryController.Page>> =  Caffeine.newBuilder()
     .maximumSize(10000)
     .expireAfterWrite(10, TimeUnit.MINUTES)
-    .build { key: QueryController.QueryPageKey -> QueryController.computePages(key.sessionID, key.queryMap, key.port, key.pageSize)[key.page] }
+    .build { key: QueryController.QueryPagesKey -> QueryController.computePages(key.sessionID, key.queryRequest, key.port, key.pageSize)}
 
+var pageCache:  LoadingCache<QueryController.QueryPageKey, QueryController.Page> =  Caffeine.newBuilder()
+    .maximumSize(1000000)
+    .expireAfterWrite(10, TimeUnit.MINUTES)
+    .build { key: QueryController.QueryPageKey -> QueryController.getPage(key.sessionID, key.queryRequest, key.port, key.pageSize, key.page)}
 
 fun fileSessionHandler() = SessionHandler().apply {
     sessionCache = DefaultSessionCache(this).apply {
@@ -71,7 +75,7 @@ fun main() {
 
         path("{port}") {
             path("query"){
-                get(QueryController::query)
+                post(QueryController::query)
             }
             path("list") {
                 get(ListController::getList)

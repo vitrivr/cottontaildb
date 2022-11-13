@@ -88,7 +88,6 @@ export class TreeComponent implements OnInit {
 
   public onDropEntity(entityName : string){
     if(confirm("are you sure you want to drop the entity " + entityName + "?")){
-      console.log(entityName)
       this.entityService.dropEntity(this.port, entityName).subscribe({
         next: () => {
           this.treeDataService.fetchTreeData(this.port);
@@ -101,7 +100,6 @@ export class TreeComponent implements OnInit {
 
   onTruncateEntity(entityName : string) {
     if(confirm("are you sure you want to delete the entity " + entityName + "?")){
-      console.log(entityName)
       this.entityService.truncateEntity(this.port, entityName).subscribe({
         next: () => {
           this.treeDataService.fetchTreeData(this.port);
@@ -114,7 +112,6 @@ export class TreeComponent implements OnInit {
 
   onClearEntity(entityName : string) {
     if(confirm("are you sure you want to delete the entity " + entityName + "?")){
-      console.log(entityName)
       this.entityService.clearEntity(this.port, entityName).subscribe({
         next: () => {
           this.treeDataService.fetchTreeData(this.port);
@@ -136,7 +133,6 @@ export class TreeComponent implements OnInit {
   }
 
   onSelect(nodeName : string) {
-    console.log(this.port)
     this.selectionService.changeSelection(nodeName, this.port)
   }
 

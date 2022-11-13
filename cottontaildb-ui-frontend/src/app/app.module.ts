@@ -43,6 +43,9 @@ import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
 import {MatProgressBarModule} from "@angular/material/progress-bar";
 import { SelectFormComponent } from './components/main/views/query-view/select-form/select-form.component';
 import { WhereFormComponent } from './components/main/views/query-view/where-form/where-form.component';
+import { OrderFormComponent } from './components/main/views/query-view/order-form/order-form.component';
+import { DistanceFormComponent } from './components/main/views/query-view/distance-form/distance-form.component';
+import { LimitFormComponent } from './components/main/views/query-view/limit-form/limit-form.component';
 
 @NgModule({
   declarations: [
@@ -64,7 +67,10 @@ import { WhereFormComponent } from './components/main/views/query-view/where-for
     CreateIndexFormComponent,
     AddConnectionFormComponent,
     SelectFormComponent,
-    WhereFormComponent
+    WhereFormComponent,
+    OrderFormComponent,
+    DistanceFormComponent,
+    LimitFormComponent
   ],
   imports: [
     BrowserModule,

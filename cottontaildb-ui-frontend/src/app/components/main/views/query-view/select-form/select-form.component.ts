@@ -27,7 +27,6 @@ export class SelectFormComponent implements OnInit {
   selection: any
   aboutEntityData: any
   conditions: any;
-  objectValues = Object.keys
 
   constructor(private fb: FormBuilder,
               private selectionService: SelectionService,
@@ -40,15 +39,16 @@ export class SelectFormComponent implements OnInit {
       this.selection = selection;
       this.entityService.aboutEntity(this.selection.port, this.selection.entity);
     })
+
     this.entityService.aboutEntitySubject.subscribe(about => {
       this.aboutEntityData = about
-    })
 
-    this.form = this.rootFormGroup.control
-    this.conditions = this.form.get("queryFunctions").at(this.index).get("conditions") as FormRecord
+      //if there are conditions left, reset them
+      if(this.conditions){
+        Object.keys(this.conditions.controls).forEach(it =>
+        this.conditions.removeControl(it)
+      )}
 
-
-    this.entityService.aboutEntitySubject.subscribe(() => {
       if(this.aboutEntityData != null){
         this.aboutEntityData.forEach((item: { dbo: string; _class: string }) => {
           if(item._class === "COLUMN"){
@@ -58,11 +58,8 @@ export class SelectFormComponent implements OnInit {
       }
     })
 
-
-    console.log(this.form.get("queryFunctions").at(this.index).get("conditions"))
-
-
-    console.log(this.form)
+    this.form = this.rootFormGroup.control
+    this.conditions = this.form.get("queryFunctions").at(this.index).get("conditions") as FormRecord
   }
 
 }

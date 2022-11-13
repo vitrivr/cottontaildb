@@ -1,9 +1,10 @@
 package entity
 
-import ClientConfig
+import channelCache
 import com.google.gson.Gson
 import io.javalin.http.Context
 import kotlinx.serialization.json.*
+import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.iterators.TupleIterator
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.client.language.dml.Delete
@@ -35,9 +36,11 @@ object EntityController {
 
     fun aboutEntity(context: Context) {
 
-        val clientConfig = ClientConfig(context.pathParam("port").toInt())
+        val port = context.pathParam("port").toInt()
+        val channel = channelCache.get(Pair(port,"localhost"))
+        val client = SimpleClient(channel)
 
-        val result = clientConfig.client.about(AboutEntity(context.pathParam("name")))
+        val result = client.about(AboutEntity(context.pathParam("name")))
         val entityDetails: MutableList<EntityDetails> = mutableListOf()
 
         result.forEach {
@@ -49,14 +52,20 @@ object EntityController {
     }
 
     fun clearEntity(context: Context){
-        val clientConfig = ClientConfig(context.pathParam("port").toInt())
+        val port = context.pathParam("port").toInt()
+        val channel = channelCache.get(Pair(port,"localhost"))
+        val client = SimpleClient(channel)
 
-        val result = clientConfig.client.delete(Delete(context.pathParam("name")))
+        val result = client.delete(Delete(context.pathParam("name")))
         context.json(result)
     }
 
     fun createEntity(context: Context) {
-        val clientConfig = ClientConfig(context.pathParam("port").toInt())
+
+        val port = context.pathParam("port").toInt()
+        val channel = channelCache.get(Pair(port,"localhost"))
+        val client = SimpleClient(channel)
+
 
         val columnArray: Array<ColumnInfo> = gson.fromJson(context.body(), Array<ColumnInfo>::class.java)
         val list = columnArray.map { it.toDefinition() }
@@ -74,7 +83,7 @@ object EntityController {
             list.forEach {
                 columnDefinition.addColumns(it)
             }
-            val result : TupleIterator = clientConfig.client.create(CottontailGrpc.CreateEntityMessage.newBuilder().setDefinition(columnDefinition).build())
+            val result : TupleIterator = client.create(CottontailGrpc.CreateEntityMessage.newBuilder().setDefinition(columnDefinition).build())
             context.json(result)
 
         } else {
@@ -86,7 +95,9 @@ object EntityController {
 
     fun createIndex(context: Context){
 
-        val clientConfig = ClientConfig(context.pathParam("port").toInt())
+        val port = context.pathParam("port").toInt()
+        val channel = channelCache.get(Pair(port,"localhost"))
+        val client = SimpleClient(channel)
 
         Query()
         val indexName = context.pathParam("name")
@@ -101,29 +112,36 @@ object EntityController {
         if (!indexDefinition.skipBuild) {
             create.rebuild()
         }
-        clientConfig.client.create(create.rebuild())
+        client.create(create.rebuild())
         }
 
     fun deleteRow(context: Context){
         TODO()
     }
     fun dropEntity(context: Context){
-        val clientConfig = ClientConfig(context.pathParam("port").toInt())
-        val result = clientConfig.client.drop(DropEntity(context.pathParam("name")))
+        val port = context.pathParam("port").toInt()
+        val channel = channelCache.get(Pair(port,"localhost"))
+        val client = SimpleClient(channel)
+
+        val result = client.drop(DropEntity(context.pathParam("name")))
         context.json(result)
     }
     fun dropIndex(context: Context){
-        val clientConfig = ClientConfig(context.pathParam("port").toInt())
-        println("recieved")
-        val result = clientConfig.client.drop(DropIndex(context.pathParam("name")))
+        val port = context.pathParam("port").toInt()
+        val channel = channelCache.get(Pair(port,"localhost"))
+        val client = SimpleClient(channel)
+
+        val result = client.drop(DropIndex(context.pathParam("name")))
         context.json(result)
     }
     fun dumpEntity(context: Context){
-        val clientConfig = ClientConfig(context.pathParam("port").toInt())
+        val port = context.pathParam("port").toInt()
+        val channel = channelCache.get(Pair(port,"localhost"))
+        val client = SimpleClient(channel)
 
         val entityName = context.pathParam("name")
         val qm = Query(entityName)
-        val results = clientConfig.client.query(qm)
+        val results = client.query(qm)
         val columnNames = results.columnNames
         TODO()
 
@@ -138,13 +156,19 @@ object EntityController {
         TODO()
     }
     fun optimizeEntity(context: Context){
-        val clientConfig = ClientConfig(context.pathParam("port").toInt())
-        val result = clientConfig.client.optimize(OptimizeEntity(context.pathParam("name")))
+        val port = context.pathParam("port").toInt()
+        val channel = channelCache.get(Pair(port,"localhost"))
+        val client = SimpleClient(channel)
+
+        val result = client.optimize(OptimizeEntity(context.pathParam("name")))
         context.json(result)
     }
     fun truncateEntity(context: Context){
-        val clientConfig = ClientConfig(context.pathParam("port").toInt())
-        val result = clientConfig.client.truncate(TruncateEntity(context.pathParam("name")))
+        val port = context.pathParam("port").toInt()
+        val channel = channelCache.get(Pair(port,"localhost"))
+        val client = SimpleClient(channel)
+
+        val result = client.truncate(TruncateEntity(context.pathParam("name")))
         context.json(result)
     }
 
