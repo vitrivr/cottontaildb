@@ -1,0 +1,49 @@
+<ng-container>
+  <div [formGroup]="conditions" class="distance-form">
+
+    <div class="title">DISTANCE</div>
+
+    <div class="form-container">
+
+      <mat-form-field appearance="outline">
+        <mat-label> column </mat-label>
+        <mat-select formControlName="column">
+          <ng-container *ngFor="let item of aboutEntityData; index as i">
+            <ng-container *ngIf="item.lsize > 0">
+              <mat-option [value]="item.dbo">{{item.dbo.split(".")[3]}}</mat-option>
+            </ng-container>
+          </ng-container>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label> vector </mat-label>
+        <mat-select formControlName="vector">
+          <ng-container *ngFor="let vector of vectors; index as i">
+            <mat-option [value]="vector">{{vector}}</mat-option>
+          </ng-container>
+        </mat-select>
+      </mat-form-field>
+
+
+      <mat-form-field appearance="outline">
+        <mat-label> distance </mat-label>
+        <mat-select formControlName="distance">
+          <ng-container *ngFor="let distance of distances; index as i">
+            <mat-option [value]="distance">{{distance}}</mat-option>
+          </ng-container>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label> name </mat-label>
+        <input matInput formControlName="name">
+      </mat-form-field>
+
+    </div>
+
+
+
+
+  </div>
+</ng-container>

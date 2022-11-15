@@ -37,6 +37,8 @@ object EntityController {
     fun aboutEntity(context: Context) {
 
         val port = context.pathParam("port").toInt()
+        //todo: val host = context.pathParam("host")
+
         val channel = channelCache.get(Pair(port,"localhost"))
         val client = SimpleClient(channel)
 
@@ -144,10 +146,7 @@ object EntityController {
         val results = client.query(qm)
         val columnNames = results.columnNames
         TODO()
-
-
-        }
-
+    }
 
     fun importData(context: Context){
         TODO()

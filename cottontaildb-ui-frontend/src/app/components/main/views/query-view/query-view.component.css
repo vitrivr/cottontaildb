@@ -8,3 +8,6 @@
 .function-list>div{
   margin-right: 10px;
 }
+.query-header{
+  display: flex;
+}

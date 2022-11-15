@@ -10,14 +10,21 @@ import org.vitrivr.cottontail.client.language.dql.Query
 // Caches defined in Main.kt
 import channelCache
 import com.google.gson.Gson
+import org.vitrivr.cottontail.client.language.basics.Direction
+import org.vitrivr.cottontail.client.language.basics.Distances
+import org.vitrivr.cottontail.client.language.basics.predicate.Expression
 import pageCache
 import pagedCache
 import queryCache
+
+
 private val gson = Gson()
 
-data class QueryFunctionCall (val name: String, val parameters : List<String>)
+
 
 object QueryController {
+
+    data class QueryFunctionCall (val name: String, val parameters : List<String>)
 
     data class QueryPagesKey (val sessionID: String,
                              val queryRequest : Array<QueryFunctionCall>,
@@ -104,6 +111,7 @@ object QueryController {
 
         fun paginate(size: Int) : List<Page>{
             println("PAGINATING")
+
             val chunks = rows.chunked(size)
             val pages = mutableListOf<Page>()
             repeat(chunks.size){
@@ -113,9 +121,8 @@ object QueryController {
             return pages
         }
     }
-
+    @Suppress("unused")
     class Page(val columnNames: List<String>, val rows:List<List<String>>, val pageSize: Int, val page: Int, val numberOfRows: Int)
-
 
     fun query(context: Context)  {
 
@@ -130,7 +137,6 @@ object QueryController {
         val page = context.queryParam("page")
         val port = context.pathParam("port").toInt()
 
-
         if ( page != null && pageSize != null) {
             val key = QueryPageKey(sessionId, queryRequest, pageSize.toInt(), page.toInt(), port)
             println(key)
@@ -140,26 +146,38 @@ object QueryController {
         }
     }
 
-    fun executeQuery(queryMap: Array<QueryFunctionCall>, port: Int): QueryData {
+    fun executeQuery(queryFunctionCalls: Array<QueryFunctionCall>, port: Int): QueryData {
 
         val channel = channelCache.get(Pair(port,"localhost"))
         val client = SimpleClient(channel)
         var query = Query()
 
-        queryMap.forEach {
+        queryFunctionCalls.forEach {
+            println(it)
             when(it.name){
                 "SELECT" -> query = query.select(it.parameters[0])
                 "FROM" -> query = query.from(it.parameters[0])
+                "ORDER" -> query = query.order(it.parameters[0], Direction.valueOf(it.parameters[1]))
+                "LIMIT" -> query = query.limit(it.parameters[0].toLong())
+                "COUNT" -> query = query.count()
+                "DISTANCE" -> { //TODO: recognise probingColumn's Array Type
+                    query = query.distance(it.parameters[0], gson.fromJson(it.parameters[1], Array<Float>::class.java), Distances.valueOf(it.parameters[2]), it.parameters[3])}
+                "WHERE" -> query = query.where(Expression(it.parameters[0], it.parameters[1], it.parameters[2]))
             }
         }
 
-        val result =  client.query(query)
+        queryFunctionCalls.forEach { println(it) }
 
+        val result =  client.query(query)
         val tuples : MutableList<List<String>> = mutableListOf()
+
         result.forEach {tuple ->
             val list = mutableListOf<String>()
             repeat(tuple.size()){
-                list.add(tuple[it].toString())
+                when(val value = tuple[it]){
+                    is FloatArray -> list.add(value.map{ num -> num.toString() }.toString())
+                    else -> list.add(value.toString())
+                }
             }
             tuples.add(list)
         }
@@ -174,12 +192,12 @@ object QueryController {
      * paginate it and return all pages as [List] of type [Page].
      */
     fun computePages(sessionID: String, queryRequest: Array<QueryFunctionCall>, port: Int, pageSize: Int) : List<Page> {
-
         return queryCache.get(QueryKey(sessionID,queryRequest,port)).paginate(pageSize)
     }
 
     fun getPage(sessionID: String, queryRequest: Array<QueryFunctionCall>, port: Int, pageSize: Int, page: Int) : Page{
 
+        println("PAGE: $page")
         return pagedCache.get(QueryPagesKey(sessionID,queryRequest,pageSize, port))[page]
 
     }

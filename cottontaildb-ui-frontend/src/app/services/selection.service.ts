@@ -1,17 +1,17 @@
 
 import { Injectable } from '@angular/core';
-import {Subject} from 'rxjs';
+import {BehaviorSubject} from 'rxjs';
 
 export interface Selection {
-  entity : string;
-  port : number;
+  entity? : string;
+  port? : number;
 }
 
 @Injectable()
 export class SelectionService {
 
 
-  private selectionSubject = new Subject<Selection>();
+  private selectionSubject = new BehaviorSubject<Selection>({entity: undefined, port: undefined});
   currentSelection = this.selectionSubject.asObservable();
 
   constructor() { }

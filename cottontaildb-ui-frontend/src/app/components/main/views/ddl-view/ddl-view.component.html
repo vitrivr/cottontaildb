@@ -1,11 +1,11 @@
 <div class="container">
   <div class="entity-details">
-    <h1 *ngIf="aboutEntityData != null">{{this.selection.entity}}</h1>
-    <h1 *ngIf="aboutEntityData === null">Select an Entity in the sidebar menu</h1>
+    <h1 *ngIf="aboutEntityData != null && this.selection">{{this.selection.entity}}</h1>
+    <h1 *ngIf="(aboutEntityData === null )">Select an Entity in the sidebar menu</h1>
     <div class="table">
       <table>
         <thead>
-        <tr *ngIf="aboutEntityData != null">
+        <tr *ngIf="aboutEntityData">
           <th>dbo</th>
           <th>class</th>
           <th>type</th>
@@ -22,7 +22,7 @@
           <td><span>{{item._class}}</span></td>
           <td><span>{{item.type}}</span></td>
           <td><span>{{item.rows}}</span></td>
-          <td><span>{{item.l_size}}</span></td>
+          <td><span>{{item.lsize}}</span></td>
           <td><span>{{item.nullable}}</span></td>
           <td><span>{{item.info}}</span></td>
           <td>

@@ -14,7 +14,6 @@ export class DdlViewComponent implements OnInit {
   aboutEntityData: any;
   selection: any;
 
-
   constructor(private entityService : EntityService,
               private selectionService : SelectionService,
               private dialog : MatDialog,
@@ -22,8 +21,10 @@ export class DdlViewComponent implements OnInit {
 
   ngOnInit(): void {
     this.selectionService.currentSelection.subscribe(selection => {
-      this.selection = selection;
-      this.entityService.aboutEntity(this.selection.port, this.selection.entity);
+      if(selection.entity && selection.port){
+        this.selection = selection;
+        this.entityService.aboutEntity(this.selection.port, this.selection.entity);
+      }
     })
     this.entityService.aboutEntitySubject.subscribe(about => this.aboutEntityData = about)
   }
@@ -44,7 +45,7 @@ export class DdlViewComponent implements OnInit {
         dbo, port
       }
     }).afterClosed().subscribe(
-    result => this.entityService.aboutEntity(this.selection.port, this.selection.entity)
+    () => this.entityService.aboutEntity(this.selection.port, this.selection.entity)
     )
   }
 

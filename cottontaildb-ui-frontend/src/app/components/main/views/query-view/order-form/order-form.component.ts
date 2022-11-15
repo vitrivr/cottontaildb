@@ -1,32 +1,21 @@
 import {Component, Input, OnInit} from '@angular/core';
-import {
-  FormBuilder, FormControl,
-  FormGroupDirective, FormRecord,
-  NG_VALUE_ACCESSOR
-} from "@angular/forms";
+import {FormBuilder, FormControl, FormGroupDirective, FormRecord} from "@angular/forms";
 import {SelectionService} from "../../../../../services/selection.service";
 import {EntityService} from "../../../../../services/entity.service";
 
-
 @Component({
-  selector: 'app-select-form',
-  templateUrl: './select-form.component.html',
-  styleUrls: ['./select-form.component.css'],
-  providers: [{
-      provide: NG_VALUE_ACCESSOR,
-      useExisting: SelectFormComponent,
-      multi: true
-    }]
+  selector: 'app-order-form',
+  templateUrl: './order-form.component.html',
+  styleUrls: ['./order-form.component.css']
 })
-
-export class SelectFormComponent implements OnInit {
+export class OrderFormComponent implements OnInit {
 
   @Input() index!: number;
 
-  form: any
-  selection: any
-  aboutEntityData: any
   conditions: any;
+  form: any
+  aboutEntityData: any
+  selection: any
 
   constructor(private fb: FormBuilder,
               private selectionService: SelectionService,
@@ -51,18 +40,20 @@ export class SelectFormComponent implements OnInit {
       //if there are conditions left, reset them
       if(this.conditions){
         Object.keys(this.conditions.controls).forEach(it =>
-        this.conditions.removeControl(it)
-      )}
+          this.conditions.removeControl(it)
+        )}
 
       if(this.aboutEntityData != null){
-        this.aboutEntityData.forEach((item: { dbo: string; _class: string }) => {
-          if(item._class === "COLUMN"){
-            this.conditions.addControl(item.dbo, new FormControl(false))
-          }
-        })
+        this.conditions.addControl("column", new FormControl(""))
+        this.conditions.addControl("direction", new FormControl(""))
       }
     })
 
+
   }
+
+
+
+
 
 }

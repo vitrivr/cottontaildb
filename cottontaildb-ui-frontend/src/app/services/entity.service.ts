@@ -13,7 +13,9 @@ export class EntityService {
   aboutEntitySubject = new BehaviorSubject<any>(null);
 
   constructor(private httpClient:HttpClient,
-              private connectionService:ConnectionService) { }
+              private connectionService:ConnectionService) {
+    console.log("Entity Service")
+  }
 
 
   public createEntity (port: number, schemaName: string,entityName: string, columnDef : ColumnDefinition){

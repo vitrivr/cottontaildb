@@ -1,7 +1,20 @@
 <div class="container">
-  <ng-container *ngIf="(selection != null)">
-    <h3>{{selection.entity.split(".")[2]}}</h3>
-  </ng-container>
+  <div class="query-header">
+
+    <ng-container *ngIf="this.selection.entity && this.selection.port">
+      <h3>{{selection.entity.split(".")[2]}}</h3>
+    </ng-container>
+
+    <button mat-flat-button color="accent" [matMenuTriggerFor]="menu">ADD</button>
+    <mat-menu #menu="matMenu">
+      <button mat-flat-button (click)="addSelect()">SELECT</button>
+      <button mat-flat-button (click)="addOrder()">ORDER</button>
+      <button mat-flat-button (click)="addDistance()">DISTANCE</button>
+      <button mat-flat-button (click)="addLimit()">LIMIT</button>
+
+    </mat-menu>
+  </div>
+
   <ng-container [formGroup]="queryForm">
     <div formArrayName="queryFunctions" class="function-list">
       <ng-container *ngFor="let item of queryFunctions.controls; index as i">
@@ -33,29 +46,25 @@
     </div>
   </ng-container>
 
-  {{queryForm.value | json}}
+  {{queryForm.value | json}} <br>
 
-  <button mat-button [matMenuTriggerFor]="menu">ADD</button>
-  <mat-menu #menu="matMenu">
-    <button mat-flat-button (click)="addSelect()">SELECT</button>
-    <button mat-flat-button (click)="addOrder()">ORDER</button>
-  </mat-menu>
+  <button mat-flat-button color="accent" (click)="onQuery()">EXECUTE QUERY</button>
 
-  <button mat-button (click)="onLog()">LOG</button>
-  <button mat-button (click)="onQuery()">QUERY</button>
+  <div *ngIf="querying">
+  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+  </div>
 
   <div *ngIf="queryData">
 
     <mat-table [dataSource]="queryData.rows">
-
 
       <mat-header-row *matHeaderRowDef="queryData.columnNames"></mat-header-row>
       <mat-row *matRowDef="let row; columns: queryData.columnNames"></mat-row>
 
       <ng-container *ngFor="let col of queryData.columnNames; index as i">
         <ng-container [matColumnDef]="col">
-          <mat-header-cell  *matHeaderCellDef > {{col}} </mat-header-cell>
-          <mat-cell *matCellDef="let row"> {{row[i]}} </mat-cell>
+          <mat-header-cell  *matHeaderCellDef > {{col.split(".")[2]}} </mat-header-cell>
+          <mat-cell *matCellDef="let row"> {{trim(row[i])}}</mat-cell>
         </ng-container>
       </ng-container>
     </mat-table>

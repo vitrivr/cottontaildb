@@ -1,0 +1,30 @@
+<ng-container>
+  <div [formGroup]="conditions" class="order-form">
+
+    <div class="title">ORDER</div>
+
+    <!--only load form if an entity has been selected and its data is available-->
+    <div class="form-container" *ngIf="this.aboutEntityData">
+
+      <mat-form-field appearance="outline">
+        <mat-label> column </mat-label>
+        <mat-select formControlName="column">
+          <ng-container *ngFor="let item of aboutEntityData; index as i">
+            <ng-container *ngIf="item._class === 'COLUMN'">
+              <mat-option [value]="item.dbo">{{item.dbo.split(".")[3]}}</mat-option>
+            </ng-container>
+          </ng-container>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label> direction </mat-label>
+        <mat-select formControlName="direction">
+          <mat-option *ngFor="let direction of ['ASC', 'DESC']" [value]="direction">{{direction}}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+    </div>
+
+  </div>
+</ng-container>

@@ -1,6 +1,6 @@
 import {Component, OnInit} from '@angular/core';
 import {FormArray, FormBuilder, FormControl, FormRecord} from "@angular/forms";
-import {From, QueryFunction, QueryService, Select} from "../../../../services/query.service";
+import {Distance, From, Limit, Order, QueryFunction, QueryService, Select} from "../../../../services/query.service";
 import {SelectionService} from "../../../../services/selection.service";
 import {PageEvent} from "@angular/material/paginator";
 
@@ -21,6 +21,7 @@ export class QueryViewComponent implements OnInit {
 
   queryData: any;
   pageEvent: any;
+  querying: any;
 
   constructor(private fb: FormBuilder,
               private queryService: QueryService,
@@ -44,13 +45,18 @@ export class QueryViewComponent implements OnInit {
     this.queryFunctions.push(this.fb.group({'function': new FormControl('order'), 'conditions': new FormRecord({})},))
   }
 
-  onLog() {
+  addDistance(){
+    this.queryFunctions.push(this.fb.group({'function': new FormControl('distance'), 'conditions': new FormRecord({})},))
+  }
 
+  addLimit(){
+    this.queryFunctions.push(this.fb.group({'function': new FormControl('limit'), 'conditions': new FormRecord({})},))
   }
 
 
+  onQuery(page: number = 0, pageSize: number = 5) {
 
-  onQuery(page: number = 0, pageSize: number = 10) {
+    this.querying = true
 
     let qm = new Array<QueryFunction>()
     qm.push(new From(this.selection.entity))
@@ -78,6 +84,25 @@ export class QueryViewComponent implements OnInit {
           break;
         }
 
+        case "order": {
+          console.log("ORDER")
+          let conditions = Object.values(item.conditions) as Array<string>
+          qm.push(new Order(conditions[0], conditions[1]))
+          break;
+        }
+
+        case "limit": {
+          let conditions = Object.values(item.conditions) as Array<number>
+          qm.push(new Limit(conditions[0]))
+          break;
+        }
+
+        case "distance": {
+          let conditions = Object.values(item.conditions) as Array<any>
+          qm.push(new Distance(conditions[0], JSON.stringify(conditions[1]), conditions[2], conditions[3]))
+          break;
+        }
+
         default: {
           console.log("undefined queryFunction")
           break;
@@ -85,14 +110,24 @@ export class QueryViewComponent implements OnInit {
       }
 
     })
-    this.queryService.query(this.selection.port, this.selection.entity, qm, page, pageSize).subscribe(qd => this.queryData = qd)
+    this.queryService.query(this.selection.port, this.selection.entity, qm, page, pageSize).subscribe(qd => {
+      this.queryData = qd
+      this.querying = false
+    })
   }
 
 
   onPageChange($event: PageEvent) {
     let page = $event.pageIndex
     let pageSize = $event.pageSize
-    page = page + 1
     this.onQuery(page, pageSize)
+  }
+
+  trim(rowElement: string) {
+    if(rowElement.length > 30){
+      let len = rowElement.length
+      return rowElement.slice(0, 10) + "..." + rowElement.slice(len-10, len)
+    }
+    return rowElement
   }
 }
