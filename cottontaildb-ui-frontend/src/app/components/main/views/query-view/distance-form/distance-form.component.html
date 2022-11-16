@@ -16,15 +16,21 @@
         </mat-select>
       </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label> vector </mat-label>
-        <mat-select formControlName="vector">
-          <ng-container *ngFor="let vector of vectors; index as i">
-            <mat-option [value]="vector">{{vector}}</mat-option>
-          </ng-container>
-        </mat-select>
+      <mat-form-field class="example-full-width" appearance="fill">
+        <mat-label>vector</mat-label>
+        <input type="text"
+               placeholder="Pick or specify yourself"
+               aria-label="vector"
+               matInput
+               formControlName="vector"
+               autocomplete="off"
+               [matAutocomplete]="auto">
+        <mat-autocomplete #auto="matAutocomplete">
+            <ng-container *ngFor="let vector of vectors; index as i">
+              <mat-option [value]="vector">{{jsonStringify(vector)}}</mat-option>
+            </ng-container>
+        </mat-autocomplete>
       </mat-form-field>
-
 
       <mat-form-field appearance="outline">
         <mat-label> distance </mat-label>

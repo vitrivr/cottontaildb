@@ -46,6 +46,7 @@ import { WhereFormComponent } from './components/main/views/query-view/where-for
 import { OrderFormComponent } from './components/main/views/query-view/order-form/order-form.component';
 import { DistanceFormComponent } from './components/main/views/query-view/distance-form/distance-form.component';
 import { LimitFormComponent } from './components/main/views/query-view/limit-form/limit-form.component';
+import {MatAutocompleteModule} from "@angular/material/autocomplete";
 
 @NgModule({
   declarations: [
@@ -97,7 +98,8 @@ import { LimitFormComponent } from './components/main/views/query-view/limit-for
     MatDialogModule,
     MatButtonToggleModule,
     MatProgressSpinnerModule,
-    MatProgressBarModule
+    MatProgressBarModule,
+    MatAutocompleteModule
   ],
   providers: [
     CreateEntityFormComponent,

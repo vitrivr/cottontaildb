@@ -23,7 +23,7 @@ export class DistanceFormComponent implements OnInit {
   vectors: any;
   column: any;
   distances = ["MANHATTAN", "EUCLIDEAN", "SQUAREDEUCLIDEAN", "HAMMING", "COSINE", "CHISQUARED", "INNERPRODUCT", "HAVERSINE"];
-  objectvalues = Object.values
+  jsonStringify = JSON.stringify
 
   constructor(private fb: FormBuilder,
               private selectionService : SelectionService,

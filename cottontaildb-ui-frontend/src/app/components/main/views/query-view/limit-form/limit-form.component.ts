@@ -1,5 +1,5 @@
 import {Component, Input, OnInit} from '@angular/core';
-import {FormBuilder, FormControl, FormGroupDirective, FormRecord} from "@angular/forms";
+import {FormBuilder, FormControl, FormGroupDirective, FormRecord, Validators} from "@angular/forms";
 import {SelectionService} from "../../../../../services/selection.service";
 import {EntityService} from "../../../../../services/entity.service";
 
@@ -33,7 +33,16 @@ export class LimitFormComponent implements OnInit {
       )
     }
 
-    this.conditions.addControl("limit", new FormControl())
+    this.conditions.addControl("limit", new FormControl("",[Validators.required, Validators.pattern("^[0-9]*$")]))
 
   }
+
+  numberOnly($event: KeyboardEvent): boolean {
+    const key = ($event.key)
+    console.log(key)
+    return (key >= '0' && key <= '9') || key == "Backspace";
+
+  }
+
+
 }

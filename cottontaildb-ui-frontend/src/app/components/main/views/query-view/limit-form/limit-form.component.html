@@ -1,5 +1,5 @@
 <ng-container>
-  <div [formGroup]="conditions" class="distance-form">
+  <div [formGroup]="conditions" class="limit-form">
 
     <div class="title">LIMIT</div>
 
@@ -7,7 +7,7 @@
 
       <mat-form-field appearance="outline">
         <mat-label> limit </mat-label>
-        <input matInput formControlName="limit">
+        <input (keydown)="numberOnly($event)" matInput formControlName="limit">
       </mat-form-field>
 
     </div>

@@ -28,6 +28,7 @@ object SystemController {
 
 
     fun listTransactions(context: Context) {
+        //TODO: handle query result: null
         val clientConfig = ClientConfig(context.pathParam("port").toInt())
         val result = clientConfig.client.transactions()
         val txInfoArray : MutableList<TxInfo> = mutableListOf()
@@ -36,7 +37,6 @@ object SystemController {
                 txInfoArray.add(TxInfo(it))
             }
         }
-        println(txInfoArray[0].lockCount?.javaClass?.name)
         context.json(txInfoArray)
     }
 
@@ -46,6 +46,7 @@ object SystemController {
     }
 
     fun listLocks(context: Context) {
+        //TODO: handle query result: null
         val clientConfig = ClientConfig(context.pathParam("port").toInt())
         val result = clientConfig.client.locks()
         val locksInfoArray = mutableListOf<LocksInfo>()
