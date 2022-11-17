@@ -3,6 +3,7 @@ import {FormArray, FormBuilder, FormControl, FormRecord} from "@angular/forms";
 import {Distance, From, Limit, Order, QueryFunction, QueryService, Select} from "../../../../services/query.service";
 import {SelectionService} from "../../../../services/selection.service";
 import {PageEvent} from "@angular/material/paginator";
+import {CdkDragDrop} from "@angular/cdk/drag-drop";
 
 
 @Component({
@@ -99,7 +100,7 @@ export class QueryViewComponent implements OnInit {
 
         case "distance": {
           let conditions = Object.values(item.conditions) as Array<any>
-          qm.push(new Distance(conditions[0], JSON.stringify(conditions[1]), conditions[2], conditions[3]))
+          qm.push(new Distance(conditions[0], conditions[1], conditions[2], conditions[3], conditions[4]))
           break;
         }
 
@@ -130,4 +131,25 @@ export class QueryViewComponent implements OnInit {
     }
     return rowElement
   }
+
+  moveItemInFormArray(formArray: FormArray, fromIndex: number, toIndex: number): void {
+    const dir = toIndex > fromIndex ? 1 : -1;
+
+    const from = fromIndex;
+    const to = toIndex;
+
+    const temp = formArray.at(from);
+    for (let i = from; i * dir < to * dir; i = i + dir) {
+      const current = formArray.at(i + dir);
+      formArray.setControl(i, current);
+    }
+    formArray.setControl(to, temp);
+  }
+
+  drop(event: CdkDragDrop<string[]>) {
+    this.moveItemInFormArray(this.queryFunctions, event.previousIndex, event.currentIndex);
+  }
+
+
+
 }

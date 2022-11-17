@@ -65,4 +65,11 @@ export class SelectFormComponent implements OnInit {
 
   }
 
+  remove() {
+    this.form.get("queryFunctions").removeAt(this.index)
+  }
+
+
+
+
 }

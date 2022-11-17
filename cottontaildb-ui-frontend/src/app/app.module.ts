@@ -47,6 +47,7 @@ import { OrderFormComponent } from './components/main/views/query-view/order-for
 import { DistanceFormComponent } from './components/main/views/query-view/distance-form/distance-form.component';
 import { LimitFormComponent } from './components/main/views/query-view/limit-form/limit-form.component';
 import {MatAutocompleteModule} from "@angular/material/autocomplete";
+import {MatCardModule} from "@angular/material/card";
 
 @NgModule({
   declarations: [
@@ -73,34 +74,35 @@ import {MatAutocompleteModule} from "@angular/material/autocomplete";
     DistanceFormComponent,
     LimitFormComponent
   ],
-  imports: [
-    BrowserModule,
-    BrowserAnimationsModule,
-    MatTabsModule,
-    MatTreeModule,
-    MatIconModule,
-    DragDropModule,
-    HttpClientModule,
-    AppRoutingModule,
-    MatTooltipModule,
-    MatButtonModule,
-    MatInputModule,
-    ReactiveFormsModule,
-    FormsModule,
-    MatStepperModule,
-    MatSelectModule,
-    MatCheckboxModule,
-    MatTableModule,
-    MatPaginatorModule,
-    MatSortModule,
-    MatMenuModule,
-    MatSnackBarModule,
-    MatDialogModule,
-    MatButtonToggleModule,
-    MatProgressSpinnerModule,
-    MatProgressBarModule,
-    MatAutocompleteModule
-  ],
+    imports: [
+        BrowserModule,
+        BrowserAnimationsModule,
+        MatTabsModule,
+        MatTreeModule,
+        MatIconModule,
+        DragDropModule,
+        HttpClientModule,
+        AppRoutingModule,
+        MatTooltipModule,
+        MatButtonModule,
+        MatInputModule,
+        ReactiveFormsModule,
+        FormsModule,
+        MatStepperModule,
+        MatSelectModule,
+        MatCheckboxModule,
+        MatTableModule,
+        MatPaginatorModule,
+        MatSortModule,
+        MatMenuModule,
+        MatSnackBarModule,
+        MatDialogModule,
+        MatButtonToggleModule,
+        MatProgressSpinnerModule,
+        MatProgressBarModule,
+        MatAutocompleteModule,
+        MatCardModule
+    ],
   providers: [
     CreateEntityFormComponent,
     SelectionService,

@@ -43,35 +43,41 @@ export class DistanceFormComponent implements OnInit {
       }
     })
 
+    //change every time a new entity is selected
     this.entityService.aboutEntitySubject.subscribe(about => {
       this.aboutEntityData = about
 
       //if there are conditions left, reset them
-      if(this.conditions){
+      if(this.conditions)
+      {
         Object.keys(this.conditions.controls).forEach(it =>
           this.conditions.removeControl(it)
-        )}
+        )
+      }
 
       this.conditions.addControl("column", new FormControl(""))
       this.conditions.addControl("vector", new FormControl())
+      this.conditions.addControl("vectorType", new FormControl(""))
       this.conditions.addControl("distance", new FormControl(""))
       this.conditions.addControl("name", new FormControl(""))
 
-      this.conditions.get("column").valueChanges.subscribe((column: any) => {
-        this.aboutEntityData.forEach((item: { dbo: string, lsize: number }) => {
-          if (item.dbo.includes(column)){
+      this.conditions.get("column").valueChanges.subscribe((column: any) =>
+      {
+        this.aboutEntityData.forEach((item: { dbo: string, lsize: number, type: string }) =>
+          {
+            if (item.dbo.includes(column))
+            {
             console.log(item.lsize)
             this.vectors = [Array(item.lsize).fill(0), Array(item.lsize).fill(1)]
+            this.conditions.get("vectorType").setValue(item.type)
+            }
           }
-        }
         )
       })
 
     })
-
-
-
-
   }
-
+  remove() {
+    this.form.get("queryFunctions").removeAt(this.index)
+  }
 }

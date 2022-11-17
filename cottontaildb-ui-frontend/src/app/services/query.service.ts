@@ -29,9 +29,9 @@ export class From implements QueryFunction{
 
 export class Distance implements QueryFunction{
   name = "DISTANCE"
-  parameters: [string, string, string, string]
-  constructor(entity: string, vector: string, distance: string, name: string) {
-    this.parameters = [entity, vector, distance, name]
+  parameters: [string, string, string, string, string]
+  constructor(entity: string, vector: string, vectorType: string, distance: string, name: string) {
+    this.parameters = [entity, vector, vectorType, distance, name]
   }
 }
 

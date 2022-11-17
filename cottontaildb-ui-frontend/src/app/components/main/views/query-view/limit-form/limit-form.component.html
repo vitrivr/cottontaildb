@@ -1,16 +1,24 @@
 <ng-container>
-  <div [formGroup]="conditions" class="limit-form">
+  <mat-card>
+    <mat-card-content>
+      <div [formGroup]="conditions" class="limit-form">
 
-    <div class="title">LIMIT</div>
+        <div class="title">
+          LIMIT
+          <button mat-icon-button (click)="remove()"><mat-icon>delete</mat-icon></button>
+        </div>
 
-    <div class="form-container">
+        <div class="form-container">
 
-      <mat-form-field appearance="outline">
-        <mat-label> limit </mat-label>
-        <input (keydown)="numberOnly($event)" matInput formControlName="limit">
-      </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label> limit </mat-label>
+            <input (keydown)="numberOnly($event)" matInput formControlName="limit">
+          </mat-form-field>
 
-    </div>
+        </div>
 
-  </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
 </ng-container>

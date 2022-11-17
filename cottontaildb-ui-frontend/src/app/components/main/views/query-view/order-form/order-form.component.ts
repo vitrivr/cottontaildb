@@ -48,12 +48,9 @@ export class OrderFormComponent implements OnInit {
         this.conditions.addControl("direction", new FormControl(""))
       }
     })
-
-
   }
-
-
-
-
+  remove() {
+    this.form.get("queryFunctions").removeAt(this.index)
+  }
 
 }

@@ -1,20 +1,36 @@
-.form-container{
+.form-field-container{
   display: flex;
   justify-content: space-between;
   padding: 10px;
-  width: 200px;
   background-color: white;
-  border-bottom: solid 1px lightgrey;
-  border-left: solid 1px grey;
-  border-right: solid 1px grey;
+  border-radius: 4px;
+}
+mat-checkbox{
+  padding-left: 10px
 }
 .select-form{
-  width: fit-content;
+  color: dimgrey;
+}
+.form-container{
+  background-color: white;
+  border-left: solid 1px grey;
+  border-right: solid 1px grey;
+  border-bottom: solid 1px grey;
   border-radius: 4px;
+}
+.select-form{
+  min-width: 120px;
   background-color: #4a148c;
-  padding-bottom: 20px;
+  border-radius: 4px;
 }
 .title{
-  padding: 10px;
-  color: white
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+  padding-left: 10px;
+}
+mat-card {
+  margin: 0;
+  padding: 0;
 }

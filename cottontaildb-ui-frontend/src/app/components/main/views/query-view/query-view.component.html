@@ -1,52 +1,61 @@
 <div class="container">
+
   <div class="query-header">
 
+    <mat-card>
+      <mat-card-content>
     <ng-container *ngIf="this.selection.entity && this.selection.port">
-      <h3>{{selection.entity.split(".")[2]}}</h3>
+      <h1>{{"FROM: " + selection.entity.split(".")[2]}}</h1>
     </ng-container>
+    <ng-container *ngIf="!this.selection.entity && !this.selection.port">
+      <h1>Select an Entity in the sidebar menu</h1>
+    </ng-container>
+      </mat-card-content>
+    </mat-card>
 
-    <button mat-flat-button color="accent" [matMenuTriggerFor]="menu">ADD</button>
-    <mat-menu #menu="matMenu">
-      <button mat-flat-button (click)="addSelect()">SELECT</button>
-      <button mat-flat-button (click)="addOrder()">ORDER</button>
-      <button mat-flat-button (click)="addDistance()">DISTANCE</button>
-      <button mat-flat-button (click)="addLimit()">LIMIT</button>
 
-    </mat-menu>
+    <div class="function-buttons">
+      <button mat-flat-button color="accent" (click)="addSelect()">SELECT</button>
+      <button mat-flat-button color="accent" (click)="addOrder()">ORDER</button>
+      <button mat-flat-button color="accent" (click)="addDistance()">DISTANCE</button>
+      <button mat-flat-button color="accent" (click)="addLimit()">LIMIT</button>
+    </div>
+
   </div>
 
   <ng-container [formGroup]="queryForm">
-    <div formArrayName="queryFunctions" class="function-list">
-      <ng-container *ngFor="let item of queryFunctions.controls; index as i">
-        <ng-container [ngSwitch]="item.value.function">
 
-          <div *ngSwitchCase="'select'">
-            <app-select-form [index]="i">
-            </app-select-form>
-          </div>
+      <div formArrayName="queryFunctions" class="function-list">
+        <div class="drop-list" cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="drop($event)">
 
-          <div *ngSwitchCase="'order'">
-            <app-order-form [index]="i">
-            </app-order-form>
-          </div>
+          <ng-container *ngFor="let item of queryFunctions.controls; index as i"
+                        [ngSwitch]="item.value.function" >
+            <div cdkDrag *ngSwitchCase="'select'">
+              <app-select-form [index]="i">
+              </app-select-form>
+            </div>
 
-          <div *ngSwitchCase="'distance'">
-            <app-distance-form [index]="i">
-            </app-distance-form>
-          </div>
+            <div cdkDrag *ngSwitchCase="'order'" >
+              <app-order-form [index]="i">
+              </app-order-form>
+            </div>
 
-          <div *ngSwitchCase="'limit'">
-            <app-limit-form [index]="i">
-            </app-limit-form>
-          </div>
+            <div cdkDrag *ngSwitchCase="'distance'">
+              <app-distance-form [index]="i">
+              </app-distance-form>
+            </div>
 
+            <div cdkDrag *ngSwitchCase="'limit'">
+              <app-limit-form [index]="i">
+              </app-limit-form>
+            </div>
 
-        </ng-container>
-      </ng-container>
+          </ng-container>
+      </div>
     </div>
   </ng-container>
 
-  {{queryForm.value | json}} <br>
+  {{queryForm.value | json}}
 
   <button mat-flat-button color="accent" (click)="onQuery()">EXECUTE QUERY</button>
 

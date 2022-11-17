@@ -110,7 +110,6 @@ object QueryController {
     class QueryData(private val columnNames: List<String>, private val rows: MutableList<List<String>>){
 
         fun paginate(size: Int) : List<Page>{
-            println("PAGINATING")
 
             val chunks = rows.chunked(size)
             val pages = mutableListOf<Page>()
@@ -126,20 +125,13 @@ object QueryController {
 
     fun query(context: Context)  {
 
-        println("QUERY CALL")
-
         val sessionId = context.req().session.id
-        println("SESSION_ID: $sessionId")
-
         val queryRequest = gson.fromJson(context.body(), Array<QueryFunctionCall>::class.java)
-
         val pageSize = context.queryParam("pageSize")
         val page = context.queryParam("page")
         val port = context.pathParam("port").toInt()
-
         if ( page != null && pageSize != null) {
             val key = QueryPageKey(sessionId, queryRequest, pageSize.toInt(), page.toInt(), port)
-            println(key)
             context.json(pageCache.get(key))
         } else {
             context.status(400).result("Bad Request: page and/or pageSize not provided as query parameters.")
@@ -152,21 +144,26 @@ object QueryController {
         val client = SimpleClient(channel)
         var query = Query()
 
+
         queryFunctionCalls.forEach {
-            println(it)
             when(it.name){
                 "SELECT" -> query = query.select(it.parameters[0])
                 "FROM" -> query = query.from(it.parameters[0])
                 "ORDER" -> query = query.order(it.parameters[0], Direction.valueOf(it.parameters[1]))
                 "LIMIT" -> query = query.limit(it.parameters[0].toLong())
                 "COUNT" -> query = query.count()
-                "DISTANCE" -> { //TODO: recognise probingColumn's Array Type
-                    query = query.distance(it.parameters[0], gson.fromJson(it.parameters[1], Array<Float>::class.java), Distances.valueOf(it.parameters[2]), it.parameters[3])}
+                "DISTANCE" -> {
+                    val arrType : Class<*> = when(it.parameters[2]){
+                        "FLOAT_VEC" -> Array<Float>::class.java
+                        "INT_VEC" -> Array<Int>::class.java
+                        else -> Array::class.java
+                    }
+                    query = query.distance(it.parameters[0], gson.fromJson(it.parameters[1], arrType), Distances.valueOf(it.parameters[3]), it.parameters[4])
+                }
+
                 "WHERE" -> query = query.where(Expression(it.parameters[0], it.parameters[1], it.parameters[2]))
             }
         }
-
-        queryFunctionCalls.forEach { println(it) }
 
         val result =  client.query(query)
         val tuples : MutableList<List<String>> = mutableListOf()
@@ -196,8 +193,6 @@ object QueryController {
     }
 
     fun getPage(sessionID: String, queryRequest: Array<QueryFunctionCall>, port: Int, pageSize: Int, page: Int) : Page{
-
-        println("PAGE: $page")
         return pagedCache.get(QueryPagesKey(sessionID,queryRequest,pageSize, port))[page]
 
     }

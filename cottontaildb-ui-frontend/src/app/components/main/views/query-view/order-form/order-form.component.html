@@ -1,15 +1,21 @@
 <ng-container>
-  <div [formGroup]="conditions" class="order-form">
+  <mat-card>
+    <mat-card-content>
+      <div [formGroup]="conditions" class="order-form">
 
-    <div class="title">ORDER</div>
+        <div class="title">
+          ORDER
+          <button mat-icon-button (click)="remove()"><mat-icon>delete</mat-icon></button>
+        </div>
 
-    <!--only load form if an entity has been selected and its data is available-->
-    <div class="form-container" *ngIf="this.aboutEntityData">
 
-      <mat-form-field class="example-full-width" appearance="fill">
-        <mat-label>column</mat-label>
+        <!--only load form if an entity has been selected and its data is available-->
+        <div class="form-container" *ngIf="this.aboutEntityData">
+
+          <mat-form-field class="example-full-width" appearance="outline">
+            <mat-label>column</mat-label>
             <input type="text"
-                   placeholder="Pick or specify yourself"
+                   placeholder="Pick or specify"
                    aria-label="column"
                    matInput
                    formControlName="column"
@@ -21,16 +27,18 @@
                 </ng-container>
               </ng-container>
             </mat-autocomplete>
-      </mat-form-field>
+          </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label> direction </mat-label>
-        <mat-select formControlName="direction">
-          <mat-option *ngFor="let direction of ['ASC', 'DESC']" [value]="direction">{{direction}}</mat-option>
-        </mat-select>
-      </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label> direction </mat-label>
+            <mat-select formControlName="direction">
+              <mat-option *ngFor="let direction of ['ASC', 'DESC']" [value]="direction">{{direction}}</mat-option>
+            </mat-select>
+          </mat-form-field>
 
-    </div>
+        </div>
 
-  </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
 </ng-container>

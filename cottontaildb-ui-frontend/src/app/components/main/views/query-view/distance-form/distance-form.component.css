@@ -1,20 +1,31 @@
 .form-container{
-  display: flex;
+  display: grid;
+  grid-template-columns: 150px 150px;
+  grid-row: auto;
+  grid-column-gap: 20px;
   flex-direction: column;
   justify-content: space-between;
   padding: 10px;
-  width: 200px;
+  width: auto;
   background-color: white;
   border-left: solid 1px grey;
   border-right: solid 1px grey;
+  border-bottom: solid 1px grey;
+  border-radius: 4px;
 }
 .distance-form{
   width: fit-content;
   border-radius: 4px;
   background-color: #4a148c;
-  padding-bottom: 20px;
 }
 .title{
-  padding: 10px;
-  color: white
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+  padding-left: 10px;
+}
+mat-card {
+  margin: 0;
+  padding: 0;
 }
