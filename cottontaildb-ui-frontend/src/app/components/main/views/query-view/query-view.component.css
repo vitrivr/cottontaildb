@@ -1,7 +1,6 @@
-.container {
-  display: grid;
-  grid-template-columns: 1fr;
-  row-gap: 10px;
+.container{
+  display: flex;
+  flex-direction: column;
   margin: 40px 20px 20px;
 }
 .function-list{
@@ -13,6 +12,7 @@
 }
 .query-header {
   display: flex;
+  width: auto;
   justify-content: space-between;
 }
 .function-buttons button
@@ -25,3 +25,12 @@
 .drop-list div{
   margin-right: 10px;
 }
+.query-header{
+  margin-bottom: 20px;
+}
+.query-builder{
+  width: 100%;
+  overflow: scroll;
+  margin-bottom: 20px;
+}
+

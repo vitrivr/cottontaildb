@@ -1,28 +1,23 @@
+.app-container{
+  height: 100%;
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  grid-template-rows: 100px 1fr;
+}
+.header{
+  grid-column: 1/-1;
+}
+
 .content {
   display: flex;
-  height: 100%;
 }
 .sidebar {
-  min-width: 400px;
-  height: 100vh;
   overflow: auto;
 }
 .main {
-  flex-grow: 1;
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: scroll;
 }
 
-@media all and (max-width: 900px) {
-  .content {
-    flex-wrap: wrap;
-  }
-  .sidebar {
-    height: auto;
-    order: 1;
-    min-width: 100%;
-  }
-  .main {
-    order: 2;
-    min-width: 100%;
-  }
-}
 

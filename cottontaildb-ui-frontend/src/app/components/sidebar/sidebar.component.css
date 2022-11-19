@@ -1,16 +1,8 @@
-html,
-body {
-  height: 100%;
-  margin: 0;
-
-}
 
 .content {
   display: flex;
-  flex-flow: column;
-  height: 100%;
-  border-right: #4a148c solid 2px;
 
+  border-right: #4a148c solid 2px;
 }
 
 .header {

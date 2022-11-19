@@ -5,7 +5,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MainComponent } from './components/main/main.component';
 import { MatTabsModule} from "@angular/material/tabs";
 import { SidebarComponent} from "./components/sidebar/sidebar.component";
-import { HeaderComponent } from './components/main/header/header.component';
+import { HeaderComponent} from "./components/header/header.component";
 import { OverviewComponent } from './components/sidebar/overview/overview.component';
 import { TreeComponent } from './components/sidebar/overview/tree/tree.component';
 import { MatTreeModule } from '@angular/material/tree';
@@ -14,8 +14,6 @@ import {DragDropModule} from "@angular/cdk/drag-drop";
 import { DmlViewComponent } from './components/main/views/dml-view/dml-view.component';
 import { QueryViewComponent } from './components/main/views/query-view/query-view.component';
 import { SystemViewComponent } from './components/main/views/system-view/system-view.component';
-import { ButtonComponent } from './components/utilities/button/button.component';
-import { DropZoneComponent } from './components/utilities/drop-zone/drop-zone.component';
 import { HttpClientModule } from '@angular/common/http';
 import { AppRoutingModule } from './app-routing.module';
 import { SchemaViewComponent } from './components/main/views/schema-view/schema-view.component';
@@ -60,8 +58,6 @@ import {MatCardModule} from "@angular/material/card";
     DmlViewComponent,
     QueryViewComponent,
     SystemViewComponent,
-    ButtonComponent,
-    DropZoneComponent,
     SchemaViewComponent,
     DdlViewComponent,
     CreateSchemaFormComponent,

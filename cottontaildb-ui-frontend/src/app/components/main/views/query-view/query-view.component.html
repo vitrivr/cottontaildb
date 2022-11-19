@@ -1,7 +1,6 @@
 <div class="container">
 
   <div class="query-header">
-
     <mat-card>
       <mat-card-content>
     <ng-container *ngIf="this.selection.entity && this.selection.port">
@@ -20,12 +19,10 @@
       <button mat-flat-button color="accent" (click)="addDistance()">DISTANCE</button>
       <button mat-flat-button color="accent" (click)="addLimit()">LIMIT</button>
     </div>
-
   </div>
 
   <ng-container [formGroup]="queryForm">
-
-      <div formArrayName="queryFunctions" class="function-list">
+      <div formArrayName="queryFunctions" class="query-builder">
         <div class="drop-list" cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="drop($event)">
 
           <ng-container *ngFor="let item of queryFunctions.controls; index as i"
@@ -55,16 +52,13 @@
     </div>
   </ng-container>
 
-  {{queryForm.value | json}}
-
   <button mat-flat-button color="accent" (click)="onQuery()">EXECUTE QUERY</button>
 
   <div *ngIf="querying">
   <mat-progress-bar mode="indeterminate"></mat-progress-bar>
   </div>
 
-  <div *ngIf="queryData">
-
+  <div *ngIf="queryData" class="query-table">
     <mat-table [dataSource]="queryData.rows">
 
       <mat-header-row *matHeaderRowDef="queryData.columnNames"></mat-header-row>
@@ -84,7 +78,6 @@
                    (page)="pageEvent = $event; onPageChange($event)">
 
     </mat-paginator>
-
   </div>
 
 </div>
