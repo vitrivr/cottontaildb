@@ -26,11 +26,9 @@ h2{
   height: fit-content;
   justify-self: end;
 }
-
 .body{
   border-radius: 5px;
 }
-
 .content{
   display: grid;
   grid-template-columns: repeat(3,150px) 80px;
@@ -39,7 +37,6 @@ h2{
   align-content: center;
   align-items: center;
 }
-
 .preview-container{
   display: grid;
   grid-template-columns: 1fr;
@@ -73,7 +70,6 @@ form{
   display: flex;
   flex-direction: row;
 }
-
 .error{
   color: red;
 }
@@ -85,29 +81,23 @@ table{
   overflow: hidden;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
 }
-
 thead tr{
   color: white;
   background-color: #4a148c;
   text-align: left;
   font-weight: bold;
 }
-
 th,td{
   padding: 12px 15px;
 }
-
 tbody tr{
   border-bottom: 1px solid lightgrey;
 }
-
 mat-stepper {
 }
-
 .mat-form-field {
   margin-top: 16px;
 }
-
 mat-checkbox{
   margin: 10px;
   line-height: 70px;

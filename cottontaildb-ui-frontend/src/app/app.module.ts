@@ -16,7 +16,6 @@ import { QueryViewComponent } from './components/main/views/query-view/query-vie
 import { SystemViewComponent } from './components/main/views/system-view/system-view.component';
 import { HttpClientModule } from '@angular/common/http';
 import { AppRoutingModule } from './app-routing.module';
-import { SchemaViewComponent } from './components/main/views/schema-view/schema-view.component';
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatButtonModule } from "@angular/material/button";
 import { MatInputModule } from "@angular/material/input";
@@ -46,7 +45,7 @@ import { DistanceFormComponent } from './components/main/views/query-view/distan
 import { LimitFormComponent } from './components/main/views/query-view/limit-form/limit-form.component';
 import {MatAutocompleteModule} from "@angular/material/autocomplete";
 import {MatCardModule} from "@angular/material/card";
-
+import {MatDividerModule} from "@angular/material/divider";
 @NgModule({
   declarations: [
     AppComponent,
@@ -58,7 +57,6 @@ import {MatCardModule} from "@angular/material/card";
     DmlViewComponent,
     QueryViewComponent,
     SystemViewComponent,
-    SchemaViewComponent,
     DdlViewComponent,
     CreateSchemaFormComponent,
     CreateEntityFormComponent,
@@ -97,7 +95,8 @@ import {MatCardModule} from "@angular/material/card";
         MatProgressSpinnerModule,
         MatProgressBarModule,
         MatAutocompleteModule,
-        MatCardModule
+        MatCardModule,
+        MatDividerModule
     ],
   providers: [
     CreateEntityFormComponent,

@@ -1,8 +1,8 @@
 @use '@angular/material' as mat;
 @include mat.core();
 
-$theme-primary: mat.define-palette(mat.$deep-purple-palette);
-$theme-accent: mat.define-palette(mat.$teal-palette);
+$theme-primary: mat.define-palette(mat.$indigo-palette);
+$theme-accent: mat.define-palette(mat.$green-palette);
 $theme-warn: mat.define-palette(mat.$red-palette);
 
 $theme: mat.define-light-theme((

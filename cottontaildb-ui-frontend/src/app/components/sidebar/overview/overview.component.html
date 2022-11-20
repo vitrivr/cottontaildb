@@ -4,10 +4,10 @@
   <div *ngFor="let connection of connections">
     <div class="connection-header">
       <h2>
-        Port: {{connection}}
+        PORT: {{connection}}
       </h2>
-      <button mat-flat-button
-              color="accent"
+      <button mat-raised-button
+              color="custom-green"
               (click)="onCreateSchema()">
         CREATE SCHEMA
       </button>
@@ -15,8 +15,8 @@
     </div>
     <app-tree class="tree" [port]="connection"></app-tree>
   </div>
-  <button mat-flat-button
-          color="accent"
+  <button mat-raised-button
+          color="custom-green"
           (click)="onAddConnection()">
     ADD CONNECTION
   </button>

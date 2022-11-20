@@ -1,4 +1,65 @@
 /* You can add global styles to this file, and also import other style files */
+:root {
+  --light_green: #B4D6B5;
+  --light_green_hover: #D2E6D2;
+  --light_blue: #c5cae9;
+  --light_blue_hover: #e8eaf6;
+  --header_blue: #1A237E;
+  --subheader_blue: #283593;
+}
 
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+table{
+  border-collapse: collapse;
+  border-radius: 4px 4px  0 0;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+}
+thead tr{
+  color: white;
+  background-color: #283593;
+  text-align: left;
+  font-weight: bold;
+}
+th,td{
+  padding: 12px 15px;
+}
+tbody tr{
+  border-bottom: 1px solid lightgrey;
+}
+.mat-custom-green{
+  background-color: var(--light_green);
+  color: black;
+}
+.mat-custom-green:hover{
+  background-color: var(--light_green_hover);
+  color: black;
+}
+.mat-custom-blue{
+  background-color: var(--light_blue);
+  color: black;
+}
+.mat-custom-blue:hover{
+  background-color: var(--light_blue_hover);
+  color: black;
+}
+.view-container {
+  display: flex;
+  flex-direction: column;
+  margin: 40px 20px 20px;
+}
+.query-form{
+  width: fit-content;
+  border-radius: 4px;
+  background-color: #283593;
+}
+.query-form-header{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+  padding-left: 10px;
+}
+

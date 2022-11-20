@@ -18,18 +18,6 @@ mat-checkbox{
   border-bottom: solid 1px grey;
   border-radius: 4px;
 }
-.select-form{
-  min-width: 120px;
-  background-color: #4a148c;
-  border-radius: 4px;
-}
-.title{
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: white;
-  padding-left: 10px;
-}
 mat-card {
   margin: 0;
   padding: 0;

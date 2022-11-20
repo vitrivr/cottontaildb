@@ -2,16 +2,11 @@
 
 <mat-tree class="list"
           [dataSource]="dataSource"
-          [treeControl]="treeControl"
-          cdkDropList id="list-1"
-          cdkDropListConnectedTo="list-2">
-  <mat-button-toggle-group>
+          [treeControl]="treeControl">
     <!--schema Node -->
     <mat-tree-node class="schemaNode"
                    *matTreeNodeDef="let node;when: isRoot"
-                   matTreeNodePadding="40px"
-                   cdkDrag
-                   [cdkDragData]="node">
+                   matTreeNodePadding="40px">
 
 
         <button mat-icon-button
@@ -44,23 +39,16 @@
           <span>drop</span>
         </button>
       </mat-menu>
-
-
     </mat-tree-node>
 
     <!--entity node-->
-    <mat-tree-node class="entityNode"
+    <mat-tree-node class="mat-custom-blue"
                    *matTreeNodeDef="let node;"
                    matTreeNodePadding="40px"
                    matTreeNodeToggle
-                   cdkDrag
-                   [cdkDragData]="node">
+                   (click)="onSelect(node.name)">
 
-      <mat-button-toggle
-        (click)="onSelect(node.name)">
-        {{node.name.split(".")[2]}}
-      </mat-button-toggle>
-
+      {{node.name.split(".")[2]}}
 
       <button mat-icon-button [matMenuTriggerFor]="menu" class="menu-button">
         <mat-icon>more_vert</mat-icon>
@@ -80,8 +68,6 @@
 
         </button>
       </mat-menu>
-
     </mat-tree-node>
-  </mat-button-toggle-group>
 </mat-tree>
 

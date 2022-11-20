@@ -13,18 +13,6 @@
   border-bottom: solid 1px grey;
   border-radius: 4px;
 }
-.distance-form{
-  width: fit-content;
-  border-radius: 4px;
-  background-color: #4a148c;
-}
-.title{
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: white;
-  padding-left: 10px;
-}
 mat-card {
   margin: 0;
   padding: 0;

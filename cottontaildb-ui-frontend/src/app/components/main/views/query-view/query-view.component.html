@@ -1,25 +1,22 @@
-<div class="container">
+<div class="view-container">
 
   <div class="query-header">
-    <mat-card>
-      <mat-card-content>
     <ng-container *ngIf="this.selection.entity && this.selection.port">
       <h1>{{"FROM: " + selection.entity.split(".")[2]}}</h1>
     </ng-container>
     <ng-container *ngIf="!this.selection.entity && !this.selection.port">
       <h1>Select an Entity in the sidebar menu</h1>
     </ng-container>
-      </mat-card-content>
-    </mat-card>
-
 
     <div class="function-buttons">
-      <button mat-flat-button color="accent" (click)="addSelect()">SELECT</button>
-      <button mat-flat-button color="accent" (click)="addOrder()">ORDER</button>
-      <button mat-flat-button color="accent" (click)="addDistance()">DISTANCE</button>
-      <button mat-flat-button color="accent" (click)="addLimit()">LIMIT</button>
+      <button mat-raised-button color="custom-blue" (click)="addSelect()">SELECT</button>
+      <button mat-raised-button color="custom-blue" (click)="addOrder()">ORDER</button>
+      <button mat-raised-button color="custom-blue" (click)="addDistance()">DISTANCE</button>
+      <button mat-raised-button color="custom-blue" (click)="addLimit()">LIMIT</button>
     </div>
   </div>
+
+  <mat-divider></mat-divider>
 
   <ng-container [formGroup]="queryForm">
       <div formArrayName="queryFunctions" class="query-builder">
@@ -52,7 +49,7 @@
     </div>
   </ng-container>
 
-  <button mat-flat-button color="accent" (click)="onQuery()">EXECUTE QUERY</button>
+  <button mat-raised-button color="custom-green" (click)="onQuery()">EXECUTE QUERY</button>
 
   <div *ngIf="querying">
   <mat-progress-bar mode="indeterminate"></mat-progress-bar>

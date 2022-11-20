@@ -1,29 +1,5 @@
-.container {
-  display: flex;
-  flex-direction: column;
-}
 
-table{
-  border-collapse: collapse;
-  border-radius: 4px 4px  0 0;
-  overflow: hidden;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
-}
 
-thead tr{
-  color: white;
-  background-color: #4a148c;
-  text-align: left;
-  font-weight: bold;
-}
-
-th,td{
-  padding: 12px 15px;
-}
-
-tbody tr{
-  border-bottom: 1px solid lightgrey;
-}
 
 
 

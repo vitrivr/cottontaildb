@@ -1,25 +1,9 @@
-
 .content {
   display: flex;
-
-  border-right: #4a148c solid 2px;
+  height: 100%;
 }
-
-.header {
-  flex: 0 1 auto;
-  margin: 0;
-  text-align: left;
-  padding-left: 20px;
-  min-height: 80px;
-  height: 80px;
-  line-height: 80px;
-  background-color: #4a148c;
-  color: white;
-}
-
 .overview {
   background-color: white;
   flex: 1 1 auto;
-
 }
 

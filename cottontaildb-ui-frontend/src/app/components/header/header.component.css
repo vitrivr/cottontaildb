@@ -1,29 +1,41 @@
-.container {
-  background-color: #4a148c;
+.header-container {
+  background-color: #1a237e;
   display: flex;
+  height: 100%;
 }
-
+.button:first-of-type{
+  margin-left: 400px;
+}
 .button{
-  margin-top: 30px;
-  background-color: #009688;
-  text-align: center;
-  font-size: 1.3em;
+  margin-top:25px;
+  margin-bottom: 25px;
   line-height: 50px;
+  justify-content: center;
+  text-align: center;
+  font-size: 1.3rem;
   width: 120px;
-  border-radius: 4px 4px  0 0;
+  border-radius: 4px 4px  4px 4px;
   overflow: hidden;
   margin-right: 10px;
-  font-weight: bold;
-  color: white;
+  background-color: #c5cae9;
+  color: black;
 }
-
 .is-active {
   background-color: white;
-  color: #303030;
+  color: black;
 }
-
 .button:hover{
-  background-color: white;
-  color: #303030;
+  background-color: #e8eaf6;
+  color: black;
 }
-
+.is-active:hover{
+  background-color: white;
+  color: black;
+}
+h1{
+  position: fixed;
+  color: white;
+  line-height: 100px;
+  margin-left: 20px;
+  font-size: 2rem;
+}

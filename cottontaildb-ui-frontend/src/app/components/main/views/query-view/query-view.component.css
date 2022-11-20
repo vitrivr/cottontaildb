@@ -1,8 +1,3 @@
-.container{
-  display: flex;
-  flex-direction: column;
-  margin: 40px 20px 20px;
-}
 .function-list{
   display: flex;
   flex-direction: row;
@@ -14,23 +9,27 @@
   display: flex;
   width: auto;
   justify-content: space-between;
+  align-content: center;
 }
 .function-buttons button
 {
   margin-left: 10px;
 }
 .drop-list{
-  display: flex
+  min-height: 125px;
+  display: flex;
+  margin-bottom: 10px;
 }
 .drop-list div{
   margin-right: 10px;
+  cursor: grab;
 }
 .query-header{
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 .query-builder{
   width: 100%;
-  overflow: scroll;
+  overflow-x: scroll;
+  margin-top: 10px;
   margin-bottom: 20px;
 }
-

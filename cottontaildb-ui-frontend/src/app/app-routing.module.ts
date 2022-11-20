@@ -4,11 +4,10 @@ import {Routes, RouterModule} from '@angular/router';
 import {DmlViewComponent} from "./components/main/views/dml-view/dml-view.component";
 import {QueryViewComponent} from "./components/main/views/query-view/query-view.component";
 import {SystemViewComponent} from "./components/main/views/system-view/system-view.component";
-import {SchemaViewComponent} from "./components/main/views/schema-view/schema-view.component";
 import {DdlViewComponent} from "./components/main/views/ddl-view/ddl-view.component";
 
 const routes: Routes = [
-  { path: '', component: SchemaViewComponent },
+  { path: '', component: DdlViewComponent },
   { path: 'ddl', component: DdlViewComponent },
   { path: 'dml', component: DmlViewComponent },
   { path: 'query', component: QueryViewComponent },

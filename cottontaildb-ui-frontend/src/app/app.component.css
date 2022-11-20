@@ -1,18 +1,17 @@
 .app-container{
   height: 100%;
   display: grid;
-  grid-template-columns: 400px 1fr;
+  grid-template-columns:400px 1fr;
   grid-template-rows: 100px 1fr;
 }
 .header{
   grid-column: 1/-1;
 }
-
 .content {
   display: flex;
 }
 .sidebar {
-  overflow: auto;
+  overflow-y: scroll;
 }
 .main {
   width: 100%;
@@ -20,4 +19,6 @@
   overflow-y: scroll;
 }
 
-
+h1{
+  color: red;
+}
