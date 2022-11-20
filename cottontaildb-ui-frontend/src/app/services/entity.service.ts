@@ -35,7 +35,14 @@ export class EntityService {
   }
 
   aboutEntity(port: number, entityName: string) {
-    this.httpClient.get(this.connectionService.apiURL.concat(port.toString(),"/entities/",entityName)).subscribe(value => this.aboutEntitySubject.next(value))
+    this.httpClient.get(this.connectionService.apiURL.concat(port.toString(),"/entities/",entityName)).subscribe(
+      {next: value => {
+          /** Only call next if value has actually changed **/
+          if(JSON.stringify(this.aboutEntitySubject.value) !== JSON.stringify(value)) {
+            this.aboutEntitySubject.next(value)
+          }
+        }}
+    )
   }
 
   dropIndex(port: number, dbo: string) {

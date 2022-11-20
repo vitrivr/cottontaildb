@@ -23,7 +23,7 @@
         <div class="drop-list" cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="drop($event)">
 
           <ng-container *ngFor="let item of queryFunctions.controls; index as i"
-                        [ngSwitch]="item.value.function" >
+                        [ngSwitch]="item.value.function">
             <div cdkDrag *ngSwitchCase="'select'">
               <app-select-form [index]="i">
               </app-select-form>
@@ -56,6 +56,7 @@
   </div>
 
   <div *ngIf="queryData" class="query-table">
+
     <mat-table [dataSource]="queryData.rows">
 
       <mat-header-row *matHeaderRowDef="queryData.columnNames"></mat-header-row>
@@ -63,7 +64,7 @@
 
       <ng-container *ngFor="let col of queryData.columnNames; index as i">
         <ng-container [matColumnDef]="col">
-          <mat-header-cell  *matHeaderCellDef > {{col.split(".")[2]}} </mat-header-cell>
+          <mat-header-cell  *matHeaderCellDef > {{col.split(".").slice(-1)}} </mat-header-cell>
           <mat-cell *matCellDef="let row"> {{trim(row[i])}}</mat-cell>
         </ng-container>
       </ng-container>

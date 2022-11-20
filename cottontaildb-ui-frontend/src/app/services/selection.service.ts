@@ -17,6 +17,7 @@ export class SelectionService {
   constructor() { }
 
   changeSelection(entity: string, port: number) {
+
     this.selectionSubject.next({entity, port})
   }
 

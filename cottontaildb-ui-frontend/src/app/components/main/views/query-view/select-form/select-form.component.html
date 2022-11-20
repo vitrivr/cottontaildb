@@ -10,7 +10,7 @@
         <div class="form-container">
           <ng-container  *ngFor="let item of aboutEntityData">
             <div class="form-field-container" *ngIf="item._class === 'COLUMN'">
-              <mat-label> {{item.dbo.split(".")[3]}} </mat-label>
+              <mat-label> {{item.dbo.split(".").slice(-1)}} </mat-label>
               <mat-checkbox [formControlName]="item.dbo"> </mat-checkbox>
             </div>
           </ng-container>
