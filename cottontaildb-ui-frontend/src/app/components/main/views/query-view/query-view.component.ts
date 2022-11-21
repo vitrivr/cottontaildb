@@ -1,6 +1,16 @@
 import {Component, OnInit} from '@angular/core';
 import {FormArray, FormBuilder, FormControl, FormRecord} from "@angular/forms";
-import {Distance, From, Limit, Order, QueryFunction, QueryService, Select} from "../../../../services/query.service";
+import {
+  Count,
+  Distance,
+  From,
+  Limit,
+  Order,
+  QueryFunction,
+  QueryService,
+  Select,
+  Where
+} from "../../../../services/query.service";
 import {SelectionService} from "../../../../services/selection.service";
 import {PageEvent} from "@angular/material/paginator";
 import {CdkDragDrop} from "@angular/cdk/drag-drop";
@@ -35,23 +45,22 @@ export class QueryViewComponent implements OnInit {
 
   ngOnInit(): void {
     this.selectionService.currentSelection.subscribe(selection => this.selection = selection)
-    this.addSelect()
   }
 
-  addSelect(){
-    this.queryFunctions.push(this.fb.group({'function': new FormControl('select'), 'conditions': new FormRecord({})},))
+
+
+  pushControl(name: string){
+    this.queryFunctions.push(this.fb.group({'function': new FormControl(name), 'conditions': new FormRecord({})},))
   }
 
-  addOrder(){
-    this.queryFunctions.push(this.fb.group({'function': new FormControl('order'), 'conditions': new FormRecord({})},))
-  }
-
-  addDistance(){
-    this.queryFunctions.push(this.fb.group({'function': new FormControl('distance'), 'conditions': new FormRecord({})},))
-  }
-
-  addLimit(){
-    this.queryFunctions.push(this.fb.group({'function': new FormControl('limit'), 'conditions': new FormRecord({})},))
+  addNNS(){
+    this.pushControl("distance")
+    this.pushControl("order")
+    this.pushControl("limit")
+    let distName = this.queryFunctions.at(this.queryFunctions.length-3).get("conditions")?.get("name")
+    if(distName != null){
+      console.log(this.queryFunctions.at(this.queryFunctions.length-3).get("conditions"))
+    }
   }
 
 
@@ -82,31 +91,42 @@ export class QueryViewComponent implements OnInit {
                 qm.push(new Select(columnNames[i]))
               }}
           }
-          break;
+          break
         }
 
         case "order": {
           console.log("ORDER")
           let conditions = Object.values(item.conditions) as Array<string>
           qm.push(new Order(conditions[0], conditions[1]))
-          break;
+          break
         }
 
         case "limit": {
           let conditions = Object.values(item.conditions) as Array<number>
           qm.push(new Limit(conditions[0]))
-          break;
+          break
         }
 
         case "distance": {
           let conditions = Object.values(item.conditions) as Array<any>
           qm.push(new Distance(conditions[0], conditions[1], conditions[2], conditions[3], conditions[4]))
-          break;
+          break
+        }
+
+        case "where": {
+          let conditions = Object.values(item.conditions) as Array<any>
+          qm.push(new Where(conditions[0], conditions[1], conditions[2]))
+          break
+        }
+
+        case "count": {
+          qm.push(new Count())
+          break
         }
 
         default: {
           console.log("undefined queryFunction")
-          break;
+          break
         }
       }
 
@@ -149,7 +169,4 @@ export class QueryViewComponent implements OnInit {
   drop(event: CdkDragDrop<string[]>) {
     this.moveItemInFormArray(this.queryFunctions, event.previousIndex, event.currentIndex);
   }
-
-
-
 }

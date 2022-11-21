@@ -51,6 +51,17 @@ export class Order implements QueryFunction{
   }
 }
 
+export class Where implements QueryFunction{
+  name = "WHERE";
+  parameters: [string, string, string]
+  constructor(column: string, operator: string, value: string) {
+    this.parameters = [column, operator, value]
+  }
+}
+export class Count implements QueryFunction{
+  name = "COUNT";
+  parameters = [null]
+}
 
 @Injectable({
   providedIn: 'root'

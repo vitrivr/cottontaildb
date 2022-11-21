@@ -12,7 +12,9 @@ import channelCache
 import com.google.gson.Gson
 import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.basics.Distances
-import org.vitrivr.cottontail.client.language.basics.predicate.Expression
+import org.vitrivr.cottontail.client.language.basics.predicate.*
+
+
 import pageCache
 import pagedCache
 import queryCache
@@ -144,7 +146,6 @@ object QueryController {
         val client = SimpleClient(channel)
         var query = Query()
 
-
         queryFunctionCalls.forEach {
             when(it.name){
                 "SELECT" -> query = query.select(it.parameters[0])
@@ -155,13 +156,18 @@ object QueryController {
                 "DISTANCE" -> {
                     val arrType : Class<*> = when(it.parameters[2]){
                         "FLOAT_VEC" -> Array<Float>::class.java
+                        "DOUBLE_VEC" -> Array<Double>::class.java
                         "INT_VEC" -> Array<Int>::class.java
+                        "BOOL_VEC" -> Array<Boolean>::class.java
+                        "LONG_VEC" -> Array<Long>::class.java
                         else -> Array::class.java
                     }
                     query = query.distance(it.parameters[0], gson.fromJson(it.parameters[1], arrType), Distances.valueOf(it.parameters[3]), it.parameters[4])
                 }
-
-                "WHERE" -> query = query.where(Expression(it.parameters[0], it.parameters[1], it.parameters[2]))
+                "WHERE" -> {
+                    println(it.parameters[2].javaClass)
+                    query = query.where(Expression(it.parameters[0], it.parameters[1], it.parameters[2]))
+                }
             }
         }
 

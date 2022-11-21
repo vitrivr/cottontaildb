@@ -1,5 +1,5 @@
 import {Component, Input, OnInit} from '@angular/core';
-import {FormBuilder, FormControl, FormGroupDirective, FormRecord, NG_VALUE_ACCESSOR} from "@angular/forms";
+import {FormBuilder, FormControl, FormGroupDirective, FormRecord, NG_VALUE_ACCESSOR, Validators} from "@angular/forms";
 import {SelectionService} from "../../../../../services/selection.service";
 import {EntityService} from "../../../../../services/entity.service";
 
@@ -55,11 +55,11 @@ export class DistanceFormComponent implements OnInit {
         )
       }
 
-      this.conditions.addControl("column", new FormControl(""))
-      this.conditions.addControl("vector", new FormControl())
-      this.conditions.addControl("vectorType", new FormControl(""))
-      this.conditions.addControl("distance", new FormControl(""))
-      this.conditions.addControl("name", new FormControl(""))
+      this.conditions.addControl("column", new FormControl("", [Validators.required]))
+      this.conditions.addControl("vector", new FormControl("", [Validators.required]))
+      this.conditions.addControl("vectorType", new FormControl("", [Validators.required]))
+      this.conditions.addControl("distance", new FormControl("", [Validators.required]))
+      this.conditions.addControl("name", new FormControl("", [Validators.required]))
 
       this.conditions.get("column").valueChanges.subscribe((column: any) =>
       {

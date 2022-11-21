@@ -46,6 +46,7 @@ import { LimitFormComponent } from './components/main/views/query-view/limit-for
 import {MatAutocompleteModule} from "@angular/material/autocomplete";
 import {MatCardModule} from "@angular/material/card";
 import {MatDividerModule} from "@angular/material/divider";
+import { CountFormComponent } from './components/main/views/query-view/count-form/count-form.component';
 @NgModule({
   declarations: [
     AppComponent,
@@ -66,7 +67,8 @@ import {MatDividerModule} from "@angular/material/divider";
     WhereFormComponent,
     OrderFormComponent,
     DistanceFormComponent,
-    LimitFormComponent
+    LimitFormComponent,
+    CountFormComponent
   ],
     imports: [
         BrowserModule,

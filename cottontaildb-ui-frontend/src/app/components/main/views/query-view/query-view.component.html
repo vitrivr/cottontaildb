@@ -1,18 +1,55 @@
 <div class="view-container">
 
   <div class="query-header">
-    <ng-container *ngIf="this.selection.entity && this.selection.port">
-      <h1>{{"FROM: " + selection.entity.split(".")[2]}}</h1>
+    <ng-container *ngIf="this.selection['entity'] && this.selection.port">
+      <h1>{{"FROM: " + selection['entity'].split(".").slice(-1)}}</h1>
     </ng-container>
     <ng-container *ngIf="!this.selection.entity && !this.selection.port">
-      <h1>Select an Entity in the sidebar menu</h1>
+      <h1>Please select an entity in the sidebar<mat-progress-bar mode="indeterminate" color="warn"></mat-progress-bar></h1>
     </ng-container>
 
     <div class="function-buttons">
-      <button mat-raised-button color="custom-blue" (click)="addSelect()">SELECT</button>
-      <button mat-raised-button color="custom-blue" (click)="addOrder()">ORDER</button>
-      <button mat-raised-button color="custom-blue" (click)="addDistance()">DISTANCE</button>
-      <button mat-raised-button color="custom-blue" (click)="addLimit()">LIMIT</button>
+
+      <button mat-raised-button color="custom-blue" [matMenuTriggerFor]="projectionMenu">Projection</button>
+      <mat-menu #projectionMenu="matMenu">
+        <button mat-menu-item (click)="this.pushControl('select')">SELECT</button>
+        <!--<button mat-menu-item (click)="addDistinct()">DISTINCT</button>-->
+        <button mat-menu-item (click)="this.pushControl('count')">COUNT</button>
+        <!--<button mat-menu-item (click)="addExists()">EXISTS</button>-->
+      </mat-menu>
+
+      <button mat-raised-button color="custom-blue" [matMenuTriggerFor]="clauseMenu">Clause</button>
+      <mat-menu #clauseMenu="matMenu">
+        <button mat-menu-item (click)="this.pushControl('order')">ORDER</button>
+        <button mat-menu-item (click)="this.pushControl('where')">WHERE</button>
+        <button mat-menu-item (click)="this.pushControl('limit')">LIMIT</button>
+        <!--<button mat-menu-item (click)="addFrom()">FROM</button>-->
+        <!--<button mat-menu-item (click)="addSkip()">SKIP</button>-->
+      </mat-menu>
+
+      <button mat-raised-button color="custom-blue" [matMenuTriggerFor]="functionMenu">Function</button>
+      <mat-menu #functionMenu="matMenu">
+        <button mat-menu-item (click)="this.pushControl('distance')">DISTANCE</button>
+        <!--<button mat-menu-item (click)="addFulltext()">FULLTEXT</button>-->
+      </mat-menu>
+
+      <button mat-raised-button color="custom-blue" [matMenuTriggerFor]="hintMenu">Hint</button>
+      <mat-menu #hintMenu="matMenu">
+        <!--<button mat-menu-item (click)="addUseIndex()">USE INDEX</button>-->
+        <!--<button mat-menu-item (click)="addUseIndexType()">USE INDEX TYPE</button>-->
+        <!--<button mat-menu-item (click)="addDisallowParallelism()">DISALLOW PARALLELISM</button>-->
+        <!--<button mat-menu-item (click)="addLimitParallelism()">LIMIT PARALLELISM</button>-->
+      </mat-menu>
+
+      <button mat-raised-button color="custom-blue" [matMenuTriggerFor]="presetMenu">
+        <mat-icon style=>double_arrow</mat-icon>
+        Presets
+      </button>
+      <mat-menu #presetMenu="matMenu">
+        <button mat-menu-item (click)="addNNS()">Nearest Neighbour Search</button>
+        <!--<button mat-menu-item (click)="addFNS()">Farthest Neighbour Search</button>-->
+      </mat-menu>
+
     </div>
   </div>
 
@@ -44,12 +81,24 @@
               </app-limit-form>
             </div>
 
+            <div cdkDrag *ngSwitchCase="'where'">
+              <app-where-form [index]="i">
+              </app-where-form>
+            </div>
+
+            <div cdkDrag *ngSwitchCase="'count'">
+              <app-count-form [index]="i">
+              </app-count-form>
+            </div>
+
           </ng-container>
       </div>
     </div>
   </ng-container>
 
-  <button mat-raised-button color="custom-green" (click)="onQuery()">EXECUTE QUERY</button>
+  <button [disabled]="(this.queryFunctions.length == 0)||(this.queryFunctions.status == 'INVALID')"
+          mat-raised-button color="custom-green"
+          (click)="onQuery()">EXECUTE QUERY</button>
 
   <div *ngIf="querying">
   <mat-progress-bar mode="indeterminate"></mat-progress-bar>

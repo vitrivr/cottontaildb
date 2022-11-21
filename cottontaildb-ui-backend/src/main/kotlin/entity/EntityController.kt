@@ -48,7 +48,6 @@ object EntityController {
         result.forEach {
             entityDetails.add(EntityDetails(it))
         }
-        println(entityDetails)
         context.json(entityDetails)
 
     }
