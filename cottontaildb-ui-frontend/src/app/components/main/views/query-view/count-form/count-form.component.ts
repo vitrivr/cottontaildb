@@ -1,29 +1,26 @@
-import {Component, Input, OnInit} from '@angular/core';
+import {Component, OnInit} from '@angular/core';
 import {FormGroupDirective} from "@angular/forms";
+import {AbstractQueryFormComponent} from "../AbstractQueryFormComponent";
+import {SelectionService} from "../../../../../services/selection.service";
+import {EntityService} from "../../../../../services/entity.service";
 
 @Component({
   selector: 'app-count-form',
   templateUrl: './count-form.component.html',
   styleUrls: ['./count-form.component.css']
 })
-export class CountFormComponent implements OnInit {
+export class CountFormComponent extends AbstractQueryFormComponent implements OnInit {
 
-  @Input() index!: number;
-
-  conditions: any;
-  form: any
-
-  constructor(private rootFormGroup: FormGroupDirective) { }
-
-
-  ngOnInit(): void {
-    this.form = this.rootFormGroup.control
-
+  constructor(selectionService: SelectionService,
+              entityService: EntityService,
+              rootFormGroup: FormGroupDirective) {
+    super(rootFormGroup, selectionService, entityService);
   }
 
-
-  remove() {
-    this.form.get("queryFunctions").removeAt(this.index)
+  override ngOnInit(): void {
+    super.ngOnInit()
+    this.initSelect()
   }
+
 
 }

@@ -47,6 +47,10 @@ import {MatAutocompleteModule} from "@angular/material/autocomplete";
 import {MatCardModule} from "@angular/material/card";
 import {MatDividerModule} from "@angular/material/divider";
 import { CountFormComponent } from './components/main/views/query-view/count-form/count-form.component';
+import { UseIndexFormComponent } from './components/main/views/query-view/use-index-form/use-index-form.component';
+import { UseIndexTypeFormComponent } from './components/main/views/query-view/use-index-type-form/use-index-type-form.component';
+import { DisallowParallelismFormComponent } from './components/main/views/query-view/disallow-parallelism-form/disallow-parallelism-form.component';
+import { LimitParallelismFormComponent } from './components/main/views/query-view/limit-parallelism-form/limit-parallelism-form.component';
 @NgModule({
   declarations: [
     AppComponent,
@@ -68,7 +72,11 @@ import { CountFormComponent } from './components/main/views/query-view/count-for
     OrderFormComponent,
     DistanceFormComponent,
     LimitFormComponent,
-    CountFormComponent
+    CountFormComponent,
+    UseIndexFormComponent,
+    UseIndexTypeFormComponent,
+    DisallowParallelismFormComponent,
+    LimitParallelismFormComponent
   ],
     imports: [
         BrowserModule,

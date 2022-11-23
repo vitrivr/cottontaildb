@@ -1,7 +1,8 @@
-import {Component, Input, OnInit} from '@angular/core';
-import {FormBuilder, FormControl, FormGroupDirective, FormRecord, NG_VALUE_ACCESSOR, Validators} from "@angular/forms";
+import {Component, OnInit} from '@angular/core';
+import {FormControl, FormGroupDirective, NG_VALUE_ACCESSOR, Validators} from "@angular/forms";
 import {SelectionService} from "../../../../../services/selection.service";
 import {EntityService} from "../../../../../services/entity.service";
+import {AbstractQueryFormComponent} from "../AbstractQueryFormComponent";
 
 @Component({
   selector: 'app-distance-form',
@@ -13,47 +14,28 @@ import {EntityService} from "../../../../../services/entity.service";
     multi: true
   }]
 })
-export class DistanceFormComponent implements OnInit {
+export class DistanceFormComponent extends AbstractQueryFormComponent implements OnInit {
 
-  @Input() index!: number;
-  form: any
-  selection: any
   aboutEntityData: any
-  conditions: any;
   vectors: any;
   column: any;
   distances = ["MANHATTAN", "EUCLIDEAN", "SQUAREDEUCLIDEAN", "HAMMING", "COSINE", "CHISQUARED", "INNERPRODUCT", "HAVERSINE"];
   jsonStringify = JSON.stringify
 
-  constructor(private fb: FormBuilder,
-              private selectionService : SelectionService,
-              private entityService: EntityService,
-              private rootFormGroup: FormGroupDirective) {
+  constructor(selectionService: SelectionService,
+              entityService: EntityService,
+              rootFormGroup: FormGroupDirective) {
+    super(rootFormGroup, selectionService, entityService);
   }
 
-  ngOnInit(): void {
-
-    this.form = this.rootFormGroup.control
-    this.conditions = this.form.get("queryFunctions").at(this.index).get("conditions") as FormRecord
-
-    this.selectionService.currentSelection.subscribe(selection => {
-      if(selection.entity && selection.port) {
-        this.selection = selection;
-        this.entityService.aboutEntity(this.selection.port, this.selection.entity);
-      }
-    })
+  override ngOnInit(): void {
+    super.ngOnInit()
+    this.initSelect()
 
     //change every time a new entity is selected
     this.entityService.aboutEntitySubject.subscribe(about => {
       this.aboutEntityData = about
-
-      //if there are conditions left, reset them
-      if(this.conditions)
-      {
-        Object.keys(this.conditions.controls).forEach(it =>
-          this.conditions.removeControl(it)
-        )
-      }
+      this.resetConditions()
 
       this.conditions.addControl("column", new FormControl("", [Validators.required]))
       this.conditions.addControl("vector", new FormControl("", [Validators.required]))
@@ -61,23 +43,17 @@ export class DistanceFormComponent implements OnInit {
       this.conditions.addControl("distance", new FormControl("", [Validators.required]))
       this.conditions.addControl("name", new FormControl("", [Validators.required]))
 
-      this.conditions.get("column").valueChanges.subscribe((column: any) =>
-      {
-        this.aboutEntityData.forEach((item: { dbo: string, lsize: number, type: string }) =>
-          {
-            if (item.dbo.includes(column))
-            {
-            console.log(item.lsize)
-            this.vectors = [Array(item.lsize).fill(0), Array(item.lsize).fill(1)]
-            this.conditions.get("vectorType").setValue(item.type)
+      this.conditions.get("column").valueChanges.subscribe((column: any) => {
+        this.aboutEntityData.forEach((item: { dbo: string, lsize: number, type: string }) => {
+            if (item.dbo.includes(column)) {
+              console.log(item.lsize)
+              this.vectors = [Array(item.lsize).fill(0), Array(item.lsize).fill(1)]
+              this.conditions.get("vectorType").setValue(item.type)
             }
           }
         )
       })
 
     })
-  }
-  remove() {
-    this.form.get("queryFunctions").removeAt(this.index)
   }
 }

@@ -1,7 +1,13 @@
 <div class="view-container">
   <div class="entity-details">
-    <h1 *ngIf="aboutEntityData != null && this.selection">{{this.selection.entity.split(".")[2]}}</h1>
-    <h1 *ngIf="(aboutEntityData === null )">Select an Entity in the sidebar menu</h1>
+    <div class="selection-header">
+      <ng-container *ngIf="!aboutEntityData; else showName">
+        <h1>Please select an entity in the sidebar</h1>
+      </ng-container>
+      <ng-template #showName>
+        <h2>{{selection['entity'].split(".").slice(-1)}}</h2>
+      </ng-template>
+    </div>
     <div class="table">
       <table>
         <thead>

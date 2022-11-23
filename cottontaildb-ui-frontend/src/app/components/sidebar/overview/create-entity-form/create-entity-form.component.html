@@ -16,15 +16,15 @@
 
         <div class="reset-button">
           <button (click)="onReset()"
-                  mat-flat-button
-                  color="accent">
+                  mat-raised-button
+                  color="warn">
             Reset
           </button>
         </div>
 
         <div class="create-button">
-          <button mat-flat-button
-                  color="accent"
+          <button mat-raised-button
+                  color="custom-green"
                   type="button"
                   (click)="onCreateEntity()" [disabled]="(entityName.invalid)|| (columnData.length === 0)">
             Create
@@ -68,8 +68,8 @@
         </mat-form-field>
 
         <button class="add-button"
-                mat-flat-button
-                color="accent"
+                mat-raised-button
+                color="custom-green"
                 [disabled]="columnForm.invalid">
           Add
         </button>
@@ -101,7 +101,7 @@
           <td><span>{{item.type}}</span></td>
           <td><span>{{item.nullable}}</span></td>
           <td><span>-1</span></td>
-          <td><button mat-button type="button" class="btn btn-primary" (click)="removeItem(item)">Remove</button></td>
+          <td><button mat-raised-button type="button" color="warn" (click)="removeItem(item)">Remove</button></td>
         </tr>
         </tbody>
       </table>

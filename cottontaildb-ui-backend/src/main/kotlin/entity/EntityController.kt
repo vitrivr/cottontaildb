@@ -5,12 +5,19 @@ import com.google.gson.Gson
 import io.javalin.http.Context
 import kotlinx.serialization.json.*
 import org.vitrivr.cottontail.client.SimpleClient
+import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.client.iterators.TupleIterator
+import org.vitrivr.cottontail.client.language.basics.predicate.Expression
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.client.language.dml.Delete
+import org.vitrivr.cottontail.client.language.dml.Insert
+import org.vitrivr.cottontail.client.language.dml.Update
 import org.vitrivr.cottontail.client.language.dql.Query
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc.IndexType
+import java.lang.Exception
+import java.time.LocalDate
 
 
 object EntityController {
@@ -28,6 +35,23 @@ object EntityController {
             return def.build()
         }
     }
+
+    @Suppress("unused")
+    class EntityDetails (details: Tuple){
+        var dbo: String? = details.asString("dbo")
+        var _class : String? = details.asString("class")
+        var type : String? = details.asString("type")
+        var rows: Int? = details.asInt("rows")
+        var lsize : Int? = details.asInt("l_size")
+        var nullable : Boolean? = details.asBoolean("nullable")
+        val info : String? = details.asString("info")
+    }
+    @Suppress("unused")
+    class DeleteDetails(details: Tuple){
+        var deleted: Long? = details.asLong("deleted")
+        var duration_ms : Double? = details.asDouble("duration_ms")
+    }
+
 
 
 
@@ -117,7 +141,52 @@ object EntityController {
         }
 
     fun deleteRow(context: Context){
-        TODO()
+
+        val port = context.pathParam("port").toInt()
+        val channel = channelCache.get(Pair(port,"localhost"))
+        val client = SimpleClient(channel)
+
+        val entity = context.queryParam("entity")
+        val column = context.queryParam("column")
+        val operator = context.queryParam("operator")
+        val value = context.queryParam("value")
+        val typedValue : Any
+        val type = context.queryParam("type")
+
+        require(value != null)
+
+        try {
+            when(type) {
+                "SHORT" -> typedValue = value.toShort()
+                "LONG" -> typedValue = value.toLong()
+                "INTEGER" -> typedValue = value.toInt()
+                "DOUBLE" ->  typedValue = value.toDouble()
+                "BOOLEAN" -> typedValue = value.toBoolean()
+                "BYTE" -> typedValue = value.toByte()
+                "FLOAT" -> typedValue = value.toFloat()
+                "DATE" -> typedValue = LocalDate.parse(value)
+                "FLOAT_VEC" -> typedValue = gson.fromJson(value, Array<Float>::class.java)
+                "LONG_VEC" -> typedValue = gson.fromJson(value, Array<Long>::class.java)
+                "INT_VEC" -> typedValue = gson.fromJson(value, Array<Int>::class.java)
+                "BOOL_VEC" -> typedValue = gson.fromJson(value, Array<Boolean>::class.java)
+                "COMPLEX_32" -> typedValue = gson.fromJson(value, Types.Complex32Vector::class.java)
+                "COMPLEX_64" -> typedValue = gson.fromJson(value, Types.Complex64Vector::class.java)
+                "BYTESTRING" -> typedValue = gson.fromJson(value, Types.ByteString::class.java)
+                else -> typedValue = value
+            }
+            if(entity != null && column != null && operator != null) {
+                val result = client.delete(Delete().from(entity).where(Expression(column, operator, typedValue)))
+                val deleteDetails: MutableList<DeleteDetails> = mutableListOf()
+                result.forEach {
+                    deleteDetails.add(DeleteDetails(it))
+                }
+                context.json(deleteDetails)
+            } else {
+                context.status(400)
+            }
+        } catch (e: Exception){
+            context.status(400)
+        }
     }
     fun dropEntity(context: Context){
         val port = context.pathParam("port").toInt()
@@ -150,6 +219,20 @@ object EntityController {
     fun importData(context: Context){
         TODO()
     }
+
+    fun insertRow(context: Context){
+        val port = context.pathParam("port").toInt()
+        val channel = channelCache.get(Pair(port,"localhost"))
+        val client = SimpleClient(channel)
+
+        val column = context.queryParam("column")
+        val value = context.queryParam("value")
+        val entity = context.queryParam("entity")
+
+        if(column != null && value != null && entity != null){
+            client.insert(Insert().into(entity).value(column,value))
+        }
+    }
     fun listAllEntities(context: Context){
         TODO()
     }
@@ -168,6 +251,15 @@ object EntityController {
 
         val result = client.truncate(TruncateEntity(context.pathParam("name")))
         context.json(result)
+    }
+
+    fun update(context: Context){
+        val port = context.pathParam("port").toInt()
+        val channel = channelCache.get(Pair(port,"localhost"))
+        val client = SimpleClient(channel)
+        client.update(Update().from("")
+            .where(Expression("","",""))
+            .values(Pair("","")))
     }
 
 }

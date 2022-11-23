@@ -27,6 +27,7 @@ export class AddConnectionFormComponent implements OnInit {
 
   submit() {
     let port = this.connectionForm.value.port;
+    //let address = this.connectionForm.value.address
     /*Clear form text field upon submit*/
     this.connectionForm.reset();
     if (port != null) {

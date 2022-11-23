@@ -1,11 +1,11 @@
 <div class="view-container">
 
-  <div class="query-header">
+  <div class="selection-header">
     <ng-container *ngIf="this.selection['entity'] && this.selection.port">
-      <h1>{{"FROM: " + selection['entity'].split(".").slice(-1)}}</h1>
+      <h2>{{"FROM: " + selection['entity'].split(".").slice(-1)}}</h2>
     </ng-container>
     <ng-container *ngIf="!this.selection.entity && !this.selection.port">
-      <h1>Please select an entity in the sidebar<mat-progress-bar mode="indeterminate" color="warn"></mat-progress-bar></h1>
+      <h1>Please select an entity in the sidebar</h1>
     </ng-container>
 
     <div class="function-buttons">
@@ -61,34 +61,13 @@
 
           <ng-container *ngFor="let item of queryFunctions.controls; index as i"
                         [ngSwitch]="item.value.function">
-            <div cdkDrag *ngSwitchCase="'select'">
-              <app-select-form [index]="i">
-              </app-select-form>
-            </div>
-
-            <div cdkDrag *ngSwitchCase="'order'" >
-              <app-order-form [index]="i">
-              </app-order-form>
-            </div>
-
-            <div cdkDrag *ngSwitchCase="'distance'">
-              <app-distance-form [index]="i">
-              </app-distance-form>
-            </div>
-
-            <div cdkDrag *ngSwitchCase="'limit'">
-              <app-limit-form [index]="i">
-              </app-limit-form>
-            </div>
-
-            <div cdkDrag *ngSwitchCase="'where'">
-              <app-where-form [index]="i">
-              </app-where-form>
-            </div>
-
-            <div cdkDrag *ngSwitchCase="'count'">
-              <app-count-form [index]="i">
-              </app-count-form>
+            <div cdkDrag cdkDragLockAxis="x" cdkDragBoundary=".main">
+              <app-select-form *ngSwitchCase="'select'" [index]="i"></app-select-form>
+              <app-order-form *ngSwitchCase="'order'" [index]="i"></app-order-form>
+              <app-distance-form *ngSwitchCase="'distance'" [index]="i"></app-distance-form>
+              <app-limit-form *ngSwitchCase="'limit'" [index]="i"></app-limit-form>
+              <app-where-form *ngSwitchCase="'where'" [index]="i"></app-where-form>
+              <app-count-form *ngSwitchCase="'count'" [index]="i"></app-count-form>
             </div>
 
           </ng-container>
@@ -96,7 +75,7 @@
     </div>
   </ng-container>
 
-  <button [disabled]="(this.queryFunctions.length == 0)||(this.queryFunctions.status == 'INVALID')"
+  <button [disabled]="queryFunctions.pristine || !queryFunctions.valid"
           mat-raised-button color="custom-green"
           (click)="onQuery()">EXECUTE QUERY</button>
 

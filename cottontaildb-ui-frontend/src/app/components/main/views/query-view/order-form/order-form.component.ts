@@ -1,47 +1,33 @@
-import {Component, Input, OnInit} from '@angular/core';
-import {FormBuilder, FormControl, FormGroupDirective, FormRecord} from "@angular/forms";
+import {Component, OnInit} from '@angular/core';
+import {FormBuilder, FormControl, FormGroupDirective} from "@angular/forms";
 import {SelectionService} from "../../../../../services/selection.service";
 import {EntityService} from "../../../../../services/entity.service";
+import {AbstractQueryFormComponent} from "../AbstractQueryFormComponent";
 
 @Component({
   selector: 'app-order-form',
   templateUrl: './order-form.component.html',
   styleUrls: ['./order-form.component.css']
 })
-export class OrderFormComponent implements OnInit {
+export class OrderFormComponent extends AbstractQueryFormComponent implements OnInit {
 
-  @Input() index!: number;
-
-  conditions: any;
-  form: any
   aboutEntityData: any
-  selection: any
 
-  constructor(private fb: FormBuilder,
-              private selectionService: SelectionService,
-              private entityService: EntityService,
-              private rootFormGroup: FormGroupDirective) { }
+  constructor( fb: FormBuilder,
+               selectionService: SelectionService,
+               entityService: EntityService,
+               rootFormGroup: FormGroupDirective) {
+    super(rootFormGroup, selectionService, entityService);
+  }
 
-  ngOnInit(): void {
+  override ngOnInit(): void {
 
-    this.form = this.rootFormGroup.control
-    this.conditions = this.form.get("queryFunctions").at(this.index).get("conditions") as FormRecord
-
-    this.selectionService.currentSelection.subscribe(selection => {
-      if(selection.entity && selection.port) {
-        this.selection = selection;
-        this.entityService.aboutEntity(this.selection.port, this.selection.entity);
-      }
-    })
+    super.ngOnInit();
+    this.initSelect()
 
     this.entityService.aboutEntitySubject.subscribe(about => {
       this.aboutEntityData = about
-
-      //if there are conditions left, reset them
-      if(this.conditions){
-        Object.keys(this.conditions.controls).forEach(it =>
-          this.conditions.removeControl(it)
-        )}
+      this.resetConditions()
 
       if(this.aboutEntityData != null){
         this.conditions.addControl("column", new FormControl(""))
@@ -49,8 +35,4 @@ export class OrderFormComponent implements OnInit {
       }
     })
   }
-  remove() {
-    this.form.get("queryFunctions").removeAt(this.index)
-  }
-
 }

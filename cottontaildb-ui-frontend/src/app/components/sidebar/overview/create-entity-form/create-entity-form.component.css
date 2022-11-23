@@ -2,14 +2,12 @@
   display: flex;
   flex-direction: column;
 }
-
 .preview-title{
   display: flex;
 }
 .entity-name{
   grid-column: 1/3;
 }
-
 h2{
   margin-right: auto;
 }
@@ -19,7 +17,6 @@ h2{
   height: fit-content;
   justify-self: end;
 }
-
 .create-button{
   grid-column: 4;
   width: fit-content;
@@ -44,13 +41,11 @@ h2{
   border-radius: 5px;
   width:100%;
 }
-
 .add-button{
   width: fit-content;
   height: fit-content;
   justify-self: end;
 }
-
 .form-card{
   padding: 10px;
   height: fit-content;
@@ -60,38 +55,16 @@ h2{
   display: flex;
   flex-direction: row;
 }
-
 app-drop-zone{
   min-width: 380px;
 }
-
 form{
  text-align: center;
   display: flex;
   flex-direction: row;
 }
-.error{
-  color: red;
-}
-table{
-  grid-column: 1/-1;
-  border-collapse: collapse;
+table {
   width: 100%;
-  border-radius: 4px 4px  0 0;
-  overflow: hidden;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
-}
-thead tr{
-  color: white;
-  background-color: #4a148c;
-  text-align: left;
-  font-weight: bold;
-}
-th,td{
-  padding: 12px 15px;
-}
-tbody tr{
-  border-bottom: 1px solid lightgrey;
 }
 mat-stepper {
 }
