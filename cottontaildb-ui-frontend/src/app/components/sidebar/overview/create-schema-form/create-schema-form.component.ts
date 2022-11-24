@@ -18,7 +18,7 @@ export class CreateSchemaFormComponent implements OnInit{
 
   ngOnInit(): void {
   }
-  @Input() port = 0;
+  @Input() connection : any;
 
   schemaForm = new FormGroup({
     name: new FormControl('', [
@@ -36,8 +36,8 @@ export class CreateSchemaFormComponent implements OnInit{
     }
     /*Clear form text field upon submit*/
     this.schemaForm.reset();
-    this.schemaService.createSchema(schema).subscribe({
-      next: () => this.treeDataService.fetchTreeData(this.port),
+    this.schemaService.createSchema(this.connection, schema).subscribe({
+      next: () => this.treeDataService.fetchTreeData(this.connection),
       error: err => console.log(err)
     });
     this.dialogRef.close()

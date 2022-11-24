@@ -26,10 +26,10 @@ export abstract class AbstractQueryFormComponent implements OnInit {
     this.form.get("queryFunctions").removeAt(this.index)
   }
   initSelect() {
-    this.selectionService.currentSelection.subscribe(select => {
-      if(select.entity != null && select.port != null) {
-        this.selection = select;
-        this.entityService.aboutEntity(this.selection.port, this.selection.entity);
+    this.selectionService.currentSelection.subscribe(selection => {
+      if(selection.entity != null && selection.connection != null) {
+        this.selection = selection;
+        this.entityService.aboutEntity(this.selection.connection, this.selection.entity);
       }
     })
   }

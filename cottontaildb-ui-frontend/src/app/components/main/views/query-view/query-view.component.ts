@@ -59,6 +59,7 @@ export class QueryViewComponent implements OnInit {
     this.pushControl("limit")
     let distName = this.queryFunctions.at(this.queryFunctions.length-3).get("conditions")?.get("name")
     if(distName != null){
+      //TODO
       console.log(this.queryFunctions.at(this.queryFunctions.length-3).get("conditions"))
     }
   }
@@ -131,7 +132,7 @@ export class QueryViewComponent implements OnInit {
       }
 
     })
-    this.queryService.query(this.selection.port, this.selection.entity, qm, page, pageSize).subscribe(qd => {
+    this.queryService.query(this.selection.connection, this.selection.entity, qm, page, pageSize).subscribe(qd => {
       this.queryData = qd
       this.querying = false
     })

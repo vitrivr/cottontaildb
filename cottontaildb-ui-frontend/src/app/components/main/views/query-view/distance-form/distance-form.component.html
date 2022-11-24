@@ -33,7 +33,7 @@
                       [matAutocomplete]="auto">
           </textarea>
             <mat-autocomplete #auto="matAutocomplete">
-              <ng-container *ngFor="let vector of vectors; index as i">
+              <ng-container *ngFor="let vector of standardVectors; index as i">
                 <mat-option [value]="jsonStringify(vector)">{{jsonStringify(vector)}}</mat-option>
               </ng-container>
             </mat-autocomplete>

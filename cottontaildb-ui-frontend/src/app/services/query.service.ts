@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
-import {HttpClient, HttpParams} from "@angular/common/http";
+import {HttpClient} from "@angular/common/http";
 import {catchError, map, throwError} from "rxjs";
-import {ConnectionService} from "./connection.service";
+import {Connection, ConnectionService} from "./connection.service";
 
 export class QueryData {
 }
@@ -71,17 +71,14 @@ export class QueryService {
   constructor(private http:HttpClient,
               private connectionService: ConnectionService) {}
 
-  query(port: number, entity: string, queryMessage: Array<QueryFunction>, page: number, pageSize: number){
+  query(connection: Connection, entity: string, queryMessage: Array<QueryFunction>, page: number, pageSize: number){
 
-    let params = new HttpParams()
-      .set("pageSize", pageSize)
-      .set("page", page)
+    let params = this.connectionService.httpParams(connection).set("pageSize", pageSize).set("page", page)
 
-    return this.http.post(this.connectionService.apiURL + port + "/query/", queryMessage,{params}).pipe(
+    return this.http.post(this.connectionService.apiURL + "/query/", queryMessage,{params}).pipe(
       map((queryData: QueryData) => queryData),
       catchError(err => throwError(err))
     )
-
 
   }
 

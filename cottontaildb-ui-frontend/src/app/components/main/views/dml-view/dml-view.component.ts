@@ -28,9 +28,9 @@ export class DmlViewComponent implements OnInit {
 
   ngOnInit(): void {
     this.selectionService.currentSelection.subscribe(selection => {
-      if(selection.entity && selection.port) {
+      if(selection.entity && selection.connection) {
         this.selection = selection;
-        this.entityService.aboutEntity(this.selection.port, this.selection.entity);
+        this.entityService.aboutEntity(this.selection.connection, this.selection.entity);
       }
     })
     this.entityService.aboutEntitySubject.subscribe(about => {
@@ -55,7 +55,7 @@ export class DmlViewComponent implements OnInit {
     /*Clear form text field upon submit*/
     this.deleteForm.reset();
     if (column != null && operator != null && value != null && type != null) {
-      this.entityService.deleteRow(this.selection.port, this.selection.entity, column, operator, value, type)
+      this.entityService.deleteRow(this.selection.connection, this.selection.entity, column, operator, value, type)
       this.entityService.deleteSubject.subscribe(
         {next: msg => {
           this.deleteData = msg

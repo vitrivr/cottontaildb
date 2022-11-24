@@ -1,8 +1,7 @@
 package list
 
-import channelCache
+import initClient
 import io.javalin.http.Context
-import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.ListSchemas
 import org.vitrivr.cottontail.client.iterators.TupleIterator
 import org.vitrivr.cottontail.client.language.ddl.ListEntities
@@ -11,9 +10,7 @@ object ListController {
 
     fun getList(context: Context) {
 
-        val port = context.pathParam("port").toInt()
-        val channel = channelCache.get(Pair(port,"localhost"))
-        val client = SimpleClient(channel)
+        val client = initClient(context)
 
         /** using ClientConfig's client, sending ListSchemas message to cottontaildb*/
         val result: TupleIterator = client.list(ListSchemas())

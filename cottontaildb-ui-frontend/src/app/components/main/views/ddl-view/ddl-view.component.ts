@@ -21,9 +21,9 @@ export class DdlViewComponent implements OnInit {
 
   ngOnInit(): void {
     this.selectionService.currentSelection.subscribe(selection => {
-      if(selection.entity && selection.port){
+      if(selection.entity && selection.connection){
         this.selection = selection;
-        this.entityService.aboutEntity(this.selection.port, this.selection.entity);
+        this.entityService.aboutEntity(this.selection.connection, this.selection.entity);
       }
     })
     this.entityService.aboutEntitySubject.subscribe(about => this.aboutEntityData = about)
@@ -31,11 +31,13 @@ export class DdlViewComponent implements OnInit {
 
   onDropIndex(port: number, dbo: string) {
     if(confirm("Are you sure you want to drop the index " + dbo + "?")){
-      this.entityService.dropIndex(port, dbo).subscribe()
-      this.selectionService.changeSelection(this.selection.entity, this.selection.port)
-      this.entityService.aboutEntity(this.selection.port, this.selection.entity)
-    }
-  }
+      this.entityService.dropIndex(this.selection.connection, dbo).subscribe({
+        next: () => {
+          this.entityService.aboutEntity(this.selection.connection, this.selection.entity)
+          this.selectionService.changeSelection(this.selection.connection, this.selection.entity)
+        }})
+      }}
+
 
   onCreateIndex(port: number, dbo: string) {
     this.dialog.open<CreateIndexFormComponent>(CreateIndexFormComponent, {
@@ -45,7 +47,7 @@ export class DdlViewComponent implements OnInit {
         dbo, port
       }
     }).afterClosed().subscribe(
-    () => this.entityService.aboutEntity(this.selection.port, this.selection.entity)
+    () => this.entityService.aboutEntity(this.selection.connection.port, this.selection.entity)
     )
   }
 

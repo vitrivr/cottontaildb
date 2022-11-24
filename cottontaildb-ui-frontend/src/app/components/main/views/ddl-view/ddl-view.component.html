@@ -32,8 +32,8 @@
           <td><span>{{item.nullable}}</span></td>
           <td><span>{{item.info}}</span></td>
           <td>
-            <button mat-raised-button color="warn" *ngIf="item._class === 'INDEX'" (click)="onDropIndex(this.selection.port, item.dbo)">DROP INDEX</button>
-            <button mat-raised-button color="custom-green" *ngIf="item._class === 'COLUMN'" (click)="onCreateIndex(this.selection.port, item.dbo)">CREATE INDEX</button>
+            <button mat-raised-button color="warn" *ngIf="item._class === 'INDEX'" (click)="onDropIndex(this.selection.connection.port, item.dbo)">DROP INDEX</button>
+            <button mat-raised-button color="custom-green" *ngIf="item._class === 'COLUMN'" (click)="onCreateIndex(this.selection.connection.port, item.dbo)">CREATE INDEX</button>
           </td>
         </tr>
         </tbody>

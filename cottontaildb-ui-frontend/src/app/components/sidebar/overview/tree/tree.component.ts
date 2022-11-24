@@ -10,8 +10,6 @@ import {MatDialog} from "@angular/material/dialog";
 import {CreateEntityFormComponent} from "../create-entity-form/create-entity-form.component";
 import {SelectionService} from "../../../../services/selection.service";
 
-
-
 /** Flat node with expandable and level information */
 interface FlatNode {
   expandable: boolean;
@@ -51,7 +49,7 @@ export class TreeComponent implements OnInit {
     node => node.children,
   );
 
-  @Input() port = 0;
+  @Input() connection : any
 
   dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener)
 
@@ -66,9 +64,9 @@ export class TreeComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.treeDataService.fetchTreeData(this.port);
+    this.treeDataService.fetchTreeData(this.connection);
     this.treeDataService.getTreeData().subscribe((datasource) => {
-      return this.dataSource.data = datasource.get(this.port) || [];
+      return this.dataSource.data = datasource.get(this.connection) || [];
     });
   }
 
@@ -76,9 +74,9 @@ export class TreeComponent implements OnInit {
 
   public onDropSchema(schema : Schema){
     if(confirm("are you sure you want to drop the schema " + schema + "?")){
-      this.schemaService.dropSchema(schema).subscribe({
+      this.schemaService.dropSchema(this.connection, schema).subscribe({
         next: () => {
-          this.treeDataService.fetchTreeData(this.port);
+          this.treeDataService.fetchTreeData(this.connection);
           this._snackBar.open( "dropped schema successfully", "ok", {duration:2000})
         },
         error: () => this._snackBar.open("error", "ok", {duration:2000})
@@ -88,9 +86,9 @@ export class TreeComponent implements OnInit {
 
   public onDropEntity(entityName : string){
     if(confirm("are you sure you want to drop the entity " + entityName + "?")){
-      this.entityService.dropEntity(this.port, entityName).subscribe({
+      this.entityService.dropEntity(this.connection, entityName).subscribe({
         next: () => {
-          this.treeDataService.fetchTreeData(this.port);
+          this.treeDataService.fetchTreeData(this.connection);
           this._snackBar.open( "dropped entity successfully", "ok", {duration:2000})
         },
         error: () => this._snackBar.open("error", "ok", {duration:2000})
@@ -100,9 +98,9 @@ export class TreeComponent implements OnInit {
 
   onTruncateEntity(entityName : string) {
     if(confirm("are you sure you want to delete the entity " + entityName + "?")){
-      this.entityService.truncateEntity(this.port, entityName).subscribe({
+      this.entityService.truncateEntity(this.connection, entityName).subscribe({
         next: () => {
-          this.treeDataService.fetchTreeData(this.port);
+          this.treeDataService.fetchTreeData(this.connection);
           this._snackBar.open( "truncated entity successfully", "ok", {duration:2000})
         },
         error: () => this._snackBar.open("error", "ok", {duration:2000})
@@ -112,9 +110,9 @@ export class TreeComponent implements OnInit {
 
   onClearEntity(entityName : string) {
     if(confirm("are you sure you want to delete the entity " + entityName + "?")){
-      this.entityService.clearEntity(this.port, entityName).subscribe({
+      this.entityService.clearEntity(this.connection, entityName).subscribe({
         next: () => {
-          this.treeDataService.fetchTreeData(this.port);
+          this.treeDataService.fetchTreeData(this.connection);
           this._snackBar.open( "cleared entity successfully", "ok", {duration:2000})
         },
         error: () => this._snackBar.open("error", "ok", {duration:2000})
@@ -133,7 +131,7 @@ export class TreeComponent implements OnInit {
   }
 
   onSelect(nodeName : string) {
-    this.selectionService.changeSelection(nodeName, this.port)
+    this.selectionService.changeSelection(this.connection, nodeName)
   }
 
   onDumpEntity(name: string) {

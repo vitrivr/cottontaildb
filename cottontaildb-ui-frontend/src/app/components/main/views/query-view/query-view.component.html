@@ -1,7 +1,7 @@
 <div class="view-container">
 
   <div class="selection-header">
-    <ng-container *ngIf="this.selection['entity'] && this.selection.port">
+    <ng-container *ngIf="this.selection['entity'] && this.selection.connection">
       <h2>{{"FROM: " + selection['entity'].split(".").slice(-1)}}</h2>
     </ng-container>
     <ng-container *ngIf="!this.selection.entity && !this.selection.port">

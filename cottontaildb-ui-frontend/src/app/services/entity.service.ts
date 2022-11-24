@@ -3,7 +3,7 @@ import {BehaviorSubject, Observable} from "rxjs";
 import {HttpClient, HttpParams} from "@angular/common/http";
 import {ColumnDefinition} from "../interfaces/ColumnDefinition";
 import {IndexDefinition} from "../interfaces/IndexDefinition";
-import {ConnectionService} from "./connection.service";
+import {Connection, ConnectionService} from "./connection.service";
 import {MatSnackBar} from "@angular/material/snack-bar";
 
 @Injectable({
@@ -17,28 +17,31 @@ export class EntityService {
   constructor(private httpClient:HttpClient,
               private connectionService:ConnectionService,
               private snackBar:MatSnackBar) {
-    console.log("Entity Service")
   }
 
-
-  public createEntity (port: number, schemaName: string,entityName: string, columnDef : ColumnDefinition){
-    return this.httpClient.post(this.connectionService.apiURL + port + "/entities/" + schemaName + "." +entityName , columnDef);
+  public createEntity (connection: Connection, schemaName: string,entityName: string, columnDef : ColumnDefinition){
+    let params = this.connectionService.httpParams(connection)
+    return this.httpClient.post(this.connectionService.apiURL + "entities/" + schemaName + "." +entityName , columnDef, {params});
   }
 
-  dropEntity (port: number, entityName: string) {
-    return this.httpClient.delete(this.connectionService.apiURL + port + "/entities/" + entityName)
+  dropEntity (connection: Connection, entityName: string) {
+    let params = this.connectionService.httpParams(connection)
+    return this.httpClient.delete(this.connectionService.apiURL + "entities/" + entityName, {params})
   }
 
-  truncateEntity(port: number, entityName: string) {
-    return this.httpClient.delete(this.connectionService.apiURL + port + "/entities/" + entityName + "/truncate/")
+  truncateEntity(connection: Connection, entityName: string) {
+    let params = this.connectionService.httpParams(connection)
+    return this.httpClient.delete(this.connectionService.apiURL + "entities/" + entityName + "/truncate/", {params})
   }
 
-  clearEntity(port: number, entityName: string) : Observable<Object>{
-    return this.httpClient.delete(this.connectionService.apiURL + port + "/entities/" + entityName + "/clear/")
+  clearEntity(connection: Connection, entityName: string) : Observable<Object>{
+    let params = this.connectionService.httpParams(connection)
+    return this.httpClient.delete(this.connectionService.apiURL + "entities/" + entityName + "/clear/", {params})
   }
 
-  aboutEntity(port: number, entityName: string) {
-    this.httpClient.get(this.connectionService.apiURL.concat(port.toString(),"/entities/",entityName)).subscribe(
+  aboutEntity(connection: Connection, entityName: string) {
+    let params = this.connectionService.httpParams(connection)
+    this.httpClient.get(this.connectionService.apiURL.concat("entities/", entityName), {params}).subscribe(
       {next: value => {
           /** Only call next if value has actually changed **/
           if(JSON.stringify(this.aboutEntitySubject.value) !== JSON.stringify(value)) {
@@ -52,22 +55,25 @@ export class EntityService {
     )
   }
 
-  dropIndex(port: number, dbo: string) {
-    return this.httpClient.delete(this.connectionService.apiURL + port.toString() + "/indexes/" + dbo)
+  dropIndex(connection: Connection, dbo: string) {
+    let params = this.connectionService.httpParams(connection)
+    return this.httpClient.delete(this.connectionService.apiURL + "indexes/" + dbo, {params})
   }
 
-  createIndex(port: number, dbo: string, indexDefinition: IndexDefinition) {
-    return this.httpClient.post(this.connectionService.apiURL + port + "/indexes/" + dbo, indexDefinition)
+  createIndex(connection: Connection, dbo: string, indexDefinition: IndexDefinition) {
+    let params = this.connectionService.httpParams(connection)
+    return this.httpClient.post(this.connectionService.apiURL + "indexes/" + dbo, indexDefinition, {params})
   }
 
-  dumpEntity(port: number, name: string) {
-    return this.httpClient.get(this.connectionService.apiURL + port + "/entities/" + name + "/data")
+  dumpEntity(connection: Connection, name: string) {
+    let params = this.connectionService.httpParams(connection)
+    return this.httpClient.get(this.connectionService.apiURL + "entities/" + name + "/data", {params})
   }
 
-  deleteRow(port: number, name: string, column: string, operator: string, value: string, type: string) {
+  deleteRow(connection: Connection, name: string, column: string, operator: string, value: string, type: string) {
     let params = new HttpParams
     params = params.set("column", column).set("operator", operator).set("value", value).set("entity", name).set("type", type)
-    this.httpClient.delete(this.connectionService.apiURL + port + "/entities/" + name + "/data/", {params}).subscribe(
+    this.httpClient.delete(this.connectionService.apiURL + "entities/" + name + "/data/", {params}).subscribe(
       {next: value => {
         if(JSON.stringify(this.deleteSubject.value) !== JSON.stringify(value)) {
           this.deleteSubject.next(value)
@@ -78,11 +84,13 @@ export class EntityService {
     })
   }
 
-  insertRow(port: number, name: string){
-    return this.httpClient.post(this.connectionService.apiURL + port + "/entities/" + name + "/data/", null)
+  insertRow(connection: Connection, name: string){
+    let params = this.connectionService.httpParams(connection)
+    return this.httpClient.post(this.connectionService.apiURL + "entities/" + name + "/data/", null, {params})
   }
 
-  updateRow(port: number, name: string){
-    return this.httpClient.patch(this.connectionService.apiURL + port + "/entities/" + name + "/data/", null)
+  updateRow(connection: Connection, name: string){
+    let params = this.connectionService.httpParams(connection)
+    return this.httpClient.patch(this.connectionService.apiURL + "entities/" + name + "/data/", null, {params})
   }
 }

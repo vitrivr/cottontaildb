@@ -54,7 +54,7 @@ export class CreateEntityFormComponent implements OnInit {
     "LONG_VEC", "INT_VEC", "BOOL_VEC", "COMPLEX32_VEC",
     "COMPLEX64_VEC", "BYTESTRING", "UNRECOGNIZED"];
 
-  @Input() port = 0;
+  @Input() connection : any;
 
   submitEntityName() {
     this.entityNameSet = true;
@@ -76,8 +76,8 @@ export class CreateEntityFormComponent implements OnInit {
     console.log(this.columnData)
     let entityName = this.entityForm.value.name
     console.log(entityName)
-    this.entityService.createEntity(this.port, this.schemaName, entityName!, this.columnData).subscribe({
-      next: () => this.treeDataService.fetchTreeData(this.port),
+    this.entityService.createEntity(this.connection, this.schemaName, entityName!, this.columnData).subscribe({
+      next: () => this.treeDataService.fetchTreeData(this.connection),
       error: err => console.log(err)
     });
     this.dialogRef.close()

@@ -29,9 +29,10 @@ object QueryController {
     data class QueryFunctionCall (val name: String, val parameters : List<String>)
 
     data class QueryPagesKey (val sessionID: String,
-                             val queryRequest : Array<QueryFunctionCall>,
-                             val pageSize: Int,
-                             val port: Int) {
+                              val queryRequest : Array<QueryFunctionCall>,
+                              val pageSize: Int,
+                              val port: Int,
+                              val address: String) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false
@@ -59,7 +60,8 @@ object QueryController {
                              val queryRequest : Array<QueryFunctionCall>,
                              val pageSize: Int,
                              val page: Int,
-                             val port: Int) {
+                             val port: Int,
+                             val address: String) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false
@@ -87,7 +89,8 @@ object QueryController {
 
     data class QueryKey(val sessionID: String,
                         val queryRequest: Array<QueryFunctionCall>,
-                        val port: Int) {
+                        val port: Int,
+                        val address: String) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false
@@ -131,18 +134,20 @@ object QueryController {
         val queryRequest = gson.fromJson(context.body(), Array<QueryFunctionCall>::class.java)
         val pageSize = context.queryParam("pageSize")
         val page = context.queryParam("page")
-        val port = context.pathParam("port").toInt()
-        if ( page != null && pageSize != null) {
-            val key = QueryPageKey(sessionId, queryRequest, pageSize.toInt(), page.toInt(), port)
-            context.json(pageCache.get(key))
-        } else {
-            context.status(400).result("Bad Request: page and/or pageSize not provided as query parameters.")
-        }
+        val port = context.queryParam("port")
+        val address = context.queryParam("address")
+
+        require(page != null && pageSize != null && port != null && address != null)
+        { context.status(400).result("Bad Request: page and/or pageSize not provided as query parameters.") }
+
+        val key = QueryPageKey(sessionId, queryRequest, pageSize.toInt(), page.toInt(), port.toInt(), address)
+        context.json(pageCache.get(key))
+
     }
 
-    fun executeQuery(queryFunctionCalls: Array<QueryFunctionCall>, port: Int): QueryData {
+    fun executeQuery(queryFunctionCalls: Array<QueryFunctionCall>, port: Int, address: String): QueryData {
 
-        val channel = channelCache.get(Pair(port,"localhost"))
+        val channel = channelCache.get(Pair(port,address))
         val client = SimpleClient(channel)
         var query = Query()
 
@@ -194,12 +199,12 @@ object QueryController {
      * get or load the Query Response from the cache,
      * paginate it and return all pages as [List] of type [Page].
      */
-    fun computePages(sessionID: String, queryRequest: Array<QueryFunctionCall>, port: Int, pageSize: Int) : List<Page> {
-        return queryCache.get(QueryKey(sessionID,queryRequest,port)).paginate(pageSize)
+    fun computePages(sessionID: String, queryRequest: Array<QueryFunctionCall>, port: Int, address: String, pageSize: Int) : List<Page> {
+        return queryCache.get(QueryKey(sessionID,queryRequest,port, address)).paginate(pageSize)
     }
 
-    fun getPage(sessionID: String, queryRequest: Array<QueryFunctionCall>, port: Int, pageSize: Int, page: Int) : Page{
-        return pagedCache.get(QueryPagesKey(sessionID,queryRequest,pageSize, port))[page]
+    fun getPage(sessionID: String, queryRequest: Array<QueryFunctionCall>, port: Int, address: String, pageSize: Int, page: Int) : Page{
+        return pagedCache.get(QueryPagesKey(sessionID,queryRequest,pageSize, port, address))[page]
 
     }
 

@@ -5,6 +5,7 @@ import {MAT_DIALOG_DATA, MatDialogRef} from "@angular/material/dialog";
 import {MatSnackBar} from "@angular/material/snack-bar";
 import {SelectionService} from "../../../../../services/selection.service";
 import {CreateEntityFormComponent} from "../../../../sidebar/overview/create-entity-form/create-entity-form.component";
+import {Connection} from "../../../../../services/connection.service";
 
 @Component({
   selector: 'app-create-index-form',
@@ -17,7 +18,7 @@ export class CreateIndexFormComponent implements OnInit {
   selection: any
   loading: boolean = false
 
-  constructor(@Inject(MAT_DIALOG_DATA) public data: {dbo: string, port: number},
+  constructor(@Inject(MAT_DIALOG_DATA) public data: {dbo: string, connection: Connection},
               private entityService: EntityService,
               private snackbar: MatSnackBar,
               private selectionService: SelectionService,
@@ -42,7 +43,7 @@ export class CreateIndexFormComponent implements OnInit {
     // (FormControl is not statically typed...)
     this.indexDef = (this.indexForm.value)
     this.loading = true;
-    this.entityService.createIndex(this.data.port, this.data.dbo,this.indexDef).subscribe({
+    this.entityService.createIndex(this.data.connection, this.data.dbo,this.indexDef).subscribe({
       next: () => {
         this.dialogRef.close()
         this.snackbar.open("successfully created index", "ok", {duration:2000})

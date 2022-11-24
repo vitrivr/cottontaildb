@@ -1,24 +1,24 @@
 
 import { Injectable } from '@angular/core';
 import {BehaviorSubject} from 'rxjs';
+import {Connection} from "./connection.service";
 
 export interface Selection {
+  connection? : Connection;
   entity? : string;
-  port? : number;
 }
 
 @Injectable()
 export class SelectionService {
 
 
-  private selectionSubject = new BehaviorSubject<Selection>({entity: undefined, port: undefined});
+  private selectionSubject = new BehaviorSubject<Selection>({connection: undefined, entity: undefined});
   currentSelection = this.selectionSubject.asObservable();
 
   constructor() { }
 
-  changeSelection(entity: string, port: number) {
-
-    this.selectionSubject.next({entity, port})
+  changeSelection(connection: Connection, entity: string) {
+    this.selectionSubject.next({connection, entity})
   }
 
 }

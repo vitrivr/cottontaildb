@@ -22,16 +22,20 @@ export class AddConnectionFormComponent implements OnInit {
     port: new FormControl<number|null>(null, [
       Validators.required,
       Validators.pattern("^[0-9]*$"),
+    ]),
+    address: new FormControl<string|null>(null, [
+      Validators.required,
     ])
   });
 
   submit() {
-    let port = this.connectionForm.value.port;
     //let address = this.connectionForm.value.address
     /*Clear form text field upon submit*/
+    let address = this.connectionForm.value.address
+    let port = this.connectionForm.value.port
     this.connectionForm.reset();
-    if (port != null) {
-      this.connectionService.addConnection(port)
+    if (address != null && port != null) {
+      this.connectionService.addConnection(address, port)
     }
     this.connectionService.connectionSubject.subscribe(value => console.log(value))
     this.dialogRef.close()

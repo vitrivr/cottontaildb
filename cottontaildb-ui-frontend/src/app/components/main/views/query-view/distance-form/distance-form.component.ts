@@ -17,7 +17,7 @@ import {AbstractQueryFormComponent} from "../AbstractQueryFormComponent";
 export class DistanceFormComponent extends AbstractQueryFormComponent implements OnInit {
 
   aboutEntityData: any
-  vectors: any;
+  standardVectors: any;
   column: any;
   distances = ["MANHATTAN", "EUCLIDEAN", "SQUAREDEUCLIDEAN", "HAMMING", "COSINE", "CHISQUARED", "INNERPRODUCT", "HAVERSINE"];
   jsonStringify = JSON.stringify
@@ -37,17 +37,15 @@ export class DistanceFormComponent extends AbstractQueryFormComponent implements
       this.aboutEntityData = about
       this.resetConditions()
 
-      this.conditions.addControl("column", new FormControl("", [Validators.required]))
-      this.conditions.addControl("vector", new FormControl("", [Validators.required]))
-      this.conditions.addControl("vectorType", new FormControl("", [Validators.required]))
-      this.conditions.addControl("distance", new FormControl("", [Validators.required]))
-      this.conditions.addControl("name", new FormControl("", [Validators.required]))
+      for(let controlName of ["column","vector", "vectorType", "distance", "name"]){
+        this.conditions.addControl(controlName, new FormControl("", [Validators.required]))
+      }
 
       this.conditions.get("column").valueChanges.subscribe((column: any) => {
         this.aboutEntityData.forEach((item: { dbo: string, lsize: number, type: string }) => {
             if (item.dbo.includes(column)) {
               console.log(item.lsize)
-              this.vectors = [Array(item.lsize).fill(0), Array(item.lsize).fill(1)]
+              this.standardVectors = [Array(item.lsize).fill(0), Array(item.lsize).fill(1)]
               this.conditions.get("vectorType").setValue(item.type)
             }
           }

@@ -4,7 +4,7 @@
   <div *ngFor="let connection of connections">
     <div class="connection-header">
       <h2>
-        PORT: {{connection}}
+        Connection: {{connection.address + connection.port}}
       </h2>
       <button mat-raised-button
               color="custom-green"
@@ -13,7 +13,7 @@
       </button>
 
     </div>
-    <app-tree class="tree" [port]="connection"></app-tree>
+    <app-tree class="tree" [connection]="connection"></app-tree>
   </div>
   <button mat-raised-button
           color="custom-green"
