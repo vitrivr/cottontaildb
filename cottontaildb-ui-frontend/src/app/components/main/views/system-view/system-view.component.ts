@@ -18,15 +18,19 @@ export class SystemViewComponent implements OnInit {
   ngOnInit(): void {
     //TODO: not quite right yet, add this functionality in new child component
     this.connectionService.connectionSubject.subscribe(connections => this.connections = connections)
-    this.systemService.listTransactions(this.connections)
-    this.systemService.listLocks(this.connections)
-    this.systemService.transactionListSubject.subscribe(tx => this.txData = tx)
-    this.systemService.lockListSubject.subscribe(locks => this.locksData = locks)
-
+    for(let connection of this.connections){
+      this.systemService.listTransactions(connection)
+      this.systemService.listLocks(connection)
+      this.systemService.transactionListSubject.subscribe(tx => this.txData = tx)
+      this.systemService.lockListSubject.subscribe(locks => this.locksData = locks)
+    }
   }
 
   onKillTx(txId: any) {
     this.systemService.killTransaction(this.connections, txId)
   }
+
+  connectionName = this.connectionService.connectionName
+
 
 }

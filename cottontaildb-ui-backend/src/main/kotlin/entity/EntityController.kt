@@ -1,11 +1,9 @@
 package entity
 
-import channelCache
 import com.google.gson.Gson
 import initClient
 import io.javalin.http.Context
 import kotlinx.serialization.json.*
-import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.client.iterators.TupleIterator
 import org.vitrivr.cottontail.client.language.basics.predicate.Expression
@@ -17,6 +15,7 @@ import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc.IndexType
+import java.lang.Error
 import java.lang.Exception
 import java.time.LocalDate
 
@@ -53,8 +52,7 @@ object EntityController {
         var duration_ms : Double? = details.asDouble("duration_ms")
     }
 
-
-
+    class ColumnEntry (val column: String, val value: Any?)
 
     data class IndexInfo(val index : IndexType, val skipBuild : Boolean){}
 
@@ -131,9 +129,7 @@ object EntityController {
 
     fun deleteRow(context: Context){
 
-        val port = context.pathParam("port").toInt()
-        val channel = channelCache.get(Pair(port,"localhost"))
-        val client = SimpleClient(channel)
+        val client = initClient(context)
 
         val entity = context.queryParam("entity")
         val column = context.queryParam("column")
@@ -142,27 +138,12 @@ object EntityController {
         val typedValue : Any
         val type = context.queryParam("type")
 
-        require(value != null)
+        require(value != null) {context.status(400)}
 
         try {
-            when(type) {
-                "SHORT" -> typedValue = value.toShort()
-                "LONG" -> typedValue = value.toLong()
-                "INTEGER" -> typedValue = value.toInt()
-                "DOUBLE" ->  typedValue = value.toDouble()
-                "BOOLEAN" -> typedValue = value.toBoolean()
-                "BYTE" -> typedValue = value.toByte()
-                "FLOAT" -> typedValue = value.toFloat()
-                "DATE" -> typedValue = LocalDate.parse(value)
-                "FLOAT_VEC" -> typedValue = gson.fromJson(value, Array<Float>::class.java)
-                "LONG_VEC" -> typedValue = gson.fromJson(value, Array<Long>::class.java)
-                "INT_VEC" -> typedValue = gson.fromJson(value, Array<Int>::class.java)
-                "BOOL_VEC" -> typedValue = gson.fromJson(value, Array<Boolean>::class.java)
-                "COMPLEX_32" -> typedValue = gson.fromJson(value, Types.Complex32Vector::class.java)
-                "COMPLEX_64" -> typedValue = gson.fromJson(value, Types.Complex64Vector::class.java)
-                "BYTESTRING" -> typedValue = gson.fromJson(value, Types.ByteString::class.java)
-                else -> typedValue = value
-            }
+            require(type != null) {context.status(400)}
+            typedValue = convertType(type, value)
+
             if(entity != null && column != null && operator != null) {
                 val result = client.delete(Delete().from(entity).where(Expression(column, operator, typedValue)))
                 val deleteDetails: MutableList<DeleteDetails> = mutableListOf()
@@ -204,14 +185,21 @@ object EntityController {
     }
 
     fun insertRow(context: Context){
-        val client = initClient(context)
+        try {
+            val client = initClient(context)
+            val entity = context.pathParam("name")
+            val insertions = gson.fromJson(context.body(), Array<ColumnEntry>::class.java)
 
-        val column = context.queryParam("column")
-        val value = context.queryParam("value")
-        val entity = context.queryParam("entity")
+            require(entity != "")
+            var insert = Insert().into(entity)
 
-        if(column != null && value != null && entity != null){
-            client.insert(Insert().into(entity).value(column,value))
+            for (item in insertions) {
+                insert = insert.value(item.column, item.value)
+            }
+            client.insert(insert)
+            context.status(201)
+        } catch (e: Error) {
+            context.status(400)
         }
     }
     fun listAllEntities(context: Context){
@@ -231,10 +219,57 @@ object EntityController {
     }
 
     fun update(context: Context){
+
+        println("hello")
         val client = initClient(context)
 
-        client.update(Update().from("")
-            .where(Expression("","",""))
-            .values(Pair("","")))
+        val entity = context.queryParam("entity")
+        val column = context.queryParam("column")
+        val operator = context.queryParam("operator")
+        val value = context.queryParam("value")
+        val typedValue : Any
+        val type = context.queryParam("type")
+
+        val updateValues = gson.fromJson(context.body(), Array<ColumnEntry>::class.java)
+
+        require(value != null) { context.status(400) }
+        require(type != null) { context.status(400) }
+
+        typedValue = convertType(type, value)
+
+        require(entity != null && column != null && operator != null) { context.status(400) }
+
+
+        var update = Update().from(entity).where(Expression(column,operator,typedValue))
+
+        updateValues.forEach {
+            update = update.values(Pair(it.column, it.value))
+        }
+
+        client.update(update)
+        context.status(200)
+    }
+
+    private fun convertType(type: String, value: String) : Any {
+        when(type) {
+            "SHORT" -> return value.toShort()
+            "LONG" -> return value.toLong()
+            "INTEGER" -> return value.toInt()
+            "DOUBLE" -> return value.toDouble()
+            "BOOLEAN" -> return value.toBoolean()
+            "BYTE" -> return value.toByte()
+            "FLOAT" -> return value.toFloat()
+            "DATE" -> return LocalDate.parse(value)
+            "FLOAT_VEC" -> return gson.fromJson(value, Array<Float>::class.java)
+            "LONG_VEC" -> return gson.fromJson(value, Array<Long>::class.java)
+            "INT_VEC" -> return gson.fromJson(value, Array<Int>::class.java)
+            "BOOL_VEC" -> return gson.fromJson(value, Array<Boolean>::class.java)
+            "COMPLEX_32" -> return gson.fromJson(value, Types.Complex32Vector::class.java)
+            "COMPLEX_64" -> return gson.fromJson(value, Types.Complex64Vector::class.java)
+            "BYTESTRING" -> return gson.fromJson(value, Types.ByteString::class.java)
+            else -> return value
+        }
     }
 }
+
+

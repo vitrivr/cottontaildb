@@ -13,11 +13,14 @@ import com.google.gson.Gson
 import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.basics.Distances
 import org.vitrivr.cottontail.client.language.basics.predicate.*
+import org.vitrivr.cottontail.client.language.extensions.parseOperator
+import org.vitrivr.cottontail.core.values.types.Types
 
 
 import pageCache
 import pagedCache
 import queryCache
+import java.time.LocalDate
 
 
 private val gson = Gson()
@@ -141,7 +144,11 @@ object QueryController {
         { context.status(400).result("Bad Request: page and/or pageSize not provided as query parameters.") }
 
         val key = QueryPageKey(sessionId, queryRequest, pageSize.toInt(), page.toInt(), port.toInt(), address)
-        context.json(pageCache.get(key))
+        try {
+            context.json(pageCache.get(key))
+        } catch (e: Exception) {
+            context.json({})
+        }
 
     }
 
@@ -170,8 +177,32 @@ object QueryController {
                     query = query.distance(it.parameters[0], gson.fromJson(it.parameters[1], arrType), Distances.valueOf(it.parameters[3]), it.parameters[4])
                 }
                 "WHERE" -> {
-                    println(it.parameters[2].javaClass)
-                    query = query.where(Expression(it.parameters[0], it.parameters[1], it.parameters[2]))
+                    println(it.parameters[2])
+                    val value = it.parameters[2]
+                    val typedValue : Any
+                    println(it.parameters[3])
+                    when(it.parameters[3]){
+                            "SHORT" -> typedValue = value.toShort()
+                            "LONG" -> typedValue = value.toLong()
+                            "INTEGER" -> typedValue = value.toInt()
+                            "DOUBLE" ->  typedValue = value.toDouble()
+                            "BOOLEAN" -> typedValue = value.toBoolean()
+                            "BYTE" -> typedValue = value.toByte()
+                            "FLOAT" -> typedValue = value.toFloat()
+                            "DATE" -> typedValue = LocalDate.parse(value)
+                            "FLOAT_VEC" -> typedValue = gson.fromJson(value, Array<Float>::class.java)
+                            "LONG_VEC" -> typedValue = gson.fromJson(value, Array<Long>::class.java)
+                            "INT_VEC" -> typedValue = gson.fromJson(value, Array<Int>::class.java)
+                            "BOOL_VEC" -> typedValue = gson.fromJson(value, Array<Boolean>::class.java)
+                            "COMPLEX_32" -> typedValue = gson.fromJson(value, Types.Complex32Vector::class.java)
+                            "COMPLEX_64" -> typedValue = gson.fromJson(value, Types.Complex64Vector::class.java)
+                            "BYTESTRING" -> typedValue = gson.fromJson(value, Types.ByteString::class.java)
+                            else -> typedValue = value
+                    }
+                    println(it.parameters[1].parseOperator())
+                    println(Expression(it.parameters[0], it.parameters[1], typedValue).operator)
+                    println(it.parameters[1].javaClass)
+                    query = query.where(Expression(it.parameters[0], it.parameters[1], typedValue))
                 }
             }
         }
@@ -205,7 +236,6 @@ object QueryController {
 
     fun getPage(sessionID: String, queryRequest: Array<QueryFunctionCall>, port: Int, address: String, pageSize: Int, page: Int) : Page{
         return pagedCache.get(QueryPagesKey(sessionID,queryRequest,pageSize, port, address))[page]
-
     }
 
 

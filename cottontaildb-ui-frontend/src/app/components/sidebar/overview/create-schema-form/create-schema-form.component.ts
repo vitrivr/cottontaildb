@@ -1,8 +1,11 @@
-import {Component, Input, OnInit} from '@angular/core';
+import {Component, OnInit, Inject} from '@angular/core';
 import { FormControl, FormGroup, Validators} from "@angular/forms";
 import {Schema, SchemaService} from "../../../../services/schema.service";
 import {TreeDataService} from "../../../../services/tree-data.service";
 import {MatDialogRef} from "@angular/material/dialog";
+import {MAT_DIALOG_DATA} from '@angular/material/dialog';
+import {Connection} from "../../../../services/connection.service";
+
 
 @Component({
   selector: 'app-create-schema-form',
@@ -11,14 +14,17 @@ import {MatDialogRef} from "@angular/material/dialog";
 })
 export class CreateSchemaFormComponent implements OnInit{
 
-  constructor(private schemaService : SchemaService,
+  connection: any
+
+  constructor(@Inject(MAT_DIALOG_DATA) public data: {connection: Connection},
+              private schemaService : SchemaService,
               private treeDataService : TreeDataService,
-              private dialogRef : MatDialogRef<CreateSchemaFormComponent>
-  ) { }
+              private dialogRef : MatDialogRef<CreateSchemaFormComponent>,
+  ) { this.connection = data.connection }
 
   ngOnInit(): void {
   }
-  @Input() connection : any;
+
 
   schemaForm = new FormGroup({
     name: new FormControl('', [

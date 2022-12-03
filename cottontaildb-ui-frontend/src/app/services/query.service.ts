@@ -53,9 +53,9 @@ export class Order implements QueryFunction{
 
 export class Where implements QueryFunction{
   name = "WHERE";
-  parameters: [string, string, string]
-  constructor(column: string, operator: string, value: string) {
-    this.parameters = [column, operator, value]
+  parameters: [string, string, string, string]
+  constructor(column: string, operator: string, value: string, type: string) {
+    this.parameters = [column, operator, value, type]
   }
 }
 export class Count implements QueryFunction{
@@ -75,7 +75,7 @@ export class QueryService {
 
     let params = this.connectionService.httpParams(connection).set("pageSize", pageSize).set("page", page)
 
-    return this.http.post(this.connectionService.apiURL + "/query/", queryMessage,{params}).pipe(
+    return this.http.post(this.connectionService.apiURL + "query/", queryMessage,{params}).pipe(
       map((queryData: QueryData) => queryData),
       catchError(err => throwError(err))
     )

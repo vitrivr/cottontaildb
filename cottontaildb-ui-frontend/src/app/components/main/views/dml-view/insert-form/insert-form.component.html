@@ -1,0 +1,27 @@
+<div class="dml-function-container">
+  <form (ngSubmit)="submitInsert()"
+        [formGroup]="insertForm" class="query-form">
+
+    <div class="query-form-header">
+      Insert:
+    </div>
+
+    <div class="form-container">
+      <ng-container  *ngFor="let item of aboutEntityData">
+        <ng-container *ngIf="item._class === 'COLUMN'">
+          <mat-form-field appearance="outline">
+            <mat-label> {{item.dbo.split(".").splice(-1)}} </mat-label>
+            <input matInput matTooltip="{{item.type}}" matTooltipPosition="after" [formControlName]="item.dbo">
+          </mat-form-field>
+        </ng-container>
+      </ng-container>
+      <button type="submit"
+              mat-raised-button
+              [disabled]="insertForm.invalid"
+              color="custom-green">
+        INSERT
+      </button>
+    </div>
+
+  </form>
+</div>

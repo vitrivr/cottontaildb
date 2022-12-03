@@ -16,19 +16,19 @@ export class SystemService {
 
   listTransactions(connection: Connection) {
     let params = this.connectionService.httpParams(connection)
-    return this.httpClient.get(this.connectionService.apiURL  + "/system/transactions", {params})
+    return this.httpClient.get(this.connectionService.apiURL  + "system/transactions", {params})
       .subscribe(transactions => this.transactionListSubject.next(transactions))
   }
 
   listLocks(connection: Connection) {
     let params = this.connectionService.httpParams(connection)
-    return this.httpClient.get(this.connectionService.apiURL + "/system/locks", {params})
+    return this.httpClient.get(this.connectionService.apiURL + "system/locks", {params})
       .subscribe(locks => this.lockListSubject.next(locks))
   }
 
   killTransaction(connection: Connection, txId: any) {
     let params = this.connectionService.httpParams(connection)
-    return this.httpClient.delete(this.connectionService.apiURL + "/system/transactions/" + txId, {params}).subscribe()
+    return this.httpClient.delete(this.connectionService.apiURL + "system/transactions/" + txId, {params}).subscribe()
   }
 
 }

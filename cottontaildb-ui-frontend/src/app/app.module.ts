@@ -51,6 +51,12 @@ import { UseIndexFormComponent } from './components/main/views/query-view/use-in
 import { UseIndexTypeFormComponent } from './components/main/views/query-view/use-index-type-form/use-index-type-form.component';
 import { DisallowParallelismFormComponent } from './components/main/views/query-view/disallow-parallelism-form/disallow-parallelism-form.component';
 import { LimitParallelismFormComponent } from './components/main/views/query-view/limit-parallelism-form/limit-parallelism-form.component';
+import {MatChipsModule} from "@angular/material/chips";
+import { DeleteFormComponent } from './components/main/views/dml-view/delete-form/delete-form.component';
+import { InsertFormComponent } from './components/main/views/dml-view/insert-form/insert-form.component';
+import { UpdateFormComponent } from './components/main/views/dml-view/update-form/update-form.component';
+import { VectorDetailsComponent } from './components/main/views/query-view/vector-details/vector-details.component';
+import { WelcomeViewComponent } from './components/main/views/welcome-view/welcome-view.component';
 @NgModule({
   declarations: [
     AppComponent,
@@ -76,7 +82,12 @@ import { LimitParallelismFormComponent } from './components/main/views/query-vie
     UseIndexFormComponent,
     UseIndexTypeFormComponent,
     DisallowParallelismFormComponent,
-    LimitParallelismFormComponent
+    LimitParallelismFormComponent,
+    DeleteFormComponent,
+    InsertFormComponent,
+    UpdateFormComponent,
+    VectorDetailsComponent,
+    WelcomeViewComponent
   ],
     imports: [
         BrowserModule,
@@ -106,7 +117,8 @@ import { LimitParallelismFormComponent } from './components/main/views/query-vie
         MatProgressBarModule,
         MatAutocompleteModule,
         MatCardModule,
-        MatDividerModule
+        MatDividerModule,
+        MatChipsModule
     ],
   providers: [
     CreateEntityFormComponent,

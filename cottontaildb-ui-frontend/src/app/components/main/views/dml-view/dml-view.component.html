@@ -5,73 +5,23 @@
       <h1>Please select an entity in the sidebar</h1>
     </ng-container>
     <ng-template #showName>
-      <h2>{{"FROM: " + selection['entity'].split(".").slice(-1)}}</h2>
+      <div class="dml-view">
+        <h2>{{"FROM: " + selection['entity'].split(".").slice(-1)}}</h2>
+
+        <mat-button-toggle-group #group="matButtonToggleGroup" name="fontStyle" aria-label="Font Style">
+          <mat-button-toggle value="DELETE">DELETE</mat-button-toggle>
+          <mat-button-toggle value="INSERT">INSERT</mat-button-toggle>
+          <mat-button-toggle value="UPDATE">UPDATE</mat-button-toggle>
+        </mat-button-toggle-group>
+
+        <ng-container [ngSwitch]="group.value">
+          <app-delete-form *ngSwitchCase="'DELETE'" ></app-delete-form>
+          <app-insert-form *ngSwitchCase="'INSERT'"></app-insert-form>
+          <app-update-form *ngSwitchCase="'UPDATE'"></app-update-form>
+        </ng-container>
+      </div>
     </ng-template>
   </div>
 
-  <div class="dml-function-container">
-    <form (ngSubmit)="submitDelete()"
-          [formGroup]="deleteForm" class="query-form">
 
-      <div class="query-form-header">
-        Delete where:
-      </div>
-
-      <div class="form-container">
-        <mat-form-field class="example-full-width" appearance="outline">
-          <mat-label>column</mat-label>
-          <input type="text"
-                 placeholder="Pick or specify"
-                 aria-label="column"
-                 matInput
-                 formControlName="column"
-                 [matAutocomplete]="auto">
-          <mat-autocomplete #auto="matAutocomplete">
-            <ng-container *ngFor="let item of aboutEntityData; index as i">
-              <ng-container *ngIf="item._class === 'COLUMN'">
-                <mat-option [value]="item.dbo">{{item.dbo.split(".")[3]}}</mat-option>
-              </ng-container>
-            </ng-container>
-          </mat-autocomplete>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label> operator </mat-label>
-          <mat-select formControlName="operator">
-            <mat-option *ngFor="let operator of operators" [value]="operator">{{operator}}</mat-option>
-          </mat-select>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label> value </mat-label>
-          <input matInput formControlName="value">
-        </mat-form-field>
-
-        <button type="submit"
-                mat-raised-button
-                color="warn"
-                [disabled]="deleteForm.invalid">
-          DELETE
-        </button>
-
-      </div>
-    </form>
-
-    <div class="table">
-      <table>
-        <thead>
-        <tr *ngIf="deleteData">
-          <th>deleted</th>
-          <th>duration_ms</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr *ngFor="let item of deleteData">
-          <td><span>{{item.deleted}}</span></td>
-          <td><span>{{item.duration_ms}}</span></td>
-        </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
 </div>

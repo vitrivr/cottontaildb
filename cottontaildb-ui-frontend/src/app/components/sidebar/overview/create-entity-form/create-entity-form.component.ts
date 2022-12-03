@@ -1,4 +1,4 @@
-import {Component, Input, OnInit} from '@angular/core';
+import {Component, OnInit} from '@angular/core';
 import {TreeDataService} from "../../../../services/tree-data.service";
 import {FormControl, FormGroup, Validators} from "@angular/forms";
 import {EntityService} from "../../../../services/entity.service";
@@ -7,6 +7,7 @@ import { Inject } from '@angular/core';
 import {MatDialogRef} from "@angular/material/dialog";
 import {MatSnackBar} from "@angular/material/snack-bar";
 import {ColumnDefinition} from "../../../../interfaces/ColumnDefinition";
+import {Connection} from "../../../../services/connection.service";
 
 
 @Component({
@@ -21,16 +22,17 @@ export class CreateEntityFormComponent implements OnInit {
   schemaName: string;
   columnData: any;
   entityNameSet: boolean;
-
+  connection: any;
 
   constructor(
-    @Inject(MAT_DIALOG_DATA) public data: {name: string},
+    @Inject(MAT_DIALOG_DATA) public data: {name: string, connection: Connection},
     private entityService : EntityService,
     private treeDataService : TreeDataService,
     private dialogRef : MatDialogRef<CreateEntityFormComponent>,
     private snackBar: MatSnackBar)
   {
       this.schemaName = data.name
+      this.connection = data.connection
       this.columnData = []
       this.entityNameSet = false
   }
@@ -54,7 +56,6 @@ export class CreateEntityFormComponent implements OnInit {
     "LONG_VEC", "INT_VEC", "BOOL_VEC", "COMPLEX32_VEC",
     "COMPLEX64_VEC", "BYTESTRING", "UNRECOGNIZED"];
 
-  @Input() connection : any;
 
   submitEntityName() {
     this.entityNameSet = true;
@@ -76,6 +77,7 @@ export class CreateEntityFormComponent implements OnInit {
     console.log(this.columnData)
     let entityName = this.entityForm.value.name
     console.log(entityName)
+    console.log(this.connection)
     this.entityService.createEntity(this.connection, this.schemaName, entityName!, this.columnData).subscribe({
       next: () => this.treeDataService.fetchTreeData(this.connection),
       error: err => console.log(err)

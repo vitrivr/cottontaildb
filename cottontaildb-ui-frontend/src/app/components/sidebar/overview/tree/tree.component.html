@@ -30,7 +30,7 @@
         <mat-icon>more_vert</mat-icon>
       </button>
       <mat-menu #menu="matMenu">
-        <button mat-menu-item (click)="onCreateEntity(node.name)">
+        <button mat-menu-item (click)="onCreateEntity(node.name, connection)">
           <mat-icon>add_box</mat-icon>
           <span>new entity</span>
         </button>

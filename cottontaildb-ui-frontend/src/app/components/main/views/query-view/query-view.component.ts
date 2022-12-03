@@ -14,6 +14,9 @@ import {
 import {SelectionService} from "../../../../services/selection.service";
 import {PageEvent} from "@angular/material/paginator";
 import {CdkDragDrop} from "@angular/cdk/drag-drop";
+import {EntityService} from "../../../../services/entity.service";
+import {MatDialog} from "@angular/material/dialog";
+import {VectorDetailsComponent} from "./vector-details/vector-details.component";
 
 
 @Component({
@@ -33,10 +36,13 @@ export class QueryViewComponent implements OnInit {
   queryData: any;
   pageEvent: any;
   querying: any;
+  private aboutEntityData: any;
 
   constructor(private fb: FormBuilder,
               private queryService: QueryService,
-              private selectionService : SelectionService) {
+              private selectionService : SelectionService,
+              private entityService: EntityService,
+              private dialog: MatDialog) {
   }
 
   get queryFunctions(): FormArray {
@@ -66,6 +72,10 @@ export class QueryViewComponent implements OnInit {
 
 
   onQuery(page: number = 0, pageSize: number = 5) {
+
+    this.entityService.aboutEntitySubject.subscribe(about => {
+      this.aboutEntityData = about
+    })
 
     this.querying = true
 
@@ -116,7 +126,16 @@ export class QueryViewComponent implements OnInit {
 
         case "where": {
           let conditions = Object.values(item.conditions) as Array<any>
-          qm.push(new Where(conditions[0], conditions[1], conditions[2]))
+          let type = ""
+          this.aboutEntityData.forEach((it: { dbo: string, type: string }) =>{
+              if (it.dbo == conditions[0]){
+                type = it.type as string
+              }})
+          if(type != "") {
+            qm.push(new Where(conditions[0], conditions[1], conditions[2], type))
+          } else {
+            console.error("column type for where function not determined")
+          }
           break
         }
 
@@ -169,5 +188,15 @@ export class QueryViewComponent implements OnInit {
 
   drop(event: CdkDragDrop<string[]>) {
     this.moveItemInFormArray(this.queryFunctions, event.previousIndex, event.currentIndex);
+  }
+
+  expandEntry(rowElement: any) {
+    this.dialog.open<VectorDetailsComponent>(VectorDetailsComponent, {
+      width: 'fit-content',
+      height: 'fit-content',
+      data: {
+        vector: rowElement
+      }
+    });
   }
 }

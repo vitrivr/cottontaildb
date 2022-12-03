@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import {MatDialog} from "@angular/material/dialog";
 import {CreateSchemaFormComponent} from "./create-schema-form/create-schema-form.component";
 import {AddConnectionFormComponent} from "./add-connection-form/add-connection-form.component";
-import {ConnectionService} from "../../../services/connection.service";
+import {Connection, ConnectionService} from "../../../services/connection.service";
 
 @Component({
   selector: 'app-overview',
@@ -19,10 +19,13 @@ export class OverviewComponent implements OnInit {
     this.connectionService.connectionSubject.subscribe(connections => this.connections = connections)
   }
 
-  onCreateSchema() {
+  onCreateSchema(connection: Connection) {
     this.dialog.open<CreateSchemaFormComponent>(CreateSchemaFormComponent, {
       width: 'fit-content',
       height: 'fit-content',
+      data: {
+        connection
+      }
     });
   }
 
@@ -31,5 +34,11 @@ export class OverviewComponent implements OnInit {
       width: 'fit-content',
       height: 'fit-content',
     });
+  }
+
+  connectionName = this.connectionService.connectionName
+
+  onRemoveConnection(connection: any) {
+    this.connectionService.removeConnection(connection)
   }
 }

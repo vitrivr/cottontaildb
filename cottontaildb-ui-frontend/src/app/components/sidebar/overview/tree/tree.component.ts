@@ -9,6 +9,7 @@ import {MatSnackBar} from '@angular/material/snack-bar';
 import {MatDialog} from "@angular/material/dialog";
 import {CreateEntityFormComponent} from "../create-entity-form/create-entity-form.component";
 import {SelectionService} from "../../../../services/selection.service";
+import {Connection} from "../../../../services/connection.service";
 
 /** Flat node with expandable and level information */
 interface FlatNode {
@@ -120,12 +121,12 @@ export class TreeComponent implements OnInit {
     }
   }
 
-  onCreateEntity(name : string) {
+  onCreateEntity(name : string, connection: Connection) {
     this.dialog.open<CreateEntityFormComponent>(CreateEntityFormComponent, {
       width: 'fit-content',
       height: 'fit-content',
       data: {
-        name
+        name, connection
       }
     });
   }

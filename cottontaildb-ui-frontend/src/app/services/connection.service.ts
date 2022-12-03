@@ -21,31 +21,36 @@ export class ConnectionService {
 
   public apiURL = 'http://localhost:7070/'
 
-  connectionSubject = new BehaviorSubject<Array<Connection>>([]);
+  connectionSubject = new BehaviorSubject<Set<Connection>>(new Set<Connection>);
 
   constructor(private snackBar: MatSnackBar) {
   }
 
   addConnection(address: string, port: number) {
+    let uniqueConnection = true
     this.connectionSubject.getValue().forEach(connection => {
-      if (connection.port == port) {
-        this.snackBar.open("already exists", "ok", {duration: 2000})
-        return
+      if(connection.address == address && connection.port == port){
+        uniqueConnection = false
+        this.snackBar.open("connection already present", "ok", {duration:2000})
       }
     })
-    let value = this.connectionSubject.getValue()
-    value.push(new Connection(address, port))
-    this.connectionSubject.next(value)
+    if(uniqueConnection) {
+      let value = this.connectionSubject.getValue()
+      value.add(new Connection(address, port))
+      this.connectionSubject.next(value)
+    }
   }
 
   removeConnection(connection: Connection) {
-    let value = this.connectionSubject.getValue()
-    let index = value.indexOf(connection)
-    this.connectionSubject.next(value.splice(index))
+    this.connectionSubject.getValue().delete(connection)
   }
 
   public httpParams(connection: Connection): HttpParams {
     return new HttpParams().set("address", connection.address).set("port", connection.port)
+  }
+
+  public connectionName(connection: Connection) {
+    return `${connection.address}:${connection.port}`
   }
 
 }

@@ -12,5 +12,15 @@ button{
   width: fit-content;
   height: fit-content;
 }
+.arrow {
+  animation-name: warning;
+  animation-duration: 2s;
+  animation-iteration-count: infinite;
+}
+.add-connection{
+  display: flex;
+  flex-direction: row;
+  justify-items: center;
+}
 
 

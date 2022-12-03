@@ -93,7 +93,9 @@
       <ng-container *ngFor="let col of queryData.columnNames; index as i">
         <ng-container [matColumnDef]="col">
           <mat-header-cell  *matHeaderCellDef > {{col.split(".").slice(-1)}} </mat-header-cell>
-          <mat-cell *matCellDef="let row"> {{trim(row[i])}}</mat-cell>
+          <mat-cell *matCellDef="let row"> {{trim(row[i])}}
+            <button mat-raised-button color="custom-green" *ngIf="row[i].length>30" (click)="expandEntry(row[i])"> Expand </button>
+          </mat-cell>
         </ng-container>
       </ng-container>
     </mat-table>

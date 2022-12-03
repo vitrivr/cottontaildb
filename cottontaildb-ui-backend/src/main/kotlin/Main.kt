@@ -15,7 +15,6 @@ import org.eclipse.jetty.server.session.DefaultSessionCache
 import org.eclipse.jetty.server.session.FileSessionDataStore
 import org.eclipse.jetty.server.session.SessionHandler
 import org.vitrivr.cottontail.client.SimpleClient
-import org.vitrivr.cottontail.client.language.dml.Insert
 import query.QueryController
 import schema.SchemaController
 import system.SystemController
@@ -62,8 +61,6 @@ fun fileSessionHandler() = SessionHandler().apply {
 }
 
 fun main() {
-
-    ClientConfig(1865).client.insert(Insert().into("warren.cineast.features_providedocr").value("id", "2").value("feature", "dsad"))
 
     val app = Javalin.create { config ->
         config.staticFiles.add{
@@ -136,4 +133,5 @@ fun main() {
             }
         }
     }
+
 }

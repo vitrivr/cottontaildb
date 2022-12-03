@@ -1,1 +1,7 @@
-
+.view-container > div {
+  display: flex;
+  flex-direction: row;
+}
+.transactions{
+  margin-right:10px
+}

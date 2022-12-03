@@ -1,8 +1,9 @@
 package system
 
-import ClientConfig
+import initClient
 import io.javalin.http.Context
 import org.vitrivr.cottontail.client.iterators.Tuple
+import java.lang.Exception
 
 object SystemController {
 
@@ -28,31 +29,37 @@ object SystemController {
 
 
     fun listTransactions(context: Context) {
-        //TODO: handle query result: null
-        val clientConfig = ClientConfig(context.pathParam("port").toInt())
-        val result = clientConfig.client.transactions()
-        val txInfoArray : MutableList<TxInfo> = mutableListOf()
-        result.forEach {
-            if (it.asString("state") == "RUNNING" || it.asString("state") == "ERROR") {
-                txInfoArray.add(TxInfo(it))
+        val client = initClient(context)
+        try {
+            val result = client.transactions()
+            val txInfoArray : MutableList<TxInfo> = mutableListOf()
+            result.forEach {
+                if (it.asString("state") == "RUNNING" || it.asString("state") == "ERROR") {
+                    txInfoArray.add(TxInfo(it))
+                }
             }
+            context.json(txInfoArray)
+        } catch (e: Exception){
+            context.json({})
         }
-        context.json(txInfoArray)
     }
 
     fun killTransaction(context: Context) {
-        val clientConfig = ClientConfig(context.pathParam("port").toInt())
-        clientConfig.client.kill(context.pathParam("txId").toLong())
+        val client = initClient(context)
+        client.kill(context.pathParam("txId").toLong())
     }
 
     fun listLocks(context: Context) {
-        //TODO: handle query result: null
-        val clientConfig = ClientConfig(context.pathParam("port").toInt())
-        val result = clientConfig.client.locks()
-        val locksInfoArray = mutableListOf<LocksInfo>()
-        result.forEach {
-            locksInfoArray.add(LocksInfo(it))
+        val client = initClient(context)
+        try {
+            val result = client.locks()
+            val locksInfoArray = mutableListOf<LocksInfo>()
+            result.forEach {
+                locksInfoArray.add(LocksInfo(it))
+            }
+            context.json(locksInfoArray)
+        } catch (e: Exception){
+            context.json({})
         }
-        context.json(locksInfoArray)
     }
 }
