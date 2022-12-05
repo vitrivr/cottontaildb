@@ -29,14 +29,15 @@ export class SchemaService {
     return this.httpClient.get<Entity[]>(this.apiURL + "schemas/" + schema,{params});
   }
 
-  public dropSchema(connection: Connection, schema: Schema) {
+  public dropSchema(connection: Connection, schema: string) {
     let params = this.connectionService.httpParams(connection)
     return this.httpClient.delete(this.apiURL + "schemas/" + schema, {params});
   }
 
-  public createSchema(connection: Connection, schema: Schema): Observable<Schema> {
+  public createSchema(connection: Connection, schema: string): Observable<Schema> {
     let params = this.connectionService.httpParams(connection)
-    return this.httpClient.post<Schema>(this.apiURL + "schemas/", schema, {params});
+    console.log(params)
+    return this.httpClient.post<Schema>(this.apiURL + "schemas/" + schema, null, {params});
   }
 
 }

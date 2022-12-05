@@ -3,7 +3,7 @@ import {Component, Input, OnInit} from '@angular/core';
 import {MatTreeFlatDataSource, MatTreeFlattener} from '@angular/material/tree';
 import {TreeNode} from "../../../../interfaces/TreeNode";
 import {TreeDataService} from "../../../../services/tree-data.service";
-import {Schema, SchemaService} from "../../../../services/schema.service";
+import {SchemaService} from "../../../../services/schema.service";
 import {EntityService} from "../../../../services/entity.service";
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {MatDialog} from "@angular/material/dialog";
@@ -73,7 +73,7 @@ export class TreeComponent implements OnInit {
 
   isRoot = (_: number, node: FlatNode) => (node.level === 0);
 
-  public onDropSchema(schema : Schema){
+  public onDropSchema(schema : string){
     if(confirm("are you sure you want to drop the schema " + schema + "?")){
       this.schemaService.dropSchema(this.connection, schema).subscribe({
         next: () => {

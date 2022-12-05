@@ -88,8 +88,8 @@ fun main() {
         }
         path("schemas") {
             get(SchemaController::listAllSchemas)
-            post(SchemaController::createSchema)
             path("{name}") {
+                post(SchemaController::createSchema)
                 get(SchemaController::listEntities)
                 delete(SchemaController::dropSchema)
                 path("data") {

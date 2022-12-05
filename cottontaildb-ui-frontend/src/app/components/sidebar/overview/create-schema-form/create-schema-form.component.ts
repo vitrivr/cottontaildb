@@ -1,6 +1,6 @@
 import {Component, OnInit, Inject} from '@angular/core';
 import { FormControl, FormGroup, Validators} from "@angular/forms";
-import {Schema, SchemaService} from "../../../../services/schema.service";
+import {SchemaService} from "../../../../services/schema.service";
 import {TreeDataService} from "../../../../services/tree-data.service";
 import {MatDialogRef} from "@angular/material/dialog";
 import {MAT_DIALOG_DATA} from '@angular/material/dialog';
@@ -36,16 +36,14 @@ export class CreateSchemaFormComponent implements OnInit{
 
   submit() {
     let name = this.schemaForm.value.name;
-    const schema: Schema = {
-      /*We can be sure it name is not null because of our FormControl, hence [name!]*/
-      name: name!
-    }
     /*Clear form text field upon submit*/
     this.schemaForm.reset();
-    this.schemaService.createSchema(this.connection, schema).subscribe({
-      next: () => this.treeDataService.fetchTreeData(this.connection),
-      error: err => console.log(err)
-    });
+    if(name != null){
+      this.schemaService.createSchema(this.connection, name).subscribe({
+        next: () => this.treeDataService.fetchTreeData(this.connection),
+        error: err => console.log(err)
+      });
+    }
     this.dialogRef.close()
   }
 

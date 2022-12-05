@@ -102,21 +102,22 @@ object EntityController {
             context.json(result)
 
         } else {
-            TODO()
+            context.status(400)
         }
 
 
     }
 
     fun createIndex(context: Context){
-        val client = initClient(context)
 
-        Query()
+        val client = initClient(context)
         val indexName = context.pathParam("name")
 
         val i = indexName.lastIndexOf(".")
         val columnName = indexName.substring(i+1)
         val entityName = indexName.substring(0,i)
+
+        println("$indexName $i $columnName $entityName")
 
         val indexDefinition: IndexInfo = gson.fromJson(context.body(), IndexInfo::class.java)
 
@@ -125,7 +126,7 @@ object EntityController {
             create.rebuild()
         }
         client.create(create.rebuild())
-        }
+    }
 
     fun deleteRow(context: Context){
 
@@ -177,11 +178,9 @@ object EntityController {
         val qm = Query(entityName)
         val results = client.query(qm)
         val columnNames = results.columnNames
-        TODO()
     }
 
     fun importData(context: Context){
-        TODO()
     }
 
     fun insertRow(context: Context){
@@ -203,7 +202,6 @@ object EntityController {
         }
     }
     fun listAllEntities(context: Context){
-        TODO()
     }
     fun optimizeEntity(context: Context){
         val client = initClient(context)
@@ -220,7 +218,6 @@ object EntityController {
 
     fun update(context: Context){
 
-        println("hello")
         val client = initClient(context)
 
         val entity = context.queryParam("entity")
@@ -236,6 +233,8 @@ object EntityController {
         require(type != null) { context.status(400) }
 
         typedValue = convertType(type, value)
+
+        println(entity + operator + column + value + type)
 
         require(entity != null && column != null && operator != null) { context.status(400) }
 

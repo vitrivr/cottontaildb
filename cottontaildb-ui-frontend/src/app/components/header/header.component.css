@@ -10,6 +10,11 @@ button{
 .button:first-of-type{
   margin-left: 418px;
 }
+@media only screen and (max-width: 900px) {
+  .button:first-of-type{
+    margin-left: 250px;
+  }
+}
 .button{
   margin-top:25px;
   margin-bottom: 25px;

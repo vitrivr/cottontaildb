@@ -43,7 +43,7 @@ export class CreateIndexFormComponent implements OnInit {
     // (FormControl is not statically typed...)
     this.indexDef = (this.indexForm.value)
     this.loading = true;
-    this.entityService.createIndex(this.data.connection, this.data.dbo,this.indexDef).subscribe({
+    this.entityService.createIndex(this.data.connection, this.data.dbo, this.indexDef).subscribe({
       next: () => {
         this.dialogRef.close()
         this.snackbar.open("successfully created index", "ok", {duration:2000})

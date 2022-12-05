@@ -3,6 +3,7 @@ import {EntityService} from "../../../../services/entity.service";
 import {SelectionService} from "../../../../services/selection.service";
 import {MatDialog} from "@angular/material/dialog";
 import {CreateIndexFormComponent} from "./create-index-form/create-index-form.component";
+import {Connection} from "../../../../services/connection.service";
 
 @Component({
   selector: 'app-ddl-view',
@@ -39,15 +40,15 @@ export class DdlViewComponent implements OnInit {
       }}
 
 
-  onCreateIndex(port: number, dbo: string) {
+  onCreateIndex(connection: Connection, dbo: string) {
     this.dialog.open<CreateIndexFormComponent>(CreateIndexFormComponent, {
       width: 'fit-content',
       height: 'fit-content',
       data: {
-        dbo, port
+        dbo, connection
       }
     }).afterClosed().subscribe(
-    () => this.entityService.aboutEntity(this.selection.connection.port, this.selection.entity)
+    () => this.entityService.aboutEntity(this.selection.connection, this.selection.entity)
     )
   }
 

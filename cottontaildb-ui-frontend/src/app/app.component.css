@@ -18,7 +18,12 @@
   overflow-x: hidden;
   overflow-y: scroll;
 }
-
-h1{
-  color: red;
+@media only screen and (max-width: 900px) {
+  .app-container{
+    display:flex;
+    flex-direction: column;
+  }
+  .header{
+    height: 100px;
+  }
 }

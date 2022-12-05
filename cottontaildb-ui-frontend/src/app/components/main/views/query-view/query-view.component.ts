@@ -17,6 +17,7 @@ import {CdkDragDrop} from "@angular/cdk/drag-drop";
 import {EntityService} from "../../../../services/entity.service";
 import {MatDialog} from "@angular/material/dialog";
 import {VectorDetailsComponent} from "./vector-details/vector-details.component";
+import {MatSnackBar} from "@angular/material/snack-bar";
 
 
 @Component({
@@ -42,7 +43,8 @@ export class QueryViewComponent implements OnInit {
               private queryService: QueryService,
               private selectionService : SelectionService,
               private entityService: EntityService,
-              private dialog: MatDialog) {
+              private dialog: MatDialog,
+              private snackBar: MatSnackBar) {
   }
 
   get queryFunctions(): FormArray {
@@ -154,6 +156,8 @@ export class QueryViewComponent implements OnInit {
     this.queryService.query(this.selection.connection, this.selection.entity, qm, page, pageSize).subscribe(qd => {
       this.queryData = qd
       this.querying = false
+    }, error => {
+      this.snackBar.open(error, "ok", {duration:2000})
     })
   }
 

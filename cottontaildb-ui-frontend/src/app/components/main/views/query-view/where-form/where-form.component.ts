@@ -13,7 +13,7 @@ export class WhereFormComponent extends AbstractQueryFormComponent implements On
 
   aboutEntityData: any
   operators: Array<string> =
-    ["=","==","!=","!==",">","<",">=","<=","NOT IN","NOT LIKE","IS NULL","IS NOT NULL"];
+    ["==","!=",">","<",">=","<=","NOT IN","NOT LIKE","IS NULL","IS NOT NULL"];
 
 
   constructor(selectionService: SelectionService,

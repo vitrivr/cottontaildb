@@ -9,9 +9,11 @@ import {MatSnackBar} from "@angular/material/snack-bar";
 export class ColumnEntry {
   column: string
   value?: any
+  //type: string
   constructor(column: string, value?: any){
     this.column = column
     this.value = value
+    //this.type = type
   }
 }
 
@@ -83,7 +85,7 @@ export class EntityService {
     let params = this.connectionService.httpParams(connection)
     params = params.set("column", column).set("operator", operator).set("value", value).set("entity", name).set("type", type)
     this.httpClient.delete(this.connectionService.apiURL + "entities/" + name + "/data/", {params}).subscribe(
-      {next: value => {
+      {next: (value) => {
         if(JSON.stringify(this.deleteSubject.value) !== JSON.stringify(value)) {
           this.snackBar.open(JSON.stringify(value),"ok", {duration:10000})
           this.deleteSubject.next(value)
@@ -98,7 +100,7 @@ export class EntityService {
     let params = this.connectionService.httpParams(connection)
     return this.httpClient.post(this.connectionService.apiURL + "entities/" + name + "/data/", entries, {params}).subscribe(
       {
-        next: value => {console.log(value)},
+        next: () => {this.snackBar.open("success", "ok", {duration:2000})},
         error: err => {this.snackBar.open(`Error ${err.status}: ${err.statusText}`, "ok")}
       }
     )
@@ -109,7 +111,7 @@ export class EntityService {
     params = params.set("column", column).set("operator", operator).set("value", value).set("entity", name).set("type", type)
     return this.httpClient.patch(this.connectionService.apiURL + "entities/" + name + "/data/", updateValues, {params}).subscribe(
       {
-        next: value => {console.log(value)},
+        next: () => {this.snackBar.open("success", "ok", {duration:2000})},
         error: err => {this.snackBar.open(`Error ${err.status}: ${err.statusText}`, "ok")}
       }
     )

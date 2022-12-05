@@ -24,7 +24,7 @@ export class OverviewComponent implements OnInit {
       width: 'fit-content',
       height: 'fit-content',
       data: {
-        connection
+        connection: connection
       }
     });
   }

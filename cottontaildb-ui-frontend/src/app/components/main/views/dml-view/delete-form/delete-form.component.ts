@@ -10,8 +10,7 @@ import {EntityService} from "../../../../../services/entity.service";
 })
 export class DeleteFormComponent implements OnInit {
 
-  operators: Array<string> = ["=","==","!=","!==",">","<",">=","<=","NOT IN","NOT LIKE","IS NULL","IS NOT NULL"];
-
+  operators: Array<string> = ["==","!=",">","<",">=","<=","NOT IN","NOT LIKE","IS NULL","IS NOT NULL"];
 
   aboutEntityData: any;
   selection: any;

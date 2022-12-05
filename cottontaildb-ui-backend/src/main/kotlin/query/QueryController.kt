@@ -147,7 +147,7 @@ object QueryController {
         try {
             context.json(pageCache.get(key))
         } catch (e: Exception) {
-            context.json({})
+            context.status(500)
         }
 
     }
