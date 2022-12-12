@@ -40,7 +40,7 @@ data class ColumnV2Header(
                 throw DatabaseException.VersionMismatchException(version, DBOVersion.V2_0)
             val names = input.readUTF().split('.').toTypedArray()
             val def = ColumnDef(
-                Name.ColumnName(names[1], names[2], names[3]),
+                Name.ColumnName.create(names[1], names[2], names[3]),
                 Types.forOrdinal(input.unpackInt(), input.unpackInt()),
                 input.readBoolean(),
                 input.readBoolean()

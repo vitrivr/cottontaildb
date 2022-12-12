@@ -53,7 +53,7 @@ class JsonDataImporter(override val path: Path, override val schema: List<Column
         val value = Object2ObjectArrayMap<ColumnDef<*>, Value?>(this.schema.size)
         for (column in this.schema) {
             val parsed = this.reader.nextName().split('.')
-            val name = Name.ColumnName(parsed[0], parsed[1], parsed[2])
+            val name = Name.ColumnName.create(parsed[0], parsed[1], parsed[2])
             check(name == column.name) { "$name does not match the expected column name ${column.name}." }
             value[column] = when (column.type) {
                 is Types.Boolean -> BooleanValue(this.reader.nextBoolean())

@@ -23,10 +23,10 @@ class FindInEntityCommand(client: SimpleClient): AbstractCottontailCommand.Query
         val split = it.split(Name.DELIMITER)
         when(split.size) {
             1 -> throw IllegalArgumentException("'$it' is not a valid entity name. Entity name must contain schema specified.")
-            2 -> Name.EntityName(split[0], split[1])
+            2 -> Name.EntityName.create(split[0], split[1])
             3 -> {
                 require(split[0] == Name.ROOT) { "Invalid root qualifier ${split[0]}!" }
-                Name.EntityName(split[1], split[2])
+                Name.EntityName.create(split[1], split[2])
             }
             else -> throw IllegalArgumentException("'$it' is not a valid entity name.")
         }

@@ -37,7 +37,7 @@ abstract class AbstractDatabaseTest {
     }
 
     /** [Name.SchemaName] of the test schema. */
-    protected val schemaName = Name.SchemaName("test")
+    protected val schemaName = Name.SchemaName.create("test")
 
     /** Catalogue used for testing. */
     protected var catalogue: DefaultCatalogue = DefaultCatalogue(this.config)

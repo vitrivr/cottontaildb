@@ -29,7 +29,7 @@ class CSVDataImporter(override val path: Path, override val schema: List<ColumnD
 
         for (column in this.schema) {
 
-            val csvValue = row[column.name.columnName]
+            val csvValue = row[column.name.column]
             if (csvValue == null || csvValue.isEmpty()) {
                 value[column] = null
             } else {

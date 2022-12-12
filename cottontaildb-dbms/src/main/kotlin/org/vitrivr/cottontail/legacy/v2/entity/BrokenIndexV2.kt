@@ -83,7 +83,7 @@ class BrokenIndexV2(override val name: Name.IndexName, override val parent: Enti
                     IndexTypeV2.values()[input.unpackInt()].toIndexType(),
                     Array(input.unpackInt()) {
                         val components = input.readUTF().split('.').toTypedArray()
-                        val name = Name.ColumnName(components[1], components[2], components[3])
+                        val name = Name.ColumnName.create(components[1], components[2], components[3])
                         ColumnDef(name, Types.forOrdinal(input.unpackInt(), input.unpackInt()), input.readBoolean(), input.readBoolean())
                     }
                 )

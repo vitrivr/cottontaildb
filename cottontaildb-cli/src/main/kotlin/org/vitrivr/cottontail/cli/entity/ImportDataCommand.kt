@@ -123,10 +123,10 @@ class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
                 if (it.asString(1) == "COLUMN") {
                     val split = it.asString(0)!!.split(Name.DELIMITER).toTypedArray()
                     val name = when(split.size) {
-                        3 -> Name.ColumnName(split[0], split[1], split[2])
+                        3 -> Name.ColumnName.create(split[0], split[1], split[2])
                         4 -> {
                             require(split[0] == Name.ROOT) { "Invalid root qualifier ${split[0]}!" }
-                            Name.ColumnName(split[1], split[2], split[3])
+                            Name.ColumnName.create(split[1], split[2], split[3])
                         }
                         else -> throw IllegalArgumentException("'$it' is not a valid column name.")
                     }

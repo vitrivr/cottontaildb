@@ -92,13 +92,13 @@ class CatalogueV2(override val config: Config) : Catalogue {
         /* Initialize schemas. */
         for (schemaRef in this.headerField.get().schemas) {
             if (schemaRef.path != null && Files.exists(schemaRef.path)) {
-                this.registry[Name.SchemaName(schemaRef.name)] = SchemaV2(path, this)
+                this.registry[Name.SchemaName.create(schemaRef.name)] = SchemaV2(path, this)
             } else {
                 val path = this.path.resolve("schema_${schemaRef.name}")
                 if (!Files.exists(path)) {
                     throw DatabaseException.DataCorruptionException("Broken catalogue entry for schema '${schemaRef.name}'. Path $path does not exist!")
                 }
-                this.registry[Name.SchemaName(schemaRef.name)] = SchemaV2(path, this)
+                this.registry[Name.SchemaName.create(schemaRef.name)] = SchemaV2(path, this)
             }
         }
     }

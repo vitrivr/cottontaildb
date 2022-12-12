@@ -277,7 +277,7 @@ object GrpcQueryBinder {
                 val entityTx = context.txn.getTx(entity) as EntityTx
                 val fetch = entityTx.listColumns().map { def ->
                     val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(def.name) }
-                    if (name == null || name.key.columnName == Name.WILDCARD) {
+                    if (name == null || name.key.column == Name.WILDCARD) {
                         context.bindings.bind(def) to def
                     } else {
                         context.bindings.bind(def.copy(name = name.key)) to def
@@ -290,7 +290,7 @@ object GrpcQueryBinder {
                 val entityTx = context.txn.getTx(entity) as EntityTx
                 val fetch = entityTx.listColumns().map { def ->
                     val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(def.name) }
-                    if (name == null || name.key.columnName == Name.WILDCARD) {
+                    if (name == null || name.key.column == Name.WILDCARD) {
                         context.bindings.bind(def) to def
                     } else {
                         context.bindings.bind(def.copy(name = name.key)) to def
@@ -557,7 +557,7 @@ private fun parseAndBindProjection(input: OperatorNode.Logical, projection: Map<
         }
         Projection.COUNT -> {
             val columnName = projection.keys.first()
-            val columnDef = ColumnDef(Name.ColumnName(columnName.schemaName, columnName.entityName,"count(${columnName.columnName})"), Types.Long, false)
+            val columnDef = ColumnDef(Name.ColumnName.create(columnName.schema, columnName.entity,"count(${columnName.column})"), Types.Long, false)
             CountProjectionLogicalOperatorNode(input, context.bindings.bind(columnDef))
         }
         Projection.COUNT_DISTINCT -> {
@@ -566,12 +566,12 @@ private fun parseAndBindProjection(input: OperatorNode.Logical, projection: Map<
             }.map {
                 it.name to true
             }
-            val columnDef = ColumnDef(Name.ColumnName(fields.first().first.schemaName, fields.first().first.entityName,"count(${fields.joinToString(",") { it.first.columnName }})"), Types.Long, false)
+            val columnDef = ColumnDef(Name.ColumnName.create(fields.first().first.schema, fields.first().first.entity,"count(${fields.joinToString(",") { it.first.column }})"), Types.Long, false)
             CountProjectionLogicalOperatorNode(SelectDistinctProjectionLogicalOperatorNode(input, fields, context.catalogue.config), context.bindings.bind(columnDef))
         }
         Projection.EXISTS -> {
             val columnName = projection.keys.first()
-            val columnDef = ColumnDef(Name.ColumnName(columnName.schemaName, columnName.entityName, "exists(${columnName.columnName})"), Types.Long, false)
+            val columnDef = ColumnDef(Name.ColumnName.create(columnName.schema, columnName.entity, "exists(${columnName.column})"), Types.Long, false)
             ExistsProjectionLogicalOperatorNode(input, context.bindings.bind(columnDef))
         }
         Projection.SUM,

@@ -29,7 +29,7 @@ class BenchmarkPredicates {
     val embedded = embedded(config)
 
     /** [Name.SchemaName] of the test schema. */
-    protected val schemaName = Name.SchemaName("test")
+    protected val schemaName = Name.SchemaName.create("test")
 
     /** [Name.EntityName] of the test schema. */
     protected val entityName = schemaName.entity("predicates")

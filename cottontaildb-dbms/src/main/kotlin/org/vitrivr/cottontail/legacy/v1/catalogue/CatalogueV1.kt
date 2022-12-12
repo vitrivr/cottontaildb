@@ -98,7 +98,7 @@ class CatalogueV1(override val config: Config) : Catalogue {
             if (!Files.exists(path)) {
                 throw DatabaseException.DataCorruptionException("Broken catalogue entry for schema '${schema.name}'. Path $path does not exist!")
             }
-            val s = SchemaV1(Name.SchemaName(schema.name), this)
+            val s = SchemaV1(Name.SchemaName.create(schema.name), this)
             this.registry[s.name] = s
         }
     }

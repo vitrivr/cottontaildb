@@ -4,7 +4,7 @@ package org.vitrivr.cottontail.core.database
  * A [Name] that identifies a DBO used within Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 sealed interface Name: Comparable<Name> {
 
@@ -46,7 +46,7 @@ sealed interface Name: Comparable<Name> {
     object RootName : Name {
         override val fqn: String = ROOT
         override val simple: String = ROOT
-        fun schema(name: String) = SchemaName(name)
+        fun schema(name: String) = SchemaName.create(name)
         override fun toString(): String = ROOT
         override fun matches(other: Name): Boolean = (other == this)
     }
@@ -54,14 +54,19 @@ sealed interface Name: Comparable<Name> {
     /**
      * A [Name] object used to identify a function in Cottontail DB.
      */
-    data class FunctionName(val functionName: String): Name {
+    data class FunctionName private constructor(val function: String): Name {
+
+        companion object {
+            fun create(name: String) = FunctionName(name.lowercase())
+        }
+
         /** The fully qualified name of this [Name.FunctionName]. */
         override val fqn: String
-            get() = "${ROOT}${DELIMITER}${this.functionName}"
+            get() = "${ROOT}${DELIMITER}${this.function}"
 
         /** The simple name of this [Name.FunctionName]. */
         override val simple: String
-            get() = this.functionName
+            get() = this.function
 
         /**
          * Checks for a match with another [Name]. Only exact matches, i.e. equality, are possible for [SchemaName]s.
@@ -77,20 +82,24 @@ sealed interface Name: Comparable<Name> {
     /**
      * A [Name] object used to identify a schema in Cottontail DB.
      */
-    data class SchemaName(val schemaName: String): Name {
+    data class SchemaName private constructor(val schema: String): Name {
+
+        companion object {
+            fun create(name: String) = SchemaName(name.lowercase())
+        }
 
         init {
-            require(!this.schemaName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
-            require(!this.schemaName.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
+            require(!this.schema.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
+            require(!this.schema.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
         }
 
         /** The fully qualified name of this [Name.SchemaName]. */
         override val fqn: String
-            get() = "${ROOT}${DELIMITER}${this.schemaName}"
+            get() = "${ROOT}${DELIMITER}${this.schema}"
 
         /** The simple name of this [Name.SchemaName]. */
         override val simple: String
-            get() = this.schemaName
+            get() = this.schema
 
         /**
          * Generates an [EntityName] as child of this [SchemaName].
@@ -98,7 +107,7 @@ sealed interface Name: Comparable<Name> {
          * @param name Name of the [EntityName]
          * @return [EntityName]
          */
-        fun entity(name: String) = EntityName(this.schemaName, name)
+        fun entity(name: String) = EntityName.create(this.schema, name)
 
         /**
          * Checks for a match with another [Name]. Only exact matches, i.e. equality, are possible for [SchemaName]s.
@@ -114,29 +123,32 @@ sealed interface Name: Comparable<Name> {
     /**
      * A [Name] object used to identify an entity in Cottontail DB.
      */
-    data class EntityName(val schemaName: String, val entityName: String): Name {
+    data class EntityName private constructor(val schema: String, val entity: String): Name {
+        companion object {
+            fun create(schema: String, entity: String) = EntityName(schema.lowercase(), entity.lowercase())
+        }
 
         init {
-            require(!this.schemaName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
-            require(!this.schemaName.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
-            require(!this.entityName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
-            require(!this.entityName.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
+            require(!this.schema.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
+            require(!this.schema.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
+            require(!this.entity.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
+            require(!this.entity.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
         }
 
         /** The fully qualified name of this [Name.EntityName]. */
         override val fqn: String
-            get() = "${ROOT}${DELIMITER}${this.schemaName}${DELIMITER}${this.entityName}"
+            get() = "${ROOT}${DELIMITER}${this.schema}${DELIMITER}${this.entity}"
 
         /** The fully qualified name of this [Name.EntityName]. */
         override val simple: String
-            get() = this.entityName
+            get() = this.entity
 
         /**
          * Returns parent [SchemaName] for this [EntityName].
          *
          * @return Parent [SchemaName]
          */
-        fun schema(): SchemaName = SchemaName(this.schemaName)
+        fun schema(): SchemaName = SchemaName.create(this.schema)
 
         /**
          * Generates an [IndexName] as child of this [EntityName].
@@ -144,7 +156,7 @@ sealed interface Name: Comparable<Name> {
          * @param name Name of the [IndexName]
          * @return [IndexName]
          */
-        fun index(name: String) = IndexName(this.schemaName, this.entityName, name)
+        fun index(name: String) = IndexName.create(this.schema, this.entity, name)
 
         /**
          * Generates an [ColumnName] as child of this [EntityName].
@@ -152,14 +164,14 @@ sealed interface Name: Comparable<Name> {
          * @param name Name of the [ColumnName]
          * @return [ColumnName]
          */
-        fun column(name: String) = ColumnName(this.schemaName, this.entityName, name)
+        fun column(name: String) = ColumnName.create(this.schema, this.entity, name)
 
         /**
          * Generates the special '__tid' [SequenceName] as child of this [EntityName].
          *
          * @return [SequenceName]
          */
-        fun tid() = SequenceName(this.schemaName, this.entityName, "__tid")
+        fun tid() = SequenceName.create(this.schema, this.entity, "__tid")
 
         /**
          * Generates an [SequenceName] as child of this [EntityName].
@@ -169,7 +181,7 @@ sealed interface Name: Comparable<Name> {
          */
         fun sequence(name: String): SequenceName {
             require(name != "__tid") { "The name '__tid' is reserved and cannot be used as sequence name!" }
-            return SequenceName(this.schemaName, this.entityName, name)
+            return SequenceName.create(this.schema, this.entity, name)
         }
 
         /**
@@ -186,38 +198,42 @@ sealed interface Name: Comparable<Name> {
     /**
      * A [Name] object used to identify a sequence.
      */
-    data class SequenceName(val schemaName: String, val entityName: String, val sequenceName: String) : Name {
+    data class SequenceName private constructor(val schema: String, val entity: String, val sequence: String) : Name {
+
+        companion object {
+            fun create(schema: String, entity: String, sequence: String) = SequenceName(schema.lowercase(), entity.lowercase(), sequence.lowercase())
+        }
 
         init {
-            require(!this.schemaName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
-            require(!this.schemaName.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
-            require(!this.entityName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
-            require(!this.entityName.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
-            require(!this.sequenceName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
-            require(!this.sequenceName.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
+            require(!this.schema.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
+            require(!this.schema.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
+            require(!this.entity.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
+            require(!this.entity.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
+            require(!this.sequence.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
+            require(!this.sequence.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
         }
 
         /** The fully qualified name of this [Name.SequenceName]. */
         override val fqn: String
-            get() = "${ROOT}${DELIMITER}${this.schemaName}${DELIMITER}${this.entityName}${DELIMITER}${this.sequenceName}"
+            get() = "${ROOT}${DELIMITER}${this.schema}${DELIMITER}${this.entity}${DELIMITER}${this.sequence}"
 
         /** The fully qualified name of this [Name.SequenceName]. */
         override val simple: String
-            get() = this.sequenceName
+            get() = this.sequence
 
         /**
          * Returns parent [SchemaName] of this [SequenceName].
          *
          * @return Parent [SchemaName]
          */
-        fun schema(): SchemaName = SchemaName(this.schemaName)
+        fun schema(): SchemaName = SchemaName.create(this.schema)
 
         /**
          * Returns parent [EntityName] of this [SequenceName].
          *
          * @return Parent [EntityName]
          */
-        fun entity(): EntityName = EntityName(this.schemaName, this.entityName)
+        fun entity(): EntityName = EntityName.create(this.schema, this.entity)
 
         /**
          * Checks for a match with another name. Only exact matches, i.e. equality, are possible for [SequenceName]s.
@@ -233,38 +249,42 @@ sealed interface Name: Comparable<Name> {
     /**
      * A [Name] object used to identify an index in Cottontail DB
      */
-    data class IndexName(val schemaName: String, val entityName: String, val indexName: String) : Name {
+    data class IndexName private constructor(val schema: String, val entity: String, val index: String) : Name {
+
+        companion object {
+            fun create(schema: String, entity: String, index: String) = IndexName(schema.lowercase(), entity.lowercase(), index.lowercase())
+        }
 
         init {
-            require(!this.schemaName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
-            require(!this.schemaName.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
-            require(!this.entityName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
-            require(!this.entityName.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
-            require(!this.indexName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
-            require(!this.indexName.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
+            require(!this.schema.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
+            require(!this.schema.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
+            require(!this.entity.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
+            require(!this.entity.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
+            require(!this.index.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
+            require(!this.index.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
         }
 
         /** The fully qualified name of this [Name.IndexName]. */
         override val fqn: String
-            get() = "${ROOT}${DELIMITER}${this.schemaName}${DELIMITER}${this.entityName}${DELIMITER}${this.indexName}"
+            get() = "${ROOT}${DELIMITER}${this.schema}${DELIMITER}${this.entity}${DELIMITER}${this.index}"
 
         /** The fully qualified name of this [Name.IndexName]. */
         override val simple: String
-            get() = this.indexName
+            get() = this.index
 
         /**
          * Returns parent [SchemaName] of this [IndexName].
          *
          * @return Parent [SchemaName]
          */
-        fun schema(): SchemaName = SchemaName(this.schemaName)
+        fun schema(): SchemaName = SchemaName.create(this.schema)
 
         /**
          * Returns parent  [EntityName] of this [IndexName].
          *
          * @return Parent [EntityName]
          */
-        fun entity(): EntityName = EntityName(this.schemaName, this.entityName)
+        fun entity(): EntityName = EntityName.create(this.schema, this.entity)
 
         /**
          * Checks for a match with another name. Only exact matches, i.e. equality, are possible for [IndexName]s.
@@ -280,28 +300,32 @@ sealed interface Name: Comparable<Name> {
     /**
      * A [Name] object used to identify an column in Cottontail DB
      */
-    data class ColumnName(val schemaName: String, val entityName: String, val columnName: String): Name {
+    data class ColumnName private constructor(val schema: String, val entity: String, val column: String): Name {
+
+        companion object {
+            fun create(schema: String, entity: String, column: String) = ColumnName(schema.lowercase(), entity.lowercase(), column.lowercase())
+        }
 
         init {
-            require(!this.schemaName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
-            require(!this.entityName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
-            require(!this.columnName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
+            require(!this.schema.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
+            require(!this.entity.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
+            require(!this.column.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
         }
 
         /** Constructor for simple names. */
-        constructor(columnName: String): this(WILDCARD, WILDCARD, columnName)
+        constructor(columnName: String): this(WILDCARD, WILDCARD, columnName.lowercase())
 
         /** The fully qualified name of this [Name.IndexName]. */
         override val fqn: String
-            get() = "${ROOT}${DELIMITER}${this.schemaName}${DELIMITER}${this.entityName}${DELIMITER}${this.columnName}"
+            get() = "${ROOT}${DELIMITER}${this.schema}${DELIMITER}${this.entity}${DELIMITER}${this.column}"
 
         /** The fully qualified name of this [Name.IndexName]. */
         override val simple: String
-            get() = this.columnName
+            get() = this.column
 
         /** True if this [ColumnName] is a wildcard. */
         val wildcard: Boolean
-            get() = this.schemaName == WILDCARD || this.entityName == WILDCARD || this.columnName == WILDCARD
+            get() = this.schema == WILDCARD || this.entity == WILDCARD || this.column == WILDCARD
 
         /**
          * Returns parent [SchemaName] of this [ColumnName].
@@ -309,8 +333,8 @@ sealed interface Name: Comparable<Name> {
          * @return Parent [SchemaName]
          */
         fun schema(): SchemaName? {
-            if (this.schemaName == WILDCARD) return null
-            return SchemaName(this.schemaName)
+            if (this.schema == WILDCARD) return null
+            return SchemaName.create(this.schema)
         }
 
         /**
@@ -319,8 +343,8 @@ sealed interface Name: Comparable<Name> {
          * @return Parent [EntityName]
          */
         fun entity(): EntityName? {
-            if (this.schemaName == WILDCARD || this.entityName == WILDCARD) return null
-            return EntityName(this.schemaName, this.entityName)
+            if (this.schema == WILDCARD || this.entity == WILDCARD) return null
+            return EntityName.create(this.schema, this.entity)
         }
 
         /**
@@ -332,13 +356,13 @@ sealed interface Name: Comparable<Name> {
         override fun matches(other: Name): Boolean {
             if (other !is ColumnName) return false
             if (!this.wildcard) return (this == other)
-            if (this.schemaName != WILDCARD && this.schemaName != other.schemaName) return false
-            if (this.entityName != WILDCARD && this.entityName != other.entityName) return false
-            if (this.columnName != WILDCARD && this.columnName != other.columnName) return false
+            if (this.schema != WILDCARD && this.schema != other.schema) return false
+            if (this.entity != WILDCARD && this.entity != other.entity) return false
+            if (this.column != WILDCARD && this.column != other.column) return false
             return true
         }
 
-        override fun toString(): String = if (this.schemaName == WILDCARD && this.schemaName == WILDCARD) {
+        override fun toString(): String = if (this.schema == WILDCARD && this.schema == WILDCARD) {
             this.simple
         } else {
             this.fqn

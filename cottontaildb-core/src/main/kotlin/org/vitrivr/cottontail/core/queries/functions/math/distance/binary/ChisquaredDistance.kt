@@ -22,7 +22,7 @@ import kotlin.math.pow
 sealed class ChisquaredDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): VectorDistance<T>(type) {
 
     companion object: FunctionGenerator<DoubleValue> {
-        val FUNCTION_NAME = Name.FunctionName("chisquared")
+        val FUNCTION_NAME = Name.FunctionName.create("chisquared")
 
         override val signature: Signature.Open
             get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector))

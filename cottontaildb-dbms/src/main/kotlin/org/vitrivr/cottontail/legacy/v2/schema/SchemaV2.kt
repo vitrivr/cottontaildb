@@ -58,7 +58,7 @@ class SchemaV2(val path: Path, override val parent: CatalogueV2) : Schema, AutoC
     private val registry: MutableMap<Name.EntityName, EntityV2> = Collections.synchronizedMap(Object2ObjectOpenHashMap())
 
     /** The [Name.SchemaName] of this [SchemaV2]. */
-    override val name: Name.SchemaName = Name.SchemaName(this.headerField.get().name)
+    override val name: Name.SchemaName = Name.SchemaName.create(this.headerField.get().name)
 
     /** The [Catalogue] this [SchemaV2] belongs to. */
     override val catalogue: Catalogue
