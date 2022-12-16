@@ -154,7 +154,7 @@ class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
     private val singleTransaction: Boolean by option("-t", "--transaction", help="Flag indicating, whether the import should be executed in a single transaction or not.").flag()
 
     /** Flag indicating, whether the import should be fuzzy: Ignore corrupt entries and just continue */
-    private val fuzzy: Boolean by option("-f", "--fuzzy", help="Flag indicating, whether the import should be fuzzy: Ignore corrupt entries and just continue").flag()
+    private val fuzzy: Boolean by option("--fuzzy", help="Flag indicating, whether the import should be fuzzy: Ignore corrupt entries and just continue").flag()
 
     /**
      * Executes this [ImportDataCommand].
