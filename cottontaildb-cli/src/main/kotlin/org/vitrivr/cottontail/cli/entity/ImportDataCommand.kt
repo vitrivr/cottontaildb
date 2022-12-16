@@ -1,9 +1,6 @@
 package org.vitrivr.cottontail.cli.entity
 
-import com.github.ajalt.clikt.parameters.options.convert
-import com.github.ajalt.clikt.parameters.options.flag
-import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.options.*
 import com.github.ajalt.clikt.parameters.types.enum
 import org.vitrivr.cottontail.cli.AbstractCottontailCommand
 import org.vitrivr.cottontail.client.SimpleClient
@@ -42,10 +39,10 @@ class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
          * @param client The [SimpleClient] to use.
          * @param singleTransaction Flag indicating whether import should happen in a single transaction.
          */
-        fun importData(entityName: Name.EntityName, input: Path, format: Format, client: SimpleClient, singleTransaction: Boolean) {
+        fun importData(entityName: Name.EntityName, input: Path, format: Format, client: SimpleClient, singleTransaction: Boolean, fuzzy: Boolean) {
             /* Read schema and prepare Iterator. */
             val schema = readSchema(entityName, client)
-            val iterator = format.newImporter(input, schema)
+            val iterator = format.newImporter(input, schema, fuzzy)
 
             /** Begin transaction (if single transaction option has been set). */
             val txId = if (singleTransaction) {
@@ -154,10 +151,13 @@ class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
     ).convert { Paths.get(it) }.required()
 
     /** Flag indicating, whether the import should be executed in a single transaction or not. */
-    private val singleTransaction: Boolean by option("-t", "--transaction").flag()
+    private val singleTransaction: Boolean by option("-t", "--transaction", help="Flag indicating, whether the import should be executed in a single transaction or not.").flag()
+
+    /** Flag indicating, whether the import should be fuzzy: Ignore corrupt entries and just continue */
+    private val fuzzy: Boolean by option("-f", "--fuzzy", help="Flag indicating, whether the import should be fuzzy: Ignore corrupt entries and just continue").flag()
 
     /**
      * Executes this [ImportDataCommand].
      */
-    override fun exec() = importData(this.entityName, this.input, this.format, this.client, this.singleTransaction)
+    override fun exec() = importData(this.entityName, this.input, this.format, this.client, this.singleTransaction, this.fuzzy)
 }

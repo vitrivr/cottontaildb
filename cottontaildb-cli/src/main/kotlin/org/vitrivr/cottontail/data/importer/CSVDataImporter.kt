@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.data.importer
 
+import com.github.doyaaaaaken.kotlincsv.dsl.context.ExcessFieldsRowBehaviour
+import com.github.doyaaaaaken.kotlincsv.dsl.context.InsufficientFieldsRowBehaviour
 import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import org.vitrivr.cottontail.core.database.ColumnDef
@@ -9,9 +11,14 @@ import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.data.Format
 import java.nio.file.Path
 
-class CSVDataImporter(override val path: Path, override val schema: List<ColumnDef<*>>) : DataImporter {
+class CSVDataImporter(override val path: Path, override val schema: List<ColumnDef<*>>, private val fuzzy: Boolean = false) : DataImporter {
 
-    private val rows = csvReader().readAllWithHeader(path.toFile())
+    private val rows = csvReader{
+        skipEmptyLine= fuzzy // if fuzzyness is enabled, skip empty lines silently
+        excessFieldsRowBehaviour= fuzzy.let { if(it){ExcessFieldsRowBehaviour.TRIM}else{ExcessFieldsRowBehaviour.ERROR} }
+        insufficientFieldsRowBehaviour= fuzzy.let { if(it){InsufficientFieldsRowBehaviour.IGNORE}else{InsufficientFieldsRowBehaviour.ERROR} }
+    }
+    .readAllWithHeader(path.toFile())
     private var rowIndex = 0
 
     /** The [Format] handled by this [DataImporter]. */
