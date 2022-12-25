@@ -17,8 +17,6 @@ export class Connection {
 })
 export class ConnectionService {
 
-
-
   public apiURL = 'http://localhost:7070/'
 
   connectionSubject = new BehaviorSubject<Set<Connection>>(new Set<Connection>);

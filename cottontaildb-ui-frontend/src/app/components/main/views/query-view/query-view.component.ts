@@ -169,7 +169,7 @@ export class QueryViewComponent implements OnInit {
   }
 
   trim(rowElement: string) {
-    if(rowElement.length > 30){
+    if(rowElement.length > 40){
       let len = rowElement.length
       return rowElement.slice(0, 10) + "..." + rowElement.slice(len-10, len)
     }

@@ -14,6 +14,8 @@ export class DdlViewComponent implements OnInit {
 
   aboutEntityData: any;
   selection: any;
+  ddlColumnNames = ["dbo", "class", "type", "rows", "lsize", "nullable", "info"];
+  headerColumnNames = ["dbo", "class", "type", "rows", "lsize", "nullable", "info", "action"];
 
   constructor(private entityService : EntityService,
               private selectionService : SelectionService,

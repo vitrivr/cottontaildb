@@ -69,6 +69,7 @@ export class TreeComponent implements OnInit {
     this.treeDataService.getTreeData().subscribe((datasource) => {
       return this.dataSource.data = datasource.get(this.connection) || [];
     });
+
   }
 
   isRoot = (_: number, node: FlatNode) => (node.level === 0);
@@ -135,8 +136,5 @@ export class TreeComponent implements OnInit {
     this.selectionService.changeSelection(this.connection, nodeName)
   }
 
-  onDumpEntity(name: string) {
-    //TODO
-  }
 }
 

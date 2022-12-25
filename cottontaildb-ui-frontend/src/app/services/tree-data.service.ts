@@ -12,8 +12,6 @@ import {Connection, ConnectionService} from "./connection.service";
 
 export class TreeDataService {
 
-
-
   private apiURL = 'http://localhost:7070/'
 
   public readonly treeDataObs$ = new BehaviorSubject<Map<Connection, TreeNode[]>>(new Map);

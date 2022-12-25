@@ -8,6 +8,7 @@ import {MatDialogRef} from "@angular/material/dialog";
 import {MatSnackBar} from "@angular/material/snack-bar";
 import {ColumnDefinition} from "../../../../interfaces/ColumnDefinition";
 import {Connection} from "../../../../services/connection.service";
+import {BehaviorSubject} from "rxjs";
 
 
 @Component({
@@ -21,7 +22,7 @@ export class CreateEntityFormComponent implements OnInit {
 
   schemaName: string;
   columnData: any;
-  entityNameSet: boolean;
+  columnDataSource: any;
   connection: any;
 
   constructor(
@@ -33,20 +34,21 @@ export class CreateEntityFormComponent implements OnInit {
   {
       this.schemaName = data.name
       this.connection = data.connection
+      this.columnDataSource = new BehaviorSubject([]);
       this.columnData = []
-      this.entityNameSet = false
   }
 
   ngOnInit(): void {
   }
 
   entityForm = new FormGroup({
-    name: new FormControl('', [Validators.required, Validators.minLength(3)])
+    name: new FormControl('', [Validators.required])
   });
 
   columnForm = new FormGroup({
     name: new FormControl('', [Validators.required]),
     type: new FormControl('', [Validators.required]),
+    size: new FormControl('', [Validators.required]),
     nullable: new FormControl('', [Validators.required]),
   });
 
@@ -56,14 +58,10 @@ export class CreateEntityFormComponent implements OnInit {
     "LONG_VEC", "INT_VEC", "BOOL_VEC", "COMPLEX32_VEC",
     "COMPLEX64_VEC", "BYTESTRING", "UNRECOGNIZED"];
 
-
-  submitEntityName() {
-    this.entityNameSet = true;
-  }
-
   submitColumn() : void {
     this.columnData.push(this.columnForm.value);
-    this.columnForm.reset();
+    this.columnForm.reset()
+    this.columnDataSource.next(this.columnData)
   }
 
 
@@ -71,6 +69,7 @@ export class CreateEntityFormComponent implements OnInit {
     this.columnData.forEach( (value : ColumnDefinition, index: number) => {
       if (value == element){ this.columnData.splice(index,1) }
     });
+    this.columnDataSource.next(this.columnData)
   }
 
   onCreateEntity() {
@@ -89,7 +88,6 @@ export class CreateEntityFormComponent implements OnInit {
   onReset(){
     this.entityForm.reset()
     this.columnForm.reset()
-    this.entityNameSet = false
     this.columnData.forEach( (value : ColumnDefinition, index: number) => {
       this.columnData.splice(index,1)
     });

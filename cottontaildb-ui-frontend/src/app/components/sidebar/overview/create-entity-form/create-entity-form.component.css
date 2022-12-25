@@ -12,23 +12,21 @@ h2{
   margin-right: auto;
 }
 .reset-button{
-  grid-column: 3;
+  grid-column: 5;
   width: fit-content;
   height: fit-content;
   justify-self: end;
 }
-.create-button{
-  grid-column: 4;
-  width: fit-content;
-  height: fit-content;
-  justify-self: end;
+.create-button > button{
+  margin-top: 16px;
+  width: 100%;
 }
 .body{
   border-radius: 5px;
 }
 .content{
   display: grid;
-  grid-template-columns: repeat(3,150px) 80px;
+  grid-template-columns: repeat(4,150px) 80px;
   grid-column-gap: 10px;
   grid-auto-rows: 1fr;
   align-content: center;

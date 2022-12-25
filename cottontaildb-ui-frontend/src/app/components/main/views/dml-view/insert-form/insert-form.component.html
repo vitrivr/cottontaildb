@@ -1,6 +1,5 @@
 <div class="dml-function-container">
-  <form (ngSubmit)="submitInsert()"
-        [formGroup]="insertForm" class="query-form">
+  <form [formGroup]="insertForm" class="query-form">
 
     <div class="query-form-header">
       Insert:
@@ -15,10 +14,11 @@
           </mat-form-field>
         </ng-container>
       </ng-container>
-      <button type="submit"
+      <button type="button"
               mat-raised-button
               [disabled]="insertForm.invalid"
-              color="custom-green">
+              color="custom-green"
+              (click)="submitInsert()">
         INSERT
       </button>
     </div>

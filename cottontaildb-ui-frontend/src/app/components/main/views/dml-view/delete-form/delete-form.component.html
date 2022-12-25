@@ -1,6 +1,5 @@
 <div class="dml-function-container">
-  <form (ngSubmit)="submitDelete()"
-        [formGroup]="deleteForm" class="query-form">
+  <form [formGroup]="deleteForm" class="query-form">
 
     <div class="query-form-header">
       Delete where:
@@ -36,9 +35,10 @@
         <input matInput formControlName="value">
       </mat-form-field>
 
-      <button type="submit"
+      <button type="button"
               mat-raised-button
               color="warn"
+              (click)="submitDelete()"
               [disabled]="deleteForm.invalid">
         DELETE
       </button>

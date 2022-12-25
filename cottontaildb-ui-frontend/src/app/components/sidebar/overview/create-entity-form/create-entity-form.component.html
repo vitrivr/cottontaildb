@@ -5,7 +5,6 @@
   <div class="body">
 
     <form #entityName="ngForm"
-          (ngSubmit)="submitEntityName()"
           [formGroup]="entityForm">
       <div class="content">
 
@@ -18,16 +17,7 @@
           <button (click)="onReset()"
                   mat-raised-button
                   color="warn">
-            Reset
-          </button>
-        </div>
-
-        <div class="create-button">
-          <button mat-raised-button
-                  color="custom-green"
-                  type="button"
-                  (click)="onCreateEntity()" [disabled]="(entityName.invalid)|| (columnData.length === 0)">
-            Create
+            <span class="material-symbols-outlined">restart_alt</span>
           </button>
         </div>
 
@@ -48,7 +38,7 @@
         </mat-form-field>
 
         <mat-form-field appearance="outline">
-          <mat-label>Type</mat-label>
+          <mat-label>type</mat-label>
           <mat-select  formControlName="type"  class="form-control">
             <mat-option>--- None ---</mat-option>
             <mat-option value="{{type}}" *ngFor="let type of types">{{type}}</mat-option>
@@ -57,7 +47,16 @@
         </mat-form-field>
 
         <mat-form-field appearance="outline">
-          <mat-label>Nullable</mat-label>
+          <mat-label>size</mat-label>
+          <input matInput type="text"
+                 formControlName="size"
+                 name= "size"
+                 class="form-control"
+                 ngModel>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>nullable</mat-label>
           <mat-select  formControlName="nullable"  class="form-control">
             <mat-option>--- None ---</mat-option>
             <mat-option value="{{nullable}}" *ngFor="let nullable of [true,false]">{{nullable}}</mat-option>
@@ -68,8 +67,9 @@
         <button class="add-button"
                 mat-raised-button
                 color="custom-green"
+                (click)="submitColumn()"
                 [disabled]="columnForm.invalid">
-          Add
+          <span class="material-symbols-outlined">add</span>
         </button>
 
       </div>
@@ -77,31 +77,35 @@
 
     <h3> Columns Preview </h3>
 
-    <div class="table">
-      <table>
-        <thead>
-        <tr *ngIf="columnData.length > 0">
-          <th>name</th>
-          <th>type</th>
-          <th>nullable</th>
-          <th>size</th>
-          <th>action</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr *ngFor="let item of columnData">
-          <td><span>{{item.name}}</span></td>
-          <td><span>{{item.type}}</span></td>
-          <td><span>{{item.nullable}}</span></td>
-          <td><span>-1</span></td>
-          <td><button mat-raised-button type="button" color="warn" (click)="removeItem(item)">Remove</button></td>
-        </tr>
-        </tbody>
-      </table>
+    <mat-table [dataSource]="columnDataSource" *ngIf="columnData.length > 0">
+
+      <mat-header-row *matHeaderRowDef="['name','type','nullable','size','action']"></mat-header-row>
+      <mat-row *matRowDef="let row; columns: ['name','type','nullable','size','action']"></mat-row>
+
+      <ng-container *ngFor="let col of ['name','type','nullable','size']; index as i">
+        <ng-container [matColumnDef]="col">
+          <mat-header-cell  *matHeaderCellDef > {{col}} </mat-header-cell>
+          <mat-cell *matCellDef="let row"> {{row[col]}} </mat-cell>
+        </ng-container>
+      </ng-container>
+
+      <ng-container matColumnDef="action">
+        <mat-header-cell  *matHeaderCellDef > action </mat-header-cell>
+        <mat-cell *matCellDef="let row"> <button mat-raised-button type="button" color="warn" (click)="removeItem(row)">
+          <span class="material-symbols-outlined">delete</span>
+        </button> </mat-cell>
+      </ng-container>
+
+    </mat-table>
+
+    <div class="create-button">
+      <button mat-raised-button
+              color="custom-green"
+              type="button"
+              (click)="onCreateEntity()" [disabled]="(entityName.invalid)|| (columnData.length === 0)">Create</button>
     </div>
 
   </div>
 </div>
-
 
 

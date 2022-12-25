@@ -59,5 +59,8 @@ mat-tree-node{
 .menu-button{
   margin-left: auto;
 }
+span{
+  margin-right: 0.7rem;
+}
 
 

@@ -9,6 +9,8 @@
                    matTreeNodePadding="40px">
 
 
+
+
         <button mat-icon-button
                 matTreeNodeToggle
                 [disabled]="!treeControl.isExpandable(node)"
@@ -18,6 +20,8 @@
             {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
           </mat-icon>
         </button>
+
+      <span class="material-symbols-outlined">schema</span>
 
           {{node.name}}
 
@@ -47,6 +51,8 @@
                    matTreeNodePadding="40px"
                    matTreeNodeToggle
                    (click)="onSelect(node.name)">
+
+      <span class="material-symbols-outlined">table</span>
 
       {{node.name.split(".")[2]}}
 

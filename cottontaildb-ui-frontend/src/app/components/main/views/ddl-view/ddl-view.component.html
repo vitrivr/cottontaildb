@@ -8,36 +8,45 @@
         <h2>{{selection['entity'].split(".").slice(-1)}}</h2>
       </ng-template>
     </div>
-    <div class="table">
-      <table>
-        <thead>
-        <tr *ngIf="aboutEntityData">
-          <th>dbo</th>
-          <th>class</th>
-          <th>type</th>
-          <th>rows</th>
-          <th>l_size</th>
-          <th>nullable</th>
-          <th>info</th>
-          <th>action</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr *ngFor="let item of aboutEntityData">
-          <td><span>{{item.dbo.split(".").pop()}}</span></td>
-          <td><span>{{item._class}}</span></td>
-          <td><span>{{item.type}}</span></td>
-          <td><span>{{item.rows}}</span></td>
-          <td><span>{{item.lsize}}</span></td>
-          <td><span>{{item.nullable}}</span></td>
-          <td><span>{{item.info}}</span></td>
-          <td>
-            <button mat-raised-button color="warn" *ngIf="item._class === 'INDEX'" (click)="onDropIndex(this.selection.connection, item.dbo)">DROP INDEX</button>
-            <button mat-raised-button color="custom-green" *ngIf="item._class === 'COLUMN'" (click)="onCreateIndex(this.selection.connection, item.dbo)">CREATE INDEX</button>
-          </td>
-        </tr>
-        </tbody>
-      </table>
+
+
+
+
+    <div class="table" *ngIf="aboutEntityData">
+
+      <mat-table [dataSource]="aboutEntityData">
+
+        <mat-header-row *matHeaderRowDef="headerColumnNames"></mat-header-row>
+        <mat-row *matRowDef="let row; columns: headerColumnNames"></mat-row>
+
+        <ng-container *ngFor="let col of ddlColumnNames; index as i">
+          <ng-container [matColumnDef]="col">
+            <mat-header-cell  *matHeaderCellDef > {{col}} </mat-header-cell>
+            <mat-cell *matCellDef="let row">
+              <ng-container *ngIf="col === 'dbo'">
+                {{row[col].split(".").pop()}}
+              </ng-container>
+              <ng-container *ngIf="col !== 'dbo'">
+                {{row[col]}}
+              </ng-container>
+            </mat-cell>
+          </ng-container>
+        </ng-container>
+
+        <ng-container matColumnDef="action">
+          <mat-header-cell  *matHeaderCellDef >action</mat-header-cell>
+          <mat-cell *matCellDef="let row">
+            <button mat-raised-button color="warn" *ngIf="row._class === 'INDEX'" (click)="onDropIndex(this.selection.connection, row.dbo)">
+              <span class="material-symbols-outlined">delete</span>
+            </button>
+            <button mat-raised-button color="custom-green" *ngIf="row._class === 'COLUMN'" (click)="onCreateIndex(this.selection.connection, row.dbo)">
+              index
+            </button>
+          </mat-cell>
+        </ng-container>
+
+      </mat-table>
+
     </div>
   </div>
 </div>

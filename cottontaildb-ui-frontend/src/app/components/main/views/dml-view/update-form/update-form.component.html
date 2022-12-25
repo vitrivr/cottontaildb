@@ -1,6 +1,6 @@
 <div class="dml-function-container">
 
-  <form [formGroup]="updateForm" class="query-form" (ngSubmit)="submitUpdate()">
+  <form [formGroup]="updateForm" class="query-form">
 
     <div class="query-form-header">
       Where:
@@ -55,7 +55,8 @@
       <button type="submit"
               mat-raised-button
               [disabled]="updateForm.invalid"
-              color="custom-green">
+              color="custom-green"
+              (click)="submitUpdate()">
         UPDATE
       </button>
     </div>

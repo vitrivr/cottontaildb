@@ -21,8 +21,6 @@ export class SystemViewComponent implements OnInit {
     for(let connection of this.connections){
       this.systemService.listTransactions(connection)
       this.systemService.listLocks(connection)
-      this.systemService.transactionListSubject.subscribe(tx => this.txData = tx)
-      this.systemService.lockListSubject.subscribe(locks => this.locksData = locks)
     }
   }
 

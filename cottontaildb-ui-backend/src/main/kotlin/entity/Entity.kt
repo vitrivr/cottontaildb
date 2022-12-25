@@ -1,4 +1,3 @@
 package entity
 
-class Entity (val name: String) {
-}
+class Entity (val name: String) {}

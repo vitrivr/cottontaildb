@@ -25,7 +25,7 @@ object EntityController {
     private val gson = Gson()
 
     //from CreateEntityCommand.kt
-    data class ColumnInfo(val name: String, val type: CottontailGrpc.Type, val nullable: Boolean = false, val size: Int = -1) {
+    data class ColumnInfo(val name: String, val type: CottontailGrpc.Type, val nullable: Boolean = false, val size: Int) {
         fun toDefinition() : CottontailGrpc.ColumnDefinition {
             val def = CottontailGrpc.ColumnDefinition.newBuilder()
             def.nameBuilder.name = name
@@ -83,6 +83,7 @@ object EntityController {
         val client = initClient(context)
 
         val columnArray: Array<ColumnInfo> = gson.fromJson(context.body(), Array<ColumnInfo>::class.java)
+        columnArray.forEach { println(it) }
         val list = columnArray.map { it.toDefinition() }
 
         val temp = context.pathParam("name").split(".")
@@ -172,15 +173,11 @@ object EntityController {
         context.json(result)
     }
     fun dumpEntity(context: Context){
-        val client = initClient(context)
-
-        val entityName = context.pathParam("name")
-        val qm = Query(entityName)
-        val results = client.query(qm)
-        val columnNames = results.columnNames
+        //TODO
     }
 
     fun importData(context: Context){
+        //TODO
     }
 
     fun insertRow(context: Context){
@@ -202,6 +199,7 @@ object EntityController {
         }
     }
     fun listAllEntities(context: Context){
+        //TODO
     }
     fun optimizeEntity(context: Context){
         val client = initClient(context)

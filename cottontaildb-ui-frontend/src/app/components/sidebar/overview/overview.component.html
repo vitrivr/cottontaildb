@@ -4,25 +4,21 @@
   <div *ngFor="let connection of connections">
     <div class="connection-header">
       <h2>
+        <span class="material-symbols-outlined">database</span>
         {{connectionName(connection)}}
       </h2>
 
-      <button mat-icon-button [matMenuTriggerFor]="menu" class="menu-button">
-        <mat-icon>more_vert</mat-icon>
+
+      <button mat-raised-button color="warn" (click)="onRemoveConnection(connection)">
+        <span class="material-symbols-outlined">link_off</span>
       </button>
-      <mat-menu #menu="matMenu">
-        <button mat-menu-item (click)="onCreateSchema(connection)">
-          <mat-icon>add_box</mat-icon>
-          <span>new schema</span>
-        </button>
-        <button mat-menu-item (click)="onRemoveConnection(connection)">
-          <mat-icon>close</mat-icon>
-          <span>remove connection</span>
-        </button>
-      </mat-menu>
+
 
     </div>
     <app-tree class="tree" [connection]="connection"></app-tree>
+    <button mat-raised-button color="custom-green" style="width: 100%" (click)="onCreateSchema(connection)">
+      <span class="material-symbols-outlined">add</span>
+    </button>
   </div>
 
   <div class="add-connection">
