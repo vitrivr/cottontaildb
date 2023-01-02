@@ -2,13 +2,13 @@ package org.vitrivr.cottontail.dbms.catalogue
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
-import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.nio.file.Files
 

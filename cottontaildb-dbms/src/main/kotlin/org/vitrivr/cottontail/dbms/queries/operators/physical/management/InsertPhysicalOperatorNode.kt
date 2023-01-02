@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
@@ -58,12 +59,19 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
     override val traits: Map<TraitType<*>, Trait> = mapOf(NotPartitionableTrait to NotPartitionableTrait)
 
     init {
-        /* Obtain statistics costs. */
+        /* Obtain statistics costs and  */
+        var estimatedInsertSize = 0
         this.entity.listColumns().forEach { columnDef ->
-            this.statistics[columnDef] = (this.entity.context.getTx(this.entity.columnForName(columnDef.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
+            val statistic = (this.entity.context.getTx(this.entity.columnForName(columnDef.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
+            this.statistics[columnDef] = statistic
+            estimatedInsertSize += if (columnDef.type == Types.String) {
+                statistic.avgWidth * Char.SIZE_BYTES  /* GA: This is not a good cost estimate for empty tables but we don't really need a better one. */
+            } else {
+                columnDef.type.physicalSize
+            }
         }
-        val cummulativeAvgRecordSize = this.records.sumOf { r -> r.columns.sumOf { c -> r[c]!!.logicalSize }}
-        this.cost = (Cost.DISK_ACCESS_WRITE + Cost.MEMORY_ACCESS) * cummulativeAvgRecordSize
+
+        this.cost = (Cost.DISK_ACCESS_WRITE + Cost.MEMORY_ACCESS) * estimatedInsertSize * this.records.size
     }
 
     /**

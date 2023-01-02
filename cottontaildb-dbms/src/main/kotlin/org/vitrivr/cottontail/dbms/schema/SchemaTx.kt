@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.dbms.general.Tx
  * [Tx]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 3.0.0
+ * @version 3.1.0
  */
 interface SchemaTx : Tx {
     /**
@@ -40,9 +40,16 @@ interface SchemaTx : Tx {
     fun createEntity(name: Name.EntityName, vararg columns: ColumnDef<*>): Entity
 
     /**
-     * Drops an [Entity] in this [DefaultSchema].
+     * Drops an [Entity] in the [Schema] underlying this [SchemaTx].
      *
      * @param name The name of the [Entity] that should be dropped.
      */
     fun dropEntity(name: Name.EntityName)
+
+    /**
+     * Truncates an [Entity] in the [Schema] underlying this [SchemaTx].
+     *
+     * @param name The name of the [Entity] that should be truncated.
+     */
+    fun truncateEntity(name: Name.EntityName)
 }

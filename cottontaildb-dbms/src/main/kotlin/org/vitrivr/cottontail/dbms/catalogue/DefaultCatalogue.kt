@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.dbms.catalogue.entries.*
 import org.vitrivr.cottontail.dbms.catalogue.entries.MetadataEntry.Companion.METADATA_ENTRY_DB_VERSION
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.functions.initialize
 import org.vitrivr.cottontail.dbms.general.*
@@ -78,7 +78,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
     /** The Xodus [Environment] used by Cottontail DB. This is an internal variable and not part of the official interface. */
     internal val environment: Environment = Environments.newInstance(
-        this.config.root.resolve("xodus").toFile(),
+        this.config.dataFolder().toFile(),
         this.config.xodus.toEnvironmentConfig()
     )
 
@@ -110,7 +110,6 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
             config.clusteringStrategy.maxClusterSize = 65536 * 16
             this.vfs = VirtualFileSystem(this.environment, config, tx)
 
-
             /* Check database version. */
             val version = MetadataEntry.read(METADATA_ENTRY_DB_VERSION, this, tx)?.let { it -> DBOVersion.valueOf(it.value) } ?: DBOVersion.UNDEFINED
             if (version != this.version) {
@@ -140,6 +139,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
      * Closes the [DefaultCatalogue] and all objects contained within.
      */
     override fun close() = this.closeLock.write {
+        this.vfs.shutdown()
         this.environment.close()
     }
 
@@ -165,7 +165,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         /** Checks if DBO is still open. */
         init {
             if (this@DefaultCatalogue.closed) {
-                throw TxException.TxDBOClosedException(this.context.txId, this@DefaultCatalogue)
+                throw TransactionException.DBOClosed(this.context.txId, this@DefaultCatalogue)
             }
             this.closeStamp = this@DefaultCatalogue.closeLock.readLock()
         }

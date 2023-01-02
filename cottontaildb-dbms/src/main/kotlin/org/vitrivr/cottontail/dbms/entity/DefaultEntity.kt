@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.column.DefaultColumn
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
@@ -89,7 +89,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         init {
             /** Checks if DBO is still open. */
             if (this.dbo.closed) {
-                throw TxException.TxDBOClosedException(this.context.txId, this.dbo)
+                throw TransactionException.DBOClosed(this.context.txId, this.dbo)
             }
             this.closeStamp = this.dbo.catalogue.closeLock.readLock()
 
@@ -229,7 +229,11 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }
 
             /* Create index catalogue entry. */
-            val indexEntry = IndexCatalogueEntry(name, type, IndexState.DIRTY, columns, configuration)
+            val indexEntry = if (this.count() == 0L && type in setOf(IndexType.BTREE_UQ, IndexType.BTREE, IndexType.LUCENE)) {
+                IndexCatalogueEntry(name, type, IndexState.CLEAN, columns, configuration)
+            } else {
+                IndexCatalogueEntry(name, type, IndexState.DIRTY, columns, configuration)
+            }
             if (!IndexCatalogueEntry.write(indexEntry, this@DefaultEntity.catalogue, this.context.xodusTx)) {
                 throw DatabaseException.DataCorruptionException("CREATE index $name failed: Failed to create catalogue entry.")
             }
@@ -369,7 +373,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @param record The [Record] that should be inserted.
          * @return The ID of the record or null, if nothing was inserted.
          *
-         * @throws TxException If some of the [Tx] on [Column] or [Index] level caused an error.
+         * @throws TransactionException If some of the [Tx] on [Column] or [Index] level caused an error.
          * @throws DatabaseException If a general database error occurs during the insert.
          */
         @Suppress("UNCHECKED_CAST")
@@ -385,7 +389,8 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                 inserts[column.columnDef] = value
 
                 /* Check if null value is allowed. */
-                if (value == null && !column.columnDef.nullable) throw DatabaseException("Cannot insert NULL value into column ${column.columnDef}.")
+                if (value == null && !column.columnDef.nullable)
+                    throw DatabaseException.ValidationException("Cannot INSERT a NULL value into column ${column.columnDef}.")
                 (this.context.getTx(column) as ColumnTx<Value>).add(nextTupleId, value)
             }
 
@@ -414,10 +419,10 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /* Execute UPDATE on column level. */
             val updates = Object2ObjectArrayMap<ColumnDef<*>, Pair<Value?, Value?>>(record.columns.size)
             for (def in record.columns) {
-                val column = this.columns[def.name] ?: throw DatabaseException("Record with tuple ID ${record.tupleId} cannot be updated for column $def, because column does not exist on entity.")
+                val column = this.columns[def.name] ?: throw DatabaseException.ColumnDoesNotExistException(def.name)
                 val columnTx = (this.context.getTx(column) as ColumnTx<*>)
                 val value = record[def]
-                if (value == null && !def.nullable) throw DatabaseException("Record with tuple ID ${record.tupleId} cannot be updated with NULL value for column $def, because column is not nullable.")
+                if (value == null && !def.nullable) throw DatabaseException.ValidationException("Record ${record.tupleId} cannot be updated with NULL value for column $def, because column is not nullable.")
                 updates[def] = Pair((columnTx as ColumnTx<Value>).update(record.tupleId, value), value) /* Map: ColumnDef -> Pair[Old, New]. */
             }
 

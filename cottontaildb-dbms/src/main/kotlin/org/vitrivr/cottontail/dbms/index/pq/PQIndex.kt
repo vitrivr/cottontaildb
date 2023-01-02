@@ -104,7 +104,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          * @param parameters The parameters to initialize the default [PQIndexConfig] with.
          */
         override fun buildConfig(parameters: Map<String, String>): IndexConfig<PQIndex> = PQIndexConfig(
-            parameters[PQIndexConfig.KEY_DISTANCE]?.let { Name.FunctionName(it) } ?: EuclideanDistance.FUNCTION_NAME,
+            parameters[PQIndexConfig.KEY_DISTANCE]?.let { Name.FunctionName.create(it) } ?: EuclideanDistance.FUNCTION_NAME,
             parameters[PQIndexConfig.KEY_SAMPLE_SIZE]?.toInt() ?: 1500,
             parameters[PQIndexConfig.KEY_NUM_CENTROIDS]?.toInt() ?: 100,
             parameters[PQIndexConfig.KEY_NUM_SUBSPACES]?.toInt()
@@ -226,7 +226,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
 
             /* Update index state for index. */
             this.updateState(IndexState.CLEAN, this.config.copy(centroids = newPq.centroids()))
-            LOGGER.debug("Rebuilding PQIndex {} completed!", this@PQIndex.name)
+            LOGGER.debug("Rebuilding PQ index {} completed!", this@PQIndex.name)
         }
 
         /**

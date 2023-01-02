@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.math.knn
 
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.*
 import org.vitrivr.cottontail.core.queries.functions.math.distance.ternary.HyperplaneDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.ternary.WeightedManhattanDistance
@@ -12,6 +11,7 @@ import org.vitrivr.cottontail.core.values.generators.FloatValueGenerator
 import org.vitrivr.cottontail.core.values.generators.FloatVectorValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.math.isApproximatelyTheSame
+import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.utilities.VectorUtility
 import kotlin.math.abs
 import kotlin.math.absoluteValue
@@ -34,7 +34,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
     @MethodSource("dimensions")
     fun testL1Distance(dimension: Int) {
         val query = FloatVectorValueGenerator.random(dimension, RANDOM)
-        val collection = VectorUtility.randomFloatVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
+        val collection = VectorUtility.randomFloatVectorSequence(dimension, TestConstants.TEST_COLLECTION_SIZE, RANDOM)
 
         var sum1 = 0.0f
         var sum2 = 0.0f
@@ -57,7 +57,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
             }
         }
 
-        println("Calculating L1 distance for collection (s=${TestConstants.collectionSize}, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize}  per vector on average.")
+        println("Calculating L1 distance for collection (s=${TestConstants.TEST_COLLECTION_SIZE}, d=$dimension) took ${time1 / TestConstants.TEST_COLLECTION_SIZE} (optimized) resp. ${time2 / TestConstants.TEST_COLLECTION_SIZE}  per vector on average.")
 
         if (time1 > time2) {
             LOGGER.warn("Optimized version of L1 is slower than default version!")
@@ -75,7 +75,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
     @MethodSource("dimensions")
     fun testL2SquaredDistance(dimension: Int) {
         val query = FloatVectorValueGenerator.random(dimension, RANDOM)
-        val collection = VectorUtility.randomFloatVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
+        val collection = VectorUtility.randomFloatVectorSequence(dimension, TestConstants.TEST_COLLECTION_SIZE, RANDOM)
 
         var sum1 = 0.0f
         var sum2 = 0.0f
@@ -98,7 +98,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
             }
         }
 
-        println("Calculating L2^2 distance for collection (s=${TestConstants.collectionSize}, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize}  per vector on average.")
+        println("Calculating L2^2 distance for collection (s=${TestConstants.TEST_COLLECTION_SIZE}, d=$dimension) took ${time1 / TestConstants.TEST_COLLECTION_SIZE} (optimized) resp. ${time2 / TestConstants.TEST_COLLECTION_SIZE}  per vector on average.")
 
         if (time1 > time2) {
             LOGGER.warn("Optimized version of L2^2 is slower than default version!")
@@ -116,7 +116,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
     @MethodSource("dimensions")
     fun testL2Distance(dimension: Int) {
         val query = FloatVectorValueGenerator.random(dimension, RANDOM)
-        val collection = VectorUtility.randomFloatVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
+        val collection = VectorUtility.randomFloatVectorSequence(dimension, TestConstants.TEST_COLLECTION_SIZE, RANDOM)
 
         var sum1 = 0.0f
         var sum2 = 0.0f
@@ -139,7 +139,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
             }
         }
 
-        println("Calculating L2 distance for collection (s=${TestConstants.collectionSize}, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize} per vector on average.")
+        println("Calculating L2 distance for collection (s=${TestConstants.TEST_COLLECTION_SIZE}, d=$dimension) took ${time1 / TestConstants.TEST_COLLECTION_SIZE} (optimized) resp. ${time2 / TestConstants.TEST_COLLECTION_SIZE} per vector on average.")
 
         if (time1 > time2) {
             LOGGER.warn("Optimized version of L2 is slower than default version!")

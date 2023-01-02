@@ -27,7 +27,7 @@ class CottontailServer(config: Config) {
     private val executor = ExecutionManager(config)
 
     /** The [TransactionManager] used by this [CottontailServer] instance. */
-    private val transactionManager: TransactionManager = TransactionManager(this.executor, config.execution.transactionTableSize, config.execution.transactionHistorySize, this.catalogue.environment)
+    private val transactionManager: TransactionManager = TransactionManager(this.executor, config.execution.transactionTableSize, config.execution.transactionHistorySize, this.catalogue)
 
     /** The internal gRPC server; if building that server fails then the [DefaultCatalogue] is closed again! */
     private val grpc = ServerBuilder.forPort(config.server.port)

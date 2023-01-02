@@ -15,7 +15,7 @@ import java.util.*
  * An abstract [OperatorNode.Physical] implementation that has multiple [OperatorNode.Physical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.6.0
+ * @version 2.7.0
  */
 abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.Physical() {
 
@@ -97,15 +97,38 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
     }
 
     /**
-     * Creates and returns a copy of this [NAryPhysicalOperatorNode] without any children or parents.
+     * Creates and returns a copy of this [NAryPhysicalOperatorNode] without any input or output.
      *
      * @return Copy of this [NAryPhysicalOperatorNode].
      */
     abstract override fun copy(): NAryPhysicalOperatorNode
 
     /**
-     * Creates and returns a copy of this [NAryPhysicalOperatorNode] and all its inputs that belong to the same [GroupId],
-     * up and until the base of the tree.
+     * Creates and returns a copy of this [NAryPhysicalOperatorNode] using the provided nodes as input.
+     *
+     * @param input The [OperatorNode.Physical]s that act as input to this [NAryPhysicalOperatorNode].
+     * @return Copy of this [NAryPhysicalOperatorNode] with new input.
+     */
+    final override fun copy(vararg input: Physical): NAryPhysicalOperatorNode {
+        require(input.size <= this.inputArity) { "Cannot provide more than ${this.inputArity} inputs for ${this.javaClass.simpleName}." }
+        val copy = this.copy()
+        input.forEach { copy.addInput(it) }
+        return copy
+    }
+
+    /**
+     * Creates and returns a copy of this [NAryPhysicalOperatorNode] and its entire output [OperatorNode.Physical] tree using the provided nodes as input.
+     *
+     * @param input The [OperatorNode.Physical]s that act as input.
+     * @return Copy of this [NAryPhysicalOperatorNode] with its output.
+     */
+    final override fun copyWithOutput(vararg input: Physical): Physical {
+        val copy = this.copy(*input)
+        return (this.output?.copyWithOutput(copy) ?: copy).root
+    }
+
+    /**
+     * Creates and returns a copy of this [NAryPhysicalOperatorNode] and the entire input [OperatorNode.Physical] tree that belong to the same [GroupId].
      *
      * @return Copy of this [NAryPhysicalOperatorNode].
      */
@@ -119,7 +142,7 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
     }
 
     /**
-     * Creates and returns a copy of this [NAryPhysicalOperatorNode] and all its inputs up and until the base of the tree.
+     * Creates and returns a copy of this [NAryPhysicalOperatorNode] and the entire input [OperatorNode.Physical] tree.
      *
      * @return Copy of this [NAryPhysicalOperatorNode].
      */
@@ -127,19 +150,6 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
         val copy = this.copy()
         this.inputs.forEach { copy.addInput(it.copyWithInputs()) }
         return copy
-    }
-
-    /**
-     * Creates and returns a copy of this [NAryPhysicalOperatorNode] with its output reaching down to the [root] of the tree.
-     * Furthermore, connects the provided [input] to the copied [OperatorNode.Physical]s.
-     *
-     * @param input The [OperatorNode.Physical]s that act as input.
-     * @return Copy of this [NAryPhysicalOperatorNode] with its output.
-     */
-    override fun copyWithOutput(vararg input: Physical): Physical {
-        val copy = this.copy()
-        input.forEach { copy.addInput(it) }
-        return (this.output?.copyWithOutput(copy) ?: copy).root
     }
 
     /**

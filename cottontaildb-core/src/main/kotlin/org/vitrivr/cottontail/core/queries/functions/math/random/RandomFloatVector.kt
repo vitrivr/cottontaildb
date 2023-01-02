@@ -21,7 +21,7 @@ import java.util.*
  */
 object RandomFloatVector: Function<FloatVectorValue> {
     /** The [Name.FunctionName] backing this [RandomFloatVector]. */
-    val FUNCTION_NAME = Name.FunctionName("rnd_floatvec")
+    val FUNCTION_NAME = Name.FunctionName.create("rnd_floatvec")
 
     /** The [SplittableRandom] backing this [RandomFloatVector]. */
     private val RANDOM = JDKRandomGenerator()

@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBO
@@ -58,7 +58,7 @@ class SchemaV2(val path: Path, override val parent: CatalogueV2) : Schema, AutoC
     private val registry: MutableMap<Name.EntityName, EntityV2> = Collections.synchronizedMap(Object2ObjectOpenHashMap())
 
     /** The [Name.SchemaName] of this [SchemaV2]. */
-    override val name: Name.SchemaName = Name.SchemaName(this.headerField.get().name)
+    override val name: Name.SchemaName = Name.SchemaName.create(this.headerField.get().name)
 
     /** The [Catalogue] this [SchemaV2] belongs to. */
     override val catalogue: Catalogue
@@ -124,7 +124,7 @@ class SchemaV2(val path: Path, override val parent: CatalogueV2) : Schema, AutoC
         init {
             if (this@SchemaV2.closed) {
                 this@SchemaV2.closeLock.unlockRead(this.closeStamp)
-                throw TxException.TxDBOClosedException(this.context.txId, this@SchemaV2)
+                throw TransactionException.DBOClosed(this.context.txId, this@SchemaV2)
             }
         }
 
@@ -153,6 +153,10 @@ class SchemaV2(val path: Path, override val parent: CatalogueV2) : Schema, AutoC
         }
 
         override fun dropEntity(name: Name.EntityName) {
+            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
+
+        override fun truncateEntity(name: Name.EntityName) {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 

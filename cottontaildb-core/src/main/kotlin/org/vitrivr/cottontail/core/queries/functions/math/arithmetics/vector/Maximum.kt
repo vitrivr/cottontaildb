@@ -25,7 +25,7 @@ import kotlin.math.max
 sealed class Maximum<T : VectorValue<*>>(val type: Types.Vector<T,*>): Function<T> {
 
     companion object : FunctionGenerator<VectorValue<*>> {
-        private val FUNCTION_NAME = Name.FunctionName("vmax")
+        private val FUNCTION_NAME = Name.FunctionName.create("vmax")
 
         override val signature: Signature.Open
             get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector))

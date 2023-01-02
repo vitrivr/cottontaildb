@@ -4,7 +4,6 @@ import it.unimi.dsi.fastutil.Hash.VERY_FAST_LOAD_FACTOR
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
-import jetbrains.exodus.env.Environment
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
@@ -14,7 +13,10 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
+import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
 import org.vitrivr.cottontail.dbms.execution.locking.Lock
 import org.vitrivr.cottontail.dbms.execution.locking.LockHolder
@@ -36,7 +38,7 @@ import kotlin.coroutines.CoroutineContext
  * @author Ralph Gasser
  * @version 1.5.0
  */
-class TransactionManager(val executionManager: ExecutionManager, transactionTableSize: Int, val transactionHistorySize: Int, private val environment: Environment) {
+class TransactionManager(val executionManager: ExecutionManager, transactionTableSize: Int, val transactionHistorySize: Int, private val catalogue: DefaultCatalogue) {
     /** Logger used for logging the output. */
     companion object {
         private val LOGGER = LoggerFactory.getLogger(TransactionManager::class.java)
@@ -47,7 +49,6 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
 
     /** Internal counter to generate [TransactionId]s. Starts with 1 */
     private val tidCounter = AtomicLong(1L)
-
 
     /** The [LockManager] instance used by this [TransactionManager]. */
     internal val lockManager = LockManager<DBO>()
@@ -79,10 +80,10 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
             private set
 
         /** The Xodus [Transaction] associated with this [TransactionContext]. */
-        override val xodusTx: jetbrains.exodus.env.Transaction = this@TransactionManager.environment.beginTransaction()
+        override val xodusTx: jetbrains.exodus.env.Transaction = this@TransactionManager.catalogue.environment.beginTransaction()
 
         /** Map of all [Tx] that have been created as part of this [TransactionImpl]. */
-        private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
+        private val txns: MutableMap<Name, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
         /** A [Mutex] data structure used for synchronisation on the [TransactionImpl]. */
         private val mutex = Mutex()
@@ -143,7 +144,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          * @param dbo [DBO] to return the [Tx] for.
          * @return entity [Tx]
          */
-        override fun getTx(dbo: DBO): Tx = this.txns.computeIfAbsent(dbo) {
+        override fun getTx(dbo: DBO): Tx = this.txns.computeIfAbsent(dbo.name) {
             dbo.newTx(this)
         }
 
@@ -202,9 +203,8 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          */
         override fun commit() = runBlocking {
             this@TransactionImpl.mutex.withLock { /* Synchronise with ongoing COMMITS, ROLLBACKS or queries that are being scheduled. */
-                check(this@TransactionImpl.state.canCommit) {
-                    "Unable to commit transaction ${this@TransactionImpl.txId} because it is in wrong state (s = ${this@TransactionImpl.state})."
-                }
+                if (!this@TransactionImpl.state.canCommit)
+                    throw TransactionException.Commit(this@TransactionImpl.txId, "Unable to COMMIT because transaction is in wrong state (s = ${this@TransactionImpl.state}).")
                 this@TransactionImpl.state = TransactionStatus.FINALIZING
                 var commit = false
                 try {
@@ -212,12 +212,15 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
                         try {
                             txn.beforeCommit()
                         } catch (e: Throwable) {
-                            LOGGER.error("An error occurred while committing Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId}. This is serious!", e)
+                            LOGGER.error("An error occurred while preparing Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId} for commit. This is serious!", e)
+                            throw e
                         }
                     }
                     commit = this@TransactionImpl.xodusTx.commit()
+                    if (!commit) throw TransactionException.InConflict(this@TransactionImpl.txId)
                 } catch (e: Throwable) {
                     this@TransactionImpl.xodusTx.abort()
+                    throw e
                 } finally {
                     this@TransactionImpl.finalize(commit)
                 }
@@ -229,9 +232,8 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          */
         override fun rollback() = runBlocking {
             this@TransactionImpl.mutex.withLock {
-                check(this@TransactionImpl.state.canRollback) {
-                    "Unable to rollback transaction ${this@TransactionImpl.txId} because it is in wrong state (s = ${this@TransactionImpl.state})."
-                }
+                if (!this@TransactionImpl.state.canRollback)
+                    throw TransactionException.Rollback(this@TransactionImpl.txId, "Unable to ROLLBACK because transaction is in wrong state (s = ${this@TransactionImpl.state}).")
                 this@TransactionImpl.performRollback()
             }
         }

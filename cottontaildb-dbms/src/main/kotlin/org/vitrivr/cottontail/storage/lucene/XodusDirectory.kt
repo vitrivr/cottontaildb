@@ -147,12 +147,16 @@ class XodusDirectory(private val vfs: VirtualFileSystem, private val name: Strin
     /**
      * Force flushes the data in the [EnvironmentImpl].
      */
-    override fun sync(names: Collection<String>) = syncMetaData()
+    override fun sync(names: Collection<String>) {
+        /* No op. */
+    }
 
     /**
      * Force flushes the data in the [EnvironmentImpl].
      */
-    override fun syncMetaData() = (this.vfs.environment as EnvironmentImpl).flushAndSync()
+    override fun syncMetaData() {
+        /* No op. */
+    }
 
 
     override fun close() {
@@ -179,20 +183,22 @@ class XodusDirectory(private val vfs: VirtualFileSystem, private val name: Strin
     /**
      * A [IndexInput] implementation for this [XodusDirectory].
      */
-    open inner class IndexInput constructor(val file: File, bufferSize: Int):  BufferedIndexInput("XodusDirectory.IndexInput[$name]", bufferSize) {
+    open inner class IndexInput internal constructor(val file: File, bufferSize: Int):  BufferedIndexInput("XodusDirectory.IndexInput[$name]", bufferSize) {
 
         /** The current position of this [IndexOutput]. */
         @Volatile
         private var currentPosition = 0L
 
-        /** The [VfsInputStream] instance used by this [IndexInput]*/
-        private var input: VfsInputStream = this@XodusDirectory.vfs.readFile(this@XodusDirectory.txn, this.file)
+        /** The [VfsInputStream] instance used by this [IndexInput]. */
+        @Volatile
+        private var input: VfsInputStream? = null
 
         /**
          * Clones and returns this [IndexInput].
          *
          * @return The cloned [IndexInput]
          */
+        @Synchronized
         override fun clone(): IndexInput  {
             val clone = IndexInput(this.file, this.bufferSize)
             clone.seek(this.filePointer)
@@ -215,9 +221,14 @@ class XodusDirectory(private val vfs: VirtualFileSystem, private val name: Strin
         override fun readInternal(b: ByteBuffer) {
             /* Sanity checks. */
             require(b.hasArray()) { "IndexInput.readInternal() expects a byte buffer with accessible array."}
-            require(!this.input.isObsolete) { "IndexInput.readInternal() expects input stream to not be obsolete."}
             val offset = b.position()
-            val read = this.input.read(b.array(), offset, b.limit() - offset)
+            var input = this.input
+            if (input == null || input.available() <= 0) {
+                input?.close()
+                input = this@XodusDirectory.vfs.readFile(this@XodusDirectory.txn, this.file, this.currentPosition)
+                this.input = input
+            }
+            val read = input.read(b.array(), offset, b.limit() - offset)
             b.position(offset + read)
             this.currentPosition += read
         }
@@ -229,22 +240,29 @@ class XodusDirectory(private val vfs: VirtualFileSystem, private val name: Strin
          */
         @Synchronized
         override fun seekInternal(pos: Long) {
-            require(!this.input.isObsolete) { "IndexInput.seekInternal() expects input stream to not be obsolete."}
             if (pos == this.currentPosition) return
+
+            /* If input is null, then we can simply update the position. */
+            val input = this.input
+            if (input == null) {
+                this.currentPosition = pos
+                return
+            }
+
+            /* Else: In some cases, we can still update the position without invalidating the input. */
             if (pos > this.currentPosition) {
                 val clusteringStrategy = this@XodusDirectory.vfs.config.clusteringStrategy
                 val bytesToSkip = pos - this.currentPosition
                 val clusterSize = clusteringStrategy.firstClusterSize
-                if ((!clusteringStrategy.isLinear || this.currentPosition % clusterSize + bytesToSkip < clusterSize) // or we are within single cluster
-                    && this.input.skip(bytesToSkip) == bytesToSkip) {
+                if ((!clusteringStrategy.isLinear || this.currentPosition % clusterSize + bytesToSkip < clusterSize) && input.skip(bytesToSkip) == bytesToSkip) {
                     this.currentPosition = pos
                     return
                 }
             }
 
             /* Worst-case: Reopen and re-position input. This needs an exclusive lock! */
-            this.input.close()
-            this.input = this@XodusDirectory.vfs.readFile(this@XodusDirectory.txn, this.file, pos)
+            input.close()
+            this.input = null
             this.currentPosition = pos
         }
 
@@ -261,8 +279,10 @@ class XodusDirectory(private val vfs: VirtualFileSystem, private val name: Strin
         /**
          * Closes this [IndexInput].
          */
+        @Synchronized
         override fun close() {
-            this.input.close()
+            this.input?.close()
+            this.input = null
         }
     }
 
@@ -307,7 +327,7 @@ class XodusDirectory(private val vfs: VirtualFileSystem, private val name: Strin
     /**
      * A [IndexOutput] implementation for this [XodusDirectory].
      */
-    inner class IndexOutput(val file: File): org.apache.lucene.store.IndexOutput("XodusDirectory.IndexOutput[${file.path}]", file.path.split('/').last()) {
+    inner class IndexOutput internal constructor(val file: File): org.apache.lucene.store.IndexOutput("XodusDirectory.IndexOutput[${file.path}]", file.path.split('/').last()) {
 
         /** The [OutputStream] used by this [IndexOutput]. */
         private val output: OutputStream = this@XodusDirectory.vfs.writeFile(this@XodusDirectory.txn, this.file)

@@ -4,7 +4,6 @@ import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.operators.basics.drop
 import org.vitrivr.cottontail.dbms.execution.operators.basics.take
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 
@@ -14,7 +13,7 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class LimitOperator(parent: Operator, val skip: Long, val limit: Long) : Operator.PipelineOperator(parent) {
+class LimitOperator(parent: Operator, val limit: Long) : Operator.PipelineOperator(parent) {
 
     /** Columns returned by [LimitOperator] depend on the parent [Operator]. */
     override val columns: List<ColumnDef<*>>
@@ -29,12 +28,6 @@ class LimitOperator(parent: Operator, val skip: Long, val limit: Long) : Operato
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [LimitOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
-        var ret = this.parent.toFlow(context)
-        if (this.skip > 0)
-            ret = ret.drop(this.skip)
-        if (this.limit > 0)
-            ret = ret.take(this.limit)
-        return ret
-    }
+    override fun toFlow(context: TransactionContext): Flow<Record>
+        = this.parent.toFlow(context).take(this.limit)
 }

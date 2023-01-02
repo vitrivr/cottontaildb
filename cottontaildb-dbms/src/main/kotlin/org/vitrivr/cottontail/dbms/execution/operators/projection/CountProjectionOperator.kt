@@ -24,12 +24,8 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
  */
 class CountProjectionOperator(parent: Operator) : Operator.PipelineOperator(parent) {
     /** Column returned by [CountProjectionOperator]. */
-    override val columns: List<ColumnDef<*>> = listOf(
-        ColumnDef(
-            name = parent.columns.first().name.entity()?.column(Projection.COUNT.label()) ?: Name.ColumnName(Projection.COUNT.label()),
-            type = Types.Long
-        )
-    )
+    override val columns: List<ColumnDef<*>>
+        = listOf(ColumnDef(Name.ColumnName(Projection.COUNT.column()), Types.Long))
 
     /** [CountProjectionOperator] does act as a pipeline breaker. */
     override val breaker: Boolean = true

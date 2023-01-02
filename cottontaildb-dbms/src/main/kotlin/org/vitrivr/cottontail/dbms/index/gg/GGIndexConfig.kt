@@ -43,7 +43,7 @@ data class GGIndexConfig(val distance: Name.FunctionName, val numGroups: Int, va
      */
     object Binding: ComparableBinding() {
         override fun readObject(stream: ByteArrayInputStream): Comparable<GGIndexConfig> = GGIndexConfig(
-            Name.FunctionName(StringBinding.BINDING.readObject(stream)),
+            Name.FunctionName.create(StringBinding.BINDING.readObject(stream)),
             IntegerBinding.readCompressed(stream),
             LongBinding.readCompressed(stream)
         )

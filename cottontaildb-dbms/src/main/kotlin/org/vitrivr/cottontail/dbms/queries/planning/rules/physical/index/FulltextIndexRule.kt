@@ -3,13 +3,18 @@ package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index
 import org.vitrivr.cottontail.core.queries.QueryHint
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.functions.math.score.FulltextScore
+import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
+import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.dbms.index.IndexState
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.OperatorNodeUtilities
 import org.vitrivr.cottontail.dbms.queries.operators.physical.function.FunctionPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.predicates.FilterPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.SortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntityScanPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.IndexScanPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhysicalOperatorNode
@@ -68,10 +73,21 @@ object FulltextIndexRule : RewriteRule {
             val produces = candidate.columnsFor(predicate)
             val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, candidate, predicate, listOf(Pair(node.out, produces[0])))
             val fetch = FetchPhysicalOperatorNode(indexScan, scan.entity, scan.fetch.filter { !produces.contains(it.second) })
-            return if (node.output != null) {
-                node.output?.copyWithOutput(fetch)
-            } else {
-                fetch
+            if (node.output == null) return fetch
+            return OperatorNodeUtilities.chainIf(fetch, node.output!!) {
+                when (it) {
+                    is SortPhysicalOperatorNode -> it.traits[OrderTrait] != indexScan.traits[OrderTrait] /* SortPhysicalOperatorNode is only retained, if order is different from index order. */
+                    is FilterPhysicalOperatorNode -> {
+                        if (it.predicate is BooleanPredicate.Atomic && it.predicate.operator is ComparisonOperator.Binary.Greater && !it.predicate.not) {
+                            val op = it.predicate.operator as ComparisonOperator.Binary.Greater
+                            ((op.left is Binding.Column && (op.left as Binding.Column).column == indexScan.columns.first() && op.right.value == DoubleValue.ZERO) ||
+                            (op.right is Binding.Column && (op.right as Binding.Column).column == indexScan.columns.first() && op.left.value == DoubleValue.ZERO)).not()
+                        } else {
+                            true
+                        }
+                    }
+                    else -> true
+                }
             }
         }
         return null

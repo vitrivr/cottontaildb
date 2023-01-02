@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.data.importer
 
+import com.google.gson.GsonBuilder
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
@@ -24,9 +25,14 @@ import java.nio.file.Path
 class JsonDataImporter(override val path: Path, override val schema: List<ColumnDef<*>>) : DataImporter {
 
     /** The [JsonReader] instance used to read the JSON file. */
-    private val reader = JsonReader(Files.newBufferedReader(this.path))
+    private val reader = GsonBuilder()
+        .serializeNulls()
+        .serializeSpecialFloatingPointValues()
+        .create()
+        .newJsonReader(Files.newBufferedReader(this.path))
 
     init {
+        this.reader.isLenient = true
         this.reader.beginArray() /* Starts reading the JSON array, which is the expected input. */
     }
 
@@ -47,7 +53,7 @@ class JsonDataImporter(override val path: Path, override val schema: List<Column
         val value = Object2ObjectArrayMap<ColumnDef<*>, Value?>(this.schema.size)
         for (column in this.schema) {
             val parsed = this.reader.nextName().split('.')
-            val name = Name.ColumnName(parsed[0], parsed[1], parsed[2])
+            val name = Name.ColumnName.create(parsed[0], parsed[1], parsed[2])
             check(name == column.name) { "$name does not match the expected column name ${column.name}." }
             value[column] = when (column.type) {
                 is Types.Boolean -> BooleanValue(this.reader.nextBoolean())
@@ -68,6 +74,7 @@ class JsonDataImporter(override val path: Path, override val schema: List<Column
                 is Types.BooleanVector -> this.readBooleanVector(column.type.logicalSize)
                 is Types.Complex32Vector -> this.readComplex32Vector(column.type.logicalSize)
                 is Types.Complex64Vector -> this.readComplex64Vector(column.type.logicalSize)
+                is Types.ByteString -> TODO()
             }
         }
         this.reader.endObject()

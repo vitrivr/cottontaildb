@@ -44,6 +44,7 @@ sealed interface Types<T : Value> {
             "BOOL_VEC" -> BooleanVector(logicalSize)
             "COMPLEX32_VEC" -> Complex32Vector(logicalSize)
             "COMPLEX64_VEC" -> Complex64Vector(logicalSize)
+            "BYTESTRING" -> ByteString
             else -> throw java.lang.IllegalArgumentException("The column type $name does not exists!")
         }
 
@@ -72,6 +73,7 @@ sealed interface Types<T : Value> {
             15 -> BooleanVector(logicalSize)
             16 -> Complex32Vector(logicalSize)
             17 -> Complex64Vector(logicalSize)
+            18 -> ByteString
             else -> throw java.lang.IllegalArgumentException("The column type for ordinal $ordinal does not exists!")
         }
     }
@@ -270,5 +272,14 @@ sealed interface Types<T : Value> {
         override val elementType = Complex32
         override val physicalSize = this.logicalSize * 2 * kotlin.Long.SIZE_BYTES
         override val generator = Complex64VectorValueGenerator
+    }
+
+    object ByteString: Scalar<ByteStringValue>() {
+        override val name = "BYTESTRING"
+        override val ordinal: kotlin.Int = 18
+        override val logicalSize = LOGICAL_SIZE_UNKNOWN
+        override val physicalSize = LOGICAL_SIZE_UNKNOWN * Char.SIZE_BYTES
+        override val generator = ByteStringValueGenerator
+        override fun defaultValue(): ByteStringValue = this.generator.empty()
     }
 }

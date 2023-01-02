@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.math.knn
 
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.InnerProductDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
@@ -14,6 +13,7 @@ import org.vitrivr.cottontail.math.absFromFromComplexFieldVector
 import org.vitrivr.cottontail.math.arrayFieldVectorFromVectorValue
 import org.vitrivr.cottontail.math.conjFromFromComplexFieldVector
 import org.vitrivr.cottontail.math.isApproximatelyTheSame
+import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.utilities.VectorUtility
 import kotlin.math.pow
 import kotlin.time.Duration
@@ -34,7 +34,7 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
     fun testL1Distance(dimension: Int) {
         val query = Complex64VectorValueGenerator.random(dimension, RANDOM)
         val queryp = arrayFieldVectorFromVectorValue(query)
-        val collection = VectorUtility.randomComplex64VectorSequence(dimension, TestConstants.collectionSize, RANDOM)
+        val collection = VectorUtility.randomComplex64VectorSequence(dimension, TestConstants.TEST_COLLECTION_SIZE, RANDOM)
 
         var sum1 = 0.0
         var sum2 = 0.0
@@ -58,7 +58,7 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
             }
         }
 
-        println("Calculating L1 distance for collection (s=$TestConstants.collectionSize, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize}  per vector on average.")
+        println("Calculating L1 distance for collection (s=$TestConstants.collectionSize, d=$dimension) took ${time1 / TestConstants.TEST_COLLECTION_SIZE} (optimized) resp. ${time2 / TestConstants.TEST_COLLECTION_SIZE}  per vector on average.")
 
         if (time1 > time2) {
             LOGGER.warn("Optimized version of L1 is slower than default version!")
@@ -76,7 +76,7 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
     @MethodSource("dimensions")
     fun testL2SquaredDistance(dimension: Int) {
         val query = Complex64VectorValueGenerator.random(dimension, RANDOM)
-        val collection = VectorUtility.randomComplex64VectorSequence(dimension, TestConstants.collectionSize, RANDOM)
+        val collection = VectorUtility.randomComplex64VectorSequence(dimension, TestConstants.TEST_COLLECTION_SIZE, RANDOM)
         val queryp = arrayFieldVectorFromVectorValue(query)
 
         var sum1 = 0.0
@@ -98,7 +98,7 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
             sum3 += absFromFromComplexFieldVector(queryp.subtract(dataitem)).norm.pow(2)
         }
 
-        println("Calculating L2^2 distance for collection (s=${TestConstants.collectionSize}, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize}  per vector on average.")
+        println("Calculating L2^2 distance for collection (s=${TestConstants.TEST_COLLECTION_SIZE}, d=$dimension) took ${time1 / TestConstants.TEST_COLLECTION_SIZE} (optimized) resp. ${time2 / TestConstants.TEST_COLLECTION_SIZE}  per vector on average.")
 
         if (time1 > time2) {
             LOGGER.warn("Optimized version of L1 is slower than default version!")
@@ -113,7 +113,7 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
     fun testL2Distance(dimension: Int) {
         val query = Complex64VectorValueGenerator.random(dimension, RANDOM)
         val queryp = arrayFieldVectorFromVectorValue(query)
-        val collection = VectorUtility.randomComplex64VectorSequence(dimension, TestConstants.collectionSize, RANDOM)
+        val collection = VectorUtility.randomComplex64VectorSequence(dimension, TestConstants.TEST_COLLECTION_SIZE, RANDOM)
 
         var sum1 = 0.0
         var sum2 = 0.0
@@ -134,7 +134,7 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
             sum3 += absFromFromComplexFieldVector(queryp.subtract(dataitem)).norm
         }
 
-        println("Calculating L2 distance for collection (s=${TestConstants.collectionSize}, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize} per vector on average.")
+        println("Calculating L2 distance for collection (s=${TestConstants.TEST_COLLECTION_SIZE}, d=$dimension) took ${time1 / TestConstants.TEST_COLLECTION_SIZE} (optimized) resp. ${time2 / TestConstants.TEST_COLLECTION_SIZE} per vector on average.")
 
         if (time1 > time2) {
             LOGGER.warn("Optimized version of L1 is slower than default version!")
@@ -149,7 +149,7 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
     fun testInnerProduct(dimension: Int) {
         val query = Complex64VectorValueGenerator.random(dimension, RANDOM)
         val queryp = arrayFieldVectorFromVectorValue(query)
-        val collection = VectorUtility.randomComplex64VectorSequence(dimension, TestConstants.collectionSize, RANDOM)
+        val collection = VectorUtility.randomComplex64VectorSequence(dimension, TestConstants.TEST_COLLECTION_SIZE, RANDOM)
 
         var sum1 = 0.0
         var sum2 = 0.0
@@ -168,7 +168,7 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
             }
         }
 
-        println("Calculating abs of DOT for collection (s=${TestConstants.collectionSize}, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize} per vector on average.")
+        println("Calculating abs of DOT for collection (s=${TestConstants.TEST_COLLECTION_SIZE}, d=$dimension) took ${time1 / TestConstants.TEST_COLLECTION_SIZE} (optimized) resp. ${time2 / TestConstants.TEST_COLLECTION_SIZE} per vector on average.")
 
         if (time1 > time2) {
             LOGGER.warn("Optimized version of L1 is slower than default version!")

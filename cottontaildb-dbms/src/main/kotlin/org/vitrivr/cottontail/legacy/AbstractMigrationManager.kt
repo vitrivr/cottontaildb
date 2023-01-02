@@ -22,9 +22,9 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionStatus
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
-import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import org.vitrivr.cottontail.legacy.v2.entity.BrokenIndexV2
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.BufferedWriter
 import java.lang.Math.floorDiv
@@ -100,6 +100,9 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
                 this.log("Destination catalogue ${dstCatalogue.config.root} loaded successfully.\n")
             }
 
+            /* Windows flag in case of cleanup exceptions (file system does not allow move) */
+            var isWindows = false
+
             /* Execute actual data migration. */
             try {
                 /* Migrates all DBOs. */
@@ -113,13 +116,21 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
                 Files.move(migratedDatabaseRoot, config.root, StandardCopyOption.ATOMIC_MOVE)
             } catch (e: Throwable) {
                 this.log("Error during data migration: ${e.message}\n")
-
+                isWindows = System.getProperty("os.name").lowercase().contains("windows")
                 /* Delete destination (Cleanup). */
                 TxFileUtilities.delete(dstCatalogue.path)
             } finally {
                 /* Close catalogues. */
                 srcCatalogue.close()
                 dstCatalogue.close()
+            }
+            if(isWindows){
+                this.log("""
+                            Windows detected. Finish the migration before a restart manually:
+                              1. Move ${config.root} -> ${config.root.parent.resolve("${config.root.fileName}~old")}
+                              2. Move $migratedDatabaseRoot -> ${config.root}
+                              3. Delete ${dstCatalogue.path}
+                        """.trimIndent())
             }
         }
         this.log("Data migration completed. Took $duration.\n")
@@ -159,10 +170,9 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
                 /* Migrate indexes. */
                 for (indexName in srcEntityTx.listIndexes()) {
                     this.log("---- Migrating index $indexName...\n")
-                    val index = srcEntityTx.indexForName(indexName)
-                    val srcIndexTx = sourceContext.getTx(index) as IndexTx
+                    val index = srcEntityTx.indexForName(indexName) as BrokenIndexV2
                     val destEntityTx = destinationContext.getTx(entity) as EntityTx
-                    destEntityTx.createIndex(index.name, index.type, srcIndexTx.columns.map { it.name }, srcIndexTx.config)
+                    destEntityTx.createIndex(index.name, index.type, index.columns.map { it.name }, index.type.descriptor.buildConfig())
                 }
             }
         }

@@ -94,7 +94,7 @@ sealed class AbstractValueStatistics<T : Value>(override val type: Types<T>): Va
     }
 
     /**
-     * Estimates [Selectivity] of the given [BooleanPredicate.Atomic], i.e., the percentage of [Record]s that match it.
+     * Estimates [Selectivity] of the given [BooleanPredicate.Atomic], i.e., the percentage of [org.vitrivr.cottontail.core.basics.Record]s that match it.
      * Defaults to [Selectivity.DEFAULT_SELECTIVITY] but can be overridden by concrete implementations.
      *
      * @param predicate [BooleanPredicate.Atomic] To estimate [Selectivity] for.

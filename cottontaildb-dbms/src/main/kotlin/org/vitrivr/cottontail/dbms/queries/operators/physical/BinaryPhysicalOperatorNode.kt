@@ -12,7 +12,7 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Physical] implementation that has exactly two [OperatorNode.Physical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.6.0
+ * @version 2.7.0
  */
 abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physical? = null) : OperatorNode.Physical() {
 
@@ -97,8 +97,32 @@ abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physica
     abstract override fun copy(): BinaryPhysicalOperatorNode
 
     /**
-     * Creates and returns a copy of this [BinaryPhysicalOperatorNode] and all its inputs that belong to the same [GroupId],
-     * up and until the base of the tree.
+     * Creates and returns a copy of this [BinaryPhysicalOperatorNode] using the given parents as input.
+     *
+     * @param input The [OperatorNode.Physical]s that act as input.
+     * @return Copy of this [BinaryPhysicalOperatorNode].
+     */
+    final override fun copy(vararg input: Physical): BinaryPhysicalOperatorNode {
+        require(input.size <= this.inputArity) { "Cannot provide more than ${this.inputArity} inputs for ${this.javaClass.simpleName}." }
+        val copy = this.copy()
+        copy.left = input.getOrNull(0)
+        copy.right = input.getOrNull(1)
+        return copy
+    }
+
+    /**
+     * Creates and returns a copy of this [BinaryPhysicalOperatorNode] and its entire output [OperatorNode.Physical] tree using the provided nodes as input.
+     *
+     * @param input The [OperatorNode.Physical]s that act as input.
+     * @return Copy of this [BinaryPhysicalOperatorNode] with its output.
+     */
+    final override fun copyWithOutput(vararg input: Physical): Physical {
+        val copy = this.copy(*input)
+        return (this.output?.copyWithOutput(copy) ?: copy).root
+    }
+
+    /**
+     * Creates and returns a copy of this [BinaryPhysicalOperatorNode] and the entire input [OperatorNode.Physical] tree that belong to the same [GroupId].
      *
      * @return Copy of this [BinaryPhysicalOperatorNode].
      */
@@ -109,7 +133,7 @@ abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physica
     }
 
     /**
-     * Creates and returns a copy of this [BinaryPhysicalOperatorNode] and all its inputs up and until the base of the tree.
+     * Creates and returns a copy of this [BinaryPhysicalOperatorNode] and the entire input [OperatorNode.Physical] tree.
      *
      * @return Copy of this [BinaryPhysicalOperatorNode].
      */
@@ -117,21 +141,6 @@ abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physica
         val copy = this.copyWithGroupInputs()
         copy.right = this.right?.copyWithInputs()
         return copy
-    }
-
-    /**
-     * Creates and returns a copy of this [BinaryPhysicalOperatorNode] with its output reaching down to the [root] of the tree.
-     * Furthermore connects the provided [input] to the copied [OperatorNode.Physical]s.
-     *
-     * @param input The [OperatorNode.Logical]s that act as input.
-     * @return Copy of this [OperatorNode.Logical] with its output.
-     */
-    override fun copyWithOutput(vararg input: Physical): Physical {
-        require(input.size <= this.inputArity) { "Cannot provide more than ${this.inputArity} inputs for ${this.javaClass.simpleName}." }
-        val copy = this.copy()
-        copy.left = input.getOrNull(0)
-        copy.right = input.getOrNull(1)
-        return (this.output?.copyWithOutput(copy) ?: copy).root
     }
 
     /**

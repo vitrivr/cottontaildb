@@ -33,7 +33,8 @@ object ColumnSets {
         ColumnDef(Name.ColumnName("type"), Types.String, true),
         ColumnDef(Name.ColumnName("rows"), Types.Int, true),
         ColumnDef(Name.ColumnName("l_size"), Types.Int, true),
-        ColumnDef(Name.ColumnName("nullable"), Types.Boolean, true)
+        ColumnDef(Name.ColumnName("nullable"), Types.Boolean, true),
+        ColumnDef(Name.ColumnName("info"), Types.String, true)
     )
 
     /** The columns returned by LIST LOCKS operation. */

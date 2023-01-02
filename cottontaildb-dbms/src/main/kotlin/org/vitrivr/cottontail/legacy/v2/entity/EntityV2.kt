@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
@@ -84,6 +84,9 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
     /** List of all the [Column]s associated with this [EntityV2]; Iteration order of entries as defined in schema! */
     private val columns: MutableMap<Name.ColumnName, ColumnV2<*>> = Object2ObjectLinkedOpenHashMap()
 
+    /** Local snapshot of the surrounding [Entity]'s [Index]es. */
+    private val indexes: MutableMap<Name.IndexName, BrokenIndexV2> = Object2ObjectLinkedOpenHashMap()
+
     /** The [Catalogue] this [EntityV2] belongs to. */
     override val catalogue: Catalogue
         get() = this.parent.catalogue
@@ -103,6 +106,13 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
             val columnName = this.name.column(it.name)
             val path = this.path.resolve("${it.name}.col")
             this.columns[columnName] = ColumnV2<Value>(path, this)
+        }
+
+        /** Load and initialize the indexes. */
+        header.indexes.forEach {
+            val indexName = this.name.index(it.name)
+            val path = this.path.resolve("${it.name}.idx")
+            this.indexes[indexName] = BrokenIndexV2(indexName, this, path)
         }
     }
 
@@ -144,11 +154,13 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
         override val dbo: EntityV2
             get() = this@EntityV2
 
+
+
         /** Checks if DBO is still open. */
         init {
             if (this@EntityV2.closed) {
                 this@EntityV2.closeLock.unlockRead(this.closeStamp)
-                throw TxException.TxDBOClosedException(this.context.txId, this@EntityV2)
+                throw TransactionException.DBOClosed(this.context.txId, this@EntityV2)
             }
         }
 
@@ -222,7 +234,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
          * @return List of [Name.IndexName] managed by this [EntityTx]
          */
         override fun listIndexes(): List<Name.IndexName> {
-            return emptyList()
+            return this@EntityV2.indexes.values.map { it.name }.toList()
         }
 
         /**
@@ -231,7 +243,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
          * @return List of [Name.IndexName] managed by this [EntityTx]
          */
         override fun indexForName(name: Name.IndexName): Index {
-            throw DatabaseException.IndexDoesNotExistException(name)
+            return this@EntityV2.indexes[name] ?: throw DatabaseException.IndexDoesNotExistException(name)
         }
 
         override fun contains(tupleId: TupleId): Boolean {

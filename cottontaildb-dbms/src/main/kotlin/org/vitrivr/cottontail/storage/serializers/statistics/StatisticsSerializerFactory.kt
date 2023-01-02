@@ -38,5 +38,6 @@ object StatisticsSerializerFactory {
         is Types.FloatVector -> FloatVectorValueStatistics.Binding(type.logicalSize)
         is Types.IntVector -> IntVectorValueStatistics.Binding(type.logicalSize)
         is Types.LongVector -> LongVectorValueStatistics.Binding(type.logicalSize)
+        is Types.ByteString -> ByteStringValueStatistics.Binding
     } as XodusBinding<ValueStatistics<T>>
 }

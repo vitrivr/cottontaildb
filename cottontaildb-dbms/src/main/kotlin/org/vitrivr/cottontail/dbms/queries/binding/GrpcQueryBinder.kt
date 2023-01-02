@@ -27,14 +27,12 @@ import org.vitrivr.cottontail.dbms.queries.operators.logical.management.InsertLo
 import org.vitrivr.cottontail.dbms.queries.operators.logical.management.UpdateLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterOnSubSelectLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.AggregatingProjectionLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.CountProjectionLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.ExistsProjectionLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.SelectProjectionLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.*
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sort.SortLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntitySampleLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntityScanLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.transform.LimitLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.transform.SkipLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.grpc.CottontailGrpc
@@ -88,24 +86,23 @@ object GrpcQueryBinder {
         }
 
         /* Parse and bind WHERE-clause. */
-        root = if (query.hasWhere()) {
-            parseAndBindBooleanPredicate(root, query.where, context)
-        } else {
-            root
+        if (query.hasWhere()) {
+            root = parseAndBindBooleanPredicate(root, query.where, context)
         }
 
         /* Parse and bind ORDER-clause. */
-        root = if (query.hasOrder()) {
-            parseAndBindOrder(root, query.order, context)
-        } else {
-            root
+        if (query.hasOrder()) {
+            root = parseAndBindOrder(root, query.order, context)
         }
 
-        /* Process LIMIT and SKIP. */
-        root = if (query.limit > 0L || query.skip > 0L) {
-            LimitLogicalOperatorNode(root, query.limit, query.skip)
-        } else {
-            root
+        /* Process SKIP. */
+        if (query.skip > 0L) {
+            root = SkipLogicalOperatorNode(root, query.skip)
+        }
+
+        /* Process LIMIT. */
+        if (query.limit > 0L) {
+            root = LimitLogicalOperatorNode(root, query.limit)
         }
 
         /* Process SELECT-clause (projection). */
@@ -280,7 +277,7 @@ object GrpcQueryBinder {
                 val entityTx = context.txn.getTx(entity) as EntityTx
                 val fetch = entityTx.listColumns().map { def ->
                     val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(def.name) }
-                    if (name == null || name.key.columnName == Name.WILDCARD) {
+                    if (name == null || name.key.column == Name.WILDCARD) {
                         context.bindings.bind(def) to def
                     } else {
                         context.bindings.bind(def.copy(name = name.key)) to def
@@ -289,11 +286,11 @@ object GrpcQueryBinder {
                 EntityScanLogicalOperatorNode(context.nextGroupId(), entityTx, fetch)
             }
             CottontailGrpc.From.FromCase.SAMPLE -> {
-                val entity = parseAndBindEntity(from.scan.entity, context)
+                val entity = parseAndBindEntity(from.sample.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
                 val fetch = entityTx.listColumns().map { def ->
                     val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(def.name) }
-                    if (name == null || name.key.columnName == Name.WILDCARD) {
+                    if (name == null || name.key.column == Name.WILDCARD) {
                         context.bindings.bind(def) to def
                     } else {
                         context.bindings.bind(def.copy(name = name.key)) to def
@@ -399,7 +396,7 @@ object GrpcQueryBinder {
             CottontailGrpc.AtomicBooleanOperand.OperandCase.EXPRESSIONS -> atomic.right.expressions.expressionList.map {
                 when(it.expCase) {
                     CottontailGrpc.Expression.ExpCase.COLUMN ->  context.bindings.bind(input.findUniqueColumnForName(it.column.fqn()))
-                    CottontailGrpc.Expression.ExpCase.LITERAL -> context.bindings.bind(it.literal.toValue())
+                    CottontailGrpc.Expression.ExpCase.LITERAL -> context.bindings.bind(it.literal.toValue(left.type))
                     CottontailGrpc.Expression.ExpCase.FUNCTION -> parseAndBindNestedFunction(input, it.function, context)
                     else -> throw QueryException.QuerySyntaxException("Failed to parse right operand for atomic boolean predicate.")
                 }
@@ -541,42 +538,53 @@ object GrpcQueryBinder {
      *
      * @return The resulting [SelectProjectionLogicalOperatorNode].
      */
-    private fun parseAndBindProjection(input: OperatorNode.Logical, projection: Map<Name.ColumnName, Name>, op: Projection, context: DefaultQueryContext): OperatorNode.Logical = try {
-        when (op) {
-            Projection.SELECT,
-            Projection.SELECT_DISTINCT -> {
-                val fields = projection.keys.flatMap { cp ->
-                    input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
-                }.map {
-                    it.name
-                }
-                SelectProjectionLogicalOperatorNode(input, op, fields)
+private fun parseAndBindProjection(input: OperatorNode.Logical, projection: Map<Name.ColumnName, Name>, op: Projection, context: DefaultQueryContext): OperatorNode.Logical = when (op) {
+        Projection.SELECT -> {
+            val fields = projection.keys.flatMap { cp ->
+                input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
+            }.map {
+                it.name
             }
-            Projection.COUNT -> {
-                val columnName = projection.keys.first()
-                val columnDef = ColumnDef(Name.ColumnName(columnName.schemaName, columnName.entityName,"count(${columnName.columnName})"), Types.Long, false)
-                CountProjectionLogicalOperatorNode(input, context.bindings.bind(columnDef))
-            }
-            Projection.EXISTS -> {
-                val columnName = projection.keys.first()
-                val columnDef = ColumnDef(Name.ColumnName(columnName.schemaName, columnName.entityName, "exists(${columnName.columnName})"), Types.Long, false)
-                ExistsProjectionLogicalOperatorNode(input, context.bindings.bind(columnDef))
-            }
-            Projection.SUM,
-            Projection.MAX,
-            Projection.MIN,
-            Projection.MEAN -> {
-                val fields = projection.keys.flatMap { cp ->
-                    input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
-                }.map {
-                    it.name
-                }
-                AggregatingProjectionLogicalOperatorNode(input, op, fields)
-            }
-            else -> throw QueryException.QuerySyntaxException("Project of type $op is currently not supported.")
+            SelectProjectionLogicalOperatorNode(input, fields)
         }
-    } catch (e: java.lang.IllegalArgumentException) {
-        throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): $op is not supported.")
+        Projection.SELECT_DISTINCT -> {
+            val fields = projection.keys.flatMap { cp ->
+                input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
+            }.map {
+                it.name to true
+            }
+            SelectDistinctProjectionLogicalOperatorNode(input, fields, context.catalogue.config)
+        }
+        Projection.COUNT -> {
+            val columnName = projection.keys.first()
+            val columnDef = ColumnDef(Name.ColumnName.create(columnName.schema, columnName.entity,"count(${columnName.column})"), Types.Long, false)
+            CountProjectionLogicalOperatorNode(input, context.bindings.bind(columnDef))
+        }
+        Projection.COUNT_DISTINCT -> {
+            val fields = projection.keys.flatMap { cp ->
+                input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
+            }.map {
+                it.name to true
+            }
+            val columnDef = ColumnDef(Name.ColumnName.create(fields.first().first.schema, fields.first().first.entity,"count(${fields.joinToString(",") { it.first.column }})"), Types.Long, false)
+            CountProjectionLogicalOperatorNode(SelectDistinctProjectionLogicalOperatorNode(input, fields, context.catalogue.config), context.bindings.bind(columnDef))
+        }
+        Projection.EXISTS -> {
+            val columnName = projection.keys.first()
+            val columnDef = ColumnDef(Name.ColumnName.create(columnName.schema, columnName.entity, "exists(${columnName.column})"), Types.Long, false)
+            ExistsProjectionLogicalOperatorNode(input, context.bindings.bind(columnDef))
+        }
+        Projection.SUM,
+        Projection.MAX,
+        Projection.MIN,
+        Projection.MEAN -> {
+            val fields = projection.keys.flatMap { cp ->
+                input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
+            }.map {
+                it.name
+            }
+            AggregatingProjectionLogicalOperatorNode(input, op, fields)
+        }
     }
 
 

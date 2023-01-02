@@ -38,6 +38,7 @@ object ValueSerializerFactory {
         is Types.FloatVector -> FloatVectorMapDBValueSerializer(type.logicalSize)
         is Types.IntVector -> IntVectorValueMapDBSerializer(type.logicalSize)
         is Types.LongVector -> LongVectorValueMapDBSerializer(type.logicalSize)
+        is Types.ByteString -> throw UnsupportedOperationException("ByteString not supported by MapDB storage")
     } as MapDBSerializer<T>
 
     /**
@@ -67,7 +68,8 @@ object ValueSerializerFactory {
                 is Types.FloatVector -> FloatVectorValueXodusBinding.Nullable(type.logicalSize)
                 is Types.IntVector -> IntVectorValueXodusBinding.Nullable(type.logicalSize)
                 is Types.LongVector -> LongVectorValueXodusBinding.Nullable(type.logicalSize)
-        }
+                is Types.ByteString -> ByteStringValueXodusBinding.Nullable
+       }
     } else {
         when(type) {
             Types.Boolean -> BooleanValueXodusBinding.NonNullable
@@ -88,6 +90,7 @@ object ValueSerializerFactory {
             is Types.FloatVector -> FloatVectorValueXodusBinding.NonNullable(type.logicalSize)
             is Types.IntVector -> IntVectorValueXodusBinding.NonNullable(type.logicalSize)
             is Types.LongVector -> LongVectorValueXodusBinding.NonNullable(type.logicalSize)
+            is Types.ByteString -> ByteStringValueXodusBinding.NonNullable
         }
     } as XodusBinding<T>
 }

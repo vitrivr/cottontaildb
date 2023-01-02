@@ -30,7 +30,7 @@ sealed class WeightedManhattanDistance<R: NumericValue<*>, T : VectorValue<*>>(t
      * The [FunctionGenerator] for the [WeightedManhattanDistance].
      */
     companion object: FunctionGenerator<NumericValue<*>> {
-        val FUNCTION_NAME = Name.FunctionName("manhattanw")
+        val FUNCTION_NAME = Name.FunctionName.create("manhattanw")
 
         override val signature: Signature.Open
             get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector, Argument.Vector))

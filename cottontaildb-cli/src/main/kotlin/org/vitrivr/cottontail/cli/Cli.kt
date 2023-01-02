@@ -19,10 +19,7 @@ import org.jline.reader.UserInterruptException
 import org.jline.reader.impl.completer.ArgumentCompleter
 import org.jline.terminal.TerminalBuilder
 import org.vitrivr.cottontail.cli.entity.*
-import org.vitrivr.cottontail.cli.query.CountEntityCommand
-import org.vitrivr.cottontail.cli.query.ExecuteQueryCommand
-import org.vitrivr.cottontail.cli.query.FindInEntityCommand
-import org.vitrivr.cottontail.cli.query.PreviewEntityCommand
+import org.vitrivr.cottontail.cli.query.*
 import org.vitrivr.cottontail.cli.schema.*
 import org.vitrivr.cottontail.cli.system.EvaluateSIMDCommand
 import org.vitrivr.cottontail.cli.system.KillTransactionCommand
@@ -75,6 +72,27 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
     private var stopped: Boolean = false
 
     /**
+     * Tries to execute the given CLI command.
+     */
+    fun execute(command: String) = try {
+        this.clikt.parse(splitLine(command))
+        println()
+    } catch (e: Exception) {
+        when (e) {
+            is com.github.ajalt.clikt.core.PrintHelpMessage -> println(e.command.getFormattedHelp())
+            is com.github.ajalt.clikt.core.NoSuchSubcommand,
+            is com.github.ajalt.clikt.core.MissingArgument,
+            is com.github.ajalt.clikt.core.MissingOption,
+            is com.github.ajalt.clikt.core.BadParameterValue,
+            is com.github.ajalt.clikt.core.NoSuchOption,
+            is com.github.ajalt.clikt.core.UsageError -> println(e.localizedMessage)
+            is StatusException, /* Exceptions reported by Cottontail DB via gRPC. */
+            is StatusRuntimeException -> println(e.localizedMessage)
+            else -> println(e.printStackTrace())
+        }
+    }
+
+    /**
      * Blocking REPL of the CLI
      */
     fun loop() {
@@ -110,23 +128,9 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
             if (line.isBlank()) {
                 continue
             }
-            try {
-                this.clikt.parse(splitLine(line))
-                println()
-            } catch (e: Exception) {
-                when (e) {
-                    is com.github.ajalt.clikt.core.PrintHelpMessage -> println(e.command.getFormattedHelp())
-                    is com.github.ajalt.clikt.core.NoSuchSubcommand,
-                    is com.github.ajalt.clikt.core.MissingArgument,
-                    is com.github.ajalt.clikt.core.MissingOption,
-                    is com.github.ajalt.clikt.core.BadParameterValue,
-                    is com.github.ajalt.clikt.core.NoSuchOption,
-                    is com.github.ajalt.clikt.core.UsageError -> println(e.localizedMessage)
-                    is StatusException, /* Exceptions reported by Cottontail DB via gRPC. */
-                    is StatusRuntimeException -> println(e.localizedMessage)
-                    else -> println(e.printStackTrace())
-                }
-            }
+
+            /* Execute command. */
+            this.execute(line)
 
             /* Sleep for a few milliseconds. */
             Thread.sleep(100)
@@ -275,6 +279,7 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                     OptimizeEntityCommand(this@Cli.client),
                     CreateIndexCommand(this@Cli.client),
                     DropIndexCommand(this@Cli.client),
+                    DeleteRowCommand(this@Cli.client),
                     DumpEntityCommand(this@Cli.client),
                     ImportDataCommand(this@Cli.client)
                 ),
@@ -311,7 +316,8 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                     CountEntityCommand(this@Cli.client),
                     PreviewEntityCommand(this@Cli.client),
                     FindInEntityCommand(this@Cli.client),
-                    ExecuteQueryCommand(this@Cli.client)
+                    ExecuteQueryCommand(this@Cli.client),
+                    DistinctColumnQueryCommand(this@Cli.client)
                 ),
 
                 /* Transaction related commands. */

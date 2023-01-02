@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.legacy
+package org.vitrivr.cottontail.legacy.v1.entity
 
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
@@ -17,7 +17,7 @@ import java.nio.file.Path
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class BrokenIndex(override val name: Name.IndexName, override val parent: Entity, val path: Path, override val type: IndexType, ) : Index {
+class BrokenIndexV1(override val name: Name.IndexName, override val parent: Entity, val path: Path, override val type: IndexType, ) : Index {
     override val closed: Boolean = true
     override val catalogue: Catalogue = this.parent.catalogue
     override val version: DBOVersion = DBOVersion.UNDEFINED

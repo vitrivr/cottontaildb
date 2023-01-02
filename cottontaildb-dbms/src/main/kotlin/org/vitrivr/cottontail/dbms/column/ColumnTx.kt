@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
  * level of isolation.
  *
  * @author Ralph Gasser
- * @version 3.0.0
+ * @version 3.1.0
  */
 interface ColumnTx<T : Value> : Tx {
     /** Reference to the [Column] this [ColumnTx] belongs to. */
@@ -114,4 +114,9 @@ interface ColumnTx<T : Value> : Tx {
      * @return The old [Value]*
      */
     fun delete(tupleId: TupleId): T?
+
+    /**
+     * Clears the [Column] underlying this [ColumnTx] and removes all entries it contains.
+     */
+    fun clear()
 }

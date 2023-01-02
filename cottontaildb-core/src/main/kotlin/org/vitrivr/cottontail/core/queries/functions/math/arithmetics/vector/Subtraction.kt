@@ -24,7 +24,7 @@ import org.vitrivr.cottontail.core.values.types.VectorValue
 sealed class Subtraction<T : VectorValue<*>>(val type: Types.Vector<T,*>): Function<T> {
 
     companion object : FunctionGenerator<VectorValue<*>> {
-        private val FUNCTION_NAME = Name.FunctionName("sub")
+        private val FUNCTION_NAME = Name.FunctionName.create("sub")
 
         override val signature: Signature.Open
             get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector))

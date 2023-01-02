@@ -1,6 +1,11 @@
 package org.vitrivr.cottontail.cli.entity
 
 import com.github.ajalt.clikt.output.TermUi
+import com.github.ajalt.clikt.parameters.options.convert
+import com.github.ajalt.clikt.parameters.options.option
+import com.google.gson.Gson
+import com.google.gson.JsonParser
+import com.google.gson.reflect.TypeToken
 import com.jakewharton.picnic.table
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
@@ -22,61 +27,104 @@ import kotlin.time.measureTimedValue
 @ExperimentalTime
 class CreateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "create", help = "Creates a new entity in the database. Usage: entity create <schema>.<entity>") {
 
+    companion object {
+        data class ColumnInfo(val name: String, val type: CottontailGrpc.Type, val nullable: Boolean = false, val size: Int = -1) {
+            fun toDefinition() : CottontailGrpc.ColumnDefinition {
+                val def = CottontailGrpc.ColumnDefinition.newBuilder()
+                def.nameBuilder.name = name
+                def.type = type
+                def.nullable = nullable
+                def.length = size
+                return def.build()
+            }
+        }
+    }
+
+    private inline fun <reified T> Gson.fromJson(json: String) =
+        fromJson<T>(json, object : TypeToken<T>() {}.type)
+
+    private val columnDefinition by option(
+        "-d", "--definition",
+        help = "List of column definitions in the form of {\"name\": ..., \"type\": ..., \"nullable\": ..., \"size\": ...}"
+    ).convert { string ->
+        val canonicalFormat = JsonParser.parseString(string).toString()
+        val list: List<ColumnInfo> = Gson().fromJson(canonicalFormat)
+        list.map { it.toDefinition() }
+    }
+
     override fun exec() {
         /* Perform sanity check. */
         checkValid()
 
         /* Prepare entity definition and prompt user use to add columns to definition. */
         val colDef = CottontailGrpc.EntityDefinition.newBuilder().setEntity(this.entityName.proto())
-        do {
-            /* Prompt user for column definition. */
-            println("Please specify column to add at position ${colDef.columnsCount + 1}.")
-            val ret = this.promptForColumn()
-            if (ret != null) {
-                colDef.addColumns(ret)
+
+        if (columnDefinition != null && columnDefinition!!.isNotEmpty()) {
+            columnDefinition!!.forEach {
+                colDef.addColumns(it)
             }
 
-            /* Ask if anther column should be added. */
-            if (colDef.columnsCount > 0 && TermUi.confirm("Do you want to add another column (size = ${colDef.columnsCount})?") == false) {
-                break
-            }
-        } while (true)
-
-        /* Prepare table for printing. */
-        val tbl = table {
-            cellStyle {
-                border = true
-                paddingLeft = 1
-                paddingRight = 1
-            }
-            header {
-                row {
-                    cell(this@CreateEntityCommand.entityName) {
-                        columnSpan = 4
-                    }
-                }
-                row {
-                    cells("Name", "Type", "Size", "Nullable")
-                }
-            }
-            body {
-                colDef.columnsList.forEach { def ->
-                    row {
-                        cells(def.name, def.type, def.length, def.nullable)
-                    }
-                }
-            }
-        }
-
-        /* As for final confirmation and create entity. */
-        if (TermUi.confirm(text = "Please confirm that you want to create the entity:\n$tbl", default = true) == true) {
             val time = measureTimedValue {
                 TabulationUtilities.tabulate(this.client.create(CottontailGrpc.CreateEntityMessage.newBuilder().setDefinition(colDef).build()))
             }
             println("Entity ${this.entityName} created successfully (took ${time.duration}).")
             print(time.value)
+
         } else {
-            println("Create entity ${this.entityName} aborted!")
+
+            do {
+                /* Prompt user for column definition. */
+                println("Please specify column to add at position ${colDef.columnsCount + 1}.")
+                val ret = this.promptForColumn()
+                if (ret != null) {
+                    colDef.addColumns(ret)
+                }
+
+                /* Ask if anther column should be added. */
+                if (colDef.columnsCount > 0 && TermUi.confirm("Do you want to add another column (size = ${colDef.columnsCount})?") == false) {
+                    break
+                }
+            } while (true)
+
+
+
+            /* Prepare table for printing. */
+            val tbl = table {
+                cellStyle {
+                    border = true
+                    paddingLeft = 1
+                    paddingRight = 1
+                }
+                header {
+                    row {
+                        cell(this@CreateEntityCommand.entityName) {
+                            columnSpan = 4
+                        }
+                    }
+                    row {
+                        cells("Name", "Type", "Size", "Nullable")
+                    }
+                }
+                body {
+                    colDef.columnsList.forEach { def ->
+                        row {
+                            cells(def.name, def.type, def.length, def.nullable)
+                        }
+                    }
+                }
+            }
+
+            /* As for final confirmation and create entity. */
+            if (TermUi.confirm(text = "Please confirm that you want to create the entity:\n$tbl", default = true) == true) {
+                val time = measureTimedValue {
+                    TabulationUtilities.tabulate(this.client.create(CottontailGrpc.CreateEntityMessage.newBuilder().setDefinition(colDef).build()))
+                }
+                println("Entity ${this.entityName} created successfully (took ${time.duration}).")
+                print(time.value)
+            } else {
+                println("Create entity ${this.entityName} aborted!")
+            }
+
         }
     }
 
@@ -89,11 +137,10 @@ class CreateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Enti
         try {
             val ret = this.client.list(ListEntities(this.entityName.schema().toString()))
             while (ret.hasNext()) {
-                /* ToDo: Check entities.
-                if (ret.next().name == this.entityName.simple) {
+                if (ret.next().asString(0) == this.entityName.simple) {
                     println("Error: Entity ${this.entityName} already exists!")
                     return false
-                }*/
+                }
             }
             return true
         } catch (e: StatusRuntimeException) {

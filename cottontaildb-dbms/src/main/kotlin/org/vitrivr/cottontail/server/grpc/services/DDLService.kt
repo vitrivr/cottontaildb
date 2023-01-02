@@ -127,7 +127,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
             if (request.indexName.contains('.')) throw QueryException.QuerySyntaxException("Index name '${request.indexName}' must not contain dots for CREATE INDEX command.")
             entityName.index(request.indexName)
         } else {
-            entityName.index("idx_${request.columnsList.joinToString("-")}_$indexType")
+            entityName.index("idx_${request.columnsList.joinToString("-")}_${indexType.name.lowercase()}")
         }
         ctx.assign(CreateIndexPhysicalOperatorNode(ctx.txn.getTx(this.catalogue) as CatalogueTx, indexName, indexType, columns, params, request.rebuild))
         ctx.toOperatorTree()

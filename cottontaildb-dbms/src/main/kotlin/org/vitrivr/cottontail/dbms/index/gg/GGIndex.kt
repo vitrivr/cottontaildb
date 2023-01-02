@@ -89,7 +89,7 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          * @param parameters The parameters to initialize the default [GGIndexConfig] with.
          */
         override fun buildConfig(parameters: Map<String, String>): IndexConfig<GGIndex> = GGIndexConfig(
-            distance = parameters[GGIndexConfig.KEY_DISTANCE_KEY]?.let { Name.FunctionName(it) } ?: GGIndexConfig.DEFAULT_DISTANCE,
+            distance = parameters[GGIndexConfig.KEY_DISTANCE_KEY]?.let { Name.FunctionName.create(it) } ?: GGIndexConfig.DEFAULT_DISTANCE,
             numGroups = parameters[GGIndexConfig.KEY_NUM_GROUPS_KEY]?.toInt() ?: 100,
             seed = parameters[GGIndexConfig.KEY_SEED_KEY]?.toLong() ?: System.currentTimeMillis()
         )

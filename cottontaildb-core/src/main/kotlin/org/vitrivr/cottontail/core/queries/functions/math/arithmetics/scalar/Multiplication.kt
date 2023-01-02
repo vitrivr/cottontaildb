@@ -22,7 +22,7 @@ import org.vitrivr.cottontail.core.values.types.Value
  */
 sealed class Multiplication<T: Value>(val type: Types<T>): Function<T> {
     companion object: FunctionGenerator<Value> {
-        private val FUNCTION_NAME = Name.FunctionName("mul")
+        private val FUNCTION_NAME = Name.FunctionName.create("mul")
 
         override val signature: Signature.Open
             get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Numeric, Argument.Numeric))

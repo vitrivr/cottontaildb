@@ -44,7 +44,7 @@ data class PQIndexConfig(val distance: Name.FunctionName, val sampleSize: Int, v
      */
     object Binding: ComparableBinding() {
         override fun readObject(stream: ByteArrayInputStream): Comparable<PQIndexConfig> {
-            val distance = Name.FunctionName(StringBinding.BINDING.readObject(stream))
+            val distance = Name.FunctionName.create(StringBinding.BINDING.readObject(stream))
             val sampleSize = IntegerBinding.readCompressed(stream)
             val numCentroids = IntegerBinding.readCompressed(stream)
             val numSubspaces = IntegerBinding.readCompressed(stream)

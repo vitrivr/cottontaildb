@@ -12,9 +12,9 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Logical] implementation that has a single [OperatorNode] as input.
  *
  * @author Ralph Gasser
- * @version 2.6.0
+ * @version 2.7.0
  */
-abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.Logical() {
+abstract class UnaryLogicalOperatorNode(input: Logical? = null): OperatorNode.Logical() {
     /** Input arity of [UnaryLogicalOperatorNode] is always one. */
     final override val inputArity: Int = 1
 
@@ -68,38 +68,48 @@ abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.L
     abstract override fun copy(): UnaryLogicalOperatorNode
 
     /**
-     * Creates and returns a copy of this [UnaryLogicalOperatorNode] and all its inputs that belong to the same [GroupId],
-     * up and until the base of the tree.
+     * Creates and returns a copy of this [UnaryLogicalOperatorNode] using the given parents as input.
+     *
+     * @param input The [OperatorNode.Logical]s that act as input.
+     * @return Copy of this [UnaryLogicalOperatorNode].
+     */
+    final override fun copy(vararg input: Logical): UnaryLogicalOperatorNode {
+        require(input.size <= this.inputArity) { "Cannot provide more than ${this.inputArity} inputs for ${this.javaClass.simpleName}." }
+        val copy = this.copy()
+        copy.input = input.getOrNull(0)
+        return copy
+    }
+
+    /**
+     * Creates and returns a copy of this [UnaryLogicalOperatorNode] and its entire output [OperatorNode.Logical] tree using the provided nodes as input.
+     *
+     * @param input The [OperatorNode.Logical]s that act as input.
+     * @return Copy of this [UnaryLogicalOperatorNode] with its output.
+     */
+    final override fun copyWithOutput(vararg input: Logical): Logical {
+        require(input.size <= this.inputArity) { "Cannot provide more than ${this.inputArity} inputs for ${this.javaClass.simpleName}." }
+        val copy = this.copy()
+        copy.input = input.getOrNull(0)
+        return (this.output?.copyWithOutput(copy) ?: copy).root
+    }
+
+    /**
+     * Creates and returns a copy of this [UnaryLogicalOperatorNode] and the entire input [OperatorNode.Logical] tree that belong to the same [GroupId].
      *
      * @return Copy of this [OperatorNode.Logical].
      */
-    final override fun copyWithGroupInputs(): Logical {
+    final override fun copyWithGroupInputs(): UnaryLogicalOperatorNode {
         val copy = this.copy()
         copy.input = this.input?.copyWithGroupInputs()
         return copy
     }
 
     /**
-     * Creates and returns a copy of this [UnaryLogicalOperatorNode] and all its inputs that belong to the same [GroupId],
-     * up and until the base of the tree.
+     * Creates and returns a copy of this [UnaryLogicalOperatorNode]  and the entire input [OperatorNode.Logical] tree.
      *
      * @return Copy of this [OperatorNode.Logical].
      */
-    final override fun copyWithInputs(): Logical = this.copyWithGroupInputs()
-
-    /**
-     * Creates and returns a copy of this [UnaryLogicalOperatorNode] with its output reaching down to the [root] of the tree.
-     * Furthermore connects the provided [input] to the copied [UnaryLogicalOperatorNode]s.
-     *
-     * @param input The [OperatorNode.Logical]s that act as input.
-     * @return Copy of this [UnaryLogicalOperatorNode] with its output.
-     */
-    override fun copyWithOutput(vararg input: Logical): Logical {
-        require(input.size <= this.inputArity) { "Cannot provide more than ${this.inputArity} inputs for ${this.javaClass.simpleName}." }
-        val copy = this.copy()
-        copy.input = input.getOrNull(0)
-        return (this.output?.copyWithOutput(copy) ?: copy).root
-    }
+    final override fun copyWithInputs() = this.copyWithGroupInputs()
 
     /**
      * Calculates and returns the digest for this [UnaryLogicalOperatorNode].

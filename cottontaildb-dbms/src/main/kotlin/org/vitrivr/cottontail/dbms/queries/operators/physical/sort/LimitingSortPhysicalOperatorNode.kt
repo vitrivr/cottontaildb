@@ -55,6 +55,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, val sortOn: List
         get() = super.traits + mapOf(
             OrderTrait to OrderTrait(this.sortOn),
             LimitTrait to LimitTrait(this.limit),
+            MaterializedTrait to MaterializedTrait,
             NotPartitionableTrait to NotPartitionableTrait /* Once explicit sorting has been introduced, no more partitioning is possible. */
         )
 

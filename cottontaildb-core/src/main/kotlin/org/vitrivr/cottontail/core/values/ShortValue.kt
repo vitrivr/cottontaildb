@@ -22,7 +22,7 @@ value class ShortValue(override val value: Short): RealValue<Short> {
         val MIN_VALUE = ShortValue(Short.MIN_VALUE + 1.toShort())
 
         /** The maximum value that can be held by a [ShortValue]. */
-        val MAX_VALUE = ShortValue(Int.MAX_VALUE)
+        val MAX_VALUE = ShortValue(Short.MAX_VALUE)
 
         /** The zero [ShortValue]. */
         val ZERO = ShortValue(0.toShort())

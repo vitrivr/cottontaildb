@@ -4,7 +4,7 @@ package org.vitrivr.cottontail.dbms.queries.projection
  * Enumeration of all [Projection] operations supported by Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.1
  */
 enum class Projection(val aggregating: Boolean) {
     SELECT(false),
@@ -25,4 +25,11 @@ enum class Projection(val aggregating: Boolean) {
     fun label() = this.toString().replace("_", "").lowercase().replaceFirstChar {
         it.uppercase()
     }
+
+    /**
+     * Converts this [Projection] to a [String] column name.
+     *
+     * @return String label.
+     */
+    fun column() = this.toString().replace("_", "").lowercase()
 }
