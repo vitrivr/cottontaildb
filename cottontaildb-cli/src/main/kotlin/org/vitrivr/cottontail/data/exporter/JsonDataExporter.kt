@@ -15,7 +15,7 @@ import java.nio.file.StandardOpenOption
  * Data produced by the [JsonDataExporter] can be used as input for the [JsonDataImporter].
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.1
  */
 class JsonDataExporter(override val path: Path, val indent: String = "") : DataExporter {
     /** The [Format] handled by this [DataExporter]. */
@@ -44,7 +44,7 @@ class JsonDataExporter(override val path: Path, val indent: String = "") : DataE
     override fun offer(tuple: Tuple) {
         this.writer.beginObject()
         repeat(tuple.size()) {
-            this.writer.name(tuple.nameForIndex(it))
+            this.writer.name(tuple.nameForIndex(it).split('.').last())
             when(tuple.type(it)) {
                 Type.BOOLEAN -> this.writer.value(tuple.asBoolean(it))
                 Type.BYTE -> this.writer.value(tuple.asByte(it))
