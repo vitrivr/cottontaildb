@@ -28,7 +28,7 @@ class DropEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
     ).flag()
 
     override fun exec() {
-        if (this.confirm || TermUi.confirm("Do you really want to drop the entity ${this.entityName} [y/N]?", default = false, showDefault = false) == true) {
+        if (this.confirm || confirm("Do you really want to drop the entity ${this.entityName} [y/N]?", default = false, showDefault = false) == true) {
             try {
                 val timedTable = measureTimedValue {
                     TabulationUtilities.tabulate(this.client.drop(DropEntity(this.entityName.toString())))

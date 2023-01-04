@@ -27,7 +27,7 @@ class DropSchemaCommand(client: SimpleClient) : AbstractCottontailCommand.Schema
 
 
     override fun exec() {
-        if (this.confirm || TermUi.confirm(
+        if (this.confirm || confirm(
                 "Do you really want to drop the schema ${this.schemaName} [y/N]?",
                 default = false,
                 showDefault = false

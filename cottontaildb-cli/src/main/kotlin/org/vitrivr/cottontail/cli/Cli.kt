@@ -45,17 +45,18 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
 
     companion object {
         /** The default prompt -- just fancification */
-        private const val PROMPT = "\uD83E\uDD55"
+        private const val PROMPT = "\uD83E\uDD55 "
 
         /** RegEx for splitting input lines. */
         private val LINE_SPLIT_REGEX: Pattern = Pattern.compile("[^\\s\"']+|\"([^\"]*)\"|'([^']*)'")
     }
 
     /** The [ManagedChannel] used to connect to Cottontail DB. */
-    private val channel: ManagedChannel = ManagedChannelBuilder.forAddress(this@Cli.host, this@Cli.port)
-        .enableFullStreamDecompression()
-        .usePlaintext()
-        .build()
+    private val channel: ManagedChannel =
+        ManagedChannelBuilder.forAddress(this@Cli.host, this@Cli.port)
+            .enableFullStreamDecompression()
+            .usePlaintext()
+            .build()
 
     /** The [SimpleClient] used to access Cottontail DB. */
     private val client = SimpleClient(this.channel)
@@ -85,8 +86,10 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
             is com.github.ajalt.clikt.core.BadParameterValue,
             is com.github.ajalt.clikt.core.NoSuchOption,
             is com.github.ajalt.clikt.core.UsageError -> println(e.localizedMessage)
+
             is StatusException, /* Exceptions reported by Cottontail DB via gRPC. */
             is StatusRuntimeException -> println(e.localizedMessage)
+
             else -> println(e.printStackTrace())
         }
     }
@@ -103,8 +106,14 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
         }
 
         /* Start CLI loop. */
-        val lineReader = LineReaderBuilder.builder().terminal(terminal).completer(this.completer).appName("C(arrot)LI").build()
-        println("Connected C(arrot)LI to Cottontail DB at ${this.host}:${this.port}. Happy searching...")
+        val lineReader = LineReaderBuilder.builder().terminal(terminal).completer(this.completer)
+            .appName("C(arrot)LI").build()
+        if (this.client.ping()) {
+            println("Connected C(arrot)LI to Cottontail DB at ${this.host}:${this.port}. Happy searching...")
+        } else {
+            println("Could not ping cottontaildb, is ${this.host}:${this.port} correct?")
+            return
+        }
 
         while (!this.stopped) {
             /* Catch ^D end of file as exit method */
@@ -145,15 +154,15 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                 val sfqn = schema.asString(0)!!
 
                 /* Schema name with and w/o 'warren.'. */
-                schemata.add(sfqn)
-                schemata.add("warren.$sfqn")
+                schemata.add(sfqn) // with 'warren.'
+                schemata.add(sfqn.split('.').last())
 
                 for (entity in this.client.list(ListEntities(sfqn))) {
-                    val efqn = node(entity.asString(0)!!)
+                    val efqn = entity.asString(0)!!
 
                     /* Entity name with and w/o 'warren.'. */
-                    entities.add("$sfqn.$efqn")
-                    entities.add("warren.$sfqn.$efqn")
+                    entities.add(efqn) // with 'warren.'
+                    entities.add(efqn.split('.').slice(1 until efqn.split('.').size).joinToString("."))
                 }
             }
         } catch (e: StatusRuntimeException) {
@@ -166,10 +175,12 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                     icmd is AbstractCottontailCommand.Schema && icmd.expand -> {
                         node(icmd.commandName, *schemata.map { node(it) }.toTypedArray())
                     }
+
                     icmd is AbstractCottontailCommand.Query && icmd.expand ||
-                    icmd is AbstractCottontailCommand.Entity && icmd.expand -> {
+                            icmd is AbstractCottontailCommand.Entity && icmd.expand -> {
                         node(icmd.commandName, *entities.map { node(it) }.toTypedArray())
                     }
+
                     else -> {
                         node(icmd.commandName)
                     }
@@ -218,9 +229,8 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
      * @version 2.0.0
      */
     @ExperimentalTime
-    inner class CottontailCommand : NoOpCliktCommand(name = "cottontail", help = "The base command for all CLI commands.") {
-
-
+    inner class CottontailCommand :
+        NoOpCliktCommand(name = "cottontail", help = "The base command for all CLI commands.") {
 
 
         /** A list of aliases: mapping of alias name to commands */
@@ -234,6 +244,7 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                 "edelete" to listOf("entity", "drop"),
                 "edel" to listOf("entity", "drop"),
                 "erm" to listOf("entity", "drop"),
+                "eexport" to listOf("entity", "dump"),
                 "eremove" to listOf("entity", "drop"),
                 "delete" to listOf("schema", "drop"),
                 "del" to listOf("schema", "drop"),
@@ -243,6 +254,7 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                 "quit" to listOf("stop"),
                 "exit" to listOf("stop"),
                 "schemas" to listOf("schema"),
+                "schemata" to listOf("schema"),
                 "entities" to listOf("entity"),
                 "trb" to listOf("system", "rollback"),
             )
@@ -263,7 +275,8 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                         /* List of entity aliases: entity <alias> */
                         return mapOf(
                             "ls" to listOf("list"),
-                            "list-indexes" to listOf("list-indices")
+                            "list-indexes" to listOf("list-indices"),
+                            "export" to listOf("dump")
                         )
                     }
                 }.subcommands(
@@ -291,7 +304,8 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                 ) {
                     override fun aliases(): Map<String, List<String>> {
                         return mapOf(
-                            "ls" to listOf("list")
+                            "ls" to listOf("list"),
+                            "export" to listOf("dump")
                         )
                     }
                 }.subcommands(
@@ -355,7 +369,10 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                 programName: String
             ): String = buildString {
                 if (programName.contains(" ")) {
-                    addUsage(parameters, programName.split(" ")[1]) // hack to not include the base command
+                    addUsage(
+                        parameters,
+                        programName.split(" ")[1]
+                    ) // hack to not include the base command
                 } else {
                     addUsage(parameters, programName)
                 }
