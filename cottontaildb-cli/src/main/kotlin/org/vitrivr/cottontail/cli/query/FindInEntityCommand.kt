@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.cli.query
 
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.convert
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import org.vitrivr.cottontail.cli.AbstractCottontailCommand
@@ -13,8 +14,8 @@ import kotlin.time.ExperimentalTime
 /**
  * Command to filter a given entity, identified by an entity name and a column / value pair.
  *
- * @author Loris Sauter
- * @version 2.0.0
+ * @author Loris Sauter & Ralph Gasser
+ * @version 2.1.0
  */
 @ExperimentalTime
 class FindInEntityCommand(client: SimpleClient): AbstractCottontailCommand.Query(client, name = "find", help = "Find within an entity by column-value specification") {
@@ -32,13 +33,25 @@ class FindInEntityCommand(client: SimpleClient): AbstractCottontailCommand.Query
         }
     }
 
-    val col: String by option("-c", "--column", help = "Column name").required()
-    val value: String by option("-v", "--value", help = "The value").required()
+    /** The name of the column to query. */
+    private val column: String by option("-c", "--column", help = "The name of the column to query.").required()
+
+    /** The query value. */
+    private val value: String by option("-v", "--value", help = "The query value.").required()
+
+    /** Flag indicating, that the query value should be interpreted as pattern. */
+    private val pattern: Boolean by option("-p", "--pattern", "The ").flag("--no-pattern", default = false)
+
     override fun exec() {
 
-        val query = org.vitrivr.cottontail.client.language.dql.Query(this.entityName.toString())
-            .select("*")
-            .where(Expression(this.col, "=", this.value))
+        /* Prepare query. */
+        val query = org.vitrivr.cottontail.client.language.dql.Query(this.entityName.toString()).select("*")
+        if (this.pattern) {
+            query.where(Expression(this.column, "=", this.value))
+        } else {
+            query.where(Expression(this.column, "LIKE", this.value))
+        }
+
 
         /* Execute query based on options. */
         if (this.toFile) {
