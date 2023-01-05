@@ -155,10 +155,10 @@ class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
     private val singleTransaction: Boolean by option("-t", "--transaction", help="Flag indicating, whether the import should be executed in a single transaction or not.").flag()
 
     /** Flag indicating, whether the import should be fuzzy: Ignore corrupt entries and just continue */
-    private val fuzzy: Boolean by option("--fuzzy", help="Flag indicating, whether the import should be fuzzy: Ignore corrupt entries and just continue").flag()
+    private val bestEffort: Boolean by option("--best-effort", help="Flag indicating, whether the import should be best effort: Ignore corrupt entries and just continue").flag()
 
     /**
      * Executes this [ImportDataCommand].
      */
-    override fun exec() = importData(this.entityName, this.input, this.format, this.client, this.singleTransaction, this.fuzzy)
+    override fun exec() = importData(this.entityName, this.input, this.format, this.client, this.singleTransaction, this.bestEffort)
 }
