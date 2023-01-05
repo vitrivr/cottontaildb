@@ -14,20 +14,20 @@ import java.nio.file.Path
 class CSVDataImporter(
     override val path: Path,
     override val schema: List<ColumnDef<*>>,
-    private val fuzzy: Boolean = false
+    private val bestEffort: Boolean = false
 ) : DataImporter {
 
     private val rows = csvReader {
-        /** Fuzziness enabled: Skip empty lines */
-        skipEmptyLine = fuzzy
-        /** Fuzziness enabled: trim excess fields */
-        excessFieldsRowBehaviour = if (fuzzy) {
+        /** Best Effort enabled: Skip empty lines */
+        skipEmptyLine = bestEffort
+        /** Best Effort enabled: trim excess fields */
+        excessFieldsRowBehaviour = if (bestEffort) {
             ExcessFieldsRowBehaviour.TRIM
         } else {
             ExcessFieldsRowBehaviour.ERROR
         }
-        /** Fuzziness enabled: ignore (=skip) insufficiently filled lines */
-        insufficientFieldsRowBehaviour = if (fuzzy) {
+        /** Best Effort enabled: ignore (=skip) insufficiently filled lines */
+        insufficientFieldsRowBehaviour = if (bestEffort) {
             InsufficientFieldsRowBehaviour.IGNORE
         } else {
             InsufficientFieldsRowBehaviour.ERROR

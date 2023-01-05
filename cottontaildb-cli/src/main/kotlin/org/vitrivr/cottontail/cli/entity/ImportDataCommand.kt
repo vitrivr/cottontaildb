@@ -38,11 +38,12 @@ class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
          * @param format The [Format] of the data to import.
          * @param client The [SimpleClient] to use.
          * @param singleTransaction Flag indicating whether import should happen in a single transaction.
+         * @param bestEffort Whether to import "best effort": CSV import is capable of e.g. ignoring broken rows which this flag enables
          */
-        fun importData(entityName: Name.EntityName, input: Path, format: Format, client: SimpleClient, singleTransaction: Boolean, fuzzy: Boolean) {
+        fun importData(entityName: Name.EntityName, input: Path, format: Format, client: SimpleClient, singleTransaction: Boolean, bestEffort: Boolean) {
             /* Read schema and prepare Iterator. */
             val schema = readSchema(entityName, client)
-            val iterator = format.newImporter(input, schema, fuzzy)
+            val iterator = format.newImporter(input, schema, bestEffort)
 
             /** Begin transaction (if single transaction option has been set). */
             val txId = if (singleTransaction) {
