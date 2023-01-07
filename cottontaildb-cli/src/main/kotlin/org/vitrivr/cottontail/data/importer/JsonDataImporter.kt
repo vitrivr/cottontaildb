@@ -6,7 +6,6 @@ import com.google.gson.stream.JsonToken
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
@@ -20,7 +19,7 @@ import java.nio.file.Path
  * fields must occur in order of definition.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.1
  */
 class JsonDataImporter(override val path: Path, override val schema: List<ColumnDef<*>>) : DataImporter {
 
@@ -52,9 +51,8 @@ class JsonDataImporter(override val path: Path, override val schema: List<Column
         this.reader.beginObject()
         val value = Object2ObjectArrayMap<ColumnDef<*>, Value?>(this.schema.size)
         for (column in this.schema) {
-            val parsed = this.reader.nextName().split('.')
-            val name = Name.ColumnName.create(parsed[0], parsed[1], parsed[2])
-            check(name == column.name) { "$name does not match the expected column name ${column.name}." }
+            val name = this.reader.nextName().split('.').last()
+            check(name == column.name.column) { "$name does not match the expected column name ${column.name}." }
             value[column] = when (column.type) {
                 is Types.Boolean -> BooleanValue(this.reader.nextBoolean())
                 is Types.Byte -> ByteValue(this.reader.nextInt())

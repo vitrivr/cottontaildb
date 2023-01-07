@@ -37,7 +37,7 @@ class PreviewEntityCommand(client: SimpleClient): AbstractCottontailCommand.Quer
     /**
      * Upper limit of results. Option given via CLI. Defaults to 50
      */
-    private val limit: Long by option("-l", "--limit", help = "Limits the amount of printed results").long().default(5).validate { require(it > 1) }
+    private val limit: Long by option("-l", "--limit", help = "Limits the amount of printed results").long().default(5).validate { require(it >= 1) }
 
     /**
      * Offset from the start of the table. Option given vai CLI. Defaults to 0

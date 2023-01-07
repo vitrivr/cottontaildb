@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.cli.entity
 
-import com.github.ajalt.clikt.output.TermUi
+import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import io.grpc.StatusException
@@ -30,7 +30,7 @@ class TruncateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.En
          * @param confirm Flag indicating whether confirmation is already given (CLI only, not testable).
          */
         fun truncate(entityName: Name.EntityName, client: SimpleClient, confirm: Boolean) {
-            if (confirm || TermUi.confirm("Do you really want to truncate the entity $entityName [y/N]?", default = false, showDefault = false) == true) {
+            if (confirm) {
                 try {
                     val timedTable = measureTimedValue {
                         TabulationUtilities.tabulate(client.truncate(TruncateEntity(entityName.toString())))
@@ -53,5 +53,5 @@ class TruncateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.En
         help = "Directly provides the confirmation option. Set to true, no interactive prompt is given"
     ).flag()
 
-    override fun exec() = truncate(this.entityName, this.client, this.confirm)
+    override fun exec() = truncate(this.entityName, this.client, this.confirm || confirm("Do you really want to truncate the entity $entityName [y/N]?", default = false, showDefault = false) == true)
 }

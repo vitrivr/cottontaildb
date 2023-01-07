@@ -32,12 +32,13 @@ enum class Format(val suffix: String) {
      *
      * @param file [Path] to input file.
      * @param schema Optional list of [ColumnDef]s that should be imported (not required).
+     * @param fuzzy Optional flag to use fuzzy import (e.g. try best effort and skip corrupt entries)
      * @return [DataImporter]
      */
-    fun newImporter(file: Path, schema: List<ColumnDef<*>>): DataImporter = when (this) {
+    fun newImporter(file: Path, schema: List<ColumnDef<*>>, fuzzy:Boolean=false): DataImporter = when (this) {
         PROTO -> ProtoDataImporter(file, schema)
         JSON -> JsonDataImporter(file, schema)
-        CSV -> CSVDataImporter(file, schema)
+        CSV -> CSVDataImporter(file, schema, fuzzy)
     }
 
     /**

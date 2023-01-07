@@ -37,7 +37,7 @@ class DropIndexCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(
     ).flag()
 
     override fun exec() {
-        if (this.confirm || TermUi.confirm("Do you really want to drop the index ${this.indexName} [y/N]?", default = false, showDefault = false) == true) {
+        if (this.confirm || confirm("Do you really want to drop the index ${this.indexName} [y/N]?", default = false, showDefault = false) == true) {
             try {
                 val timedTable = measureTimedValue {
                     TabulationUtilities.tabulate(this.client.drop(DropIndex(this.indexName.toString())))

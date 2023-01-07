@@ -17,7 +17,7 @@ import kotlin.time.measureTimedValue
 @ExperimentalTime
 class ClearEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "clear", help = "Clears the given entity, i.e., deletes all data it contains. Usage: entity clear <schema>.<entity>") {
     override fun exec() {
-        if (TermUi.confirm("Do you really want to delete all data from entity ${this.entityName} (y/N)?", default = false, showDefault = false) == true) {
+        if (confirm("Do you really want to delete all data from entity ${this.entityName} (y/N)?", default = false, showDefault = false) == true) {
             val time = measureTimedValue {
                 this.client.delete(Delete(this.entityName.toString()))
             }

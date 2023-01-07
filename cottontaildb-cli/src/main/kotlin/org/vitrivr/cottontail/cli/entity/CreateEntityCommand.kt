@@ -81,7 +81,7 @@ class CreateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Enti
                 }
 
                 /* Ask if anther column should be added. */
-                if (colDef.columnsCount > 0 && TermUi.confirm("Do you want to add another column (size = ${colDef.columnsCount})?") == false) {
+                if (colDef.columnsCount > 0 && confirm("Do you want to add another column (size = ${colDef.columnsCount})?") == false) {
                     break
                 }
             } while (true)
@@ -115,7 +115,7 @@ class CreateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Enti
             }
 
             /* As for final confirmation and create entity. */
-            if (TermUi.confirm(text = "Please confirm that you want to create the entity:\n$tbl", default = true) == true) {
+            if (confirm(text = "Please confirm that you want to create the entity:\n$tbl", default = true) == true) {
                 val time = measureTimedValue {
                     TabulationUtilities.tabulate(this.client.create(CottontailGrpc.CreateEntityMessage.newBuilder().setDefinition(colDef).build()))
                 }
@@ -158,8 +158,8 @@ class CreateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Enti
      */
     private fun promptForColumn(): CottontailGrpc.ColumnDefinition? {
         val def = CottontailGrpc.ColumnDefinition.newBuilder()
-        def.nameBuilder.name = TermUi.prompt("Column name (must consist of letters and numbers)")
-        def.type = TermUi.prompt("Column type (${CottontailGrpc.Type.values().joinToString(", ")})") {
+        def.nameBuilder.name = prompt("Column name (must consist of letters and numbers)")
+        def.type = prompt("Column type (${CottontailGrpc.Type.values().joinToString(", ")})") {
             CottontailGrpc.Type.valueOf(it.uppercase())
         }
         def.length = when (def.type) {
@@ -169,10 +169,10 @@ class CreateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Enti
             CottontailGrpc.Type.INT_VEC,
             CottontailGrpc.Type.BOOL_VEC,
             CottontailGrpc.Type.COMPLEX32_VEC,
-            CottontailGrpc.Type.COMPLEX64_VEC -> TermUi.prompt("\rColumn lengths (i.e. number of entries for vectors)") { it.toInt() } ?: 1
+            CottontailGrpc.Type.COMPLEX64_VEC -> prompt("\rColumn lengths (i.e. number of entries for vectors)") { it.toInt() } ?: 1
             else -> -1
         }
-        def.nullable = TermUi.confirm(text = "Should column be nullable?", default = false) ?: false
+        def.nullable = confirm(text = "Should column be nullable?", default = false) ?: false
 
         val tbl = table {
             cellStyle {
@@ -192,7 +192,7 @@ class CreateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Enti
             }
         }
 
-        return if (TermUi.confirm("Please confirm column:\n$tbl") == true) {
+        return if (confirm("Please confirm column:\n$tbl") == true) {
             def.build()
         } else {
             null

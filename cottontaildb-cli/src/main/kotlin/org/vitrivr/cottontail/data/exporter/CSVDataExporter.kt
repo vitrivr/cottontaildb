@@ -26,7 +26,7 @@ class CSVDataExporter(override val path: Path) : DataExporter {
 
     override fun offer(tuple: Tuple) {
         if (header == null) {
-            header = (0..tuple.size()).map { tuple.nameForIndex(it) }
+            header = (0 until tuple.size()).map { tuple.nameForIndex(it) }
             writer.writeRow(header)
         }
         val row = header!!.map { colName ->

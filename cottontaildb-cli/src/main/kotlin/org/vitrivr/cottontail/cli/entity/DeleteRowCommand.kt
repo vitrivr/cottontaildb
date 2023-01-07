@@ -32,7 +32,7 @@ class DeleteRowCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(
     val value: String by option("-v", "--value", help = "The value").required()
 
     override fun exec() {
-        if (this.confirm || TermUi.confirm("Do you really want to delete the rows from ${this.entityName} where where $col = $value [y/N]?", default = false, showDefault = false) == true) {
+        if (this.confirm || confirm("Do you really want to delete the rows from ${this.entityName} where where $col = $value [y/N]?", default = false, showDefault = false) == true) {
             try {
                 val timedTable = measureTimedValue {
                     TabulationUtilities.tabulate(this.client.delete(Delete().from(entityName.fqn).where(Expression(this.col, "=", this.value))))
