@@ -20,20 +20,21 @@ class CSVDataImporter(
     private val rows = csvReader {
         /** Best Effort enabled: Skip empty lines */
         skipEmptyLine = bestEffort
+
         /** Best Effort enabled: trim excess fields */
         excessFieldsRowBehaviour = if (bestEffort) {
             ExcessFieldsRowBehaviour.TRIM
         } else {
             ExcessFieldsRowBehaviour.ERROR
         }
+
         /** Best Effort enabled: ignore (=skip) insufficiently filled lines */
         insufficientFieldsRowBehaviour = if (bestEffort) {
             InsufficientFieldsRowBehaviour.IGNORE
         } else {
             InsufficientFieldsRowBehaviour.ERROR
         }
-    }
-        .readAllWithHeader(path.toFile())
+    }.readAllWithHeader(path.toFile())
 
     private var rowIndex = 0
 
