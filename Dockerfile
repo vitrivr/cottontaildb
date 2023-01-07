@@ -2,7 +2,7 @@ FROM gradle:jdk17 AS build
 
 COPY . /cottontail-src
 WORKDIR /cottontail-src
-RUN gradle distTar
+RUN ./gradlew distTar
 WORKDIR /cottontail-src/cottontaildb-dbms/build/distributions/
 RUN tar xf ./cottontaildb-dbms.tar
 
