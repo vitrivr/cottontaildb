@@ -16,6 +16,7 @@ jobs:
         with:
           java-version: 17.0.3
           server-id: maven
+          distribution: 'temurin'
       - id: publish-gradle
         name: Publish package to the OSS Snapshot Repository & GitHub Packages
         run: gradle publish
