@@ -1,5 +1,8 @@
 <div class="view-container">
+
   <div class="entity-details">
+
+
     <div class="selection-header">
       <ng-container *ngIf="!aboutEntityData; else showName">
         <h1>Please select an entity in the sidebar</h1>
@@ -8,8 +11,6 @@
         <h2>{{selection['entity'].split(".").slice(-1)}}</h2>
       </ng-template>
     </div>
-
-
 
 
     <div class="table" *ngIf="aboutEntityData">
@@ -46,6 +47,7 @@
         </ng-container>
 
       </mat-table>
+
 
     </div>
   </div>

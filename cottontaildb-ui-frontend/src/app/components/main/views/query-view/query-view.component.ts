@@ -67,18 +67,21 @@ export class QueryViewComponent implements OnInit {
     this.pushControl("limit")
     let distName = this.queryFunctions.at(this.queryFunctions.length-3).get("conditions")?.get("name")
     if(distName != null){
-      //TODO
-      console.log(this.queryFunctions.at(this.queryFunctions.length-3).get("conditions"))
+      //TODO: implement default values for nns queries
     }
   }
 
-
+  /**
+   * Clicking the execute query button executes this function.
+   * It takes the form values and produces the data format used in the back end.
+   */
   onQuery(page: number = 0, pageSize: number = 5) {
 
     this.entityService.aboutEntitySubject.subscribe(about => {
       this.aboutEntityData = about
     })
 
+    //variable used to show mat-progress-bar while querying
     this.querying = true
 
     let qm = new Array<QueryFunction>()

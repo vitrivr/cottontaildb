@@ -10,16 +10,14 @@
         </div>
 
         <div class="form-container">
-
           <mat-form-field appearance="outline">
             <mat-label> limit </mat-label>
+            <!--Input is controlled by numberOnly(), only positive integers and backspace possible.-->
             <input (keydown)="numberOnly($event)" matInput formControlName="limit">
           </mat-form-field>
-
         </div>
 
       </div>
     </mat-card-content>
   </mat-card>
-
 </ng-container>
