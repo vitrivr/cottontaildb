@@ -35,7 +35,7 @@ import org.vitrivr.cottontail.utilities.math.random.nextInt
 import org.vitrivr.cottontail.utilities.math.random.nextLong
 
 /**
- * A collection of test cases that test the outcome for index selection in presend of an [IndexType.BTREE_UQ].
+ * A collection of test cases that test the outcome for index selection in presence of an [IndexType.BTREE_UQ].
  *
  * @author Ralph Gasser
  * @version 1.0.0
