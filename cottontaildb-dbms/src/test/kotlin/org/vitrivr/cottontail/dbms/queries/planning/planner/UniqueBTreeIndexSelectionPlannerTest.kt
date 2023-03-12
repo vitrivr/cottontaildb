@@ -31,6 +31,8 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSInde
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.merge.LimitingSortMergeRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.CountPushdownRule
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import org.vitrivr.cottontail.utilities.math.random.nextInt
+import org.vitrivr.cottontail.utilities.math.random.nextLong
 
 /**
  * A collection of test cases that test the outcome for index selection in presend of an [IndexType.BTREE_UQ].
