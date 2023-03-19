@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
 import org.vitrivr.cottontail.dbms.execution.services.AutoAnalyzerService
 import org.vitrivr.cottontail.dbms.execution.services.AutoRebuilderService
+import org.vitrivr.cottontail.dbms.execution.services.StatisticsManagerService
 import org.vitrivr.cottontail.dbms.execution.services.StatisticsPersisterTask
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.server.grpc.services.DDLService
@@ -41,9 +42,11 @@ class CottontailServer(config: Config) {
     init {
         /* Register the different service tasks. */
         val rebuilderService = AutoRebuilderService(this.catalogue, this.transactionManager)
-        val analyzerService = AutoAnalyzerService(this.catalogue, this.transactionManager)
+        val analyzerService = AutoAnalyzerService(this.catalogue, this.transactionManager) // TODO Remove
+        val statisticsManagerService = StatisticsManagerService(this.catalogue, this.transactionManager)
         this.transactionManager.register(rebuilderService)
-        this.transactionManager.register(analyzerService)
+        this.transactionManager.register(analyzerService) // TODO Remove
+        this.transactionManager.register(statisticsManagerService)
 
         /* Registers the task that takes care of persisting index & column statistics. */
         this.executor.serviceWorkerPool.scheduleAtFixedRate(StatisticsPersisterTask(this.catalogue), 1, 1, TimeUnit.MINUTES)
@@ -51,7 +54,7 @@ class CottontailServer(config: Config) {
         /* Prepare gRPC server itself. */
         this.grpc = ServerBuilder.forPort(config.server.port)
             .executor(this.executor.connectionWorkerPool)
-            .addService(DDLService(this.catalogue, this.transactionManager, rebuilderService, analyzerService))
+            .addService(DDLService(this.catalogue, this.transactionManager, rebuilderService, statisticsManagerService))
             .addService(DMLService(this.catalogue, this.transactionManager))
             .addService(DQLService(this.catalogue, this.transactionManager))
             .addService(TXNService(this.catalogue, this.transactionManager))

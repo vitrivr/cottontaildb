@@ -8,8 +8,8 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.dbms.execution.services.AutoAnalyzerService
 import org.vitrivr.cottontail.dbms.execution.services.AutoRebuilderService
+import org.vitrivr.cottontail.dbms.execution.services.StatisticsManagerService
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
@@ -29,7 +29,7 @@ import kotlin.time.ExperimentalTime
  * @version 2.6.0
  */
 @ExperimentalTime
-class DDLService(override val catalogue: DefaultCatalogue, override val manager: TransactionManager, val autoRebuilderService: AutoRebuilderService, val autoAnalyzerService: AutoAnalyzerService) : DDLGrpcKt.DDLCoroutineImplBase(), TransactionalGrpcService {
+class DDLService(override val catalogue: DefaultCatalogue, override val manager: TransactionManager, val autoRebuilderService: AutoRebuilderService, val statisticsManagerService: StatisticsManagerService) : DDLGrpcKt.DDLCoroutineImplBase(), TransactionalGrpcService {
     /**
      * gRPC endpoint for creating a new [Schema]
      */

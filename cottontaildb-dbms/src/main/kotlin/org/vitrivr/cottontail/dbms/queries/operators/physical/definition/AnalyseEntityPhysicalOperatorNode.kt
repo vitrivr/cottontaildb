@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.execution.operators.definition.AnalyseEntityOperator
 import org.vitrivr.cottontail.dbms.execution.services.AutoAnalyzerService
+import org.vitrivr.cottontail.dbms.execution.services.StatisticsManagerService
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
@@ -14,7 +15,7 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class AnalyseEntityPhysicalOperatorNode(val tx: CatalogueTx, val entityName: Name.EntityName, val service: AutoAnalyzerService? = null): DataDefinitionPhysicalOperatorNode("AnalyseEntity") {
+class AnalyseEntityPhysicalOperatorNode(val tx: CatalogueTx, val entityName: Name.EntityName, val service: StatisticsManagerService? = null): DataDefinitionPhysicalOperatorNode("AnalyseEntity") {
     override fun copy() = AnalyseEntityPhysicalOperatorNode(this.tx, this.entityName, this.service)
     override fun toOperator(ctx: QueryContext) = AnalyseEntityOperator(this.tx, this.entityName, this.service, ctx)
     override fun digest(): Digest = this.hashCode().toLong()
