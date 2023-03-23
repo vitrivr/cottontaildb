@@ -4,6 +4,7 @@ import org.vitrivr.cottontail.dbms.statistics.statData.DataMetrics
 
 import org.vitrivr.cottontail.core.values.BooleanValue
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.values.types.Value
 
 
 /**
@@ -15,12 +16,18 @@ import org.vitrivr.cottontail.core.values.types.Types
 class BooleanDataCollector: AbstractDataCollector<BooleanValue>(Types.Boolean) {
 
     /**
-     * Collects the data necessary to estimate metrics for the corresponding  [DataMetrics].
-     *
-     * @return Unit
+     * Receives the values for which to compute the statistics
      */
-    override fun collector() {
-        //super.collector()
-        TODO("implement")
+    override fun receive(value: Value?) {
+        TODO("Not yet implemented")
+        // TODO how to go from Value? to BooleanValue? here?
     }
+
+    /**
+     * Tells the collector to calculate the metrics which it does not do iteratively (e.g., mean etc.). Usually called after all elements were received
+     */
+    override fun calculate() {
+        TODO("Not yet implemented")
+    }
+
 }

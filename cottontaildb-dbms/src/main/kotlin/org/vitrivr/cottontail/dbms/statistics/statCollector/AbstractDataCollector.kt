@@ -17,17 +17,22 @@ import org.vitrivr.cottontail.core.values.types.Value
  */
 sealed class AbstractDataCollector<T : Value>(override val type: Types<T>) : DataCollector<T> {
     companion object {
-        const val FRESH_KEY = "fresh"
         const val ENTRIES_KEY = "entries"
         const val NULL_ENTRIES_KEY = "null_entries"
     }
+    // TODO create corresponding ValueMetrics Object for this Collector to which the metrics are written etc.
 
     /**
-     * Collects the data necessary to estimate metrics for the corresponding  [DataMetrics].
-     *
-     * @return Unit
+     * Receives the values for which to compute the statistics
      */
-    override fun collector() {
+    override fun receive(value: Value?) {
+        TODO("Not yet implemented")
+    }
+
+    /**
+     * Tells the collector to calculate the metrics which it does not do iteratively (e.g., mean etc.). Usually called after all elements were received
+     */
+    override fun calculate() {
         TODO("Not yet implemented")
     }
 

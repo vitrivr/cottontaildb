@@ -20,11 +20,16 @@ sealed interface DataCollector <T : Value> {
     /** The [Types] of [DataCollector]. */
     val type: Types<T>
 
+
     /**
-     * Collects the data necessary to estimate metrics for the corresponding  [DataMetrics].
-     *
-     * @return Unit
+     * Receives the values for which to compute the statistics
      */
-    fun collector(): Unit
+    fun receive(value: Value?): Unit
+
+
+    /**
+     * Tells the collector to calculate the metrics which it does not do iteratively (e.g., mean etc.). Usually called after all elements were received
+     */
+    fun calculate(): Unit
 
 }
