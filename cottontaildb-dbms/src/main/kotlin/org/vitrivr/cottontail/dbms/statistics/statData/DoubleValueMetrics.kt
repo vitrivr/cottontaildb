@@ -26,7 +26,6 @@ class DoubleValueMetrics : RealValueMetrics<DoubleValue>(Types.Double) {
     object Binding: MetricsXodusBinding<DoubleValueMetrics> {
         override fun read(stream: ByteArrayInputStream): DoubleValueMetrics {
             val stat = DoubleValueMetrics()
-            stat.fresh = BooleanBinding.BINDING.readObject(stream)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
             stat.min = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
@@ -36,7 +35,6 @@ class DoubleValueMetrics : RealValueMetrics<DoubleValue>(Types.Double) {
         }
 
         override fun write(output: LightOutputStream, statistics: DoubleValueMetrics) {
-            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
             SignedDoubleBinding.BINDING.writeObject(output, statistics.min.value)

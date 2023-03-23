@@ -23,7 +23,6 @@ class StringValueMetrics : AbstractValueMetrics<StringValue>(Types.String) {
     object Binding: MetricsXodusBinding<StringValueMetrics> {
         override fun read(stream: ByteArrayInputStream): StringValueMetrics {
             val stat = StringValueMetrics()
-            stat.fresh = BooleanBinding.BINDING.readObject(stream)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
             stat.minWidth = IntegerBinding.readCompressed(stream)
@@ -32,7 +31,6 @@ class StringValueMetrics : AbstractValueMetrics<StringValue>(Types.String) {
         }
 
         override fun write(output: LightOutputStream, statistics: StringValueMetrics) {
-            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
             IntegerBinding.writeCompressed(output, statistics.minWidth)

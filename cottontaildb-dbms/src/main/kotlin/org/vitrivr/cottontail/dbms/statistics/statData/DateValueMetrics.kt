@@ -22,7 +22,6 @@ class DateValueMetrics : AbstractValueMetrics<DateValue>(Types.Date) {
     object Binding: MetricsXodusBinding<DateValueMetrics> {
         override fun read(stream: ByteArrayInputStream): DateValueMetrics {
             val stat = DateValueMetrics()
-            stat.fresh = BooleanBinding.BINDING.readObject(stream)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
             stat.min = DateValue(LongBinding.readCompressed(stream))
@@ -31,7 +30,6 @@ class DateValueMetrics : AbstractValueMetrics<DateValue>(Types.Date) {
         }
 
         override fun write(output: LightOutputStream, statistics: DateValueMetrics) {
-            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
             LongBinding.writeCompressed(output, statistics.min.value)

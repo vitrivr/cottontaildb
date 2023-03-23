@@ -25,10 +25,6 @@ sealed class AbstractValueMetrics<T : Value>(override val type: Types<T>) : Data
         const val NULL_ENTRIES_KEY = "null_entries"
     }
 
-    /** Flag indicating that this [AbstractValueMetrics] needs updating. */
-    override var fresh: Boolean = true
-        protected set
-
     /** Number of null entries known to this [AbstractValueMetrics]. */
     override var numberOfNullEntries: Long = 0L
         protected set
@@ -62,7 +58,6 @@ sealed class AbstractValueMetrics<T : Value>(override val type: Types<T>) : Data
      */
     @Synchronized
     override fun reset() {
-        this.fresh = true
         this.numberOfNullEntries = 0L
         this.numberOfNonNullEntries = 0L
     }

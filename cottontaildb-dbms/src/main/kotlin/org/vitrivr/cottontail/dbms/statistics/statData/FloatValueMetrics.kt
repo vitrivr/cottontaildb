@@ -28,7 +28,6 @@ class FloatValueMetrics : RealValueMetrics<FloatValue>(Types.Float) {
     object Binding: MetricsXodusBinding<FloatValueMetrics> {
         override fun read(stream: ByteArrayInputStream): FloatValueMetrics {
             val stat = FloatValueMetrics()
-            stat.fresh = BooleanBinding.BINDING.readObject(stream)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
             stat.min = FloatValue(SignedFloatBinding.BINDING.readObject(stream))
@@ -38,7 +37,6 @@ class FloatValueMetrics : RealValueMetrics<FloatValue>(Types.Float) {
         }
 
         override fun write(output: LightOutputStream, statistics: FloatValueMetrics) {
-            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
             SignedFloatBinding.BINDING.writeObject(output, statistics.min.value)

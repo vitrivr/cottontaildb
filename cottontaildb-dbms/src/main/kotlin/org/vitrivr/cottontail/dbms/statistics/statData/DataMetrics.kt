@@ -17,9 +17,6 @@ sealed interface DataMetrics<T : Value> {
     /** The [Types] of [DataMetrics]. */
     val type: Types<T>
 
-    /** Flag indicating that this [DataMetrics] needs updating. */
-    val fresh: Boolean
-
     /** Number of null entries known to this [DataMetrics]. */
     val numberOfNullEntries: Long
 

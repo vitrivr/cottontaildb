@@ -28,7 +28,6 @@ class BooleanValueMetrics: AbstractValueMetrics<BooleanValue>(Types.Boolean) {
     object Binding: MetricsXodusBinding<BooleanValueMetrics> {
         override fun read(stream: ByteArrayInputStream): BooleanValueMetrics {
             val stat = BooleanValueMetrics()
-            stat.fresh = BooleanBinding.BINDING.readObject(stream)
             // TODO (Number of distinct entries?)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
@@ -38,7 +37,6 @@ class BooleanValueMetrics: AbstractValueMetrics<BooleanValue>(Types.Boolean) {
         }
 
         override fun write(output: LightOutputStream, statistics: BooleanValueMetrics) {
-            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             // TODO (Number of distinct entries?)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)

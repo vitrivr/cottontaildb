@@ -28,7 +28,6 @@ class ShortValueMetrics : RealValueMetrics<ShortValue>(Types.Short) {
     object Binding: MetricsXodusBinding<ShortValueMetrics> {
         override fun read(stream: ByteArrayInputStream): ShortValueMetrics {
             val stat = ShortValueMetrics()
-            stat.fresh = BooleanBinding.BINDING.readObject(stream)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
             stat.min = ShortValue(ShortBinding.BINDING.readObject(stream))
@@ -37,7 +36,6 @@ class ShortValueMetrics : RealValueMetrics<ShortValue>(Types.Short) {
         }
 
         override fun write(output: LightOutputStream, statistics: ShortValueMetrics) {
-            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
             ShortBinding.BINDING.writeObject(output, statistics.min.value)

@@ -38,7 +38,6 @@ class DoubleVectorValueMetrics(logicalSize: Int) : RealVectorValueMetrics<Double
     class Binding(val logicalSize: Int): MetricsXodusBinding<DoubleVectorValueMetrics> {
         override fun read(stream: ByteArrayInputStream): DoubleVectorValueMetrics {
             val stat = DoubleVectorValueMetrics(this.logicalSize)
-            stat.fresh = BooleanBinding.BINDING.readObject(stream)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
             for (i in 0 until this.logicalSize) {
@@ -50,7 +49,6 @@ class DoubleVectorValueMetrics(logicalSize: Int) : RealVectorValueMetrics<Double
         }
 
         override fun write(output: LightOutputStream, statistics: DoubleVectorValueMetrics) {
-            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
             for (i in 0 until statistics.type.logicalSize) {

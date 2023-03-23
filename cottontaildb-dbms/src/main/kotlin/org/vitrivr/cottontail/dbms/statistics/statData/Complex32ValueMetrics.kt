@@ -21,14 +21,12 @@ class Complex32ValueMetrics(): AbstractValueMetrics<Complex32Value>(Types.Comple
     object Binding: MetricsXodusBinding<Complex32ValueMetrics> {
         override fun read(stream: ByteArrayInputStream): Complex32ValueMetrics {
             val stat = Complex32ValueMetrics()
-            stat.fresh = BooleanBinding.BINDING.readObject(stream)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
             return stat
         }
 
         override fun write(output: LightOutputStream, statistics: Complex32ValueMetrics) {
-            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
         }

@@ -27,7 +27,6 @@ class LongValueMetrics : RealValueMetrics<LongValue>(Types.Long) {
     object Binding: MetricsXodusBinding<LongValueMetrics> {
         override fun read(stream: ByteArrayInputStream): LongValueMetrics {
             val stat = LongValueMetrics()
-            stat.fresh = BooleanBinding.BINDING.readObject(stream)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
             stat.min = LongValue(LongBinding.BINDING.readObject(stream))
@@ -37,7 +36,6 @@ class LongValueMetrics : RealValueMetrics<LongValue>(Types.Long) {
         }
 
         override fun write(output: LightOutputStream, statistics: LongValueMetrics) {
-            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
             LongBinding.BINDING.writeObject(output, statistics.min.value)
