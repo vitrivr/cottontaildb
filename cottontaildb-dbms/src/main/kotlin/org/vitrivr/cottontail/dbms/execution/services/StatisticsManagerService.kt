@@ -1,11 +1,10 @@
 package org.vitrivr.cottontail.dbms.execution.services
 
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
-import jetbrains.exodus.bindings.LongBinding
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
+import org.vitrivr.cottontail.core.values.BooleanValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.column.Column
@@ -14,13 +13,11 @@ import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.events.IndexEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.operators.sources.partitionFor
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
-import org.vitrivr.cottontail.dbms.statistics.columns.ColumnStatistic
 import org.vitrivr.cottontail.dbms.statistics.statCollector.BooleanDataCollector
 import org.vitrivr.cottontail.dbms.statistics.statCollector.DataCollector
 import org.vitrivr.cottontail.dbms.statistics.values.*
@@ -116,8 +113,9 @@ class StatisticsManagerService(private val catalogue: Catalogue, private val man
                         val record = cursor.value()
                         // iterate over columns
                         for (i in columns.indices) {
+                            val collector = columnsCollector[i]
                             val value = record[i]
-                            columnsCollector[i].receive(value)
+                            collector.receive(value) // send value to corresponding collector
                         }
                     }
                 }

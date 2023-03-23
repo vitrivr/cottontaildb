@@ -48,11 +48,11 @@ class BooleanValueMetrics: AbstractValueMetrics<BooleanValue>(Types.Boolean) {
 
     /** Number of true entries for in this [BooleanValueMetrics]. */
     var numberOfTrueEntries: Long = 0L
-        private set
+        //private set
 
     /** Number of false entries for in this [BooleanValueMetrics]. */
     var numberOfFalseEntries: Long = 0L
-        private set
+        //private set
 
     /**
      * Resets this [BooleanValueMetrics] and sets all its values to the default value.

@@ -22,6 +22,9 @@ sealed class AbstractDataCollector<T : Value>(override val type: Types<T>) : Dat
     }
     // TODO create corresponding ValueMetrics Object for this Collector to which the metrics are written etc.
 
+    /** The corresponding [dataMetrics] which stores all metrics for [Types] */
+    abstract override val dataMetrics: DataMetrics<T>
+
     /**
      * Receives the values for which to compute the statistics
      */

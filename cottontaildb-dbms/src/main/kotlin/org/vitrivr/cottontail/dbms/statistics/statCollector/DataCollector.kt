@@ -20,6 +20,8 @@ sealed interface DataCollector <T : Value> {
     /** The [Types] of [DataCollector]. */
     val type: Types<T>
 
+    val dataMetrics: DataMetrics<T>
+
 
     /**
      * Receives the values for which to compute the statistics

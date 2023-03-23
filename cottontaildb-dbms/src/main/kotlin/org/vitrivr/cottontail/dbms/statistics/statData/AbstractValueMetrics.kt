@@ -27,11 +27,11 @@ sealed class AbstractValueMetrics<T : Value>(override val type: Types<T>) : Data
 
     /** Number of null entries known to this [AbstractValueMetrics]. */
     override var numberOfNullEntries: Long = 0L
-        protected set
+        //protected set
 
     /** Number of non-null entries known to this [AbstractValueMetrics]. */
     override var numberOfNonNullEntries: Long = 0L
-        protected set
+        //protected set
 
     /** Total number of entries known to this [AbstractValueMetrics]. */
     override val numberOfEntries
@@ -39,7 +39,7 @@ sealed class AbstractValueMetrics<T : Value>(override val type: Types<T>) : Data
 
     /** Total number of distinct entries known to this [AbstractValueMetrics]. */
     override var numberOfDistinctEntries: Long = 0L
-        protected set
+        //protected set
 
     /** Smallest [Value] seen in terms of space requirement (logical size) known to this [AbstractValueMetrics]. */
     override val minWidth: Int
@@ -68,7 +68,7 @@ sealed class AbstractValueMetrics<T : Value>(override val type: Types<T>) : Data
      * @return Descriptive map of this [AbstractValueMetrics]
      */
     override fun about(): Map<String, String> = mapOf(
-        FRESH_KEY to this.fresh.toString(),
+        //FRESH_KEY to this.fresh.toString(),
         NULL_ENTRIES_KEY to this.numberOfNullEntries.toString(),
         ENTRIES_KEY to (this.numberOfNullEntries + this.numberOfNonNullEntries).toString()
     )
