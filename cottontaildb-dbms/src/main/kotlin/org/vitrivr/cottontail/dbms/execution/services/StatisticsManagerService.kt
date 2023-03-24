@@ -4,7 +4,6 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
-import org.vitrivr.cottontail.core.values.BooleanValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.column.Column
@@ -18,8 +17,7 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
-import org.vitrivr.cottontail.dbms.statistics.statCollector.BooleanDataCollector
-import org.vitrivr.cottontail.dbms.statistics.statCollector.DataCollector
+import org.vitrivr.cottontail.dbms.statistics.metricsCollector.*
 import org.vitrivr.cottontail.dbms.statistics.values.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
@@ -99,11 +97,13 @@ class StatisticsManagerService(private val catalogue: Catalogue, private val man
                 val entityTx = entity.newTx(context)
 
                 val columns = entityTx.listColumns().toTypedArray()
-                val columnsCollector: Array<DataCollector<*>> = emptyArray()
+                //val columnsCollector: Array<MetricsCollector<*>>(columns.size)
+                val columnsCollector: MutableList<MetricsCollector<*>> = mutableListOf()
 
                 // get the collectors for all columns
                 for (i in columns.indices) {
-                    columnsCollector[i] = getCollector(columns[i])
+                    val columnDef = columns[i]
+                    columnsCollector.add(getCollector(columnDef))
                 }
 
                 // create cursor for all columns of this entity and iterate over all of them
@@ -140,30 +140,30 @@ class StatisticsManagerService(private val catalogue: Catalogue, private val man
     }
 
     /**
-     * Function that, based on the [ColumnDef]'s [Types] returns the corresponding [DataCollector]
+     * Function that, based on the [ColumnDef]'s [Types] returns the corresponding [MetricsCollector]
      */
-    fun getCollector(def: ColumnDef<*>) : DataCollector<*> {
+    fun getCollector(def: ColumnDef<*>) : MetricsCollector<*> {
         val collector = when (def.type) {
-            Types.Boolean -> BooleanDataCollector()
-            else -> BooleanDataCollector()
-            /*Types.Byte -> BooleanDataCollector()
-            Types.Short -> BooleanDataCollector()
-            Types.Date -> BooleanDataCollector()
-            Types.Double -> BooleanDataCollector()
-            Types.Float -> BooleanDataCollector()
-            Types.Int -> BooleanDataCollector()
-            Types.Long -> BooleanDataCollector()
-            Types.String -> BooleanDataCollector()
-            Types.ByteString -> BooleanDataCollector()
-            Types.Complex32 -> BooleanDataCollector()
-            Types.Complex64 -> BooleanDataCollector()
-            is Types.BooleanVector -> BooleanDataCollector(def.type.logicalSize)
-            is Types.DoubleVector -> BooleanDataCollector(def.type.logicalSize)
-            is Types.FloatVector -> BooleanDataCollector(def.type.logicalSize)
-            is Types.IntVector -> BooleanDataCollector(def.type.logicalSize)
-            is Types.LongVector -> BooleanDataCollector(def.type.logicalSize)
-            is Types.Complex32Vector -> BooleanDataCollector(def.type.logicalSize)
-            is Types.Complex64Vector -> BooleanDataCollector(def.type.logicalSize)*/
+            Types.Boolean -> BooleanMetricsCollector()
+            Types.Byte -> ByteMetricsCollector()
+            Types.Short -> ShortMetricsCollector()
+            Types.Date -> DateMetricsCollector()
+            Types.Double -> DoubleMetricsCollector()
+            Types.Float -> FloatMetricsCollector()
+            Types.Int -> IntMetricsCollector()
+            Types.Long -> LongMetricsColelctor()
+            Types.String -> StringMetricsCollector()
+            Types.ByteString -> ByteStringMetricsCollector()
+            Types.Complex32 -> Complex32MetricsCollector()
+            Types.Complex64 -> Complex64MetricsCollector()
+            is Types.BooleanVector -> BooleanVectorMetricsCollector(def.type.logicalSize)
+            is Types.DoubleVector -> DoubleVectorMetricsCollector(def.type.logicalSize)
+            is Types.FloatVector -> FloatVectorMetricsCollector(def.type.logicalSize)
+            is Types.IntVector -> IntVectorMetricsCollector(def.type.logicalSize)
+            is Types.LongVector -> LongVectorMetricsCollector(def.type.logicalSize)
+            is Types.Complex32Vector -> Complex32VectorMetricsCollector(def.type.logicalSize)
+            is Types.Complex64Vector -> Complex64VectorMetricsCollector(def.type.logicalSize)
+            /*else -> BooleanMetricsCollector()*/
         }
         return collector
     }
@@ -198,7 +198,7 @@ class StatisticsManagerService(private val catalogue: Catalogue, private val man
             this.schedule(entity) // schedule task for this column
             this.changes[entity] = Pair(0, Instant.now()) // Reset count to 0.
         } else {
-            LOGGER.info("Change does not trigger a new task")
+            LOGGER.info("Change does not trigger a new task for entity " + entity.schemaName + "." + entity.entityName)
             this.changes[entity] = Pair(count + 1, Instant.now()) // increase count by 1 if no task was scheduled
         }
     }

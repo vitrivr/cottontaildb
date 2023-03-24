@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.storage.serializers.statistics
 
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.statistics.statData.*
+import org.vitrivr.cottontail.dbms.statistics.metricsData.*
 import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
 
 /**
@@ -19,7 +19,7 @@ object MetricsSerializerFactory {
      * @return [MetricsXodusBinding]
      */
     @Suppress("UNCHECKED_CAST")
-    fun <T : Value> xodus(type: Types<T>): MetricsXodusBinding<DataMetrics<T>> = when(type) {
+    fun <T : Value> xodus(type: Types<T>): MetricsXodusBinding<ValueMetrics<T>> = when(type) {
         Types.Boolean -> BooleanValueMetrics.Binding
         Types.Date -> DateValueMetrics.Binding
         Types.Byte -> ByteValueMetrics.Binding
@@ -39,5 +39,5 @@ object MetricsSerializerFactory {
         is Types.FloatVector -> FloatVectorValueMetrics.Binding(type.logicalSize)
         is Types.IntVector -> IntVectorValueMetrics.Binding(type.logicalSize)
         is Types.LongVector -> LongVectorValueMetrics.Binding(type.logicalSize)
-    } as MetricsXodusBinding<DataMetrics<T>>
+    } as MetricsXodusBinding<ValueMetrics<T>>
 }
