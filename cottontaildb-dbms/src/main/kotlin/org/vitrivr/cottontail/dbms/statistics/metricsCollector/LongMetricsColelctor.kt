@@ -1,9 +1,12 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
+import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.metricsData.LongValueMetrics
+import java.lang.Long.max
+import java.lang.Long.min
 
 /**
  * A [MetricsCollector] implementation for [LongValue]s.
@@ -20,14 +23,13 @@ class LongMetricsColelctor : RealMetricsCollector<LongValue>(Types.Long) {
      * Receives the values for which to compute the statistics
      */
     override fun receive(value: Value?) {
-        TODO("Receive to storage not yet implemented")
-    }
-
-    /**
-     * Tells the collector to calculate the metrics which it does not do iteratively (e.g., mean etc.). Usually called after all elements were received
-     */
-    override fun calculate() {
-        TODO("Write to storage not yet implemented")
+        super.receive(value)
+        if (value != null && value is LongValue) {
+            // set new min, max, and sum
+            valueMetrics.min = LongValue(min(value.value, valueMetrics.min.value))
+            valueMetrics.max = LongValue(max(value.value, valueMetrics.max.value))
+            valueMetrics.sum += DoubleValue(value.value)
+        }
     }
 
 }

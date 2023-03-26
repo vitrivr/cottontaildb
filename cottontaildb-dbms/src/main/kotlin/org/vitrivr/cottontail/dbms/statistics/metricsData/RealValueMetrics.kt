@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.core.values.types.Types
  * @author Ralph Gasser
  * @version 1.1.0
  */
-sealed class RealValueMetrics<T: RealValue<*>>(type: Types<T>): AbstractValueMetrics<T>(type) {
+sealed class RealValueMetrics<T: RealValue<*>>(type: Types<T>): AbstractScalarMetrics<T>(type) {
     companion object {
         const val MIN_KEY = "min"
         const val MAX_KEY = "max"

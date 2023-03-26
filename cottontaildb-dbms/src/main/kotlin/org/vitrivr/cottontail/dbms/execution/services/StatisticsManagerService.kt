@@ -22,6 +22,7 @@ import org.vitrivr.cottontail.dbms.statistics.values.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import java.time.Instant
+import java.util.Random
 
 /**
  * A [TransactionObserver] that keeps track of different Columns and triggers an analysis for the columns that have reached a specific threshold.
@@ -109,17 +110,22 @@ class StatisticsManagerService(private val catalogue: Catalogue, private val man
                 // create cursor for all columns of this entity and iterate over all of them
                 val entityCursor = entityTx.cursor(columns)
                 entityCursor.use { cursor ->
+                    // Define random properties for skipping some rows of the entity -> only take a sample of the database
+                    val probability = 1 // TODO move to class or laod from config or smth like that // TODO also, stuff like numberOfDistinctEntries should be multiplied so that it reflect the true state, e.g. probability = 0.5 => numberOfDistinctEntries * 2!
+                    val random = Random()
                     while (cursor.moveNext()) {
-                        val record = cursor.value()
-                        // iterate over columns
-                        for (i in columns.indices) {
-                            val collector = columnsCollector[i]
-                            val value = record[i]
-                            collector.receive(value) // send value to corresponding collector
+                        if (random.nextDouble() <= probability) {
+                            val record = cursor.value()
+                            // iterate over columns
+                            for (i in columns.indices) {
+                                val collector = columnsCollector[i]
+                                val value = record[i]
+                                collector.receive(value) // send value to corresponding collector
+                            }
                         }
                     }
                 }
-                entityCursor.close()
+                // entityCursor.close() // don't have to close it, since .use does that for us!
 
                 // Calculate metrics that have to be calculated after the whole batch
                 for (i in columnsCollector.indices) {
@@ -178,7 +184,7 @@ class StatisticsManagerService(private val catalogue: Catalogue, private val man
      * threshold is the number of updates that must occur before the task is run
      * TODO Define a default and get via Config file or similar
      */
-    private val changesThreshold: Int = 1000
+    private val changesThreshold: Int = 0
 
     /**
      * threshold is the seconds that must pass before the task is run

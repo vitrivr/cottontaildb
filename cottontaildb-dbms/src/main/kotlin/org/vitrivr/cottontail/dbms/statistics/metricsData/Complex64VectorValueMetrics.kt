@@ -13,7 +13,7 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class Complex64VectorValueMetrics(logicalSize: Int): AbstractValueMetrics<Complex64VectorValue>(Types.Complex64Vector(logicalSize)) {
+class Complex64VectorValueMetrics(logicalSize: Int): AbstractVectorMetrics<Complex64VectorValue>(Types.Complex64Vector(logicalSize)) {
     /**
      * Xodus serializer for [Complex64VectorValueMetrics]
      */

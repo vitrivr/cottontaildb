@@ -13,7 +13,7 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class DateValueMetrics : AbstractValueMetrics<DateValue>(Types.Date) {
+class DateValueMetrics : AbstractScalarMetrics<DateValue>(Types.Date) {
 
     /**
      * Xodus serializer for [DateValueMetrics]
@@ -38,11 +38,9 @@ class DateValueMetrics : AbstractValueMetrics<DateValue>(Types.Date) {
 
     /** Minimum value seen by this [DateValueMetrics]. */
     var min: DateValue = DateValue(Long.MAX_VALUE)
-        private set
 
     /** Minimum value seen by this [DateValueMetrics]. */
     var max: DateValue = DateValue(Long.MIN_VALUE)
-            private set
 
     /**
      * Resets this [DateValueMetrics] and sets all its values to to the default value.

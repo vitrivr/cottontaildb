@@ -9,6 +9,6 @@ import org.vitrivr.cottontail.core.values.types.Types
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.1.0
  */
-sealed class RealMetricsCollector<T: RealValue<*>>(type: Types<T>): AbstractMetricsCollector<T>(type) {
+sealed class RealMetricsCollector<T: RealValue<*>>(type: Types<T>): AbstractScalarMetricsCollector<T>(type) {
 
 }

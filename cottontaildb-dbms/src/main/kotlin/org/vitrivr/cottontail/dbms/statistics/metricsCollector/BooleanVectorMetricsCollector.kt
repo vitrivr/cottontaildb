@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.BooleanVectorValueMetr
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-class BooleanVectorMetricsCollector(logicalSize: Int) : AbstractMetricsCollector<BooleanVectorValue>(Types.BooleanVector(logicalSize)) {
+class BooleanVectorMetricsCollector(logicalSize: Int) : AbstractVectorMetricsCollector<BooleanVectorValue, Boolean>(Types.BooleanVector(logicalSize)) {
 
     /** The corresponding [valueMetrics] which stores all metrics for [Types] */
     override val valueMetrics: BooleanVectorValueMetrics = BooleanVectorValueMetrics(logicalSize)
@@ -19,14 +19,21 @@ class BooleanVectorMetricsCollector(logicalSize: Int) : AbstractMetricsCollector
      * Receives the values for which to compute the statistics
      */
     override fun receive(value: Value?) {
-        TODO("Receive to storage not yet implemented")
+        if (value != null && value is BooleanVectorValue) {
+            valueMetrics.numberOfNonNullEntries += 1
+            for ((i, d) in value.data.withIndex()) {
+                if (d) {
+                    valueMetrics.numberOfTrueEntries[i] = valueMetrics.numberOfTrueEntries[i] + 1
+                } // numberOfFalseEntries is computed using numberOfNonNullEntries and numberOfTrueEntries
+
+                distinctSets[i].add(d) // store in corresponding numberOfDistinctEntries
+            }
+        } else {
+            valueMetrics.numberOfNullEntries += 1
+        }
     }
 
-    /**
-     * Tells the collector to calculate the metrics which it does not do iteratively (e.g., mean etc.). Usually called after all elements were received
-     */
-    override fun calculate() {
-        TODO("Write to storage not yet implemented")
-    }
+
+
 
 }

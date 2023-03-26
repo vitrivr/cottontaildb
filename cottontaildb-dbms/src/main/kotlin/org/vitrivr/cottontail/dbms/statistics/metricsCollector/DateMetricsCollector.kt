@@ -4,6 +4,8 @@ import org.vitrivr.cottontail.core.values.DateValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.metricsData.DateValueMetrics
+import java.lang.Long.max
+import java.lang.Long.min
 
 /**
  * A [MetricsCollector] implementation for [DateValue]s.
@@ -11,7 +13,7 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.DateValueMetrics
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-class DateMetricsCollector : AbstractMetricsCollector<DateValue>(Types.Date) {
+class DateMetricsCollector : AbstractScalarMetricsCollector<DateValue>(Types.Date) {
 
     /** The corresponding [valueMetrics] which stores all metrics for [Types] */
     override val valueMetrics: DateValueMetrics = DateValueMetrics()
@@ -20,13 +22,11 @@ class DateMetricsCollector : AbstractMetricsCollector<DateValue>(Types.Date) {
      * Receives the values for which to compute the statistics
      */
     override fun receive(value: Value?) {
-        TODO("Receive to storage not yet implemented")
-    }
-
-    /**
-     * Tells the collector to calculate the metrics which it does not do iteratively (e.g., mean etc.). Usually called after all elements were received
-     */
-    override fun calculate() {
-        TODO("Write to storage not yet implemented")
+        super.receive(value)
+        if (value != null && value is DateValue) {
+            // set new min, max, and sum
+            valueMetrics.min = DateValue(min(value.value, valueMetrics.min.value))
+            valueMetrics.max = DateValue(max(value.value, valueMetrics.max.value))
+        }
     }
 }

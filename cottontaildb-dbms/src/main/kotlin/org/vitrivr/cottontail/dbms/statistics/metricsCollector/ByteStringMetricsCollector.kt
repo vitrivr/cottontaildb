@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.metricsData.ByteStringValueMetrics
 
-class ByteStringMetricsCollector : AbstractMetricsCollector<ByteStringValue>(Types.ByteString) {
+class ByteStringMetricsCollector : AbstractScalarMetricsCollector<ByteStringValue>(Types.ByteString) {
 
     /** The corresponding [valueMetrics] which stores all metrics for [Types] */
     override val valueMetrics: ByteStringValueMetrics = ByteStringValueMetrics()
@@ -14,14 +14,12 @@ class ByteStringMetricsCollector : AbstractMetricsCollector<ByteStringValue>(Typ
      * Receives the values for which to compute the statistics
      */
     override fun receive(value: Value?) {
-        TODO("Receive to storage not yet implemented")
+        super.receive(value)
+        if (value != null && value is ByteStringValue) {
+            valueMetrics.minWidth = Integer.min(value.logicalSize, valueMetrics.minWidth)
+            valueMetrics.maxWidth = Integer.max(value.logicalSize, valueMetrics.maxWidth)
+        }
     }
 
-    /**
-     * Tells the collector to calculate the metrics which it does not do iteratively (e.g., mean etc.). Usually called after all elements were received
-     */
-    override fun calculate() {
-        TODO("Write to storage not yet implemented")
-    }
 
 }

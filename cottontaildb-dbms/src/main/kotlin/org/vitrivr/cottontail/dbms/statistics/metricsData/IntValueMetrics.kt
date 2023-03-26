@@ -43,15 +43,12 @@ class IntValueMetrics : RealValueMetrics<IntValue>(Types.Int) {
 
     /** Minimum value seen by this [IntValueMetrics]. */
     override var min: IntValue = IntValue.MAX_VALUE
-        private set
 
     /** Minimum value seen by this [IntValueMetrics]. */
     override var max: IntValue = IntValue.MIN_VALUE
-        private set
 
     /** Sum of all [IntValue]s seen by this [IntValueMetrics]. */
     override var sum: DoubleValue = DoubleValue.ZERO
-        private set
 
     /**
      * Resets this [IntValueMetrics] and sets all its values to the default value.

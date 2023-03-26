@@ -43,15 +43,12 @@ class FloatValueMetrics : RealValueMetrics<FloatValue>(Types.Float) {
 
     /** Minimum value seen by this [FloatValueMetrics]. */
     override var min: FloatValue = FloatValue.MAX_VALUE
-        private set
 
     /** Minimum value seen by this [FloatValueMetrics]. */
     override var max: FloatValue = FloatValue.MIN_VALUE
-        private set
 
     /** Sum of all [DoubleValue]s seen by this [FloatValueMetrics]. */
     override var sum: DoubleValue = DoubleValue.ZERO
-        private set
 
     /**
      * Resets this [FloatValueMetrics] and sets all its values to to the default value.

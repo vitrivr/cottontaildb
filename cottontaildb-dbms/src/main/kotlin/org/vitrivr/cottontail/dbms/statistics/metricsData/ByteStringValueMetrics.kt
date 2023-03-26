@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
 import java.io.ByteArrayInputStream
 
-class ByteStringValueMetrics : AbstractValueMetrics<ByteStringValue>(Types.ByteString) {
+class ByteStringValueMetrics : AbstractScalarMetrics<ByteStringValue>(Types.ByteString) {
 
     object Binding: MetricsXodusBinding<ByteStringValueMetrics> {
         override fun read(stream: ByteArrayInputStream): ByteStringValueMetrics {
@@ -32,11 +32,9 @@ class ByteStringValueMetrics : AbstractValueMetrics<ByteStringValue>(Types.ByteS
 
     /** Shortest [StringValue] seen by this [ByteStringValueMetrics] */
     override var minWidth: Int = Int.MAX_VALUE
-        private set
 
     /** Longest [StringValue] seen by this [ByteStringValueMetrics]. */
     override var maxWidth: Int = Int.MIN_VALUE
-        private set
 
     override fun reset() {
         super.reset()

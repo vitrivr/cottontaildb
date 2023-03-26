@@ -4,6 +4,8 @@ import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.metricsData.StringValueMetrics
+import java.lang.Integer.max
+import java.lang.Integer.min
 
 /**
  * A specialized [MetricsCollector] implementation for [StringValue]s.
@@ -11,7 +13,7 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.StringValueMetrics
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.2.0
  */
-class StringMetricsCollector : AbstractMetricsCollector<StringValue>(Types.String) {
+class StringMetricsCollector : AbstractScalarMetricsCollector<StringValue>(Types.String) {
 
     /** The corresponding [valueMetrics] which stores all metrics for [Types] */
     override val valueMetrics: StringValueMetrics = StringValueMetrics()
@@ -20,14 +22,11 @@ class StringMetricsCollector : AbstractMetricsCollector<StringValue>(Types.Strin
      * Receives the values for which to compute the statistics
      */
     override fun receive(value: Value?) {
-        TODO("Receive to storage not yet implemented")
-    }
-
-    /**
-     * Tells the collector to calculate the metrics which it does not do iteratively (e.g., mean etc.). Usually called after all elements were received
-     */
-    override fun calculate() {
-        TODO("Write to storage not yet implemented")
+        super.receive(value)
+        if (value != null && value is StringValue) {
+            valueMetrics.minWidth = min(value.logicalSize, valueMetrics.minWidth)
+            valueMetrics.maxWidth = max(value.logicalSize, valueMetrics.maxWidth)
+        }
     }
 
 }

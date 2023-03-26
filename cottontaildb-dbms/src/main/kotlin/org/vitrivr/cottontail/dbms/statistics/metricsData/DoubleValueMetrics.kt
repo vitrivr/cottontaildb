@@ -41,15 +41,12 @@ class DoubleValueMetrics : RealValueMetrics<DoubleValue>(Types.Double) {
 
     /** Minimum value in this [DoubleValueMetrics]. */
     override var min: DoubleValue = DoubleValue.MAX_VALUE
-        private set
 
     /** Minimum value in this [DoubleValueMetrics]. */
     override var max: DoubleValue = DoubleValue.MAX_VALUE
-        private set
 
     /** Sum of all floats values in this [DoubleValueMetrics]. */
     override var sum: DoubleValue = DoubleValue.ZERO
-        private set
 
     /**
      * Resets this [DoubleValueMetrics] and sets all its values to to the default value.

@@ -14,7 +14,7 @@ import java.io.ByteArrayInputStream
  * @version 1.3.0
  */
 //data
-class BooleanValueMetrics: AbstractValueMetrics<BooleanValue>(Types.Boolean) {
+class BooleanValueMetrics: AbstractScalarMetrics<BooleanValue>(Types.Boolean) {
     companion object {
         const val TRUE_ENTRIES_KEY = "true"
         const val FALSE_ENTRIES_KEY = "false"
@@ -47,11 +47,9 @@ class BooleanValueMetrics: AbstractValueMetrics<BooleanValue>(Types.Boolean) {
 
     /** Number of true entries for in this [BooleanValueMetrics]. */
     var numberOfTrueEntries: Long = 0L
-        //private set
 
     /** Number of false entries for in this [BooleanValueMetrics]. */
     var numberOfFalseEntries: Long = 0L
-        //private set
 
     /**
      * Resets this [BooleanValueMetrics] and sets all its values to the default value.

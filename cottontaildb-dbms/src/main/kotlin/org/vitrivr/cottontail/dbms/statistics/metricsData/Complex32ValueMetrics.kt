@@ -13,7 +13,7 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class Complex32ValueMetrics(): AbstractValueMetrics<Complex32Value>(Types.Complex32) {
+class Complex32ValueMetrics(): AbstractScalarMetrics<Complex32Value>(Types.Complex32) {
     /**
      * Xodus serializer for [Complex32ValueMetrics]
      */

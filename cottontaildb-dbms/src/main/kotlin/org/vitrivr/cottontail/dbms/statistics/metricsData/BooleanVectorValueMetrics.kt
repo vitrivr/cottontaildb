@@ -13,7 +13,7 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class BooleanVectorValueMetrics(logicalSize: Int) : AbstractValueMetrics<BooleanVectorValue>(Types.BooleanVector(logicalSize)) {
+class BooleanVectorValueMetrics(logicalSize: Int) : AbstractVectorMetrics<BooleanVectorValue>(Types.BooleanVector(logicalSize)) {
 
     /**
      * Xodus serializer for [BooleanVectorValueMetrics]

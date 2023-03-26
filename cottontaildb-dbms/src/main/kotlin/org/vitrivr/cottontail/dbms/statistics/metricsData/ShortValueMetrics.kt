@@ -41,15 +41,12 @@ class ShortValueMetrics : RealValueMetrics<ShortValue>(Types.Short) {
 
     /** Minimum value seen by this [ShortValueMetrics]. */
     override var min: ShortValue = ShortValue.MAX_VALUE
-        private set
 
     /** Minimum value seen by this [ShortValueMetrics]. */
     override var max: ShortValue = ShortValue.MIN_VALUE
-        private set
 
     /** Sum of all [IntValue]s seen by this [ShortValueMetrics]. */
     override var sum: DoubleValue = DoubleValue.ZERO
-        private set
 
     /**
      * Resets this [ShortValueMetrics] and sets all its values to to the default value.

@@ -8,8 +8,8 @@ import org.vitrivr.cottontail.core.values.types.VectorValue
  * A [MetricsCollector] for [VectorValue]s
  *
  * @author Ralph Gasser, Florian Burkhardt
- * @version 1.2.0
+ * @version 1.0.0
  */
-sealed class RealVectorMetricsCollector<T: RealVectorValue<*>>(type: Types<T>): AbstractMetricsCollector<T>(type) {
+sealed class RealVectorMetricsCollector<T: RealVectorValue<*>, R>(type: Types<T>): AbstractVectorMetricsCollector<T, R>(type) {
 
 }

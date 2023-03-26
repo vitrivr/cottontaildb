@@ -42,15 +42,12 @@ class LongValueMetrics : RealValueMetrics<LongValue>(Types.Long) {
 
     /** Minimum value seen by this [LongValueMetrics]. */
     override var min: LongValue = LongValue.MAX_VALUE
-        private set
 
     /** Minimum value seen by this [LongValueMetrics]. */
     override var max: LongValue = LongValue.MIN_VALUE
-        private set
 
     /** Sum of all [LongValue]s seen by this [LongValueMetrics]. */
     override var sum: DoubleValue = DoubleValue.ZERO
-        private set
 
     /**
      * Resets this [LongValueMetrics] and sets all its values to to the default value.

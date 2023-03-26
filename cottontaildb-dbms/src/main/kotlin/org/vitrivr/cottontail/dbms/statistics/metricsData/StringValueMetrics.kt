@@ -14,7 +14,7 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class StringValueMetrics : AbstractValueMetrics<StringValue>(Types.String) {
+class StringValueMetrics : AbstractScalarMetrics<StringValue>(Types.String) {
 
     /**
      * Xodus serializer for [StringValueMetrics]
@@ -39,11 +39,9 @@ class StringValueMetrics : AbstractValueMetrics<StringValue>(Types.String) {
 
     /** Shortest [StringValue] seen by this [StringValueMetrics] */
     override var minWidth: Int = Int.MAX_VALUE
-        private set
 
     /** Longest [StringValue] seen by this [StringValueMetrics]. */
     override var maxWidth: Int = Int.MIN_VALUE
-        private set
 
     /**
      * Resets this [StringValueMetrics] and sets all its values to to the default value.

@@ -40,15 +40,12 @@ class ByteValueMetrics : RealValueMetrics<ByteValue>(Types.Byte) {
 
     /** Minimum value seen by this [ByteValueMetrics]. */
     override var min: ByteValue = ByteValue.MAX_VALUE
-        private set
 
     /** Minimum value seen by this [ByteValueMetrics]. */
     override var max: ByteValue = ByteValue.MIN_VALUE
-        private set
 
     /** Sum of all [ByteValue]s seen by this [ByteValueMetrics]. */
     override var sum: DoubleValue = DoubleValue.ZERO
-        private set
 
     /**
      * Resets this [ByteValueMetrics] and sets all its values to to the default value.

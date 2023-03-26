@@ -14,7 +14,7 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class Complex64ValueMetrics(): AbstractValueMetrics<Complex64Value>(Types.Complex64) {
+class Complex64ValueMetrics(): AbstractScalarMetrics<Complex64Value>(Types.Complex64) {
     /**
      * Xodus serializer for [Complex64ValueMetrics]
      */

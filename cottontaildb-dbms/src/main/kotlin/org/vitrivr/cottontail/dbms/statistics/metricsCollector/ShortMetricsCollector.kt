@@ -1,9 +1,12 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
+import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.ShortValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.metricsData.ShortValueMetrics
+import com.google.common.primitives.Shorts.max
+import com.google.common.primitives.Shorts.min
 
 /**
  * A [MetricsCollector] implementation for [ShortValue]s.
@@ -20,13 +23,13 @@ class ShortMetricsCollector : RealMetricsCollector<ShortValue>(Types.Short) {
      * Receives the values for which to compute the statistics
      */
     override fun receive(value: Value?) {
-        TODO("Receive to storage not yet implemented")
+        super.receive(value)
+        if (value != null && value is ShortValue) {
+            // set new min, max, and sum
+            valueMetrics.min = ShortValue(min(value.value, valueMetrics.min.value))
+            valueMetrics.max = ShortValue(max(value.value, valueMetrics.max.value))
+            valueMetrics.sum += DoubleValue(value.value)
+        }
     }
 
-    /**
-     * Tells the collector to calculate the metrics which it does not do iteratively (e.g., mean etc.). Usually called after all elements were received
-     */
-    override fun calculate() {
-        TODO("Write to storage not yet implemented")
-    }
 }
