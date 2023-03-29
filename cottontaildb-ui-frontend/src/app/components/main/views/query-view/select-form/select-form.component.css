@@ -1,0 +1,24 @@
+.form-field-container{
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  background-color: white;
+  border-radius: 4px;
+}
+mat-checkbox{
+  padding-left: 10px
+}
+.select-form{
+  color: dimgrey;
+}
+.form-container{
+  background-color: white;
+  border-left: solid 1px grey;
+  border-right: solid 1px grey;
+  border-bottom: solid 1px grey;
+  border-radius: 4px;
+}
+mat-card {
+  margin: 0;
+  padding: 0;
+}

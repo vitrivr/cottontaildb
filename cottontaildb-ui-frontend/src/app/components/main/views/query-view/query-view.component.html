@@ -1,0 +1,115 @@
+<div class="view-container">
+
+  <!--Header containing information on entity selection and buttons to add functions to the query builder-->
+  <div class="selection-header">
+    <ng-container *ngIf="this.selection['entity'] && this.selection.connection">
+      <h2>{{"FROM: " + selection['entity'].split(".").slice(-1)}}</h2>
+    </ng-container>
+    <ng-container *ngIf="!this.selection.entity && !this.selection.port">
+      <h1>Please select an entity in the sidebar</h1>
+    </ng-container>
+
+    <div class="function-buttons">
+
+      <button mat-raised-button color="custom-blue" [matMenuTriggerFor]="projectionMenu">Projection</button>
+      <mat-menu #projectionMenu="matMenu">
+        <button mat-menu-item (click)="this.pushControl('select')">SELECT</button>
+        <!--<button mat-menu-item (click)="addDistinct()">DISTINCT</button>-->
+        <button mat-menu-item (click)="this.pushControl('count')">COUNT</button>
+        <!--<button mat-menu-item (click)="addExists()">EXISTS</button>-->
+      </mat-menu>
+
+      <button mat-raised-button color="custom-blue" [matMenuTriggerFor]="clauseMenu">Clause</button>
+      <mat-menu #clauseMenu="matMenu">
+        <button mat-menu-item (click)="this.pushControl('order')">ORDER</button>
+        <button mat-menu-item (click)="this.pushControl('where')">WHERE</button>
+        <button mat-menu-item (click)="this.pushControl('limit')">LIMIT</button>
+        <!--<button mat-menu-item (click)="addFrom()">FROM</button>-->
+        <!--<button mat-menu-item (click)="addSkip()">SKIP</button>-->
+      </mat-menu>
+
+      <button mat-raised-button color="custom-blue" [matMenuTriggerFor]="functionMenu">Function</button>
+      <mat-menu #functionMenu="matMenu">
+        <button mat-menu-item (click)="this.pushControl('distance')">DISTANCE</button>
+        <!--<button mat-menu-item (click)="addFulltext()">FULLTEXT</button>-->
+      </mat-menu>
+
+      <button mat-raised-button color="custom-blue" [matMenuTriggerFor]="hintMenu">Hint</button>
+      <mat-menu #hintMenu="matMenu">
+        <!--<button mat-menu-item (click)="addUseIndex()">USE INDEX</button>-->
+        <!--<button mat-menu-item (click)="addUseIndexType()">USE INDEX TYPE</button>-->
+        <!--<button mat-menu-item (click)="addDisallowParallelism()">DISALLOW PARALLELISM</button>-->
+        <!--<button mat-menu-item (click)="addLimitParallelism()">LIMIT PARALLELISM</button>-->
+      </mat-menu>
+
+      <button mat-raised-button color="custom-blue" [matMenuTriggerFor]="presetMenu">
+        <mat-icon style=>double_arrow</mat-icon>
+        Presets
+      </button>
+      <mat-menu #presetMenu="matMenu">
+        <button mat-menu-item (click)="addNNS()">Nearest Neighbour Search</button>
+        <!--<button mat-menu-item (click)="addFNS()">Farthest Neighbour Search</button>-->
+      </mat-menu>
+
+    </div>
+  </div>
+
+  <mat-divider></mat-divider>
+
+  <ng-container [formGroup]="queryForm">
+      <div formArrayName="queryFunctions" class="query-builder">
+        <!--Drop list to enable reordering of functions via drag and drop.-->
+        <div class="drop-list" cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="drop($event)">
+          <!--Renders all the query function components based on the queryFunctions FormArray using a switch clause.-->
+          <ng-container *ngFor="let item of queryFunctions.controls; index as i"
+                        [ngSwitch]="item.value.function">
+            <div cdkDrag cdkDragLockAxis="x" cdkDragBoundary=".main">
+              <app-select-form *ngSwitchCase="'select'" [index]="i"></app-select-form>
+              <app-order-form *ngSwitchCase="'order'" [index]="i"></app-order-form>
+              <app-distance-form *ngSwitchCase="'distance'" [index]="i"></app-distance-form>
+              <app-limit-form *ngSwitchCase="'limit'" [index]="i"></app-limit-form>
+              <app-where-form *ngSwitchCase="'where'" [index]="i"></app-where-form>
+              <app-count-form *ngSwitchCase="'count'" [index]="i"></app-count-form>
+            </div>
+          </ng-container>
+      </div>
+    </div>
+  </ng-container>
+
+  <button [disabled]="queryFunctions.pristine || !queryFunctions.valid"
+          mat-raised-button color="custom-green"
+          (click)="onQuery()">EXECUTE QUERY</button>
+
+  <div *ngIf="querying">
+  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+  </div>
+
+  <div *ngIf="queryData" class="query-table">
+
+    <mat-table [dataSource]="queryData.rows">
+
+      <mat-header-row *matHeaderRowDef="queryData.columnNames"></mat-header-row>
+      <mat-row *matRowDef="let row; columns: queryData.columnNames"></mat-row>
+
+      <ng-container *ngFor="let col of queryData.columnNames; index as i">
+        <ng-container [matColumnDef]="col">
+          <mat-header-cell  *matHeaderCellDef > {{col.split(".").slice(-1)}} </mat-header-cell>
+          <mat-cell *matCellDef="let row"> {{trim(row[i])}}
+            <button mat-raised-button color="custom-green" *ngIf="row[i].length>30" (click)="expandEntry(row[i])"> Expand </button>
+          </mat-cell>
+        </ng-container>
+      </ng-container>
+    </mat-table>
+
+    <mat-paginator [length]="queryData.numberOfRows"
+                   [pageSize]="queryData.pageSize"
+                   [pageSizeOptions]="[5,10]"
+                   (page)="pageEvent = $event; onPageChange($event)">
+
+    </mat-paginator>
+  </div>
+
+</div>
+
+
+

@@ -1,0 +1,48 @@
+plugins {
+  id 'base'
+  id 'com.github.node-gradle.node' version '3.5.0'
+}
+
+configurations {
+  frontendFiles {
+    canBeConsumed = true
+    canBeResolved = false
+  }
+}
+
+node {
+  version = '18.1.0'
+  download = true
+  workDir = file("${project.projectDir}/.gradle/nodejs")
+  yarnWorkDir = file("${project.projectDir}/.gradle/yarn")
+  nodeProjectDir = file("${project.projectDir}")
+}
+
+task buildFrontend(type: YarnTask) {
+  outputs.upToDateWhen {
+    return file("$buildDir/dist").isDirectory()
+  }
+  args = ['run','pbuild']
+  dependsOn yarn_install
+}
+
+
+task packageFrontend(type: Zip) {
+  outputs.upToDateWhen {
+    return file("$buildDir/lib/cottontaildb-ui-frontend.jar").exists()
+  }
+  dependsOn buildFrontend
+  baseName 'cottontaildb-ui-frontend'
+  extension 'jar'
+  destinationDir file("$buildDir/lib")
+  from("$buildDir/dist") {
+    into 'html'
+  }
+}
+
+artifacts {
+  frontendFiles(packageFrontend.archiveFile) {
+    builtBy packageFrontend
+    type "jar"
+  }
+}

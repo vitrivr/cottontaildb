@@ -1,0 +1,35 @@
+
+
+<div class="container" >
+  <div *ngFor="let connection of connections">
+    <div class="connection-header">
+      <h2>
+        <span class="material-symbols-outlined">database</span>
+        {{connectionName(connection)}}
+      </h2>
+
+
+      <button mat-raised-button color="warn" (click)="onRemoveConnection(connection)">
+        <span class="material-symbols-outlined">link_off</span>
+      </button>
+
+
+    </div>
+    <app-tree class="tree" [connection]="connection"></app-tree>
+    <button mat-raised-button color="custom-green" style="width: 100%" (click)="onCreateSchema(connection)">
+      <span class="material-symbols-outlined">add</span>
+    </button>
+  </div>
+
+  <div class="add-connection">
+    <button mat-raised-button
+            color="custom-green"
+            (click)="onAddConnection()">
+      ADD CONNECTION
+    </button>
+    <ng-container *ngIf="connections.size == 0">
+      <mat-icon class="arrow" fontIcon="arrow_back"></mat-icon>
+    </ng-container>
+  </div>
+
+</div>

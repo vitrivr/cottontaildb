@@ -1,0 +1,9 @@
+.content {
+  display: flex;
+  height: 100%;
+}
+.overview {
+  background-color: white;
+  flex: 1 1 auto;
+}
+

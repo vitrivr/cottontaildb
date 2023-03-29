@@ -1,0 +1,27 @@
+.form-container{
+  display: flex;
+  flex-direction: row;
+  padding: 10px;
+  background-color: white;
+  border-left: solid 1px grey;
+  border-right: solid 1px grey;
+  border-bottom: solid 1px grey;
+  border-radius: 4px;
+  flex-wrap: wrap;
+}
+.form-container > mat-form-field{
+  margin-top: 15px;
+  margin-right: 20px;
+}
+.form-container > button{
+  height: fit-content;
+  align-self: center;
+  margin-left: auto;
+}
+.query-form-header{
+  padding: 10px;
+  font-size: 1rem;
+}
+.dml-function-container{
+  display: flex;
+}
