@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.core.values.generators
 
-import org.apache.commons.math3.random.RandomGenerator
 import org.vitrivr.cottontail.core.values.IntVectorValue
 import org.vitrivr.cottontail.core.values.LongVectorValue
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import java.util.*
+import java.util.random.RandomGenerator
 
 /**
  * A [VectorValueGenerator] for [LongVectorValue]s.

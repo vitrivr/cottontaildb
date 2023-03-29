@@ -1,11 +1,11 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.predicates
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
-import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
+import org.vitrivr.cottontail.core.queries.Digest
+import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.dbms.queries.operators.logical.BinaryLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.logical.NAryLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.BinaryLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.predicates.FilterOnSubSelectPhysicalOperatorNode
 
 /**
@@ -15,9 +15,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.predicates.FilterO
  * the execution of one or many sub-queries.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.3.0
  */
-class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, vararg inputs: Logical) : NAryLogicalOperatorNode(*inputs) {
+class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, left: Logical, right: Logical) : BinaryLogicalOperatorNode(left, right) {
 
     companion object {
         private const val NODE_NAME = "Filter"
@@ -27,39 +27,39 @@ class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, vara
     override val name: String
         get() = NODE_NAME
 
-    /** The [inputArity] of a [FilterOnSubSelectLogicalOperatorNode] depends on the [BooleanPredicate]. */
-    override val inputArity: Int = this.inputs.size
-
     /** The [FilterOnSubSelectLogicalOperatorNode] requires all [ColumnDef]s used in the [BooleanPredicate]. */
     override val requires: List<ColumnDef<*>> = this.predicate.columns.toList()
 
-    /** The [FilterOnSubSelectLogicalOperatorNode] inherits its traits from its left most input. */
-    override val traits: Map<TraitType<*>, Trait>
-        get() = super.inputs[0].traits
+    /** The [FilterOnSubSelectLogicalOperatorNode] depends on all but the right input. */
+    override val dependsOn: Array<GroupId> by lazy {
+        arrayOf(this.right.groupId)
+    }
 
     /**
-     * Creates and returns a copy of this [FilterOnSubSelectLogicalOperatorNode] without any children or parents.
+     * Creates a copy of this [FilterOnSubSelectLogicalOperatorNode].
      *
-     * @return Copy of this [FilterOnSubSelectLogicalOperatorNode].
+     * @param input The new input [OperatorNode.Logical]
+     * @return Copy of this [FilterOnSubSelectLogicalOperatorNode]
      */
-    override fun copy() = FilterOnSubSelectLogicalOperatorNode(predicate = this.predicate)
+    override fun copyWithNewInput(vararg input: Logical): FilterOnSubSelectLogicalOperatorNode {
+        require(input.size == 2) { "The input arity for FilterOnSubSelectLogicalOperatorNode.copyWithNewInpu() must be 2 but is ${input.size}. This is a programmer's error!"}
+        return FilterOnSubSelectLogicalOperatorNode(left = input[0], right = input[1], predicate = this.predicate)
+    }
 
     /**
      * Returns a [FilterOnSubSelectPhysicalOperatorNode] representation of this [FilterOnSubSelectLogicalOperatorNode]
      *
      * @return [FilterOnSubSelectPhysicalOperatorNode]
      */
-    override fun implement() = FilterOnSubSelectPhysicalOperatorNode(this.predicate, *this.inputs.map { it.implement() }.toTypedArray())
+    override fun implement() = FilterOnSubSelectPhysicalOperatorNode(left = this.left.implement(), right = this.right.implement(), predicate = this.predicate)
 
     /** Generates and returns a [String] representation of this [FilterOnSubSelectLogicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.predicate}]"
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is FilterOnSubSelectLogicalOperatorNode) return false
-        if (this.predicate != other.predicate) return false
-        return true
-    }
-
-    override fun hashCode(): Int = this.predicate.hashCode()
+    /**
+     * Generates and returns a [Digest] for this [FilterOnSubSelectLogicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest = this.predicate.hashCode() + 2L
 }

@@ -19,7 +19,7 @@ import java.util.*
  * the [BindingContext] should be created and used.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
 class DefaultBindingContext: BindingContext {
 
@@ -32,30 +32,14 @@ class DefaultBindingContext: BindingContext {
     /** Map of bound [Value]s used to resolve [Binding.Subquery] in this [BindingContext]. */
     private val boundSubqueries = Int2ObjectOpenHashMap<MutableList<Value>>()
 
-    /** The currently bound [Record]. */
-    private var boundRecord: Record? = null
-
     /**
      * Returns the [Value] for the given [Binding.Literal].
      *
      * @param binding The [Binding.Literal] to lookup.
      * @return The bound [Value].
      */
-    override operator fun get(binding: Binding.Literal): Value? {
-        require(binding.context == this) { "The given binding $binding has not been registered with this binding context." }
-        return this.boundLiterals[binding.bindingIndex]
-    }
-
-    /**
-     * Returns the [Value] for the given [Binding.Column].
-     *
-     * @param binding The [Binding] to lookup.
-     * @return The bound [Value].
-     */
-    override operator fun get(binding: Binding.Column): Value? {
-        require(binding.context == this) { "The given binding $binding has not been registered with this binding context." }
-        return this.boundRecord?.get(binding.column)
-    }
+    override operator fun get(binding: Binding.Literal): Value?
+        = this.boundLiterals[binding.bindingIndex]
 
     /**
      * Returns the [Value] for the given [Binding.Function].
@@ -63,11 +47,11 @@ class DefaultBindingContext: BindingContext {
      * @param binding The [Binding] to lookup.
      * @return The bound [Value].
      */
+    context(Record)
     override operator fun get(binding: Binding.Function): Value? {
-        require(binding.context == this) { "The given binding $binding has not been registered with this binding context." }
         val arguments = this.boundFunctions[binding.bindingIndex]
         for ((i,a) in binding.arguments.withIndex()) {
-            arguments[i] = a.value
+            arguments[i] = a.getValue()
         }
         return binding.function(*arguments)
     }
@@ -92,7 +76,7 @@ class DefaultBindingContext: BindingContext {
     override fun bind(value: Value, static: Boolean): Binding.Literal {
         val bindingIndex = this.boundLiterals.size
         check(this.boundLiterals.add(value)) { "Failed to add $value to list of bound values for index $bindingIndex." }
-        return Binding.Literal(bindingIndex, static, false, value.type, this)
+        return Binding.Literal(bindingIndex, static, false, value.type)
     }
 
     /**
@@ -104,7 +88,7 @@ class DefaultBindingContext: BindingContext {
     override fun bindNull(type: Types<*>, static: Boolean): Binding.Literal {
         val bindingIndex = this.boundLiterals.size
         check(this.boundLiterals.add(null)) { "Failed to add null to list of bound values for index $bindingIndex." }
-        return Binding.Literal(bindingIndex, static, true, type, this)
+        return Binding.Literal(bindingIndex, static, true, type)
     }
 
     /**
@@ -113,7 +97,7 @@ class DefaultBindingContext: BindingContext {
      * @param column The [ColumnDef] to bind.
      * @return [Binding.Column]
      */
-    override fun bind(column: ColumnDef<*>) = Binding.Column(column, this)
+    override fun bind(column: ColumnDef<*>) = Binding.Column(column)
 
 
     /**
@@ -124,10 +108,9 @@ class DefaultBindingContext: BindingContext {
      * @return [Binding.Function]
      */
     override fun bind(function: Function<*>, arguments: List<Binding>): Binding.Function {
-        check(arguments.all { it.context == this }) { "Failed to create function binding. Cannot combine function call with arguments from different cntext."}
         val bindingIndex = this.boundFunctions.size
         check(this.boundFunctions.add(arrayOfNulls(arguments.size))) { "Failed to add $function to list of bound functions for index $bindingIndex." }
-        return Binding.Function(bindingIndex, function, arguments, this)
+        return Binding.Function(bindingIndex, function, arguments)
     }
 
     /**
@@ -138,7 +121,7 @@ class DefaultBindingContext: BindingContext {
      * @return [Binding.Subquery]
      */
     override fun bind(dependsOn: GroupId, column: ColumnDef<*>): Binding.Subquery {
-        val binding = Binding.Subquery(dependsOn, column, this)
+        val binding = Binding.Subquery(dependsOn, column)
         this.boundSubqueries[binding.dependsOn] = LinkedList()
         return binding
     }
@@ -151,18 +134,8 @@ class DefaultBindingContext: BindingContext {
      * @return A value [Binding]
      */
     override fun update(binding: Binding.Literal, value: Value?) {
-        require(binding.context == this) { "The given binding $binding has not been registered with this binding context." }
         require(value == null || binding.type == value.type) { "Value $value cannot be bound to $binding because of type mismatch (${binding.type})."}
         this.boundLiterals[binding.bindingIndex] = value
-    }
-
-    /**
-     * Updates the this [DefaultBindingContext] with a new [Record].
-     *
-     * @param record The new [Record] to bind.
-     */
-    override fun update(record: Record) {
-        this.boundRecord = record
     }
 
     /**
@@ -196,7 +169,6 @@ class DefaultBindingContext: BindingContext {
         this.boundLiterals.forEach { copy.boundLiterals.add(it) }
         this.boundFunctions.forEach { copy.boundFunctions.add(it.copyOf()) }
         this.boundSubqueries.forEach { (k, v) -> copy.boundSubqueries[k] = LinkedList(v) }
-        copy.boundRecord = this.boundRecord
         return copy
     }
 }

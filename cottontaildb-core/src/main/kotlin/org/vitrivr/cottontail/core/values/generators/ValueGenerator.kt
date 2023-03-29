@@ -1,20 +1,20 @@
 package org.vitrivr.cottontail.core.values.generators
 
-import org.apache.commons.math3.random.JDKRandomGenerator
-import org.apache.commons.math3.random.RandomGenerator
 import org.vitrivr.cottontail.core.values.types.Value
+import java.util.*
+import java.util.random.RandomGenerator
 
 /**
  * A class that can be used to generate a certain type of [ValueGenerator].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 interface ValueGenerator<T: Value> {
     companion object {
-        /** Internal [JDKRandomGenerator] instance used for generation of random [Value]s. */
+        /** Internal [RandomGenerator] instance used for generation of random [Value]s. */
         @JvmStatic
-        val RANDOM = JDKRandomGenerator()
+        val RANDOM: RandomGenerator = SplittableRandom()
     }
 
     /**
@@ -23,5 +23,5 @@ interface ValueGenerator<T: Value> {
      * @param rnd The [RandomGenerator] to use.
      * @return [T]
      */
-    fun random(rnd: RandomGenerator = JDKRandomGenerator()): T
+    fun random(rnd: RandomGenerator = RANDOM): T
 }

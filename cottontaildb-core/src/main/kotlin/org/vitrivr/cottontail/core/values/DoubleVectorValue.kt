@@ -15,6 +15,9 @@ import kotlin.math.pow
 value class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> {
     constructor(input: List<Number>) : this(DoubleArray(input.size) { input[it].toDouble() })
     constructor(input: Array<Number>) : this(DoubleArray(input.size) { input[it].toDouble() })
+    constructor(input: FloatArray) : this(DoubleArray(input.size) { input[it].toDouble() })
+    constructor(input: LongArray) : this(DoubleArray(input.size) { input[it].toDouble() })
+    constructor(input: IntArray) : this(DoubleArray(input.size) { input[it].toDouble() })
 
     /** The logical size of this [DoubleVectorValue]. */
     override val logicalSize: Int

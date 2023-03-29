@@ -8,7 +8,6 @@ import org.apache.lucene.store.IndexOutput
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
-import org.vitrivr.cottontail.utilities.math.random.nextLong
 
 /**
  * A series of unit tests for the [XodusDirectory].

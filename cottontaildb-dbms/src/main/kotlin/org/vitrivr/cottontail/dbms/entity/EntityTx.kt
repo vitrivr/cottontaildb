@@ -9,10 +9,10 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.general.Tx
-import org.vitrivr.cottontail.dbms.index.Index
-import org.vitrivr.cottontail.dbms.index.IndexConfig
-import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.index.basic.Index
+import org.vitrivr.cottontail.dbms.index.basic.IndexConfig
+import org.vitrivr.cottontail.dbms.index.basic.IndexTx
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
 
 /**
  * A [Tx] that operates on a single [Entity]. [Tx]s are a unit of isolation for data operations (read/write).
@@ -106,9 +106,4 @@ interface EntityTx : Tx, Scanable, Countable, Modifiable {
      * @param name [Name.IndexName] of the [Index] to drop.
      */
     fun dropIndex(name: Name.IndexName)
-
-    /**
-     * Optimizes the [Entity] underlying this [EntityTx]. Optimization involves rebuilding of [Index]es and statistics.
-     */
-    fun optimize()
 }

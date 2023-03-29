@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.cli.schema
 
 import com.github.ajalt.clikt.parameters.options.*
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractSchemaCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.data.Format
@@ -23,7 +23,7 @@ import kotlin.time.measureTime
  * @version 2.0.0
  */
 @ExperimentalTime
-class DumpSchemaCommand(client: SimpleClient) : AbstractCottontailCommand.Schema(
+class DumpSchemaCommand(client: SimpleClient) : AbstractSchemaCommand(
     client,
     name = "dump",
     help = "Dumps the content of all entities within a schema into individual files on disk."

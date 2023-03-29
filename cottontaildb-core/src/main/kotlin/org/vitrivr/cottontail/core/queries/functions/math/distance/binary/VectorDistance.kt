@@ -22,19 +22,23 @@ sealed class VectorDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>): Fun
     abstract val name: Name.FunctionName
 
     /** The dimensionality of this [VectorDistance]. */
-    val d: Int
+    val vectorSize: Int
         get() = this.type.logicalSize
 
     /** Signature of a [VectorDistance] is defined by the argument type it accepts. */
     override val signature: Signature.Closed<DoubleValue>
         get() = Signature.Closed(name, arrayOf(this.type, this.type), Types.Double)
 
+
+    /** */
+    open fun invokeOrMaximum(left: VectorValue<*>, right: VectorValue<*>, maximum: DoubleValue): DoubleValue? = this.invoke(left, right)
+
     /**
      * Creates a copy of this [VectorDistance].
      *
      * @return Copy of this [VectorDistance]
      */
-    override fun copy(): VectorDistance<T> = copy(this.d)
+    override fun copy(): VectorDistance<T> = copy(this.vectorSize)
 
     /**
      * Creates a reshaped copy of this [VectorDistance].
@@ -42,4 +46,17 @@ sealed class VectorDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>): Fun
      * @return Copy of this [VectorDistance]
      */
     abstract fun copy(d: Int): VectorDistance<T>
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is VectorDistance<*>) return false
+        if (other.name != this.name) return false
+        if (other.type != this.type) return false
+        return true
+    }
+
+
+    override fun hashCode(): Int {
+        val result = this.name.hashCode()
+        return 31 * result + this.type.hashCode()
+    }
 }

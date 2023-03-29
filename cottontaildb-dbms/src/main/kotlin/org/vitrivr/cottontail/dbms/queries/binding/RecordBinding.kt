@@ -5,6 +5,7 @@ import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.values.types.Value
 
 /**
@@ -13,12 +14,12 @@ import org.vitrivr.cottontail.core.values.types.Value
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class RecordBinding(override var tupleId: TupleId, override val columns: Array<ColumnDef<*>>, private val values: Array<Binding.Literal>) : Record {
+class RecordBinding(override var tupleId: TupleId, override val columns: Array<ColumnDef<*>>, private val values: Array<Binding.Literal>, private val context: BindingContext) : Record {
 
     /**
      * Creates a copy of this [RecordBinding]
      */
-    override fun copy(): Record = RecordBinding(this.tupleId, this.columns.copyOf(), this.values.copyOf())
+    override fun copy(): Record = RecordBinding(this.tupleId, this.columns.copyOf(), this.values.copyOf(), this.context)
 
     /**
      * Returns true, if this [RecordBinding] contains the specified [ColumnDef] and false otherwise.
@@ -41,7 +42,9 @@ class RecordBinding(override var tupleId: TupleId, override val columns: Array<C
      *
      * @return Unmodifiable [Map] of the data in this [RecordBinding].
      */
-    override fun toMap(): Map<ColumnDef<*>, Value> = Object2ObjectArrayMap(this.columns, this.values.map { it.value }.toTypedArray())
+    override fun toMap(): Map<ColumnDef<*>, Value> = with(this.context) {
+        Object2ObjectArrayMap(this@RecordBinding.columns, this@RecordBinding.values.map { it.getValue() }.toTypedArray())
+    }
 
     /**
      * Retrieves the value for the specified [ColumnDef] from this [RecordBinding].
@@ -57,9 +60,9 @@ class RecordBinding(override var tupleId: TupleId, override val columns: Array<C
      * @param index The index for which to retrieve the value.
      * @return The value for the column index.
      */
-    override fun get(index: Int): Value? {
-        require(index in (0 until this.size)) { "The specified column $index is out of bounds." }
-        return this.values[index].value
+    override fun get(index: Int): Value? = with(this.context) {
+        require(index in (0 until this@RecordBinding.size)) { "The specified column $index is out of bounds." }
+        return this@RecordBinding.values[index].getValue()
     }
 
     /**
@@ -76,8 +79,8 @@ class RecordBinding(override var tupleId: TupleId, override val columns: Array<C
      * @param index The column index for which to set the value.
      * @param value The new [Value]
      */
-    override fun set(index: Int, value: Value?) {
-        require(index in (0 until this.size)) { "The specified column $index is out of bounds." }
-        return this.values[index].update(value)
+    override fun set(index: Int, value: Value?) = with(this.context){
+        require(index in (0 until this@RecordBinding.size)) { "The specified column $index is out of bounds." }
+        this@RecordBinding.values[index].update(value)
     }
 }

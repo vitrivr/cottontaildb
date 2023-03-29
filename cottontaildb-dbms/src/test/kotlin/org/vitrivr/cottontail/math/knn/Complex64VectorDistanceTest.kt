@@ -42,6 +42,7 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
 
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
+        var time3 = Duration.ZERO
 
         val kernel = ManhattanDistance.Complex64Vector(query.type as Types.Complex64Vector)
         collection.forEach {
@@ -51,8 +52,10 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
             time2 += measureTime {
                 sum2 += (query - it).abs().sum().value
             }
-            val dataitem = arrayFieldVectorFromVectorValue(it)
-            sum3 += absFromFromComplexFieldVector(queryp.subtract(dataitem)).l1Norm
+            time3 += measureTime {
+                val dataitem = arrayFieldVectorFromVectorValue(it)
+                sum3 += absFromFromComplexFieldVector(queryp.subtract(dataitem)).l1Norm
+            }
         }
 
         println("Calculating L1 distance for collection (s=$TestConstants.collectionSize, d=$dimension) took ${time1 / TestConstants.TEST_COLLECTION_SIZE} (optimized) resp. ${time2 / TestConstants.TEST_COLLECTION_SIZE}  per vector on average.")
@@ -60,6 +63,10 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
         if (time1 > time2) {
             LOGGER.warn("Optimized version of L1 is slower than default version!")
         }
+        println("Optimized: $time1")
+        println("Standard: $time2")
+        println("Test method: $time3")
+
         isApproximatelyTheSame(sum3, sum1)
         isApproximatelyTheSame(sum3, sum2)
     }

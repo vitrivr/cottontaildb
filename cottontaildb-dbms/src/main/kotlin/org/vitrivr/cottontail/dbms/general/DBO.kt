@@ -2,18 +2,17 @@ package org.vitrivr.cottontail.dbms.general
 
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import java.io.Closeable
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
- * A database object [DBO] in Cottontail DB (e.g. a schema, entity etc.). [DBO]s are identified by
+ * A database object [DBO] in Cottontail DB (e.g., a schema, entity etc.). [DBO]s are identified by
  * a [Name] and usually part of a [DBO] hierarchy. Furthermore, they can be used to create [Tx]
  * objects that act on the [DBO].
  *
- * @version 1.2.0
+ * @version 3.0.0
  * @author Ralph Gasser
  */
-interface DBO : Closeable {
+interface DBO {
     /** The [Name] of this [DBO]. */
     val name: Name
 
@@ -23,16 +22,13 @@ interface DBO : Closeable {
     /** The parent DBO (if such exists). */
     val parent: DBO?
 
-    /** True if this [DBO] was closed, false otherwise. */
-    val closed: Boolean
-
     /** The [DBOVersion] of this [DBO]. */
     val version: DBOVersion
 
     /**
-     * Creates a new [Tx] for the given [TransactionContext].
+     * Creates a new [Tx] for the given [QueryContext].
      *
-     * @param context [TransactionContext] to create [Tx] for.
+     * @param context [QueryContext] to create [Tx] for.
      */
-    fun newTx(context: TransactionContext): Tx
+    fun newTx(context: QueryContext): Tx
 }

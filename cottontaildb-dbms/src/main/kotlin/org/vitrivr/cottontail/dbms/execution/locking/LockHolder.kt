@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.dbms.execution.locking
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import org.vitrivr.cottontail.core.database.TransactionId
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager.TransactionImpl
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 
 /**
  * Represents a holder of one or multiple [Lock]s.
@@ -10,10 +10,10 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager.Tra
  * Inspired by: https://github.com/dstibrany/LockManager
  *
  * @author Ralph Gasser
- * @version 1.1.1
+ * @version 1.1.2
  */
 open class LockHolder<T>(val txId: TransactionId) : Comparable<LockHolder<*>> {
-    /** The [Lock]s held by this [TransactionImpl]. */
+    /** The [Lock]s held by this [Transaction]. */
     private val locks = ObjectOpenHashSet<Lock<T>>()
 
     /** Returns the number of [Lock]s held by this [LockHolder]. */

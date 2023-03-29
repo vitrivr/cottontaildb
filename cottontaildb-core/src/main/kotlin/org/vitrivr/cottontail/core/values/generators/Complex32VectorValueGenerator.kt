@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.core.values.generators
 
-import org.apache.commons.math3.random.RandomGenerator
 import org.vitrivr.cottontail.core.values.Complex32VectorValue
 import org.vitrivr.cottontail.core.values.types.VectorValue
+import java.util.random.RandomGenerator
 
 /**
  * A [VectorValueGenerator] for [Complex32VectorValue]s.

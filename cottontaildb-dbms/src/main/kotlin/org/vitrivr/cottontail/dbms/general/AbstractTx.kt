@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.general
 
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import java.util.concurrent.locks.ReentrantLock
 
 /**
@@ -9,7 +10,7 @@ import java.util.concurrent.locks.ReentrantLock
  * @author Ralph Gasser
  * @version 3.0.0
  */
-abstract class AbstractTx(final override val context: TransactionContext) : Tx {
+abstract class AbstractTx(final override val context: QueryContext) : Tx {
     /**
      * This is a [ReentrantLock] that makes sure that only one thread at a time can access this [AbstractTx] instance.
      *
@@ -18,27 +19,4 @@ abstract class AbstractTx(final override val context: TransactionContext) : Tx {
      * This requires synchronisation.
      */
     val txLatch: ReentrantLock = ReentrantLock()
-
-    /**
-     * Called when the global transaction is committed.
-     *
-     * This implementation only calls the [cleanup] method, which can be implemented by subclasses.
-     */
-    override fun beforeCommit() {
-        this.cleanup()
-    }
-
-    /**
-     * Called when the global transaction is rolled back.
-     *
-     * This implementation only calls the [cleanup] method, which can be implemented by subclasses.
-     */
-    override fun beforeRollback() {
-        this.cleanup()
-    }
-
-    /**
-     * Used to perform cleanup-operations necessary after a transaction concludes.
-     */
-    abstract fun cleanup()
 }

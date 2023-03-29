@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.core.queries.predicates
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.DoubleValue
@@ -14,7 +13,7 @@ import org.vitrivr.cottontail.core.values.types.Types
  * proximity based query (through a function invocation) and an equivalent index lookup
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 3.0.0
  */
 sealed interface ProximityPredicate: Predicate {
 
@@ -23,9 +22,6 @@ sealed interface ProximityPredicate: Predicate {
 
     /** The [VectorDistance] this [ProximityPredicate] evaluates. */
     val distance: VectorDistance<*>
-
-    /** The limiting predicate for this [ProximityPredicate]. */
-    val k: Long
 
     /** The [Binding] that represents the query vector. */
     val query: Binding
@@ -43,21 +39,37 @@ sealed interface ProximityPredicate: Predicate {
         get() = ColumnDef(Name.ColumnName(this.distance.name.simple), Types.Double, false, false)
 
     /**
+     * A [ProximityPredicate] that expresses a simple scan over distance values.
+     */
+    data class Scan(override val column: ColumnDef<*>, override val distance: VectorDistance<*>, override val query: Binding): ProximityPredicate {
+        override fun digest(): Long = 13L * this.hashCode()
+    }
+
+    /**
+     * A k-limited [ProximityPredicate]
+     */
+    sealed interface KLimitedSearch: ProximityPredicate {
+        val k: Long
+    }
+
+    /**
      * A [ProximityPredicate] that expresses a k nearest neighbour search.
      */
-    data class NNS(override val column: ColumnDef<*>, override val k: Long, override val distance: VectorDistance<*>, override val query: Binding): ProximityPredicate {
-        override fun copy() = NNS(this.column, this.k, this.distance.copy(), this.query.copy())
+    data class NNS(override val column: ColumnDef<*>, override val k: Long, override val distance: VectorDistance<*>, override val query: Binding): KLimitedSearch {
         override fun digest(): Long = 13L * this.hashCode()
-        override fun bind(context: BindingContext) = this.query.bind(context)
-
     }
 
     /**
      * A [ProximityPredicate] that expresses a k farthest neighbour search.
      */
-    data class FNS(override val column: ColumnDef<*>, override val k: Long, override val distance: VectorDistance<*>, override val query: Binding): ProximityPredicate {
-        override fun copy() = NNS(this.column, this.k, this.distance.copy(), this.query.copy())
+    data class FNS(override val column: ColumnDef<*>, override val k: Long, override val distance: VectorDistance<*>, override val query: Binding): KLimitedSearch {
         override fun digest(): Long = 7L * this.hashCode()
-        override fun bind(context: BindingContext) = this.query.bind(context)
+    }
+
+    /**
+     * A [ProximityPredicate] that expresses a range search (εNN).
+     */
+    data class ENN(override val column: ColumnDef<*>, val eMin: DoubleValue, val eMax: DoubleValue, override val distance: VectorDistance<*>, override val query: Binding): ProximityPredicate {
+        override fun digest(): Long = 7L * this.hashCode()
     }
 }

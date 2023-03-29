@@ -4,6 +4,8 @@ import io.grpc.ServerBuilder
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
+import org.vitrivr.cottontail.dbms.execution.services.AutoAnalyzerService
+import org.vitrivr.cottontail.dbms.execution.services.AutoRebuilderService
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.server.CottontailServer
 import org.vitrivr.cottontail.server.grpc.services.DDLService
@@ -28,13 +30,12 @@ class EmbeddedCottontailGrpcServer(config: Config) {
     private val executor = ExecutionManager(config)
 
     /** The [TransactionManager] used by this [CottontailServer] instance. */
-    private val transactionManager: TransactionManager =
-        org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager(this.executor, config.execution.transactionTableSize, config.execution.transactionHistorySize, this.catalogue)
+    private val transactionManager = TransactionManager(this.executor, config.execution.transactionTableSize, config.execution.transactionHistorySize, this.catalogue)
 
     /** The internal gRPC server; if building that server fails then the [DefaultCatalogue] is closed again! */
     private val grpc = ServerBuilder.forPort(config.server.port)
         .executor(this.executor.connectionWorkerPool)
-        .addService(DDLService(this.catalogue, this.transactionManager))
+        .addService(DDLService(this.catalogue, this.transactionManager, AutoRebuilderService(this.catalogue, this.transactionManager), AutoAnalyzerService(this.catalogue, this.transactionManager)))
         .addService(DMLService(this.catalogue, this.transactionManager))
         .addService(DQLService(this.catalogue, this.transactionManager))
         .addService(TXNService(this.catalogue, this.transactionManager))

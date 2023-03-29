@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.cli.schema
 
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractSchemaCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.utilities.TabulationUtilities
@@ -15,7 +15,7 @@ import kotlin.time.measureTimedValue
  * @version 2.0.0
  */
 @ExperimentalTime
-class ListEntitiesCommand(client: SimpleClient) : AbstractCottontailCommand.Schema(client, name = "list", help = "Lists all entities for a given schema. schema list <name>") {
+class ListEntitiesCommand(client: SimpleClient) : AbstractSchemaCommand(client, name = "list", help = "Lists all entities for a given schema. schema list <name>") {
     override fun exec() {
         /* Execute query. */
         val timedTable = measureTimedValue {

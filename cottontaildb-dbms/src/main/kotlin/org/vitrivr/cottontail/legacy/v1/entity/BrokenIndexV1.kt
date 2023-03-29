@@ -3,11 +3,14 @@ package org.vitrivr.cottontail.legacy.v1.entity
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.DBOVersion
-import org.vitrivr.cottontail.dbms.index.Index
-import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.index.basic.Index
+import org.vitrivr.cottontail.dbms.index.basic.IndexTx
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
+import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
+import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import java.io.Closeable
 import java.nio.file.Path
 
 /**
@@ -17,12 +20,14 @@ import java.nio.file.Path
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class BrokenIndexV1(override val name: Name.IndexName, override val parent: Entity, val path: Path, override val type: IndexType, ) : Index {
-    override val closed: Boolean = true
+class BrokenIndexV1(override val name: Name.IndexName, override val parent: Entity, val path: Path, override val type: IndexType) : Index, Closeable {
     override val catalogue: Catalogue = this.parent.catalogue
     override val version: DBOVersion = DBOVersion.UNDEFINED
     override val supportsIncrementalUpdate: Boolean = false
+    override val supportsAsyncRebuild: Boolean = false
     override val supportsPartitioning: Boolean = false
-    override fun newTx(context: TransactionContext): IndexTx = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+    override fun newTx(context: QueryContext): IndexTx = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+    override fun newRebuilder(context: QueryContext): AbstractIndexRebuilder<*> = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+    override fun newAsyncRebuilder(context: QueryContext): AsyncIndexRebuilder<*> = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
     override fun close() = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
 }

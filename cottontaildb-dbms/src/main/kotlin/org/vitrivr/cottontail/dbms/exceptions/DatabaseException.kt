@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.DBOVersion
-import org.vitrivr.cottontail.dbms.index.Index
+import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.schema.Schema
 
 open class DatabaseException(message: String, cause: Throwable? = null) : Throwable(message, cause) {
@@ -64,13 +64,6 @@ open class DatabaseException(message: String, cause: Throwable? = null) : Throwa
      * @param index The [Name] of the [Index]
      */
     class IndexDoesNotExistException(val index: Name) : DatabaseException("Index '$index' does not exist!")
-
-    /**
-     * Thrown whenever trying to create an [Index]that is not supported (yet). *
-     *
-     * @param index The [Name] of the [Index]
-     */
-    class IndexNotSupportedException(val index: Name.IndexName, reason: String) : DatabaseException("Index '$index' could not be created: $reason")
 
     /**
      * Thrown upon creation of an [Entity] if the definition contains no column.

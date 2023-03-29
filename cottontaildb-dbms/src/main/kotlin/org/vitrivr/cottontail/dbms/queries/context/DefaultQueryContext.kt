@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.queries.context
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.QueryHint
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
 import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
@@ -11,8 +10,9 @@ import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
 
 /**
@@ -87,9 +87,11 @@ class DefaultQueryContext(override val queryId: String, override val catalogue: 
      * process tries to generate a near-optimal [OperatorNode.Physical] from the registered [OperatorNode.Logical].
      *
      * @param planner The [CottontailQueryPlanner] instance to use for planning.
+     * @param bypassCache Flag indicating, whether the [CottontailQueryPlanner] should bypass the plan cache.
+     * @param cache Flag indicating, whether the resulting plan should be cached.
      */
-    override fun plan(planner: CottontailQueryPlanner) {
-        this.physical = planner.planAndSelect(this)
+    override fun plan(planner: CottontailQueryPlanner, bypassCache: Boolean, cache: Boolean) {
+        this.physical = planner.planAndSelect(this, bypassCache, cache)
     }
 
     /**
@@ -114,13 +116,11 @@ class DefaultQueryContext(override val queryId: String, override val catalogue: 
     override fun toOperatorTree(): Operator {
         val local = this.physical
         check(local != null) { IllegalStateException("Cannot generate an operator tree without a valid, physical node expression tree.") }
-        if (!this.hints.contains(QueryHint.NoParallel)) {
-            val availableWorkers = this.txn.availableIntraQueryWorkers
-            if (availableWorkers > 1) {
-                val partitioned = local.tryPartition(this.costPolicy, availableWorkers)
-                if (partitioned != null) {
-                    return partitioned.toOperator(this)
-                }
+        val maxParallelism = this.hints.filterIsInstance<QueryHint.Parallelism>().firstOrNull()?.max?.coerceAtMost(this.txn.availableIntraQueryWorkers) ?: this.txn.availableIntraQueryWorkers
+        if (maxParallelism > 1) {
+            val partitioned = local.tryPartition(this, maxParallelism)?.root
+            if (partitioned != null) {
+                return partitioned.toOperator(this)
             }
         }
         return local.toOperator(this)
@@ -153,7 +153,7 @@ class DefaultQueryContext(override val queryId: String, override val catalogue: 
         override fun nextGroupId(): GroupId = this@DefaultQueryContext.nextGroupId()
         override fun assign(plan: OperatorNode.Logical) = this@DefaultQueryContext.assign(plan)
         override fun assign(plan: OperatorNode.Physical) = this@DefaultQueryContext.assign(plan)
-        override fun plan(planner: CottontailQueryPlanner) = this@DefaultQueryContext.plan(planner)
+        override fun plan(planner: CottontailQueryPlanner, bypassCache: Boolean, cache: Boolean) = this@DefaultQueryContext.plan(planner, bypassCache, cache)
         override fun implement() = this@DefaultQueryContext.implement()
         override fun split(): QueryContext = this@DefaultQueryContext.split()
         override fun toOperatorTree(): Operator = this@DefaultQueryContext.toOperatorTree()

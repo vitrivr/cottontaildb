@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
@@ -9,13 +10,12 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.sources.EntitySampleOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.physical.NullaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
  * A [NullaryPhysicalOperatorNode] that formalizes the random sampling of a physical [Entity] in Cottontail DB.
@@ -51,7 +51,7 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
     override val executable: Boolean = true
 
     /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
-    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>,ValueStatistics<*>>()
+    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
 
     /** The estimated [Cost] incurred by this [EntitySamplePhysicalOperatorNode]. */
     override val cost: Cost
@@ -64,7 +64,7 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
         var fetchSize = 0
         for ((binding, physical) in this.fetch) {
             if (!this.statistics.containsKey(binding.column)) {
-                this.statistics[binding.column] = (this.entity.context.getTx(this.entity.columnForName(physical.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
+                this.statistics[binding.column] = this.entity.columnForName(physical.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
             }
             fetchSize += if (binding.type == Types.String) {
                 this.statistics[binding.column]!!.avgWidth * Char.SIZE_BYTES
@@ -87,34 +87,20 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): EntitySampleOperator {
-        /* Bind all column bindings to context. */
-        this.fetch.forEach { it.first.bind(ctx.bindings) }
-
-        /* Generate and return EntitySampleOperator. */
-        return EntitySampleOperator(this.groupId, this.entity, this.fetch, this.p, this.seed)
-    }
+    override fun toOperator(ctx: QueryContext): EntitySampleOperator = EntitySampleOperator(this.groupId, this.entity, this.fetch, this.p, this.seed, ctx)
 
     /** Generates and returns a [String] representation of this [EntitySamplePhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is EntitySamplePhysicalOperatorNode) return false
-
-        if (this.entity != other.entity) return false
-        if (this.columns != other.columns) return false
-        if (this.outputSize != other.outputSize) return false
-        if (this.seed != other.seed) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = this.entity.hashCode()
-        result = 31 * result + this.columns.hashCode()
-        result = 31 * result + this.outputSize.hashCode()
-        result = 31 * result + this.seed.hashCode()
+    /**
+     * Generates and returns a [Digest] for this [EntitySamplePhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest {
+        var result = this.entity.dbo.name.hashCode() + 2L
+        result += 31L * result + this.p.hashCode()
+        result += 31L * result + this.fetch.hashCode()
         return result
     }
 }

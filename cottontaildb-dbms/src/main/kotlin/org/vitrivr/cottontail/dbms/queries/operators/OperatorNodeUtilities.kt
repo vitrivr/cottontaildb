@@ -1,4 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators
+
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
+
 /**
  * A collection of utility functions that can be used when manipulating [OperatorNode] trees.
  *
@@ -20,7 +23,7 @@ object OperatorNodeUtilities {
         var next: OperatorNode.Logical? = chain
         while (next != null) {
             if (predicate(next)) {
-                ret = next.copy(ret)
+                ret = next.copyWithNewInput(ret)
             }
             next = next.output
         }
@@ -40,7 +43,7 @@ object OperatorNodeUtilities {
         var next: OperatorNode.Physical? = chain
         while (next != null) {
             if (predicate(next)) {
-                ret = next.copy(ret)
+                ret = next.copyWithNewInput(ret)
             }
             next = next.output
         }

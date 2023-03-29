@@ -2,7 +2,9 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
@@ -10,17 +12,16 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.sources.EntitySampleOperator
 import org.vitrivr.cottontail.dbms.execution.operators.sources.EntityScanOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.NullaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import java.lang.Math.floorDiv
 
 /**
@@ -53,7 +54,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
     override val executable: Boolean = true
 
     /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
-    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>,ValueStatistics<*>>()
+    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
 
     /** The estimated [Cost] incurred by scanning the [Entity]. */
     override val cost: Cost
@@ -70,7 +71,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
         var fetchSize = 0
         for ((binding, physical) in this.fetch) {
             if (!this.statistics.containsKey(binding.column)) {
-                this.statistics[binding.column] = (this.entity.context.getTx(this.entity.columnForName(physical.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
+                this.statistics[binding.column] = this.entity.columnForName(physical.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
             }
             fetchSize += if (binding.type == Types.String) {
                 this.statistics[binding.column]!!.avgWidth * Char.SIZE_BYTES
@@ -91,12 +92,16 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
     /**
      * [EntityScanPhysicalOperatorNode] can be partitioned simply by creating the desired number of partitions and merging the output using the [MergePhysicalOperatorNode]
      *
-     * @param policy The [CostPolicy] to use when determining the optimal number of partitions.
+     * @param ctx The [CostPolicy] to use when determining the optimal number of partitions.
      * @param max The maximum number of partitions to create.
      * @return [OperatorNode.Physical] operator at the based of the new query plan.
      */
-    override fun tryPartition(policy: CostPolicy, max: Int): Physical? {
-        val partitions = policy.parallelisation(this.parallelizableCost, this.totalCost, max)
+    override fun tryPartition(ctx: QueryContext, max: Int): Physical? {
+        val partitions = with(ctx.bindings) {
+            with(MissingRecord) {
+                ctx.costPolicy.parallelisation(this@EntityScanPhysicalOperatorNode.parallelizableCost, this@EntityScanPhysicalOperatorNode.totalCost, max)
+            }
+        }
         if (partitions <= 1) return null
         val inbound = (0 until partitions).map { this.partition(partitions, it) }
         val merge = MergePhysicalOperatorNode(*inbound.toTypedArray())
@@ -110,7 +115,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
      * @param p The partition index.
      * @return Partitioned [EntityScanPhysicalOperatorNode]
      */
-    override fun partition(partitions: Int, p: Int): Physical = EntityScanPhysicalOperatorNode(p, this.entity, this.fetch.map { it.first.copy() to it.second }, p, partitions)
+    override fun partition(partitions: Int, p: Int): Physical = EntityScanPhysicalOperatorNode(this.groupId + p, this.entity, this.fetch.map { it.first.copy() to it.second }, p, partitions)
 
     /**
      * Converts this [EntityScanPhysicalOperatorNode] to a [EntityScanOperator].
@@ -118,30 +123,21 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      * @return [EntityScanOperator]
      */
-    override fun toOperator(ctx: QueryContext): EntityScanOperator {
-        /** Bind all column bindings to context. */
-        this.fetch.forEach { it.first.bind(ctx.bindings) }
-
-        /** Generate and return EntityScanOperator. */
-        return EntityScanOperator(this.groupId, this.entity, this.fetch, this.partitionIndex, this.partitions)
-    }
+    override fun toOperator(ctx: QueryContext): EntityScanOperator = EntityScanOperator(this.groupId, this.entity, this.fetch, this.partitionIndex, this.partitions, ctx)
 
     /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is EntityScanPhysicalOperatorNode) return false
-
-        if (this.entity != other.entity) return false
-        if (this.columns != other.columns) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = entity.hashCode()
-        result = 31 * result + this.columns.hashCode()
+    /**
+     * Generates and returns a [Digest] for this [EntityScanPhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest {
+        var result = this.entity.dbo.name.hashCode() + 1L
+        result += 31L * result + this.fetch.hashCode()
+        result += 31L * result + this.partitionIndex.hashCode()
+        result += 31L * result + this.partitions.hashCode()
         return result
     }
 }

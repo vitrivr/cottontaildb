@@ -1,10 +1,11 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.sources
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.queries.operators.logical.NullaryLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntitySamplePhysicalOperatorNode
 
 /**
@@ -47,26 +48,18 @@ class EntitySampleLogicalOperatorNode(override val groupId: Int, val entity: Ent
      */
     override fun implement(): Physical = EntitySamplePhysicalOperatorNode(this.groupId, this.entity, this.fetch, this.p, this.seed)
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is EntitySampleLogicalOperatorNode) return false
-        if (!super.equals(other)) return false
-
-        if (this.entity != other.entity) return false
-        if (this.columns != other.columns) return false
-        if (this.seed != other.seed) return false
-
-        return true
-    }
-
-    /** Generates and returns a hash code for this [EntitySampleLogicalOperatorNode]. */
-    override fun hashCode(): Int {
-        var result = this.entity.hashCode()
-        result = 31 * result + this.columns.hashCode()
-        result = 31 * result + this.seed.hashCode()
-        return result
-    }
-
     /** Generates and returns a [String] representation of this [EntitySampleLogicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
+
+    /**
+     * Generates and returns a [Digest] for this [EntitySampleLogicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest {
+        var result = this.entity.dbo.name.hashCode() + 2L
+        result += 33L * result + this.p.hashCode()
+        result += 33L * result + this.fetch.hashCode()
+        return result
+    }
 }

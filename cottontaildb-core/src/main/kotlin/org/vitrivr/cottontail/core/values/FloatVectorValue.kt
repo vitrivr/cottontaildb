@@ -16,6 +16,9 @@ value class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
     constructor(input: List<Number>) : this(FloatArray(input.size) { input[it].toFloat() })
     constructor(input: Array<Number>) : this(FloatArray(input.size) { input[it].toFloat() })
     constructor(input: DoubleArray) : this(FloatArray(input.size) { input[it].toFloat() })
+    constructor(input: LongArray) : this(FloatArray(input.size) { input[it].toFloat() })
+    constructor(input: IntArray) : this(FloatArray(input.size) { input[it].toFloat() })
+
 
     /** The logical size of this [FloatVectorValue]. */
     override val logicalSize: Int

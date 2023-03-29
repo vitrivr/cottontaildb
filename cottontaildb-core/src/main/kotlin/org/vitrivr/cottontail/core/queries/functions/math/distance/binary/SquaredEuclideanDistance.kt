@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.core.queries.functions.math.distance.binary
 
+import jdk.incubator.vector.VectorOperators
+import jdk.incubator.vector.VectorSpecies
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.functions.Argument
+import org.vitrivr.cottontail.core.queries.functions.*
 import org.vitrivr.cottontail.core.queries.functions.Function
-import org.vitrivr.cottontail.core.queries.functions.FunctionGenerator
-import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.*
@@ -56,7 +56,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
 
     /** The [Cost] of applying this [SquaredEuclideanDistance]. */
     override val cost: Cost
-        get() = ((Cost.FLOP * 3.0f + Cost.MEMORY_ACCESS * 2.0f) * this.d) + Cost.MEMORY_ACCESS
+        get() = ((Cost.FLOP * 3.0f + Cost.MEMORY_ACCESS * 2.0f) * this.vectorSize) + Cost.MEMORY_ACCESS
 
     /** The [SquaredEuclideanDistance] is a [MinkowskiDistance] with p = 2. */
     override val p: Int
@@ -71,7 +71,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
             val probing = arguments[0] as Complex64VectorValue
             val query = arguments[1] as Complex64VectorValue
             var sum = 0.0
-            for (i in 0 until 2 * this.d) {
+            for (i in 0 until 2 * this.vectorSize) {
                 sum += (query.data[i] - probing.data[i]).pow(2)
             }
             return DoubleValue(sum)
@@ -88,7 +88,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
             val probing = arguments[0] as Complex32VectorValue
             val query = arguments[1] as Complex32VectorValue
             var sum = 0.0
-            for (i in 0 until 2 * this.d) {
+            for (i in 0 until 2 * this.vectorSize) {
                 sum += (query.data[i] - probing.data[i]).pow(2)
             }
             return DoubleValue(sum)
@@ -105,7 +105,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
             val probing = arguments[0] as DoubleVectorValue
             val query = arguments[1] as DoubleVectorValue
             var sum = 0.0
-            for (i in 0 until this.d) {
+            for (i in 0 until this.vectorSize) {
                 sum += (query.data[i] - probing.data[i]).pow(2)
             }
             return DoubleValue(sum)
@@ -116,18 +116,51 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
     /**
      * [SquaredEuclideanDistance] for a [FloatVectorValue].
      */
-    class FloatVector(type: Types.Vector<FloatVectorValue,*>): SquaredEuclideanDistance<FloatVectorValue>(type) {
+    class FloatVector(type: Types.Vector<FloatVectorValue,*>): SquaredEuclideanDistance<FloatVectorValue>(type), VectorisableFunction<DoubleValue> {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
             val probing = arguments[0] as FloatVectorValue
             val query = arguments[1] as FloatVectorValue
             var sum = 0.0
-            for (i in 0 until this.d) {
+            for (i in 0 until this.vectorSize) {
                 sum += (query.data[i] - probing.data[i]).pow(2)
             }
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
+
+        override fun vectorized() = FloatVectorVectorized(this.type)
+    }
+
+    /**
+     * SIMD implementation: [SquaredEuclideanDistance] for a [FloatVectorValue]
+     */
+    class FloatVectorVectorized(type: Types.Vector<FloatVectorValue,*>): EuclideanDistance<FloatVectorValue>(type), VectorisedFunction<DoubleValue> {
+        override val name: Name.FunctionName = FUNCTION_NAME
+        override fun invoke(vararg arguments: Value?): DoubleValue {
+            // Changing SPECIES to SPECIES.PREFERRED results in a HUGE performance decrease
+            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
+            val probing = arguments[0] as FloatVectorValue
+            val query = arguments[1] as FloatVectorValue
+            var vectorSum = jdk.incubator.vector.FloatVector.zero(species)
+
+            //Vectorized calculation
+            for (i in 0 until species.loopBound(this.vectorSize) step species.length()) {
+                val vp = jdk.incubator.vector.FloatVector.fromArray(species, probing.data, i)
+                val vq = jdk.incubator.vector.FloatVector.fromArray(species, query.data, i)
+                vectorSum = vectorSum.lanewise(VectorOperators.ADD, vp.lanewise(VectorOperators.SUB, vq).pow(2f))
+            }
+
+            var sum = vectorSum.reduceLanes(VectorOperators.ADD)
+
+            // Scalar calculation for the remaining lanes, since SPECIES.loopBound(this.d) <= this.d
+            for (i in species.loopBound(this.vectorSize) until this.vectorSize) {
+                sum += (query.data[i] - probing.data[i]).pow(2f)
+            }
+
+            return DoubleValue(sum)
+        }
+        override fun copy(d: Int) = FloatVectorVectorized(Types.FloatVector(d))
     }
 
     /**
@@ -139,7 +172,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
             val probing = arguments[0] as LongVectorValue
             val query = arguments[1] as LongVectorValue
             var sum = 0.0
-            for (i in 0 until this.d) {
+            for (i in 0 until this.vectorSize) {
                 sum += (query.data[i] - probing.data[i]).toDouble().pow(2)
             }
             return DoubleValue(sum)
@@ -156,7 +189,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
             val probing = arguments[0] as IntVectorValue
             val query = arguments[1] as IntVectorValue
             var sum = 0.0
-            for (i in 0 until this.d) {
+            for (i in 0 until this.vectorSize) {
                 sum += (query.data[i] - probing.data[i]).toDouble().pow(2)
             }
             return DoubleValue(sum)

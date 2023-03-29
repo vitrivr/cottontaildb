@@ -4,7 +4,7 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.core.database.Name
@@ -21,7 +21,7 @@ import kotlin.time.measureTime
  * @version 2.0.0
  */
 @ExperimentalTime
-class DumpEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "dump", help = "Dumps the content of an entire entity to disk.") {
+class DumpEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "dump", help = "Dumps the content of an entire entity to disk.") {
     companion object {
         /**
          * Dumps the content entity into a file. This method has been separated from the [AboutEntityCommand] instance for testability.
