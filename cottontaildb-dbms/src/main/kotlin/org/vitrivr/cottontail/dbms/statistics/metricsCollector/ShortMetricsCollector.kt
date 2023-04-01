@@ -7,6 +7,8 @@ import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.metricsData.ShortValueMetrics
 import com.google.common.primitives.Shorts.max
 import com.google.common.primitives.Shorts.min
+import org.vitrivr.cottontail.core.values.ByteValue
+import org.vitrivr.cottontail.dbms.statistics.metricsData.ByteValueMetrics
 
 /**
  * A [MetricsCollector] implementation for [ShortValue]s.
@@ -16,8 +18,10 @@ import com.google.common.primitives.Shorts.min
  */
 class ShortMetricsCollector : RealMetricsCollector<ShortValue>(Types.Short) {
 
-    /** The corresponding [valueMetrics] which stores all metrics for [Types] */
-    override val valueMetrics: ShortValueMetrics = ShortValueMetrics()
+    /** Local Metrics */
+    var min : Short = 0
+    var max : Short = 0
+    var sum : Double = 0.0
 
     /**
      * Receives the values for which to compute the statistics
@@ -26,10 +30,21 @@ class ShortMetricsCollector : RealMetricsCollector<ShortValue>(Types.Short) {
         super.receive(value)
         if (value != null && value is ShortValue) {
             // set new min, max, and sum
-            valueMetrics.min = ShortValue(min(value.value, valueMetrics.min.value))
-            valueMetrics.max = ShortValue(max(value.value, valueMetrics.max.value))
-            valueMetrics.sum += DoubleValue(value.value)
+            min = min(value.value, min)
+            max = max(value.value, max)
+            sum += value.value
         }
+    }
+
+    override fun calculate(): ShortValueMetrics {
+        return  ShortValueMetrics(
+            numberOfNullEntries,
+            numberOfNonNullEntries,
+            numberOfDistinctEntries,
+            ShortValue(min),
+            ShortValue(max),
+            DoubleValue(sum)
+        )
     }
 
 }

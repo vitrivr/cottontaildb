@@ -112,9 +112,9 @@ class StatisticsManagerService(private val catalogue: Catalogue, private val man
                 entityCursor.use { cursor ->
                     // Define random properties for skipping some rows of the entity -> only take a sample of the database
                     val probability = 1 // TODO move to class or laod from config or smth like that // TODO also, stuff like numberOfDistinctEntries should be multiplied so that it reflect the true state, e.g. probability = 0.5 => numberOfDistinctEntries * 2!
-                    val random = Random()
+                    val random = Random() // todo look into configurable random methods
                     while (cursor.moveNext()) {
-                        if (random.nextDouble() <= probability) {
+                        if (random.nextDouble() <= probability) { // todo look documentation, between 0 and 1?
                             val record = cursor.value()
                             // iterate over columns
                             for (i in columns.indices) {

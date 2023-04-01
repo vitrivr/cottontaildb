@@ -4,6 +4,7 @@ import org.vitrivr.cottontail.core.values.BooleanVectorValue
 import org.vitrivr.cottontail.core.values.Complex32VectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.metricsData.Complex32VectorValueMetrics
 
 /**
@@ -15,20 +16,10 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.Complex32VectorValueMe
 class Complex32VectorMetricsCollector(logicalSize: Int): AbstractVectorMetricsCollector<Complex32VectorValue, Float>(Types.Complex32Vector(logicalSize)) {
 
     /** The corresponding [valueMetrics] which stores all metrics for [Types] */
-    override val valueMetrics: Complex32VectorValueMetrics = Complex32VectorValueMetrics(logicalSize)
+    val valueMetrics: Complex32VectorValueMetrics = Complex32VectorValueMetrics(logicalSize)
 
-    /**
-     * Receives the values for which to compute the statistics
-     */
-    override fun receive(value: Value?) {
-        if (value != null && value is Complex32VectorValue) {
-            valueMetrics.numberOfNonNullEntries += 1
-            for ((i, d) in value.data.withIndex()) {
-                distinctSets[i].add(d) // store in corresponding numberOfDistinctEntries
-            }
-        } else {
-            valueMetrics.numberOfNullEntries += 1
-        }
+    override fun calculate(): Complex32VectorValueMetrics {
+        TODO("Not yet implemented")
     }
 
 

@@ -1,8 +1,10 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
+import org.vitrivr.cottontail.core.values.ByteValue
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.statistics.metricsData.ByteValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.metricsData.DoubleValueMetrics
 import java.lang.Double.max
 import java.lang.Double.min
@@ -15,8 +17,10 @@ import java.lang.Double.min
  */
 class DoubleMetricsCollector : RealMetricsCollector<DoubleValue>(Types.Double) {
 
-    /** The corresponding [valueMetrics] which stores all metrics for [Types] */
-    override val valueMetrics: DoubleValueMetrics = DoubleValueMetrics()
+    /** Local Metrics */
+    var min : Double = 0.0
+    var max : Double = 0.0
+    var sum : Double = 0.0
 
     /**
      * Receives the values for which to compute the statistics
@@ -25,10 +29,21 @@ class DoubleMetricsCollector : RealMetricsCollector<DoubleValue>(Types.Double) {
         super.receive(value)
         if (value != null && value is DoubleValue) {
             // set new min, max, and sum
-            valueMetrics.min = DoubleValue(min(value.value, valueMetrics.min.value))
-            valueMetrics.max = DoubleValue(max(value.value, valueMetrics.max.value))
-            valueMetrics.sum += DoubleValue(value.value)
+            min = min(value.value, min)
+            max = max(value.value, max)
+            sum += value.value
         }
+    }
+
+    override fun calculate(): DoubleValueMetrics {
+        return  DoubleValueMetrics(
+            numberOfNullEntries,
+            numberOfNonNullEntries,
+            numberOfDistinctEntries,
+            DoubleValue(min),
+            DoubleValue(max),
+            DoubleValue(sum)
+        )
     }
 
 }

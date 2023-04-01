@@ -17,20 +17,14 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractVectorMetrics
  */
 sealed class AbstractVectorMetricsCollector<T: Value, R>(type: Types<T>) : AbstractMetricsCollector<T>(type) {
 
-    /** The corresponding [valueMetrics] which stores all metrics for [Types] */
-    abstract override val valueMetrics: AbstractVectorMetrics<T>
-
-    /** Array of HashMaps to count the distinct values */
-    var distinctSets = Array(type.logicalSize) { HashSet<R>() } // of type Array<HashSet<R>> where R e.g., Boolean for BooleanVector
-
     /**
      * Tells the collector to calculate the metrics which it does not do iteratively (e.g., mean etc.). Usually called after all elements were received
      */
-    override fun calculate() {
-        for ((i, hashset) in distinctSets.withIndex()) {
+    /*override fun calculate() {
+        /*for ((i, hashset) in distinctSets.withIndex()) {
             valueMetrics.numberOfDistinctEntriesArray[i] = hashset.size.toLong() // write size of distinct entries into array
-        }
+        }*/
         //TODO("Write to storage here!")
-    }
+    }*/
 }
 

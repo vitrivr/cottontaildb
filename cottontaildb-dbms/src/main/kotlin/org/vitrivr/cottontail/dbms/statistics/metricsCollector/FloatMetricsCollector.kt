@@ -1,9 +1,11 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
+import org.vitrivr.cottontail.core.values.ByteValue
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.FloatValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.statistics.metricsData.ByteValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.metricsData.FloatValueMetrics
 import java.lang.Float.max
 import java.lang.Float.min
@@ -16,8 +18,10 @@ import java.lang.Float.min
  */
 class FloatMetricsCollector : RealMetricsCollector<FloatValue>(Types.Float) {
 
-    /** The corresponding [valueMetrics] which stores all metrics for [Types] */
-    override val valueMetrics: FloatValueMetrics = FloatValueMetrics()
+    /** Local Metrics */
+    var min : Float = 0.0F
+    var max : Float = 0.0F
+    var sum : Double = 0.0
 
     /**
      * Receives the values for which to compute the statistics
@@ -26,10 +30,21 @@ class FloatMetricsCollector : RealMetricsCollector<FloatValue>(Types.Float) {
         super.receive(value)
         if (value != null && value is FloatValue) {
             // set new min, max, and sum
-            valueMetrics.min = FloatValue(min(value.value, valueMetrics.min.value))
-            valueMetrics.max = FloatValue(max(value.value, valueMetrics.max.value))
-            valueMetrics.sum += DoubleValue(value.value)
+            min = min(value.value, min)
+            max = max(value.value, max)
+            sum += value.value
         }
+    }
+
+    override fun calculate(): FloatValueMetrics {
+        return  FloatValueMetrics(
+            numberOfNullEntries,
+            numberOfNonNullEntries,
+            numberOfDistinctEntries,
+            FloatValue(min),
+            FloatValue(max),
+            DoubleValue(sum)
+        )
     }
 
 }

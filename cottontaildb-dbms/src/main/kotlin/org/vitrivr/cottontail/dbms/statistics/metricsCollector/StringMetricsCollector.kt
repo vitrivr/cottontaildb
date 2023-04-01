@@ -15,8 +15,9 @@ import java.lang.Integer.min
  */
 class StringMetricsCollector : AbstractScalarMetricsCollector<StringValue>(Types.String) {
 
-    /** The corresponding [valueMetrics] which stores all metrics for [Types] */
-    override val valueMetrics: StringValueMetrics = StringValueMetrics()
+    /** Local Metrics */
+    var minWidth : Int = 0
+    var maxWidth : Int = 0
 
     /**
      * Receives the values for which to compute the statistics
@@ -24,9 +25,19 @@ class StringMetricsCollector : AbstractScalarMetricsCollector<StringValue>(Types
     override fun receive(value: Value?) {
         super.receive(value)
         if (value != null && value is StringValue) {
-            valueMetrics.minWidth = min(value.logicalSize, valueMetrics.minWidth)
-            valueMetrics.maxWidth = max(value.logicalSize, valueMetrics.maxWidth)
+            minWidth = min(value.logicalSize, minWidth)
+            maxWidth = max(value.logicalSize, maxWidth)
         }
+    }
+
+    override fun calculate(): StringValueMetrics {
+        return  StringValueMetrics(
+            numberOfNullEntries,
+            numberOfNonNullEntries,
+            numberOfDistinctEntries,
+            minWidth,
+            maxWidth,
+        )
     }
 
 }

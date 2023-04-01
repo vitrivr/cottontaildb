@@ -14,34 +14,35 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class StringValueMetrics : AbstractScalarMetrics<StringValue>(Types.String) {
+data class StringValueMetrics(
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+    override var minWidth: Int = Int.MAX_VALUE,
+    override var maxWidth: Int = Int.MIN_VALUE
+) : AbstractScalarMetrics<StringValue>(Types.String) {
 
     /**
      * Xodus serializer for [StringValueMetrics]
      */
     object Binding: MetricsXodusBinding<StringValueMetrics> {
         override fun read(stream: ByteArrayInputStream): StringValueMetrics {
-            val stat = StringValueMetrics()
-            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
-            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            stat.minWidth = IntegerBinding.readCompressed(stream)
-            stat.maxWidth = IntegerBinding.readCompressed(stream)
-            return stat
+            val numberOfNullEntries = LongBinding.readCompressed(stream)
+            val numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            val numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            val minWidth = IntegerBinding.readCompressed(stream)
+            val maxWidth = IntegerBinding.readCompressed(stream)
+            return StringValueMetrics(numberOfNullEntries, numberOfNonNullEntries, numberOfDistinctEntries, minWidth, maxWidth)
         }
 
         override fun write(output: LightOutputStream, statistics: StringValueMetrics) {
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
             IntegerBinding.writeCompressed(output, statistics.minWidth)
             IntegerBinding.writeCompressed(output, statistics.maxWidth)
         }
     }
-
-    /** Shortest [StringValue] seen by this [StringValueMetrics] */
-    override var minWidth: Int = Int.MAX_VALUE
-
-    /** Longest [StringValue] seen by this [StringValueMetrics]. */
-    override var maxWidth: Int = Int.MIN_VALUE
 
     /**
      * Resets this [StringValueMetrics] and sets all its values to to the default value.

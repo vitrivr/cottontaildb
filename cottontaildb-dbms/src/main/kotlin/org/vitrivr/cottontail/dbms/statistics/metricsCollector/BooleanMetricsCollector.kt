@@ -14,8 +14,9 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.BooleanValueMetrics
  */
 class BooleanMetricsCollector: AbstractScalarMetricsCollector<BooleanValue>(Types.Boolean) {
 
-    /** The corresponding [valueMetrics] which stores all metrics for [Types] */
-    override val valueMetrics: BooleanValueMetrics = BooleanValueMetrics()
+    /** Local Metrics */
+    private var numberOfTrueEntries = 0L
+    private var numberOfFalseEntries = 0L
 
     /**
      * Receives the values for which to compute the statistics
@@ -25,10 +26,15 @@ class BooleanMetricsCollector: AbstractScalarMetricsCollector<BooleanValue>(Type
         if (value != null && value is BooleanValue) {
             when (value.value) {
                 // count true and false entries
-                true -> valueMetrics.numberOfTrueEntries += 1
-                false -> valueMetrics.numberOfFalseEntries += 1
+                true -> numberOfTrueEntries += 1
+                false -> numberOfFalseEntries += 1
             }
         }
+    }
+
+    override fun calculate(): BooleanValueMetrics {
+        return BooleanValueMetrics(numberOfTrueEntries, numberOfFalseEntries, numberOfNullEntries, numberOfNonNullEntries, numberOfDistinctEntries)
+        //TODO("Not yet implemented")
     }
 
 }

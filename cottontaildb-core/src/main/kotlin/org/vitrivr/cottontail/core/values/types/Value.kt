@@ -1,5 +1,8 @@
 package org.vitrivr.cottontail.core.values.types
 
+import com.google.common.hash.Funnel
+import com.google.common.hash.PrimitiveSink
+
 /**
  * This is an abstraction over the existing primitive types provided by Kotlin. It allows for the
  * advanced type system implemented by Cottontail DB.
@@ -25,4 +28,10 @@ interface Value : Comparable<Value> {
      * @return true if equal, false otherwise.
      */
     fun isEqual(other: Value): Boolean
+
+    object ValueFunnel : Funnel<Value> {
+        override fun funnel(value: Value, into: PrimitiveSink) {
+            into.putInt(value.hashCode())
+        }
+    }
 }

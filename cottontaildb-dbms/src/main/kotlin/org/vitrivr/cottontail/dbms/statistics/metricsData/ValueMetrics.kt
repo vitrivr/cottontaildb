@@ -26,6 +26,9 @@ sealed interface ValueMetrics<T : Value> {
     /** Total number of entries known to this [ValueMetrics]. */
     val numberOfEntries: Long
 
+    /** Total number of distinct entries known to this [ValueMetrics]. */
+    var numberOfDistinctEntries: Long
+
     /** Smallest [Value] seen in terms of space requirement (logical size) known to this [ValueMetrics]. */
     val minWidth: Int
 

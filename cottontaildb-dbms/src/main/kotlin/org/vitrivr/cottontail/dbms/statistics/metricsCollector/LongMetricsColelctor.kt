@@ -1,9 +1,11 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
+import org.vitrivr.cottontail.core.values.ByteValue
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.statistics.metricsData.ByteValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.metricsData.LongValueMetrics
 import java.lang.Long.max
 import java.lang.Long.min
@@ -16,8 +18,10 @@ import java.lang.Long.min
  */
 class LongMetricsColelctor : RealMetricsCollector<LongValue>(Types.Long) {
 
-    /** The corresponding [valueMetrics] which stores all metrics for [Types] */
-    override val valueMetrics: LongValueMetrics = LongValueMetrics()
+    /** Local Metrics */
+    var min : Long = 0
+    var max : Long = 0
+    var sum : Double = 0.0
 
     /**
      * Receives the values for which to compute the statistics
@@ -26,10 +30,21 @@ class LongMetricsColelctor : RealMetricsCollector<LongValue>(Types.Long) {
         super.receive(value)
         if (value != null && value is LongValue) {
             // set new min, max, and sum
-            valueMetrics.min = LongValue(min(value.value, valueMetrics.min.value))
-            valueMetrics.max = LongValue(max(value.value, valueMetrics.max.value))
-            valueMetrics.sum += DoubleValue(value.value)
+            min = min(value.value, min)
+            max = max(value.value, max)
+            sum += value.value
         }
+    }
+
+    override fun calculate(): LongValueMetrics {
+        return  LongValueMetrics(
+            numberOfNullEntries,
+            numberOfNonNullEntries,
+            numberOfDistinctEntries,
+            LongValue(min),
+            LongValue(max),
+            DoubleValue(sum)
+        )
     }
 
 }

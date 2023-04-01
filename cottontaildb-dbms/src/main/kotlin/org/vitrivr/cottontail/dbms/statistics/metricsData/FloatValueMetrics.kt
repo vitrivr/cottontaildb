@@ -16,39 +16,38 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class FloatValueMetrics : RealValueMetrics<FloatValue>(Types.Float) {
+data class FloatValueMetrics (
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+    override var min: FloatValue = FloatValue.MAX_VALUE,
+    override var max: FloatValue = FloatValue.MIN_VALUE,
+    override var sum: DoubleValue = DoubleValue.ZERO
+) : RealValueMetrics<FloatValue>(Types.Float) {
 
     /**
      * Xodus serializer for [FloatValueMetrics]
      */
     object Binding: MetricsXodusBinding<FloatValueMetrics> {
         override fun read(stream: ByteArrayInputStream): FloatValueMetrics {
-            val stat = FloatValueMetrics()
-            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
-            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            stat.min = FloatValue(SignedFloatBinding.BINDING.readObject(stream))
-            stat.max = FloatValue(SignedFloatBinding.BINDING.readObject(stream))
-            stat.sum = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
-            return stat
+            val numberOfNullEntries = LongBinding.readCompressed(stream)
+            val numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            val numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            val min = FloatValue(SignedFloatBinding.BINDING.readObject(stream))
+            val max = FloatValue(SignedFloatBinding.BINDING.readObject(stream))
+            val sum = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            return FloatValueMetrics(numberOfNullEntries, numberOfNonNullEntries, numberOfDistinctEntries, min, max, sum)
         }
 
         override fun write(output: LightOutputStream, statistics: FloatValueMetrics) {
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
             SignedFloatBinding.BINDING.writeObject(output, statistics.min.value)
             SignedFloatBinding.BINDING.writeObject(output, statistics.max.value)
             SignedDoubleBinding.BINDING.writeObject(output, statistics.sum.value)
         }
     }
-
-    /** Minimum value seen by this [FloatValueMetrics]. */
-    override var min: FloatValue = FloatValue.MAX_VALUE
-
-    /** Minimum value seen by this [FloatValueMetrics]. */
-    override var max: FloatValue = FloatValue.MIN_VALUE
-
-    /** Sum of all [DoubleValue]s seen by this [FloatValueMetrics]. */
-    override var sum: DoubleValue = DoubleValue.ZERO
 
     /**
      * Resets this [FloatValueMetrics] and sets all its values to to the default value.

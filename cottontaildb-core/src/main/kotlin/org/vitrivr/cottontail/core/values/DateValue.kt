@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.core.values
 
+import com.google.common.hash.Funnel
+import com.google.common.hash.PrimitiveSink
 import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.ScalarValue
 import org.vitrivr.cottontail.core.values.types.Types

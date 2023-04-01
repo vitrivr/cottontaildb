@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsData
 
 import jetbrains.exodus.bindings.ByteBinding
+import jetbrains.exodus.bindings.DoubleBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.ByteValue
@@ -15,40 +16,41 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class ByteValueMetrics : RealValueMetrics<ByteValue>(Types.Byte) {
+data class ByteValueMetrics(
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+    override var min: ByteValue = ByteValue.MAX_VALUE,
+    override var max: ByteValue = ByteValue.MIN_VALUE,
+    override var sum: DoubleValue = DoubleValue.ZERO
+) : RealValueMetrics<ByteValue>(Types.Byte) {
 
     /**
      * Xodus serializer for [ByteValueMetrics]
      */
     object Binding: MetricsXodusBinding<ByteValueMetrics> {
         override fun read(stream: ByteArrayInputStream): ByteValueMetrics {
-            val stat = ByteValueMetrics()
-            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
-            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            stat.min = ByteValue(ByteBinding.BINDING.readObject(stream))
-            stat.max = ByteValue(ByteBinding.BINDING.readObject(stream))
-            return stat
+            val numberOfNullEntries = LongBinding.readCompressed(stream)
+            val numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            val numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            val min = ByteValue(ByteBinding.BINDING.readObject(stream))
+            val max = ByteValue(ByteBinding.BINDING.readObject(stream))
+            val sum = DoubleValue(DoubleBinding.BINDING.readObject(stream))
+            return ByteValueMetrics(numberOfNullEntries, numberOfNonNullEntries, numberOfDistinctEntries, min, max, sum)
         }
 
         override fun write(output: LightOutputStream, statistics: ByteValueMetrics) {
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
             ByteBinding.BINDING.writeObject(output, statistics.min.value)
             ByteBinding.BINDING.writeObject(output, statistics.max.value)
+            DoubleBinding.BINDING.writeObject(output, statistics.sum.value)
         }
     }
 
-    /** Minimum value seen by this [ByteValueMetrics]. */
-    override var min: ByteValue = ByteValue.MAX_VALUE
-
-    /** Minimum value seen by this [ByteValueMetrics]. */
-    override var max: ByteValue = ByteValue.MIN_VALUE
-
-    /** Sum of all [ByteValue]s seen by this [ByteValueMetrics]. */
-    override var sum: DoubleValue = DoubleValue.ZERO
-
     /**
-     * Resets this [ByteValueMetrics] and sets all its values to to the default value.
+     * Resets this [ByteValueMetrics] and sets all its values to the default value.
      */
     override fun reset() {
         super.reset()

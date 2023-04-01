@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.statistics.metricsData
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.SignedDoubleBinding
 import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.values.ByteValue
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
@@ -14,42 +15,41 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class DoubleValueMetrics : RealValueMetrics<DoubleValue>(Types.Double) {
+data class DoubleValueMetrics (
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+    override var min: DoubleValue = DoubleValue.MAX_VALUE,
+    override var max: DoubleValue = DoubleValue.MIN_VALUE,
+    override var sum: DoubleValue = DoubleValue.ZERO
+) : RealValueMetrics<DoubleValue>(Types.Double) {
 
     /**
      * Xodus serializer for [DoubleValueMetrics]
      */
     object Binding: MetricsXodusBinding<DoubleValueMetrics> {
         override fun read(stream: ByteArrayInputStream): DoubleValueMetrics {
-            val stat = DoubleValueMetrics()
-            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
-            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            stat.min = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
-            stat.max = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
-            stat.sum = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
-            return stat
+            val numberOfNullEntries = LongBinding.readCompressed(stream)
+            val numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            val numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            val min = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            val max = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            val sum = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            return DoubleValueMetrics(numberOfNullEntries, numberOfNonNullEntries, numberOfDistinctEntries, min, max, sum)
         }
 
         override fun write(output: LightOutputStream, statistics: DoubleValueMetrics) {
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
             SignedDoubleBinding.BINDING.writeObject(output, statistics.min.value)
             SignedDoubleBinding.BINDING.writeObject(output, statistics.max.value)
             SignedDoubleBinding.BINDING.writeObject(output, statistics.sum.value)
         }
     }
 
-    /** Minimum value in this [DoubleValueMetrics]. */
-    override var min: DoubleValue = DoubleValue.MAX_VALUE
-
-    /** Minimum value in this [DoubleValueMetrics]. */
-    override var max: DoubleValue = DoubleValue.MAX_VALUE
-
-    /** Sum of all floats values in this [DoubleValueMetrics]. */
-    override var sum: DoubleValue = DoubleValue.ZERO
-
     /**
-     * Resets this [DoubleValueMetrics] and sets all its values to to the default value.
+     * Resets this [DoubleValueMetrics] and sets all its values to the default value.
      */
     override fun reset() {
         super.reset()

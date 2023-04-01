@@ -13,7 +13,20 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class BooleanVectorValueMetrics(logicalSize: Int) : AbstractVectorMetrics<BooleanVectorValue>(Types.BooleanVector(logicalSize)) {
+data class BooleanVectorValueMetrics(val logicalSize: Int) : AbstractVectorMetrics<BooleanVectorValue>(Types.BooleanVector(logicalSize)) {
+
+    constructor(
+        logicalSize: Int,
+        numberOfTrueEntries: LongArray,
+        numberOfNullEntries: Long,
+        numberOfNonNullEntries: Long,
+        numberOfDistinctEntries: Long
+    ) : this(logicalSize) {
+        this.numberOfTrueEntries = numberOfTrueEntries
+        this.numberOfNullEntries = numberOfNullEntries
+        this.numberOfNonNullEntries = numberOfNonNullEntries
+        this.numberOfDistinctEntries = numberOfDistinctEntries
+    }
 
     /**
      * Xodus serializer for [BooleanVectorValueMetrics]
@@ -41,7 +54,7 @@ class BooleanVectorValueMetrics(logicalSize: Int) : AbstractVectorMetrics<Boolea
     }
 
     /** A histogram capturing the number of true entries per component. */
-    val numberOfTrueEntries: LongArray = LongArray(this.type.logicalSize)
+    var numberOfTrueEntries: LongArray = LongArray(this.type.logicalSize)
 
     /** A histogram capturing the number of false entries per component. */
     val numberOfFalseEntries: LongArray

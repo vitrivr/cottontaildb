@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 
 /**
@@ -20,7 +21,10 @@ sealed interface MetricsCollector <T : Value> {
     /** The [Types] of [MetricsCollector]. */
     val type: Types<T>
 
-    val valueMetrics: ValueMetrics<T>
+    /** Global Metrics */
+    var numberOfDistinctEntries : Long
+    var numberOfNonNullEntries : Long
+    var numberOfNullEntries : Long
 
 
     /**
@@ -32,6 +36,7 @@ sealed interface MetricsCollector <T : Value> {
     /**
      * Tells the collector to calculate the metrics which it does not do iteratively (e.g., mean etc.). Usually called after all elements were received
      */
-    fun calculate(): Unit
+    fun calculate(): ValueMetrics<T>
+
 
 }

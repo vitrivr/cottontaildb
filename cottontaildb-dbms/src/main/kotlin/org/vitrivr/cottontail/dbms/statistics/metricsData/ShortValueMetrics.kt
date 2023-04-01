@@ -1,8 +1,10 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsData
 
+import jetbrains.exodus.bindings.DoubleBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.ShortBinding
 import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.values.ByteValue
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.ShortValue
@@ -16,37 +18,38 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class ShortValueMetrics : RealValueMetrics<ShortValue>(Types.Short) {
+data class ShortValueMetrics(
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+    override var min: ShortValue = ShortValue.MAX_VALUE,
+    override var max: ShortValue = ShortValue.MIN_VALUE,
+    override var sum: DoubleValue = DoubleValue.ZERO
+) : RealValueMetrics<ShortValue>(Types.Short) {
 
     /**
      * Xodus serializer for [ShortValueMetrics]
      */
     object Binding: MetricsXodusBinding<ShortValueMetrics> {
         override fun read(stream: ByteArrayInputStream): ShortValueMetrics {
-            val stat = ShortValueMetrics()
-            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
-            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            stat.min = ShortValue(ShortBinding.BINDING.readObject(stream))
-            stat.max = ShortValue(ShortBinding.BINDING.readObject(stream))
-            return stat
+            val numberOfNullEntries = LongBinding.readCompressed(stream)
+            val numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            val numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            val min = ShortValue(ShortBinding.BINDING.readObject(stream))
+            val max = ShortValue(ShortBinding.BINDING.readObject(stream))
+            val sum = DoubleValue(DoubleBinding.BINDING.readObject(stream))
+            return ShortValueMetrics(numberOfNullEntries, numberOfNonNullEntries, numberOfDistinctEntries, min, max)
         }
 
         override fun write(output: LightOutputStream, statistics: ShortValueMetrics) {
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
             ShortBinding.BINDING.writeObject(output, statistics.min.value)
             ShortBinding.BINDING.writeObject(output, statistics.max.value)
+            DoubleBinding.BINDING.writeObject(output, statistics.sum.value)
         }
     }
-
-    /** Minimum value seen by this [ShortValueMetrics]. */
-    override var min: ShortValue = ShortValue.MAX_VALUE
-
-    /** Minimum value seen by this [ShortValueMetrics]. */
-    override var max: ShortValue = ShortValue.MIN_VALUE
-
-    /** Sum of all [IntValue]s seen by this [ShortValueMetrics]. */
-    override var sum: DoubleValue = DoubleValue.ZERO
 
     /**
      * Resets this [ShortValueMetrics] and sets all its values to to the default value.

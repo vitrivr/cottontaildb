@@ -13,21 +13,26 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class Complex32ValueMetrics(): AbstractScalarMetrics<Complex32Value>(Types.Complex32) {
+data class Complex32ValueMetrics(
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+): AbstractScalarMetrics<Complex32Value>(Types.Complex32) {
     /**
      * Xodus serializer for [Complex32ValueMetrics]
      */
     object Binding: MetricsXodusBinding<Complex32ValueMetrics> {
         override fun read(stream: ByteArrayInputStream): Complex32ValueMetrics {
-            val stat = Complex32ValueMetrics()
-            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
-            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            return stat
+            val numberOfNullEntries = LongBinding.readCompressed(stream)
+            val numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            val numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            return Complex32ValueMetrics(numberOfNullEntries, numberOfNonNullEntries, numberOfDistinctEntries)
         }
 
         override fun write(output: LightOutputStream, statistics: Complex32ValueMetrics) {
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
         }
     }
 }
