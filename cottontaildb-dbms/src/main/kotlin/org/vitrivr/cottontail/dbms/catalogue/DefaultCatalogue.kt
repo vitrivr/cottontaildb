@@ -85,7 +85,8 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
     /** The statistics/metrics Xodus [Environment] used by Cottontail DB. This is an internal variable and not part of the official interface. */
     internal val statisticsEnvironment: Environment = Environments.newInstance(
-        this.config.statisticsFolder().toFile()
+        this.config.statisticsFolder().toFile(),
+        this.config.xodus.toEnvironmentConfig()
     )
 
     /** The Xodus [VirtualFileSystem] used by Cottontail DB. This is an internal variable and not part of the official interface. */
@@ -149,6 +150,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         try {
             /** Open the statisticsStorageManager */
             this.statisticsStorageManager = StatisticsStorageManager(statisticsEnvironment, statisticsTX)
+            statisticsTX.commit()
         } catch (e: Throwable) {
             statisticsTX.abort()
             throw e

@@ -22,6 +22,17 @@ data class BooleanVectorValueMetrics(
     ) : AbstractVectorMetrics<BooleanVectorValue>(Types.BooleanVector(logicalSize)) {
 
     /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: BooleanVectorValueMetrics): this(
+        logicalSize = metrics.logicalSize,
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
+        numberOfTrueEntries = metrics.numberOfTrueEntries.map { element -> (element * factor).toLong() }.toLongArray()
+    )
+
+    /**
      * Xodus serializer for [BooleanVectorValueMetrics]
      */
     class Binding(val logicalSize: Int): MetricsXodusBinding<BooleanVectorValueMetrics> {

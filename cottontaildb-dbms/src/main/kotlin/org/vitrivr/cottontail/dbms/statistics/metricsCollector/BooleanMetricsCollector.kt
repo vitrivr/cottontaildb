@@ -32,9 +32,19 @@ class BooleanMetricsCollector: AbstractScalarMetricsCollector<BooleanValue>(Type
         }
     }
 
-    override fun calculate(): BooleanValueMetrics {
-        return BooleanValueMetrics(numberOfTrueEntries, numberOfFalseEntries, numberOfNullEntries, numberOfNonNullEntries, numberOfDistinctEntries)
-        //TODO("Not yet implemented")
+    /**
+     * This function creates a [ValueMetrics] based on the collected metrics.
+     * Before creating it, the values are calculated from the sample back to the whole population.
+     */
+    override fun calculate(probability: Float): BooleanValueMetrics {
+        val sampleMetrics =  BooleanValueMetrics(
+            numberOfTrueEntries,
+            numberOfFalseEntries,
+            numberOfNullEntries,
+            numberOfNonNullEntries,
+            numberOfDistinctEntries // in the boolean setting, this can only be 2 (true or false).
+        )
+        return BooleanValueMetrics(1/probability, sampleMetrics)
     }
 
 }

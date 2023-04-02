@@ -25,6 +25,19 @@ data class FloatVectorValueMetrics(
     override val sum: FloatVectorValue = FloatVectorValue(FloatArray(logicalSize))
 ) : RealVectorValueMetrics<FloatVectorValue>(Types.FloatVector(logicalSize)) {
 
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: FloatVectorValueMetrics): this(
+        logicalSize = metrics.logicalSize,
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
+        min = metrics.min, // min and max are not adjusted
+        max = metrics.max, // min and max are not adjusted
+        sum = FloatVectorValue(FloatArray(metrics.logicalSize) { (metrics.sum.data[it] * factor) })
+    )
+
     /** The arithmetic for the values seen by this [DoubleVectorValueMetrics]. */
     override val mean: FloatVectorValue
         get() = FloatVectorValue(FloatArray(this.type.logicalSize) {

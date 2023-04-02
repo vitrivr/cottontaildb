@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.core.values.BooleanValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
 import java.io.ByteArrayInputStream
+import kotlin.math.min
 
 /**
  * A [ValueMetrics] implementation for [BooleanValue]s.
@@ -21,6 +22,16 @@ data class BooleanValueMetrics(
     var numberOfFalseEntries: Long = 0L
 ): AbstractScalarMetrics<BooleanValue>(Types.Boolean) {
 
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: BooleanValueMetrics): this(
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = min((metrics.numberOfDistinctEntries * factor).toLong(), 2), // since in the boolean setting can only be 2 distinct entries
+        numberOfTrueEntries = (metrics.numberOfTrueEntries * factor).toLong(),
+        numberOfFalseEntries = (metrics.numberOfFalseEntries * factor).toLong()
+    )
 
     companion object {
         const val TRUE_ENTRIES_KEY = "true"

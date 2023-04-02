@@ -24,19 +24,21 @@ class BooleanVectorMetricsCollector(val logicalSize: Int) : AbstractVectorMetric
                 if (d) {
                     numberOfTrueEntries[i] = numberOfTrueEntries[i] + 1
                 } // numberOfFalseEntries is computed using numberOfNonNullEntries and numberOfTrueEntries
-
             }
         }
     }
 
-    override fun calculate(): BooleanVectorValueMetrics {
-        return BooleanVectorValueMetrics(
+    override fun calculate(probability: Float): BooleanVectorValueMetrics {
+
+        val sampleMetrics = BooleanVectorValueMetrics(
             logicalSize,
             numberOfNullEntries,
             numberOfNonNullEntries,
             numberOfDistinctEntries,
             numberOfTrueEntries
         )
+
+        return BooleanVectorValueMetrics(1/probability, sampleMetrics)
     }
 
 

@@ -36,8 +36,8 @@ class ByteMetricsCollector : RealMetricsCollector<ByteValue>(Types.Byte) {
         }
     }
 
-    override fun calculate(): ByteValueMetrics {
-        return  ByteValueMetrics(
+    override fun calculate(probability: Float): ByteValueMetrics {
+        val sampleMetrics =  ByteValueMetrics(
             numberOfNullEntries,
             numberOfNonNullEntries,
             numberOfDistinctEntries,
@@ -45,5 +45,7 @@ class ByteMetricsCollector : RealMetricsCollector<ByteValue>(Types.Byte) {
             ByteValue(max),
             DoubleValue(sum)
         )
+
+        return ByteValueMetrics(1/probability, sampleMetrics)
     }
 }

@@ -35,8 +35,8 @@ class DoubleMetricsCollector : RealMetricsCollector<DoubleValue>(Types.Double) {
         }
     }
 
-    override fun calculate(): DoubleValueMetrics {
-        return  DoubleValueMetrics(
+    override fun calculate(probability: Float): DoubleValueMetrics {
+        val sampleMetrics = DoubleValueMetrics(
             numberOfNullEntries,
             numberOfNonNullEntries,
             numberOfDistinctEntries,
@@ -44,6 +44,8 @@ class DoubleMetricsCollector : RealMetricsCollector<DoubleValue>(Types.Double) {
             DoubleValue(max),
             DoubleValue(sum)
         )
+
+        return DoubleValueMetrics(1/probability, sampleMetrics)
     }
 
 }

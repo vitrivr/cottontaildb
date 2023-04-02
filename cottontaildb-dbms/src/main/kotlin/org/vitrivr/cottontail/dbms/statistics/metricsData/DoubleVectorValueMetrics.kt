@@ -24,6 +24,19 @@ data class DoubleVectorValueMetrics(
     override val sum: DoubleVectorValue = DoubleVectorValue(DoubleArray(logicalSize))
 ) : RealVectorValueMetrics<DoubleVectorValue>(Types.DoubleVector(logicalSize)) {
 
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: DoubleVectorValueMetrics): this(
+        logicalSize = metrics.logicalSize,
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
+        min = metrics.min, // min and max are not adjusted
+        max = metrics.max, // min and max are not adjusted
+        sum = DoubleVectorValue(DoubleArray(metrics.logicalSize) { (metrics.sum.data[it] * factor) })
+    )
+
     /** The arithmetic mean for the values seen by this [DoubleVectorValueMetrics]. */
     override val mean: DoubleVectorValue
         get() = DoubleVectorValue(DoubleArray(this.type.logicalSize) {

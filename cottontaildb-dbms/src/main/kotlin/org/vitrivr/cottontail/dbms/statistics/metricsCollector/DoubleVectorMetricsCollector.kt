@@ -36,8 +36,8 @@ class DoubleVectorMetricsCollector(val logicalSize: Int) : RealVectorMetricsColl
         }
     }
 
-    override fun calculate(): DoubleVectorValueMetrics {
-        return DoubleVectorValueMetrics(
+    override fun calculate(probability: Float): DoubleVectorValueMetrics {
+        val sampleMetrics = DoubleVectorValueMetrics(
             logicalSize,
             numberOfNullEntries,
             numberOfNonNullEntries,
@@ -46,6 +46,8 @@ class DoubleVectorMetricsCollector(val logicalSize: Int) : RealVectorMetricsColl
             max,
             sum
         )
+
+        return DoubleVectorValueMetrics(1/probability, sampleMetrics)
     }
 
 }

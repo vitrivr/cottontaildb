@@ -36,8 +36,8 @@ class LongMetricsColelctor : RealMetricsCollector<LongValue>(Types.Long) {
         }
     }
 
-    override fun calculate(): LongValueMetrics {
-        return  LongValueMetrics(
+    override fun calculate(probability: Float): LongValueMetrics {
+        val sampleMetrics = LongValueMetrics(
             numberOfNullEntries,
             numberOfNonNullEntries,
             numberOfDistinctEntries,
@@ -45,6 +45,8 @@ class LongMetricsColelctor : RealMetricsCollector<LongValue>(Types.Long) {
             LongValue(max),
             DoubleValue(sum)
         )
+
+        return LongValueMetrics(1/probability, sampleMetrics)
     }
 
 }

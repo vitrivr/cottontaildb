@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.statistics.metricsData
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.Complex64Value
+import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
 import java.io.ByteArrayInputStream
@@ -19,6 +20,16 @@ data class Complex64ValueMetrics(
     override var numberOfNonNullEntries: Long = 0L,
     override var numberOfDistinctEntries: Long = 0L,
 ): AbstractScalarMetrics<Complex64Value>(Types.Complex64) {
+
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: Complex64ValueMetrics): this(
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
+    )
+
     /**
      * Xodus serializer for [Complex64ValueMetrics]
      */

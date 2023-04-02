@@ -19,6 +19,17 @@ data class Complex64VectorValueMetrics(
     override var numberOfNonNullEntries: Long = 0L,
     override var numberOfDistinctEntries: Long = 0L
 ): AbstractVectorMetrics<Complex64VectorValue>(Types.Complex64Vector(logicalSize)) {
+
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: Complex64VectorValueMetrics): this(
+        logicalSize = metrics.logicalSize,
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
+    )
+
     /**
      * Xodus serializer for [Complex64VectorValueMetrics]
      */

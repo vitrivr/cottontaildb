@@ -36,8 +36,8 @@ class FloatMetricsCollector : RealMetricsCollector<FloatValue>(Types.Float) {
         }
     }
 
-    override fun calculate(): FloatValueMetrics {
-        return  FloatValueMetrics(
+    override fun calculate(probability: Float): FloatValueMetrics {
+        val sampleMetrics = FloatValueMetrics(
             numberOfNullEntries,
             numberOfNonNullEntries,
             numberOfDistinctEntries,
@@ -45,6 +45,8 @@ class FloatMetricsCollector : RealMetricsCollector<FloatValue>(Types.Float) {
             FloatValue(max),
             DoubleValue(sum)
         )
+
+        return FloatValueMetrics(1/probability, sampleMetrics)
     }
 
 }

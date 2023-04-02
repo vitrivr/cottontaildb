@@ -51,6 +51,6 @@ sealed class AbstractMetricsCollector<T : Value>(override val type: Types<T>) : 
         }
     }
 
-    abstract override fun calculate() : AbstractValueMetrics<T>
+    abstract override fun calculate(probability: Float) : AbstractValueMetrics<T>
 
 }

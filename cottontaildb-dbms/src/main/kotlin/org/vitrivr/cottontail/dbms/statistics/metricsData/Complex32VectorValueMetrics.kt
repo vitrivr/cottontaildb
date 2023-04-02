@@ -19,6 +19,17 @@ data class Complex32VectorValueMetrics(
     override var numberOfNonNullEntries: Long = 0L,
     override var numberOfDistinctEntries: Long = 0L,
 ): AbstractVectorMetrics<Complex32VectorValue>(Types.Complex32Vector(logicalSize)) {
+
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: Complex32VectorValueMetrics): this(
+        logicalSize = metrics.logicalSize,
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
+    )
+
     /**
      * Xodus serializer for [Complex32VectorValueMetrics]
      */

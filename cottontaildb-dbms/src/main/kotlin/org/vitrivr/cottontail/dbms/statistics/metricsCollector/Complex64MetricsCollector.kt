@@ -16,12 +16,14 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.Complex64ValueMetrics
  */
 class Complex64MetricsCollector(): AbstractScalarMetricsCollector<Complex64Value>(Types.Complex64) {
 
-    override fun calculate(): Complex64ValueMetrics {
-        return Complex64ValueMetrics(
+    override fun calculate(probability: Float): Complex64ValueMetrics {
+        val sampleMetrics = Complex64ValueMetrics(
             numberOfNullEntries,
             numberOfNonNullEntries,
             numberOfDistinctEntries,
         )
+
+        return Complex64ValueMetrics(1/probability, sampleMetrics)
     }
 
 }

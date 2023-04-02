@@ -28,6 +28,18 @@ data class ShortValueMetrics(
 ) : RealValueMetrics<ShortValue>(Types.Short) {
 
     /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: ShortValueMetrics): this(
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
+        min = metrics.min,
+        max = metrics.max,
+        sum = DoubleValue(metrics.sum.value * factor)
+    )
+
+    /**
      * Xodus serializer for [ShortValueMetrics]
      */
     object Binding: MetricsXodusBinding<ShortValueMetrics> {

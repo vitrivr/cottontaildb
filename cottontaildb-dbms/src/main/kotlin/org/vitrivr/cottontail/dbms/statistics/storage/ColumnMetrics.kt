@@ -12,9 +12,7 @@ import org.vitrivr.cottontail.dbms.statistics.metricsCollector.*
 import org.vitrivr.cottontail.dbms.statistics.metricsData.*
 import org.vitrivr.cottontail.dbms.statistics.values.*
 import org.vitrivr.cottontail.storage.serializers.statistics.MetricsSerializerFactory
-import org.vitrivr.cottontail.storage.serializers.statistics.StatisticsSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
-import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
 import java.io.ByteArrayInputStream
 
 /**
@@ -24,6 +22,7 @@ import java.io.ByteArrayInputStream
  * @version 1.1.0
  */
 data class ColumnMetrics(val name: Name.ColumnName, val type: Types<*>, val statistics: ValueMetrics<*>) {
+
     /**
      * Creates a [ColumnMetrics] from the provided [ColumnDef].
      *

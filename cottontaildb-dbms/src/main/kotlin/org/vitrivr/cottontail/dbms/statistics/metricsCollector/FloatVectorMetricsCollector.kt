@@ -1,10 +1,8 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
 import org.vitrivr.cottontail.core.values.FloatVectorValue
-import org.vitrivr.cottontail.core.values.IntVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.metricsData.FloatVectorValueMetrics
 
 /**
@@ -35,10 +33,18 @@ class FloatVectorMetricsCollector(val logicalSize: Int) : RealVectorMetricsColle
         }
     }
 
-    override fun calculate(): FloatVectorValueMetrics {
-        return FloatVectorValueMetrics(
-            logicalSize
+    override fun calculate(probability: Float): FloatVectorValueMetrics {
+        val sampleMetrics = FloatVectorValueMetrics(
+            logicalSize,
+            numberOfNullEntries,
+            numberOfNonNullEntries,
+            numberOfDistinctEntries,
+            min,
+            max,
+            sum
         )
+
+        return FloatVectorValueMetrics(1/probability, sampleMetrics)
     }
 
 }

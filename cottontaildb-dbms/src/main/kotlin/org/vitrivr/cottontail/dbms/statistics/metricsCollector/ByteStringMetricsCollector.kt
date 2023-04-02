@@ -20,14 +20,16 @@ class ByteStringMetricsCollector : AbstractScalarMetricsCollector<ByteStringValu
         }
     }
 
-    override fun calculate(): ByteStringValueMetrics {
-        return ByteStringValueMetrics(
+    override fun calculate(probability: Float): ByteStringValueMetrics {
+        val sampleMetrics = ByteStringValueMetrics(
             numberOfNullEntries,
             numberOfNonNullEntries,
             numberOfDistinctEntries,
             minWidth,
             maxWidth
         )
+
+        return ByteStringValueMetrics(1/probability, sampleMetrics)
     }
 
 

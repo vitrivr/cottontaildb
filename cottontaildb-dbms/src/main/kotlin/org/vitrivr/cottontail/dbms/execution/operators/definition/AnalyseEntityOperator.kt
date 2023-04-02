@@ -24,7 +24,7 @@ class AnalyseEntityOperator(private val tx: CatalogueTx, private val name: Name.
         val entityTxn = schemaTxn.entityForName(this@AnalyseEntityOperator.name).newTx(this@AnalyseEntityOperator.context)
         val time = measureTimeMillis {
             if (this@AnalyseEntityOperator.service != null) {
-                this@AnalyseEntityOperator.service.increaseChangeCount(this@AnalyseEntityOperator.name, forceUpdate = true)
+                this@AnalyseEntityOperator.service.updateStatisticsOfEntity(this@AnalyseEntityOperator.name)
                 /*for (column in entityTxn.listColumns().map { entityTxn.columnForName(it.name) }) {
                     this@AnalyseEntityOperator.service.increaseChangeCount(column.name)
                 }*/

@@ -2,9 +2,7 @@ package org.vitrivr.cottontail.dbms.statistics.metricsData
 
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
-import org.vitrivr.cottontail.core.values.ByteValue
 import org.vitrivr.cottontail.core.values.DateValue
-import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
 import java.io.ByteArrayInputStream
@@ -12,7 +10,7 @@ import java.io.ByteArrayInputStream
 /**
  * A [ValueMetrics] implementation for [DateValue]s.
  *
- * @author Ralph Gasser
+ * @author Ralph Gasser, Florian Burkhardt
  * @version 1.2.0
  */
 data class DateValueMetrics (
@@ -22,6 +20,17 @@ data class DateValueMetrics (
     var min: DateValue = DateValue(Long.MAX_VALUE),
     var max: DateValue = DateValue(Long.MIN_VALUE),
 ) : AbstractScalarMetrics<DateValue>(Types.Date) {
+
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: DateValueMetrics): this(
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
+        min = metrics.min,
+        max = metrics.max,
+    )
 
     /**
      * Xodus serializer for [DateValueMetrics]

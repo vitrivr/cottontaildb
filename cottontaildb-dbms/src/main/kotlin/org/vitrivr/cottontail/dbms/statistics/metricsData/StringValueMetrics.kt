@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.statistics.metricsData
 import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
@@ -21,6 +22,17 @@ data class StringValueMetrics(
     override var minWidth: Int = Int.MAX_VALUE,
     override var maxWidth: Int = Int.MIN_VALUE
 ) : AbstractScalarMetrics<StringValue>(Types.String) {
+
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: StringValueMetrics): this(
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
+        minWidth = metrics.minWidth,
+        maxWidth = metrics.maxWidth,
+    )
 
     /**
      * Xodus serializer for [StringValueMetrics]

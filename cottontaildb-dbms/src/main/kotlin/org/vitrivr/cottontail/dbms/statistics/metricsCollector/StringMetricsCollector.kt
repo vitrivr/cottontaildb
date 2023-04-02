@@ -30,14 +30,16 @@ class StringMetricsCollector : AbstractScalarMetricsCollector<StringValue>(Types
         }
     }
 
-    override fun calculate(): StringValueMetrics {
-        return  StringValueMetrics(
+    override fun calculate(probability: Float): StringValueMetrics {
+        val sampleMetrics = StringValueMetrics(
             numberOfNullEntries,
             numberOfNonNullEntries,
             numberOfDistinctEntries,
             minWidth,
             maxWidth,
         )
+
+        return  StringValueMetrics(1/probability, sampleMetrics)
     }
 
 }

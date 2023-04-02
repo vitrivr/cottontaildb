@@ -25,6 +25,18 @@ data class DoubleValueMetrics (
 ) : RealValueMetrics<DoubleValue>(Types.Double) {
 
     /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: DoubleValueMetrics): this(
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
+        min = metrics.min,
+        max = metrics.max,
+        sum = DoubleValue(metrics.sum.value * factor)
+    )
+
+    /**
      * Xodus serializer for [DoubleValueMetrics]
      */
     object Binding: MetricsXodusBinding<DoubleValueMetrics> {

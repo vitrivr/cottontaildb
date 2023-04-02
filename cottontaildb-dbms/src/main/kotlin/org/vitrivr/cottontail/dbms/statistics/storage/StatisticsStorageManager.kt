@@ -36,7 +36,6 @@ class StatisticsStorageManager(private val environment: Environment, transaction
     private var dirty: Boolean = false
 
     init{
-        TODO("Do we actually need to read all entries at once and keep them in memory? No right?")
         /* Reads all entries once. */
         this.store.openCursor(transaction).use { cursor ->
             while (cursor.next) {
@@ -73,8 +72,8 @@ class StatisticsStorageManager(private val environment: Environment, transaction
      */
     fun updatePersistently(statistic: ColumnMetrics, transaction: Transaction) = this.lock.write {
         this.dirty = true /* Update dirty flag. */
-        this.statistics[statistic.name] = statistic
-        this.store.put(transaction, NameBinding.Column.objectToEntry(statistic.name), ColumnMetrics.Serialized.objectToEntry(statistic.toSerialized()))
+        this.statistics[statistic.name] = statistic // keep in memory
+        this.store.put(transaction, NameBinding.Column.objectToEntry(statistic.name), ColumnMetrics.Serialized.objectToEntry(statistic.toSerialized())) // write to storage
         this.dirty = false
     }
 

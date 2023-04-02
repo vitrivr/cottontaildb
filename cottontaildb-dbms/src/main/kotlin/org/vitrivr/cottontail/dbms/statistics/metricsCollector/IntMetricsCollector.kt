@@ -1,11 +1,9 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
-import org.vitrivr.cottontail.core.values.ByteValue
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.statistics.metricsData.ByteValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.metricsData.IntValueMetrics
 import java.lang.Integer.max
 import java.lang.Integer.min
@@ -37,8 +35,8 @@ class IntMetricsCollector : RealMetricsCollector<IntValue>(Types.Int) {
         }
     }
 
-    override fun calculate(): IntValueMetrics {
-        return  IntValueMetrics(
+    override fun calculate(probability: Float): IntValueMetrics {
+        val sampleMetrics = IntValueMetrics(
             numberOfNullEntries,
             numberOfNonNullEntries,
             numberOfDistinctEntries,
@@ -46,6 +44,8 @@ class IntMetricsCollector : RealMetricsCollector<IntValue>(Types.Int) {
             IntValue(max),
             DoubleValue(sum)
         )
+
+        return IntValueMetrics(1/probability, sampleMetrics)
     }
 
 

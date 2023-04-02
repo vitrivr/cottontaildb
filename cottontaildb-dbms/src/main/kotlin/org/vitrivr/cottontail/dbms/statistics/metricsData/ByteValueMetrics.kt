@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
 import java.io.ByteArrayInputStream
+import kotlin.math.min
 
 /**
  * A [ValueMetrics] implementation for [ByteValue]s.
@@ -24,6 +25,18 @@ data class ByteValueMetrics(
     override var max: ByteValue = ByteValue.MIN_VALUE,
     override var sum: DoubleValue = DoubleValue.ZERO
 ) : RealValueMetrics<ByteValue>(Types.Byte) {
+
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: ByteValueMetrics): this(
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
+        min = metrics.min,
+        max = metrics.max,
+        sum = DoubleValue(metrics.sum.value * factor)
+    )
 
     /**
      * Xodus serializer for [ByteValueMetrics]

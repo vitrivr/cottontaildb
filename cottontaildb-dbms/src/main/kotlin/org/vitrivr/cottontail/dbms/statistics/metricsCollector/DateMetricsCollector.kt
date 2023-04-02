@@ -1,11 +1,8 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
-import org.vitrivr.cottontail.core.values.ByteValue
 import org.vitrivr.cottontail.core.values.DateValue
-import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.statistics.metricsData.ByteValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.metricsData.DateValueMetrics
 import java.lang.Long.max
 import java.lang.Long.min
@@ -34,13 +31,15 @@ class DateMetricsCollector : AbstractScalarMetricsCollector<DateValue>(Types.Dat
         }
     }
 
-    override fun calculate(): DateValueMetrics {
-        return  DateValueMetrics(
+    override fun calculate(probability: Float): DateValueMetrics {
+        val sampleMetrics = DateValueMetrics(
             numberOfNullEntries,
             numberOfNonNullEntries,
             numberOfDistinctEntries,
             DateValue(min),
             DateValue(max),
         )
+
+        return DateValueMetrics(1/probability, sampleMetrics)
     }
 }

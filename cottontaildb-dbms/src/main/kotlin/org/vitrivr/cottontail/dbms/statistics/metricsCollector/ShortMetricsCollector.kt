@@ -36,8 +36,8 @@ class ShortMetricsCollector : RealMetricsCollector<ShortValue>(Types.Short) {
         }
     }
 
-    override fun calculate(): ShortValueMetrics {
-        return  ShortValueMetrics(
+    override fun calculate(probability: Float): ShortValueMetrics {
+        val sampleMetrics = ShortValueMetrics(
             numberOfNullEntries,
             numberOfNonNullEntries,
             numberOfDistinctEntries,
@@ -45,6 +45,7 @@ class ShortMetricsCollector : RealMetricsCollector<ShortValue>(Types.Short) {
             ShortValue(max),
             DoubleValue(sum)
         )
+        return ShortValueMetrics(1/probability, sampleMetrics)
     }
 
 }

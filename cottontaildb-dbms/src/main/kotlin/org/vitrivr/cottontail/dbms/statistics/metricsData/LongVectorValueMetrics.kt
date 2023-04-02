@@ -24,6 +24,19 @@ class LongVectorValueMetrics(
     override val sum: LongVectorValue = LongVectorValue(LongArray(logicalSize))
 ): RealVectorValueMetrics<LongVectorValue>(Types.LongVector(logicalSize)) {
 
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: LongVectorValueMetrics): this(
+        logicalSize = metrics.logicalSize,
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
+        min = metrics.min, // min and max are not adjusted
+        max = metrics.max, // min and max are not adjusted
+        sum = LongVectorValue(LongArray(metrics.logicalSize) { (metrics.sum.data[it] * factor).toLong() })
+    )
+
     /** The arithmetic for the values seen by this [DoubleVectorValueMetrics]. */
     override val mean: LongVectorValue
         get() = LongVectorValue(LongArray(this.type.logicalSize) {

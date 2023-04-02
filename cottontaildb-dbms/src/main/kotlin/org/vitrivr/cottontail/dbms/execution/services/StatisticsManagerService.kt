@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.dbms.catalogue.Catalogue
+import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.events.ColumnEvent
 import org.vitrivr.cottontail.dbms.events.DataEvent
@@ -18,11 +18,13 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.statistics.metricsCollector.*
+import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
+import org.vitrivr.cottontail.dbms.statistics.storage.ColumnMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
-import java.time.Instant
 import java.util.Random
+import kotlin.math.min
 
 /**
  * A [TransactionObserver] that keeps track of different Columns and triggers an analysis for the columns that have reached a specific threshold.
@@ -30,7 +32,7 @@ import java.util.Random
  * @author Florian Burkhardt
  * @version 1.0.0
  */
-class StatisticsManagerService(private val catalogue: Catalogue, private val manager: TransactionManager): TransactionObserver {
+class StatisticsManagerService(private val catalogue: DefaultCatalogue, private val manager: TransactionManager): TransactionObserver {
 
     companion object {
         private val LOGGER = LoggerFactory.getLogger(StatisticsManagerService::class.java)
@@ -56,13 +58,11 @@ class StatisticsManagerService(private val catalogue: Catalogue, private val man
      * @param events The list of [Event]s in order at which they were applied.
      */
     override fun onCommit(txId: TransactionId, events: List<Event>) {
-        // DONE("Keep track of the transactions/event on a column basis")
         for (event in events) {
-            //TODO("track via Entity instead of columns")
-            //(event as DataEvent).data.get()// columnsdef
-            this.increaseChangeCount((event as DataEvent).entity)
+            val dataEvent = event as DataEvent
+            val numberOfEntries = this.numberOfEntriesOfDataEvent(dataEvent)
+            this.updateStatisticsOfEntity(dataEvent.entity, numberOfEntries)
         }
-
     }
 
     /**
@@ -75,7 +75,7 @@ class StatisticsManagerService(private val catalogue: Catalogue, private val man
     /**
      * Schedules a new [Task] for analysing the specified column.
      *
-     * @param column The [Name.ColumnName] of the [Column] to analyse.
+     * @param entity The [Name.EntityName] of the [Entity] to analyse.
      */
     private fun schedule(entity: Name.EntityName) {
         var task: Runnable = Task(entity)
@@ -87,7 +87,9 @@ class StatisticsManagerService(private val catalogue: Catalogue, private val man
      */
     inner class Task(private val entityName: Name.EntityName): Runnable {
         override fun run() {
-            val transaction = this@StatisticsManagerService.manager.startTransaction(TransactionType.SYSTEM_READONLY) // Nicht exklusive, nur read only
+            StatisticsManagerService.LOGGER.info("Starting Task to analyse an entity.")
+            val transaction = this@StatisticsManagerService.manager.startTransaction(TransactionType.SYSTEM_READONLY) // It's a read only transaction of the main data
+            val statisticsTransaction = this@StatisticsManagerService.catalogue.statisticsEnvironment.beginExclusiveTransaction() // But an exclusive transaction for the statistics part
             val context = DefaultQueryContext("statistics-manager-${this@StatisticsManagerService.counter.incrementAndGet()}", this@StatisticsManagerService.catalogue, transaction)
             try {
                 StatisticsManagerService.LOGGER.info("Starting analysis of entity $entityName...")
@@ -96,43 +98,48 @@ class StatisticsManagerService(private val catalogue: Catalogue, private val man
                 val schemaTx = schema.newTx(context)
                 val entity = schemaTx.entityForName(this.entityName ?: return)
                 val entityTx = entity.newTx(context)
-
                 val columns = entityTx.listColumns().toTypedArray()
-                //val columnsCollector: Array<MetricsCollector<*>>(columns.size)
-                val columnsCollector: MutableList<MetricsCollector<*>> = mutableListOf()
 
                 // get the collectors for all columns
-                for (i in columns.indices) {
-                    val columnDef = columns[i]
-                    columnsCollector.add(getCollector(columnDef))
+                val columnsCollector = columns.map { columnDef ->
+                    getCollector(columnDef)
                 }
+
+                // Define random properties for skipping some rows of the entity -> only take a sample of the database
+                val probability = this@StatisticsManagerService.catalogue.config.statistics.probability
 
                 // create cursor for all columns of this entity and iterate over all of them
                 val entityCursor = entityTx.cursor(columns)
                 entityCursor.use { cursor ->
-                    // Define random properties for skipping some rows of the entity -> only take a sample of the database
-                    val probability = 1 // TODO move to class or laod from config or smth like that // TODO also, stuff like numberOfDistinctEntries should be multiplied so that it reflect the true state, e.g. probability = 0.5 => numberOfDistinctEntries * 2!
                     val random = Random() // todo look into configurable random methods
                     while (cursor.moveNext()) {
-                        if (random.nextDouble() <= probability) { // todo look documentation, between 0 and 1?
+                        if (random.nextDouble() <= probability) { //  will be between 0 and 1 (inclusive of both endpoints)
                             val record = cursor.value()
-                            // iterate over columns
-                            for (i in columns.indices) {
-                                val collector = columnsCollector[i]
+                            // iterate over columns and send value to corresponding collector
+                            columnsCollector.forEachIndexed { i, collector ->
                                 val value = record[i]
-                                collector.receive(value) // send value to corresponding collector
+                                collector.receive(value)
                             }
                         }
                     }
                 }
-                // entityCursor.close() // don't have to close it, since .use does that for us!
 
-                // Calculate metrics that have to be calculated after the whole batch
-                for (i in columnsCollector.indices) {
-                    columnsCollector[i].calculate()
+                /** Get [ValueMetrics] for each [Column] and store it for later persistent update */
+                val metricsList = columnsCollector.mapIndexed { _, collector ->
+                    collector.calculate(probability)
                 }
 
+                /** Store the */
+                columns.forEachIndexed { i, colDef ->
+                    val metrics = metricsList[i]
+                    val columnMetrics = ColumnMetrics(colDef.name, metrics.type, metrics)
+                    this@StatisticsManagerService.catalogue.statisticsStorageManager.updatePersistently(columnMetrics, statisticsTransaction)
+                }
+
+                // Commit both transactions if succeeded
                 transaction.commit()
+                statisticsTransaction.commit()
+
             } catch (e: Throwable) {
                 when (e) {
                     is DatabaseException.SchemaDoesNotExistException,
@@ -141,6 +148,7 @@ class StatisticsManagerService(private val catalogue: Catalogue, private val man
                     else -> StatisticsManagerService.LOGGER.error("Statistics Manager analysis of entity $entityName failed due to exception: ${e.message}.")
                 }
                 transaction.rollback()
+                statisticsTransaction.abort()
             }
         }
     }
@@ -169,7 +177,6 @@ class StatisticsManagerService(private val catalogue: Catalogue, private val man
             is Types.LongVector -> LongVectorMetricsCollector(def.type.logicalSize)
             is Types.Complex32Vector -> Complex32VectorMetricsCollector(def.type.logicalSize)
             is Types.Complex64Vector -> Complex64VectorMetricsCollector(def.type.logicalSize)
-            /*else -> BooleanMetricsCollector()*/
         }
         return collector
     }
@@ -178,35 +185,43 @@ class StatisticsManagerService(private val catalogue: Catalogue, private val man
      * changes is a temporary data struct that tracks the number of changes (and when the last change occurred) in memory
      * Basically in the form of EntityName: <500 Changes, Timestamp>
      */
-    private val changes: MutableMap<Name.EntityName, Pair<Int, Instant>> = mutableMapOf()
+    private val changesMap: MutableMap<Name.EntityName, Int> = mutableMapOf()
 
     /**
-     * threshold is the number of updates that must occur before the task is run
-     * TODO Define a default and get via Config file or similar
+     * This function updates the statistics/metrics of every column of an entity.
+     * But it does so only when a specific Threshold is reached. If you want to force an update the numberOfEntries parameter can just be omitted
      */
-    private val changesThreshold: Int = 0
+    fun updateStatisticsOfEntity(entity: Name.EntityName, numberOfEntries : Long = 0L) {
 
-    /**
-     * threshold is the seconds that must pass before the task is run
-     * TODO Define a default and get via Config file or similar
-     */
-    private val timestampThreshold: Long = 600 // 600 seconds
+        val changes = this.changesMap.getOrDefault(entity, 0) // get current count of changes for this entity or init with 0
+        val threshold = catalogue.config.statistics.threshold
 
-    /**
-     * This function is called every time a new change was made to a column. Its goal is to count the number of changes that are made in a column and trigger a task to redo the statistics if the threshold is reached
-     */
-    fun increaseChangeCount(entity: Name.EntityName, forceUpdate: Boolean = false): Unit {
-        val (count, timestamp) = this.changes.getOrDefault(entity, Pair(0, Instant.now())) // get current count and timestamp or exchange it with the default Pair specified here
 
-        // Check if this change will trigger the task based on number of changes or time passed
-        if (count + 1 >= this.changesThreshold || Instant.now().isAfter(timestamp.plusSeconds(this.timestampThreshold)) || forceUpdate) {
+        if (changes + 1 >= threshold * numberOfEntries) {
             LOGGER.info("A new task was schedules to recreate statistics for entity " + entity.schemaName + "." + entity.entityName)
             this.schedule(entity) // schedule task for this column
-            this.changes[entity] = Pair(0, Instant.now()) // Reset count to 0.
+            this.changesMap[entity] = 0 // Reset count to 0.
         } else {
             LOGGER.info("Change does not trigger a new task for entity " + entity.schemaName + "." + entity.entityName)
-            this.changes[entity] = Pair(count + 1, Instant.now()) // increase count by 1 if no task was scheduled
+            this.changesMap[entity] = changes + 1 // increase count by 1 if no task was scheduled
         }
+    }
+
+    /**
+     * This function checks if
+     */
+    private fun numberOfEntriesOfDataEvent(dataEvent: DataEvent) : Long {
+
+        // get
+        val columnDefs = dataEvent.data
+        var minNumberOfEntries = Long.MAX_VALUE
+        for (key in columnDefs.keys) {
+            val columnMetrics = this@StatisticsManagerService.catalogue.statisticsStorageManager[key.name]
+            minNumberOfEntries = min(minNumberOfEntries, columnMetrics?.statistics?.numberOfEntries ?: 0L)
+        }
+
+        return if (minNumberOfEntries != Long.MAX_VALUE) minNumberOfEntries else 0L // TODO check if that is actually possible
+
     }
 
 }

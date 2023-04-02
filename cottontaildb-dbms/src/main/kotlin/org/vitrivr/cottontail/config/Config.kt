@@ -17,10 +17,6 @@ data class Config(
         @Serializable(with = PathSerializer::class)
         val root: Path = Paths.get("./data"),
 
-        /** Path to the root data folder used by Cottontail DB. */
-        @Serializable(with = PathSerializer::class)
-        val statisticsRoot: Path = Paths.get("./statistics"),
-
         /** Path to a custom Log4j2 config file (XML). Defaults to null! */
         @Serializable(with = PathSerializer::class)
         val logConfig: Path? = null,
@@ -43,14 +39,17 @@ data class Config(
         /** Reference to [CacheConfig], which contains configuration regarding caches in Cottontail DB. */
         val cache: CacheConfig = CacheConfig(),
 
-        /** Reference to [CostConfig], which contains configuration regarding  Cottontail DB's cost model. */
-        val cost: CostConfig = CostConfig()
+        /** Reference to [CostConfig], which contains configuration regarding Cottontail DB's cost model. */
+        val cost: CostConfig = CostConfig(),
+
+        /** Reference to [StatisticsConfig], which contains configuration regarding Cottontail DB's statistic manager. */
+        val statistics: StatisticsConfig = StatisticsConfig()
 ) {
         /** Returns a path to the main data folder used by Cottontail DB. */
         fun dataFolder(): Path = this.root.resolve("xodus")
 
         /** Returns a path to the statistics data folder used by Cottontail DB. */
-        fun statisticsFolder(): Path = this.statisticsRoot.resolve("xodus")
+        fun statisticsFolder(): Path = this.root.resolve("statistics")
 
         /** Returns a path to the temporary data folder used by Cottontail DB. */
         fun temporaryDataFolder(): Path = this.root.resolve("tmp")

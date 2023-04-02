@@ -26,6 +26,18 @@ data class FloatValueMetrics (
 ) : RealValueMetrics<FloatValue>(Types.Float) {
 
     /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: FloatValueMetrics): this(
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
+        min = metrics.min,
+        max = metrics.max,
+        sum = DoubleValue(metrics.sum.value * factor)
+    )
+
+    /**
      * Xodus serializer for [FloatValueMetrics]
      */
     object Binding: MetricsXodusBinding<FloatValueMetrics> {

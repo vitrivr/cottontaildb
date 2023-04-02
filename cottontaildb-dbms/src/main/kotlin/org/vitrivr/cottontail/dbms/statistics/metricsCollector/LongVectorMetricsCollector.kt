@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 import org.vitrivr.cottontail.core.values.LongVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.statistics.metricsData.IntVectorValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.metricsData.LongVectorValueMetrics
 
 /**
@@ -33,10 +34,20 @@ class LongVectorMetricsCollector(val logicalSize: Int): RealVectorMetricsCollect
         }
     }
 
-    override fun calculate(): LongVectorValueMetrics {
-        return LongVectorValueMetrics(
-            logicalSize
+    override fun calculate(probability: Float): LongVectorValueMetrics {
+
+        val sampleMetrics = LongVectorValueMetrics(
+            logicalSize,
+            numberOfNullEntries,
+            numberOfNonNullEntries,
+            numberOfDistinctEntries,
+            min,
+            max,
+            sum
         )
+
+        return LongVectorValueMetrics(1/probability,  sampleMetrics)
+
     }
 
 }

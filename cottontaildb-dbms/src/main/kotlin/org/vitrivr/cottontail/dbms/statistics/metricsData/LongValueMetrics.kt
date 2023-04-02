@@ -26,6 +26,18 @@ data class LongValueMetrics(
 ) : RealValueMetrics<LongValue>(Types.Long) {
 
     /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: LongValueMetrics): this(
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
+        min = metrics.min,
+        max = metrics.max,
+        sum = DoubleValue(metrics.sum.value * factor)
+    )
+
+    /**
      * Xodus serializer for [LongValueMetrics]
      */
     object Binding: MetricsXodusBinding<LongValueMetrics> {

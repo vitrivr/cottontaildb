@@ -33,8 +33,8 @@ class IntVectorMetricsCollector(val logicalSize: Int): RealVectorMetricsCollecto
         }
     }
 
-    override fun calculate(): IntVectorValueMetrics {
-        return IntVectorValueMetrics(
+    override fun calculate(probability: Float): IntVectorValueMetrics {
+        val sampleMetrics = IntVectorValueMetrics(
             logicalSize,
             numberOfNullEntries,
             numberOfNonNullEntries,
@@ -43,6 +43,9 @@ class IntVectorMetricsCollector(val logicalSize: Int): RealVectorMetricsCollecto
             max,
             sum
         )
+
+        return IntVectorValueMetrics(1/probability,  sampleMetrics)
+
     }
 
 

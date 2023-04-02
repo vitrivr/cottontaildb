@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.dbms.statistics.metricsData
 import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
-import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.IntVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
@@ -24,6 +23,19 @@ data class IntVectorValueMetrics(
     override val max: IntVectorValue = IntVectorValue(IntArray(logicalSize) { Int.MIN_VALUE }),
     override val sum: IntVectorValue = IntVectorValue(IntArray(logicalSize))
 ): RealVectorValueMetrics<IntVectorValue>(Types.IntVector(logicalSize)) {
+
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: IntVectorValueMetrics): this(
+        logicalSize = metrics.logicalSize,
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
+        min = metrics.min, // min and max are not adjusted
+        max = metrics.max, // min and max are not adjusted
+        sum = IntVectorValue(IntArray(metrics.logicalSize) { (metrics.sum.data[it] * factor).toInt() })
+    )
 
     /** The arithmetic for the values seen by this [DoubleVectorValueMetrics]. */
     override val mean: IntVectorValue
@@ -61,7 +73,7 @@ data class IntVectorValueMetrics(
     }
 
     /**
-     * Resets this [IntVectorValueMetrics] and sets all its values to to the default value.
+     * Resets this [IntVectorValueMetrics] and sets all its values to the default value.
      */
     override fun reset() {
         super.reset()

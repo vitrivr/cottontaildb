@@ -36,7 +36,7 @@ sealed interface MetricsCollector <T : Value> {
     /**
      * Tells the collector to calculate the metrics which it does not do iteratively (e.g., mean etc.). Usually called after all elements were received
      */
-    fun calculate(): ValueMetrics<T>
+    fun calculate(probability: Float): ValueMetrics<T>
 
 
 }
