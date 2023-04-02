@@ -8,14 +8,18 @@ import java.nio.file.Paths
 /**
  * Cottontail DB configuration class.
  *
- * @author Ralph Gasser
- * @version 1.6.2
+ * @author Ralph Gasser, Florian Burkhardt
+ * @version 1.7.0
  */
 @Serializable
 data class Config(
         /** Path to the root data folder used by Cottontail DB. */
         @Serializable(with = PathSerializer::class)
         val root: Path = Paths.get("./data"),
+
+        /** Path to the root data folder used by Cottontail DB. */
+        @Serializable(with = PathSerializer::class)
+        val statisticsRoot: Path = Paths.get("./statistics"),
 
         /** Path to a custom Log4j2 config file (XML). Defaults to null! */
         @Serializable(with = PathSerializer::class)
@@ -44,6 +48,9 @@ data class Config(
 ) {
         /** Returns a path to the main data folder used by Cottontail DB. */
         fun dataFolder(): Path = this.root.resolve("xodus")
+
+        /** Returns a path to the statistics data folder used by Cottontail DB. */
+        fun statisticsFolder(): Path = this.statisticsRoot.resolve("xodus")
 
         /** Returns a path to the temporary data folder used by Cottontail DB. */
         fun temporaryDataFolder(): Path = this.root.resolve("tmp")

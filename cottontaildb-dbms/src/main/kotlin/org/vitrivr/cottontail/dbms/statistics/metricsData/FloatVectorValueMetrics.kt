@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.statistics.metricsData
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.SignedFloatBinding
 import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
@@ -14,15 +15,15 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class FloatVectorValueMetrics(logicalSize: Int) : RealVectorValueMetrics<FloatVectorValue>(Types.FloatVector(logicalSize)) {
-    /** Minimum value in this [FloatVectorValueMetrics]. */
-    override val min: FloatVectorValue = FloatVectorValue(FloatArray(this.type.logicalSize) { Float.MAX_VALUE })
-
-    /** Minimum value in this [FloatVectorValueMetrics]. */
-    override val max: FloatVectorValue = FloatVectorValue(FloatArray(this.type.logicalSize) { Float.MIN_VALUE })
-
-    /** Sum of all floats values in this [FloatVectorValueMetrics]. */
-    override val sum: FloatVectorValue = FloatVectorValue(FloatArray(this.type.logicalSize))
+data class FloatVectorValueMetrics(
+    val logicalSize: Int,
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+    override val min: FloatVectorValue = FloatVectorValue(FloatArray(logicalSize) { Float.MAX_VALUE }),
+    override val max: FloatVectorValue = FloatVectorValue(FloatArray(logicalSize) { Float.MIN_VALUE }),
+    override val sum: FloatVectorValue = FloatVectorValue(FloatArray(logicalSize))
+) : RealVectorValueMetrics<FloatVectorValue>(Types.FloatVector(logicalSize)) {
 
     /** The arithmetic for the values seen by this [DoubleVectorValueMetrics]. */
     override val mean: FloatVectorValue
@@ -35,10 +36,11 @@ class FloatVectorValueMetrics(logicalSize: Int) : RealVectorValueMetrics<FloatVe
      */
     class Binding(val logicalSize: Int): MetricsXodusBinding<FloatVectorValueMetrics> {
         override fun read(stream: ByteArrayInputStream): FloatVectorValueMetrics {
-            val stat = FloatVectorValueMetrics(logicalSize)
+            val stat = FloatVectorValueMetrics(this@Binding.logicalSize)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            for (i in 0 until this.logicalSize) {
+            stat.numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            for (i in 0 until this@Binding.logicalSize) {
                 stat.min.data[i] = SignedFloatBinding.BINDING.readObject(stream)
                 stat.max.data[i] = SignedFloatBinding.BINDING.readObject(stream)
                 stat.sum.data[i] = SignedFloatBinding.BINDING.readObject(stream)
@@ -49,6 +51,7 @@ class FloatVectorValueMetrics(logicalSize: Int) : RealVectorValueMetrics<FloatVe
         override fun write(output: LightOutputStream, statistics: FloatVectorValueMetrics) {
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
             for (i in 0 until statistics.type.logicalSize) {
                 SignedFloatBinding.BINDING.writeObject(output, statistics.min.data[i])
                 SignedFloatBinding.BINDING.writeObject(output, statistics.max.data[i])

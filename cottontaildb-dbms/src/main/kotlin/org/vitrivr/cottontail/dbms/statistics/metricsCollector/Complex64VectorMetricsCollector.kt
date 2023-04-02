@@ -13,13 +13,15 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.Complex64VectorValueMe
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class Complex64VectorMetricsCollector(logicalSize: Int): AbstractVectorMetricsCollector<Complex64VectorValue, Double>(Types.Complex64Vector(logicalSize)) {
-
-    /** The corresponding [valueMetrics] which stores all metrics for [Types] */
-    val valueMetrics: Complex64VectorValueMetrics = Complex64VectorValueMetrics(logicalSize)
+class Complex64VectorMetricsCollector(val logicalSize: Int): AbstractVectorMetricsCollector<Complex64VectorValue>(Types.Complex64Vector(logicalSize)) {
 
     override fun calculate(): Complex64VectorValueMetrics {
-        TODO("Not yet implemented")
+        return Complex64VectorValueMetrics(
+            logicalSize,
+            numberOfNullEntries,
+            numberOfNonNullEntries,
+            numberOfDistinctEntries
+        )
     }
 
 

@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 import org.vitrivr.cottontail.core.values.BooleanVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.metricsData.BooleanVectorValueMetrics
 
 /**
@@ -11,10 +10,9 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.BooleanVectorValueMetr
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-class BooleanVectorMetricsCollector(logicalSize: Int) : AbstractVectorMetricsCollector<BooleanVectorValue, Boolean>(Types.BooleanVector(logicalSize)) {
+class BooleanVectorMetricsCollector(val logicalSize: Int) : AbstractVectorMetricsCollector<BooleanVectorValue>(Types.BooleanVector(logicalSize)) {
 
-    /** The corresponding [valueMetrics] which stores all metrics for [Types] */
-    val valueMetrics: BooleanVectorValueMetrics = BooleanVectorValueMetrics(logicalSize)
+    private var numberOfTrueEntries: LongArray = LongArray(logicalSize)
 
     /**
      * Receives the values for which to compute the statistics
@@ -24,7 +22,7 @@ class BooleanVectorMetricsCollector(logicalSize: Int) : AbstractVectorMetricsCol
         if (value != null && value is BooleanVectorValue) {
             for ((i, d) in value.data.withIndex()) {
                 if (d) {
-                    valueMetrics.numberOfTrueEntries[i] = valueMetrics.numberOfTrueEntries[i] + 1
+                    numberOfTrueEntries[i] = numberOfTrueEntries[i] + 1
                 } // numberOfFalseEntries is computed using numberOfNonNullEntries and numberOfTrueEntries
 
             }
@@ -32,7 +30,13 @@ class BooleanVectorMetricsCollector(logicalSize: Int) : AbstractVectorMetricsCol
     }
 
     override fun calculate(): BooleanVectorValueMetrics {
-        TODO("Not yet implemented")
+        return BooleanVectorValueMetrics(
+            logicalSize,
+            numberOfNullEntries,
+            numberOfNonNullEntries,
+            numberOfDistinctEntries,
+            numberOfTrueEntries
+        )
     }
 
 

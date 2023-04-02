@@ -1,5 +1,6 @@
 {
   "root": "./cottontaildb-data",
+  "statisticsRoot" : "./statistics-data",
   "mapdb": {
     "enableMmap": true,
     "forceUnmap": true,

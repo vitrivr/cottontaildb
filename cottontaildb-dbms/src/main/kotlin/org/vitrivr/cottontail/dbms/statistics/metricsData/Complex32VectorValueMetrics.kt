@@ -13,21 +13,32 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class Complex32VectorValueMetrics(logicalSize: Int): AbstractVectorMetrics<Complex32VectorValue>(Types.Complex32Vector(logicalSize)) {
+data class Complex32VectorValueMetrics(
+    val logicalSize: Int,
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+): AbstractVectorMetrics<Complex32VectorValue>(Types.Complex32Vector(logicalSize)) {
     /**
      * Xodus serializer for [Complex32VectorValueMetrics]
      */
     class Binding(val logicalSize: Int): MetricsXodusBinding<Complex32VectorValueMetrics> {
         override fun read(stream: ByteArrayInputStream): Complex32VectorValueMetrics {
-            val stat = Complex32VectorValueMetrics(this.logicalSize)
-            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
-            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            return stat
+            val numberOfNullEntries = LongBinding.readCompressed(stream)
+            val numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            val numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            return Complex32VectorValueMetrics(
+                this@Binding.logicalSize,
+                numberOfNullEntries,
+                numberOfNonNullEntries,
+                numberOfDistinctEntries
+            )
         }
 
         override fun write(output: LightOutputStream, statistics: Complex32VectorValueMetrics) {
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
         }
     }
 

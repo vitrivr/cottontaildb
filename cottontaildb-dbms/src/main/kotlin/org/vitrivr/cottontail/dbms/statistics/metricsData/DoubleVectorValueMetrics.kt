@@ -14,15 +14,15 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class DoubleVectorValueMetrics(logicalSize: Int) : RealVectorValueMetrics<DoubleVectorValue>(Types.DoubleVector(logicalSize)) {
-    /** Minimum value seen by this [DoubleVectorValueMetrics]. */
-    override val min: DoubleVectorValue = DoubleVectorValue(DoubleArray(this.type.logicalSize) { Double.MAX_VALUE })
-
-    /** Minimum value seen by this [DoubleVectorValueMetrics]. */
-    override val max: DoubleVectorValue = DoubleVectorValue(DoubleArray(this.type.logicalSize) { Double.MIN_VALUE })
-
-    /** Sum of all floats values seen by this [DoubleVectorValueMetrics]. */
-    override val sum: DoubleVectorValue = DoubleVectorValue(DoubleArray(this.type.logicalSize))
+data class DoubleVectorValueMetrics(
+    val logicalSize: Int,
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+    override val min: DoubleVectorValue = DoubleVectorValue(DoubleArray(logicalSize) { Double.MAX_VALUE }),
+    override val max: DoubleVectorValue = DoubleVectorValue(DoubleArray(logicalSize) { Double.MIN_VALUE }),
+    override val sum: DoubleVectorValue = DoubleVectorValue(DoubleArray(logicalSize))
+) : RealVectorValueMetrics<DoubleVectorValue>(Types.DoubleVector(logicalSize)) {
 
     /** The arithmetic mean for the values seen by this [DoubleVectorValueMetrics]. */
     override val mean: DoubleVectorValue
@@ -35,10 +35,11 @@ class DoubleVectorValueMetrics(logicalSize: Int) : RealVectorValueMetrics<Double
      */
     class Binding(val logicalSize: Int): MetricsXodusBinding<DoubleVectorValueMetrics> {
         override fun read(stream: ByteArrayInputStream): DoubleVectorValueMetrics {
-            val stat = DoubleVectorValueMetrics(this.logicalSize)
+            val stat = DoubleVectorValueMetrics(this@Binding.logicalSize)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            for (i in 0 until this.logicalSize) {
+            stat.numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            for (i in 0 until this@Binding.logicalSize) {
                 stat.min.data[i] = SignedDoubleBinding.BINDING.readObject(stream)
                 stat.max.data[i] = SignedDoubleBinding.BINDING.readObject(stream)
                 stat.sum.data[i] = SignedDoubleBinding.BINDING.readObject(stream)
@@ -49,6 +50,7 @@ class DoubleVectorValueMetrics(logicalSize: Int) : RealVectorValueMetrics<Double
         override fun write(output: LightOutputStream, statistics: DoubleVectorValueMetrics) {
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
             for (i in 0 until statistics.type.logicalSize) {
                 SignedDoubleBinding.BINDING.writeObject(output, statistics.min.data[i])
                 SignedDoubleBinding.BINDING.writeObject(output, statistics.max.data[i])

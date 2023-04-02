@@ -93,11 +93,13 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      */
     override suspend fun analyzeEntity(request: CottontailGrpc.AnalyzeEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val entityName = request.entity.fqn()
-        if (request.async || true) { // TODO Rewrite for further usage
+        ctx.assign(AnalyseEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName, this.statisticsManagerService)) // TODO Rewrite for further usage
+        /*
+        if (request.async || true) {
             ctx.assign(AnalyseEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName, this.statisticsManagerService))
         } else {
             ctx.assign(AnalyseEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName))
-        }
+        }*/
         ctx.toOperatorTree()
     }.single()
 

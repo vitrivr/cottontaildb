@@ -13,32 +13,26 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.2.0
  */
-data class BooleanVectorValueMetrics(val logicalSize: Int) : AbstractVectorMetrics<BooleanVectorValue>(Types.BooleanVector(logicalSize)) {
-
-    constructor(
-        logicalSize: Int,
-        numberOfTrueEntries: LongArray,
-        numberOfNullEntries: Long,
-        numberOfNonNullEntries: Long,
-        numberOfDistinctEntries: Long
-    ) : this(logicalSize) {
-        this.numberOfTrueEntries = numberOfTrueEntries
-        this.numberOfNullEntries = numberOfNullEntries
-        this.numberOfNonNullEntries = numberOfNonNullEntries
-        this.numberOfDistinctEntries = numberOfDistinctEntries
-    }
+data class BooleanVectorValueMetrics(
+    val logicalSize: Int,
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+    var numberOfTrueEntries: LongArray = LongArray(logicalSize),
+    ) : AbstractVectorMetrics<BooleanVectorValue>(Types.BooleanVector(logicalSize)) {
 
     /**
      * Xodus serializer for [BooleanVectorValueMetrics]
      */
     class Binding(val logicalSize: Int): MetricsXodusBinding<BooleanVectorValueMetrics> {
         override fun read(stream: ByteArrayInputStream): BooleanVectorValueMetrics {
-            val stat = BooleanVectorValueMetrics(this.logicalSize)
+            val stat = BooleanVectorValueMetrics(this@Binding.logicalSize)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            for (i in 0 until this.logicalSize) {
+            stat.numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            for (i in 0 until this@Binding.logicalSize) {
                 stat.numberOfTrueEntries[i] = LongBinding.readCompressed(stream)
-                stat.numberOfFalseEntries[i] = LongBinding.readCompressed(stream)
+                //stat.numberOfFalseEntries[i] = LongBinding.readCompressed(stream) // false entries don't have to be read since they're computed
             }
             return stat
         }
@@ -46,15 +40,16 @@ data class BooleanVectorValueMetrics(val logicalSize: Int) : AbstractVectorMetri
         override fun write(output: LightOutputStream, statistics: BooleanVectorValueMetrics) {
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
             for (i in 0 until statistics.type.logicalSize) {
                 LongBinding.writeCompressed(output, statistics.numberOfTrueEntries[i])
-                LongBinding.writeCompressed(output, statistics.numberOfFalseEntries[i])
+                // LongBinding.writeCompressed(output, statistics.numberOfFalseEntries[i]) // false entries don't have to be written since they're computed
             }
         }
     }
 
     /** A histogram capturing the number of true entries per component. */
-    var numberOfTrueEntries: LongArray = LongArray(this.type.logicalSize)
+    //var numberOfTrueEntries: LongArray = LongArray(this.type.logicalSize) // initialized via constructor
 
     /** A histogram capturing the number of false entries per component. */
     val numberOfFalseEntries: LongArray

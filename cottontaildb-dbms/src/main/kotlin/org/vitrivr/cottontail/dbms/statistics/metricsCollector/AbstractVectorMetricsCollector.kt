@@ -15,16 +15,7 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractVectorMetrics
  * @author Florian Burkhardt
  * @version 1.0.0
  */
-sealed class AbstractVectorMetricsCollector<T: Value, R>(type: Types<T>) : AbstractMetricsCollector<T>(type) {
+sealed class AbstractVectorMetricsCollector<T: Value>(type: Types<T>) : AbstractMetricsCollector<T>(type) {
 
-    /**
-     * Tells the collector to calculate the metrics which it does not do iteratively (e.g., mean etc.). Usually called after all elements were received
-     */
-    /*override fun calculate() {
-        /*for ((i, hashset) in distinctSets.withIndex()) {
-            valueMetrics.numberOfDistinctEntriesArray[i] = hashset.size.toLong() // write size of distinct entries into array
-        }*/
-        //TODO("Write to storage here!")
-    }*/
 }
 

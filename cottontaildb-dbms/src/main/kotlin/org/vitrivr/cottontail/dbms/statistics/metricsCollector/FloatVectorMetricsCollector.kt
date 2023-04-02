@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
 import org.vitrivr.cottontail.core.values.FloatVectorValue
+import org.vitrivr.cottontail.core.values.IntVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractValueMetrics
@@ -12,10 +13,12 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.FloatVectorValueMetric
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-class FloatVectorMetricsCollector(logicalSize: Int) : RealVectorMetricsCollector<FloatVectorValue, Float>(Types.FloatVector(logicalSize)) {
+class FloatVectorMetricsCollector(val logicalSize: Int) : RealVectorMetricsCollector<FloatVectorValue>(Types.FloatVector(logicalSize)) {
 
-    /** The corresponding [valueMetrics] which stores all metrics for [Types] */
-    val valueMetrics: FloatVectorValueMetrics = FloatVectorValueMetrics(logicalSize)
+    /** Local Metrics */
+    val min: FloatVectorValue = FloatVectorValue(FloatArray(logicalSize) { Float.MAX_VALUE })
+    val max: FloatVectorValue = FloatVectorValue(FloatArray(logicalSize) { Float.MIN_VALUE })
+    val sum: FloatVectorValue = FloatVectorValue(FloatArray(logicalSize))
 
     /**
      * Receives the values for which to compute the statistics
@@ -25,15 +28,17 @@ class FloatVectorMetricsCollector(logicalSize: Int) : RealVectorMetricsCollector
         if (value != null && value is FloatVectorValue) {
             for ((i, d) in value.data.withIndex()) {
                 // update min, max, sum
-                valueMetrics.min.data[i] = java.lang.Float.min(d, valueMetrics.min.data[i])
-                valueMetrics.max.data[i] = java.lang.Float.max(d, valueMetrics.max.data[i])
-                valueMetrics.sum.data[i] += d
+                min.data[i] = java.lang.Float.min(d, min.data[i])
+                max.data[i] = java.lang.Float.max(d, max.data[i])
+                sum.data[i] += d
             }
         }
     }
 
     override fun calculate(): FloatVectorValueMetrics {
-        TODO("Not yet implemented")
+        return FloatVectorValueMetrics(
+            logicalSize
+        )
     }
 
 }

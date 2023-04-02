@@ -30,7 +30,6 @@ data class BooleanValueMetrics(
     /**
      * Xodus serializer for [BooleanValueMetrics]
      */
-    //Deactivated for now, since XodusBinding expected [ValueStatistics] which we don't have here
     object Binding: MetricsXodusBinding<BooleanValueMetrics> {
         override fun read(stream: ByteArrayInputStream): BooleanValueMetrics {
             val numberOfNullEntries = LongBinding.readCompressed(stream)

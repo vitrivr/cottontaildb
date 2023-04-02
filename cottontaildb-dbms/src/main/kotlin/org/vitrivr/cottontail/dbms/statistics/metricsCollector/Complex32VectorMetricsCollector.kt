@@ -13,13 +13,15 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.Complex32VectorValueMe
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.0.1
  */
-class Complex32VectorMetricsCollector(logicalSize: Int): AbstractVectorMetricsCollector<Complex32VectorValue, Float>(Types.Complex32Vector(logicalSize)) {
-
-    /** The corresponding [valueMetrics] which stores all metrics for [Types] */
-    val valueMetrics: Complex32VectorValueMetrics = Complex32VectorValueMetrics(logicalSize)
+class Complex32VectorMetricsCollector(val logicalSize: Int): AbstractVectorMetricsCollector<Complex32VectorValue>(Types.Complex32Vector(logicalSize)) {
 
     override fun calculate(): Complex32VectorValueMetrics {
-        TODO("Not yet implemented")
+        return Complex32VectorValueMetrics(
+            logicalSize,
+            numberOfNullEntries,
+            numberOfNonNullEntries,
+            numberOfDistinctEntries
+        )
     }
 
 

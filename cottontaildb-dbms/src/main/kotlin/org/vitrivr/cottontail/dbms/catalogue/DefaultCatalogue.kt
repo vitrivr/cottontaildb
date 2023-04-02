@@ -24,6 +24,7 @@ import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.statistics.columns.ColumnStatisticsManager
 import org.vitrivr.cottontail.dbms.statistics.index.IndexStatisticsManager
+import org.vitrivr.cottontail.dbms.statistics.storage.StatisticsStorageManager
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.concurrent.withLock
@@ -82,6 +83,11 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         this.config.xodus.toEnvironmentConfig()
     )
 
+    /** The statistics/metrics Xodus [Environment] used by Cottontail DB. This is an internal variable and not part of the official interface. */
+    internal val statisticsEnvironment: Environment = Environments.newInstance(
+        this.config.statisticsFolder().toFile()
+    )
+
     /** The Xodus [VirtualFileSystem] used by Cottontail DB. This is an internal variable and not part of the official interface. */
     val vfs: VirtualFileSystem
 
@@ -90,6 +96,9 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
     /** The [ColumnStatisticsManager] used by this [DefaultCatalogue]. */
     val columnStatistics: ColumnStatisticsManager
+
+    /** The [StatisticsStorageManager] used by this [DefaultCatalogue]. */
+    val statisticsStorageManager: StatisticsStorageManager
 
     /** A internal, in-memory cache for frequently used index structures. This is highly experimental! */
     val cache = InMemoryIndexCache()
@@ -135,6 +144,16 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
             throw e
         }
 
+        /* Check */
+        val statisticsTX = this.statisticsEnvironment.beginExclusiveTransaction()
+        try {
+            /** Open the statisticsStorageManager */
+            this.statisticsStorageManager = StatisticsStorageManager(statisticsEnvironment, statisticsTX)
+        } catch (e: Throwable) {
+            statisticsTX.abort()
+            throw e
+        }
+
         /* Tries to clean-up the temporary environment. */
         if (!Files.exists(this.config.temporaryDataFolder())) {
             Files.createDirectories(this.config.temporaryDataFolder())
@@ -169,6 +188,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         } finally {
             this.vfs.shutdown()
             this.environment.close()
+            this.statisticsEnvironment.close()
         }
     }
 

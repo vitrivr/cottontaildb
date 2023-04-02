@@ -195,11 +195,11 @@ class StatisticsManagerService(private val catalogue: Catalogue, private val man
     /**
      * This function is called every time a new change was made to a column. Its goal is to count the number of changes that are made in a column and trigger a task to redo the statistics if the threshold is reached
      */
-    fun increaseChangeCount(entity: Name.EntityName): Unit {
+    fun increaseChangeCount(entity: Name.EntityName, forceUpdate: Boolean = false): Unit {
         val (count, timestamp) = this.changes.getOrDefault(entity, Pair(0, Instant.now())) // get current count and timestamp or exchange it with the default Pair specified here
 
         // Check if this change will trigger the task based on number of changes or time passed
-        if (count + 1 >= this.changesThreshold || Instant.now().isAfter(timestamp.plusSeconds(this.timestampThreshold))) {
+        if (count + 1 >= this.changesThreshold || Instant.now().isAfter(timestamp.plusSeconds(this.timestampThreshold)) || forceUpdate) {
             LOGGER.info("A new task was schedules to recreate statistics for entity " + entity.schemaName + "." + entity.entityName)
             this.schedule(entity) // schedule task for this column
             this.changes[entity] = Pair(0, Instant.now()) // Reset count to 0.

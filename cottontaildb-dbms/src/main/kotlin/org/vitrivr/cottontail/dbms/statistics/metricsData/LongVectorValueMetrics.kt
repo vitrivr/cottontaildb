@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.statistics.metricsData
 
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.values.IntVectorValue
 import org.vitrivr.cottontail.core.values.LongVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
@@ -13,15 +14,15 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class LongVectorValueMetrics(logicalSize: Int): RealVectorValueMetrics<LongVectorValue>(Types.LongVector(logicalSize)) {
-    /** Minimum value seen by this [LongVectorValueMetrics]. */
-    override val min: LongVectorValue = LongVectorValue(LongArray(this.type.logicalSize) { Long.MAX_VALUE })
-
-    /** Minimum value seen by this [LongVectorValueMetrics]. */
-    override val max: LongVectorValue = LongVectorValue(LongArray(this.type.logicalSize) { Long.MIN_VALUE })
-
-    /** Sum of all values seen by this [IntVectorValueMetrics]. */
-    override val sum: LongVectorValue = LongVectorValue(LongArray(this.type.logicalSize))
+class LongVectorValueMetrics(
+    val logicalSize: Int,
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+    override val min: LongVectorValue = LongVectorValue(LongArray(logicalSize) { Long.MAX_VALUE }),
+    override val max: LongVectorValue = LongVectorValue(LongArray(logicalSize) { Long.MIN_VALUE }),
+    override val sum: LongVectorValue = LongVectorValue(LongArray(logicalSize))
+): RealVectorValueMetrics<LongVectorValue>(Types.LongVector(logicalSize)) {
 
     /** The arithmetic for the values seen by this [DoubleVectorValueMetrics]. */
     override val mean: LongVectorValue
@@ -34,10 +35,11 @@ class LongVectorValueMetrics(logicalSize: Int): RealVectorValueMetrics<LongVecto
      */
     class Binding(val logicalSize: Int): MetricsXodusBinding<LongVectorValueMetrics> {
         override fun read(stream: ByteArrayInputStream): LongVectorValueMetrics {
-            val stat = LongVectorValueMetrics(this.logicalSize)
+            val stat = LongVectorValueMetrics(this@Binding.logicalSize)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            for (i in 0 until this.logicalSize) {
+            stat.numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            for (i in 0 until this@Binding.logicalSize) {
                 stat.min.data[i] = LongBinding.BINDING.readObject(stream)
                 stat.max.data[i] = LongBinding.BINDING.readObject(stream)
                 stat.sum.data[i] = LongBinding.BINDING.readObject(stream)
@@ -48,6 +50,7 @@ class LongVectorValueMetrics(logicalSize: Int): RealVectorValueMetrics<LongVecto
         override fun write(output: LightOutputStream, statistics: LongVectorValueMetrics) {
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
             for (i in 0 until statistics.type.logicalSize) {
                 LongBinding.BINDING.writeObject(output, statistics.min.data[i])
                 LongBinding.BINDING.writeObject(output, statistics.max.data[i])
