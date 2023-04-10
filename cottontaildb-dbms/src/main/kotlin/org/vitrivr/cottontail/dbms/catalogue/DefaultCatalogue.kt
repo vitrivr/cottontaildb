@@ -13,6 +13,7 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.dbms.catalogue.entries.*
 import org.vitrivr.cottontail.dbms.catalogue.entries.MetadataEntry.Companion.METADATA_ENTRY_DB_VERSION
+import org.vitrivr.cottontail.dbms.events.SchemaEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.functions.initialize
 import org.vitrivr.cottontail.dbms.general.AbstractTx
@@ -254,6 +255,11 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
             /* Write schema! */
             SchemaCatalogueEntry.write(SchemaCatalogueEntry(name), this@DefaultCatalogue, this.context.txn.xodusTx)
+
+            /* Create Event and notify observers */
+            val event = SchemaEvent.Create(name)
+            this.context.txn.signalEvent(event)
+
             return DefaultSchema(name, this@DefaultCatalogue)
         }
 
@@ -271,6 +277,10 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
             /* Obtain schema Tx and drop all entities contained in schema. */
             val schemaTx = DefaultSchema(name, this@DefaultCatalogue).newTx(this.context)
             schemaTx.listEntities().forEach { schemaTx.dropEntity(it) }
+
+            /* Create Event and notify observers */
+            val event = SchemaEvent.Create(name)
+            this.context.txn.signalEvent(event)
 
             /* Remove schema from catalogue. */
             SchemaCatalogueEntry.delete(name, this@DefaultCatalogue, this.context.txn.xodusTx)

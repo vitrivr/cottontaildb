@@ -8,10 +8,7 @@ import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.column.Column
-import org.vitrivr.cottontail.dbms.events.ColumnEvent
-import org.vitrivr.cottontail.dbms.events.DataEvent
-import org.vitrivr.cottontail.dbms.events.Event
-import org.vitrivr.cottontail.dbms.events.IndexEvent
+import org.vitrivr.cottontail.dbms.events.*
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
@@ -24,6 +21,7 @@ import org.vitrivr.cottontail.dbms.statistics.storage.ColumnMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
+import javax.xml.validation.Schema
 import kotlin.math.min
 
 /**
@@ -48,7 +46,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
      * @return True
      */
     override fun isRelevant(event: Event): Boolean {
-        return event is DataEvent
+        return event is DataEvent || event is SchemaEvent
     }
 
     /**
@@ -59,13 +57,30 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
      */
     override fun onCommit(txId: TransactionId, events: List<Event>) {
         for (event in events) {
-            if (event is DataEvent) {
-                val numberOfEntries = this.numberOfEntriesOfDataEvent(event)
-                this.updateStatisticsOfEntity(event.entity, numberOfEntries)
-            } else {
-                // TODO handle other events
+            when (event) {
+                is DataEvent -> {
+                    val numberOfEntries = this.numberOfEntriesOfDataEvent(event)
+                    this.updateStatisticsOfEntity(event.entity, numberOfEntries)
+                }
+                is SchemaEvent -> {
+                    this.handleSchemaEvent(event)
+                }
+                else -> {} // do nothing for all other events
             }
+        }
+    }
 
+    /**
+     * Processes the schema events
+     */
+    private fun handleSchemaEvent(event: SchemaEvent) {
+        when (event) {
+            is SchemaEvent.Create -> {
+                TODO("To be implemented")
+            }
+            is SchemaEvent.Drop -> {
+                TODO("To be implemented")
+            }
         }
     }
 
@@ -82,14 +97,14 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
      * @param entity The [Name.EntityName] of the [Entity] to analyse.
      */
     private fun schedule(entity: Name.EntityName, numberOfEntries : Long) {
-        var task: Runnable = Task(entity, numberOfEntries)
+        var task: Runnable = AnalysisTask(entity, numberOfEntries)
         this.manager.executionManager.serviceWorkerPool.schedule(task, 100L, TimeUnit.MILLISECONDS)
     }
 
     /**
      * The actual [Runnable] that executes [Column] analysis.
      */
-    inner class Task(private val entityName: Name.EntityName, val numberOfEntries: Long): Runnable {
+    inner class AnalysisTask(private val entityName: Name.EntityName, private val numberOfEntries: Long): Runnable {
         override fun run() {
             StatisticsManagerService.LOGGER.info("Starting Task to analyse an entity.")
             val transaction = this@StatisticsManagerService.manager.startTransaction(TransactionType.SYSTEM_READONLY) // It's a read only transaction of the main data
@@ -214,7 +229,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
     }
 
     /**
-     * This function checks if
+     * This function gets the number of entries for an entity and returns them
      */
     private fun numberOfEntriesOfDataEvent(dataEvent: DataEvent) : Long {
 
