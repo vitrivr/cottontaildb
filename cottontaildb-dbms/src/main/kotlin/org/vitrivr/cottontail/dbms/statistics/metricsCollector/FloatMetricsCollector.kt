@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
+import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.ByteValue
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.FloatValue
@@ -16,7 +17,7 @@ import java.lang.Float.min
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-class FloatMetricsCollector : RealMetricsCollector<FloatValue>(Types.Float) {
+class FloatMetricsCollector(override val statisticsConfig : StatisticsConfig, override val expectedNumElements: Int) : RealMetricsCollector<FloatValue>(Types.Float) {
 
     /** Local Metrics */
     var min : Float = 0.0F

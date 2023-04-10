@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.metricsData.ByteValueMetrics
 import com.google.common.primitives.SignedBytes.max
 import com.google.common.primitives.SignedBytes.min
+import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractValueMetrics
 
@@ -16,7 +17,7 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractValueMetrics
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-class ByteMetricsCollector : RealMetricsCollector<ByteValue>(Types.Byte) {
+class ByteMetricsCollector (override val statisticsConfig : StatisticsConfig, override val expectedNumElements: Int) : RealMetricsCollector<ByteValue>(Types.Byte) {
 
     /** Local Metrics */
     var min : Byte = 0

@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
+import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
@@ -11,7 +12,7 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.FloatVectorValueMetric
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-class FloatVectorMetricsCollector(val logicalSize: Int) : RealVectorMetricsCollector<FloatVectorValue>(Types.FloatVector(logicalSize)) {
+class FloatVectorMetricsCollector(val logicalSize: Int, override val statisticsConfig : StatisticsConfig, override val expectedNumElements: Int) : RealVectorMetricsCollector<FloatVectorValue>(Types.FloatVector(logicalSize)) {
 
     /** Local Metrics */
     val min: FloatVectorValue = FloatVectorValue(FloatArray(logicalSize) { Float.MAX_VALUE })

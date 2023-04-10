@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
+import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.LongVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
@@ -12,7 +13,7 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.LongVectorValueMetrics
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-class LongVectorMetricsCollector(val logicalSize: Int): RealVectorMetricsCollector<LongVectorValue>(Types.LongVector(logicalSize)) {
+class LongVectorMetricsCollector(val logicalSize: Int, override val statisticsConfig : StatisticsConfig, override val expectedNumElements: Int): RealVectorMetricsCollector<LongVectorValue>(Types.LongVector(logicalSize)) {
 
     /** Local Metrics */
     val min: LongVectorValue = LongVectorValue(LongArray(logicalSize) { Long.MAX_VALUE })

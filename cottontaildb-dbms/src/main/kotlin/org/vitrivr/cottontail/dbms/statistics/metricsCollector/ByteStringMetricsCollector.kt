@@ -1,11 +1,12 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
+import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.ByteStringValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.metricsData.ByteStringValueMetrics
 
-class ByteStringMetricsCollector : AbstractScalarMetricsCollector<ByteStringValue>(Types.ByteString) {
+class ByteStringMetricsCollector(override val statisticsConfig : StatisticsConfig, override val expectedNumElements: Int) : AbstractScalarMetricsCollector<ByteStringValue>(Types.ByteString) {
 
     var minWidth : Int = Int.MAX_VALUE
     var maxWidth : Int = Int.MIN_VALUE

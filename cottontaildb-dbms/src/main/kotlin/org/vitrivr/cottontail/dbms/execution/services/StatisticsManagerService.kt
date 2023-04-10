@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.execution.services
 
 import org.slf4j.LoggerFactory
+import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
@@ -23,7 +24,6 @@ import org.vitrivr.cottontail.dbms.statistics.storage.ColumnMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
-import java.util.Random
 import kotlin.math.min
 
 /**
@@ -59,9 +59,13 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
      */
     override fun onCommit(txId: TransactionId, events: List<Event>) {
         for (event in events) {
-            val dataEvent = event as DataEvent
-            val numberOfEntries = this.numberOfEntriesOfDataEvent(dataEvent)
-            this.updateStatisticsOfEntity(dataEvent.entity, numberOfEntries)
+            if (event is DataEvent) {
+                val numberOfEntries = this.numberOfEntriesOfDataEvent(event)
+                this.updateStatisticsOfEntity(event.entity, numberOfEntries)
+            } else {
+                // TODO handle other events
+            }
+
         }
     }
 
@@ -77,15 +81,15 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
      *
      * @param entity The [Name.EntityName] of the [Entity] to analyse.
      */
-    private fun schedule(entity: Name.EntityName) {
-        var task: Runnable = Task(entity)
+    private fun schedule(entity: Name.EntityName, numberOfEntries : Long) {
+        var task: Runnable = Task(entity, numberOfEntries)
         this.manager.executionManager.serviceWorkerPool.schedule(task, 100L, TimeUnit.MILLISECONDS)
     }
 
     /**
      * The actual [Runnable] that executes [Column] analysis.
      */
-    inner class Task(private val entityName: Name.EntityName): Runnable {
+    inner class Task(private val entityName: Name.EntityName, val numberOfEntries: Long): Runnable {
         override fun run() {
             StatisticsManagerService.LOGGER.info("Starting Task to analyse an entity.")
             val transaction = this@StatisticsManagerService.manager.startTransaction(TransactionType.SYSTEM_READONLY) // It's a read only transaction of the main data
@@ -100,20 +104,20 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
                 val entityTx = entity.newTx(context)
                 val columns = entityTx.listColumns().toTypedArray()
 
-                // get the collectors for all columns
+                // get the collectors for all columns and give them the numberOfEntries to init the BloomFilter
                 val columnsCollector = columns.map { columnDef ->
-                    getCollector(columnDef)
+                    getCollector(columnDef, this@StatisticsManagerService.catalogue.config.statistics, numberOfEntries)
                 }
 
                 // Define random properties for skipping some rows of the entity -> only take a sample of the database
                 val probability = this@StatisticsManagerService.catalogue.config.statistics.probability
+                val randomNumberGenerator = this@StatisticsManagerService.catalogue.config.statistics.randomNumberGenerator
 
                 // create cursor for all columns of this entity and iterate over all of them
                 val entityCursor = entityTx.cursor(columns)
                 entityCursor.use { cursor ->
-                    val random = Random() // todo look into configurable random methods
                     while (cursor.moveNext()) {
-                        if (random.nextDouble() <= probability) { //  will be between 0 and 1 (inclusive of both endpoints)
+                        if (randomNumberGenerator.nextDouble() <= probability) { //  will be between 0 and 1 (inclusive of both endpoints)
                             val record = cursor.value()
                             // iterate over columns and send value to corresponding collector
                             columnsCollector.forEachIndexed { i, collector ->
@@ -156,27 +160,29 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
     /**
      * Function that, based on the [ColumnDef]'s [Types] returns the corresponding [MetricsCollector]
      */
-    fun getCollector(def: ColumnDef<*>) : MetricsCollector<*> {
+    fun getCollector(def: ColumnDef<*>, statisticsConfig: StatisticsConfig, numberOfEntries: Long) : MetricsCollector<*> {
+        var numberOfEntries = numberOfEntries.toInt()
         val collector = when (def.type) {
-            Types.Boolean -> BooleanMetricsCollector()
-            Types.Byte -> ByteMetricsCollector()
-            Types.Short -> ShortMetricsCollector()
-            Types.Date -> DateMetricsCollector()
-            Types.Double -> DoubleMetricsCollector()
-            Types.Float -> FloatMetricsCollector()
-            Types.Int -> IntMetricsCollector()
-            Types.Long -> LongMetricsColelctor()
-            Types.String -> StringMetricsCollector()
-            Types.ByteString -> ByteStringMetricsCollector()
-            Types.Complex32 -> Complex32MetricsCollector()
-            Types.Complex64 -> Complex64MetricsCollector()
-            is Types.BooleanVector -> BooleanVectorMetricsCollector(def.type.logicalSize)
-            is Types.DoubleVector -> DoubleVectorMetricsCollector(def.type.logicalSize)
-            is Types.FloatVector -> FloatVectorMetricsCollector(def.type.logicalSize)
-            is Types.IntVector -> IntVectorMetricsCollector(def.type.logicalSize)
-            is Types.LongVector -> LongVectorMetricsCollector(def.type.logicalSize)
-            is Types.Complex32Vector -> Complex32VectorMetricsCollector(def.type.logicalSize)
-            is Types.Complex64Vector -> Complex64VectorMetricsCollector(def.type.logicalSize)
+            Types.Boolean -> BooleanMetricsCollector(statisticsConfig, numberOfEntries)
+            Types.Byte -> ByteMetricsCollector(statisticsConfig, numberOfEntries)
+            Types.Short -> ShortMetricsCollector(statisticsConfig, numberOfEntries)
+            Types.Date -> DateMetricsCollector(statisticsConfig, numberOfEntries)
+            Types.Double -> DoubleMetricsCollector(statisticsConfig, numberOfEntries)
+            Types.Float -> FloatMetricsCollector(statisticsConfig, numberOfEntries)
+            Types.Int -> IntMetricsCollector(statisticsConfig, numberOfEntries)
+            Types.Long -> LongMetricsColelctor(statisticsConfig, numberOfEntries)
+            Types.String -> StringMetricsCollector(statisticsConfig, numberOfEntries)
+            Types.ByteString -> ByteStringMetricsCollector(statisticsConfig, numberOfEntries)
+            Types.Complex32 -> Complex32MetricsCollector(statisticsConfig, numberOfEntries)
+            Types.Complex64 -> Complex64MetricsCollector(statisticsConfig, numberOfEntries)
+            is Types.BooleanVector -> BooleanVectorMetricsCollector(def.type.logicalSize, statisticsConfig, numberOfEntries)
+            is Types.DoubleVector -> DoubleVectorMetricsCollector(def.type.logicalSize, statisticsConfig, numberOfEntries)
+            is Types.FloatVector -> FloatVectorMetricsCollector(def.type.logicalSize, statisticsConfig, numberOfEntries)
+            is Types.IntVector -> IntVectorMetricsCollector(def.type.logicalSize, statisticsConfig, numberOfEntries)
+            is Types.LongVector -> LongVectorMetricsCollector(def.type.logicalSize,statisticsConfig, numberOfEntries)
+            is Types.Complex32Vector -> Complex32VectorMetricsCollector(def.type.logicalSize, statisticsConfig, numberOfEntries)
+            is Types.Complex64Vector -> Complex64VectorMetricsCollector(def.type.logicalSize, statisticsConfig, numberOfEntries)
+            else -> throw IllegalArgumentException("Invalid column type")
         }
         return collector
     }
@@ -199,7 +205,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
 
         if (changes + 1 >= threshold * numberOfEntries) {
             LOGGER.info("A new task was schedules to recreate statistics for entity " + entity.schemaName + "." + entity.entityName)
-            this.schedule(entity) // schedule task for this column
+            this.schedule(entity, numberOfEntries) // schedule task for this column
             this.changesMap[entity] = 0 // Reset count to 0.
         } else {
             LOGGER.info("Change does not trigger a new task for entity " + entity.schemaName + "." + entity.entityName)
@@ -220,7 +226,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
             minNumberOfEntries = min(minNumberOfEntries, columnMetrics?.statistics?.numberOfEntries ?: 0L)
         }
 
-        return if (minNumberOfEntries != Long.MAX_VALUE) minNumberOfEntries else 0L // TODO check if that is actually possible
+        return if (minNumberOfEntries != Long.MAX_VALUE) minNumberOfEntries else 0L
 
     }
 

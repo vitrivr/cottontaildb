@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.config
 
 import kotlinx.serialization.Serializable
+import org.vitrivr.cottontail.dbms.statistics.random.KotlinRandomNumberGenerator
+import org.vitrivr.cottontail.dbms.statistics.random.RandomNumberGenerator
 
 /**
  * Config for Cottontail DB's management of statistics.
@@ -20,22 +22,22 @@ data class StatisticsConfig(
     /** Defines the false positive probability used by the BloomFilter when detecting the numberOfDistinctElements.
      * The false positive probability is represented by a float value between 0 and 1, and it determines the desired maximum probability of false positives that the filter will generate.
      * The lower the false positive probability, the larger the size of the Bloom filter and the more expensive it is to use and maintain.*/
-    var falsePositiveProbability: Float = 0.01F // Default is 1%. Typical value between 1% to 10%
+    var falsePositiveProbability: Double = 0.01, // Default is 1%. Typical value between 1% to 10%
+
+    /** The random number generator to use. Defaults to Kotlin's built-in. */
+    var randomNumberGenerator: RandomNumberGenerator = KotlinRandomNumberGenerator()
+    // Todo make serilizable
 
     // TODO maybe add a threshold for the numberOfEntries there have to be before sampling?
-    // Todo check if require arguments (below) could somehow work?
-) {
-    // custom setter for threshold to check for input
-    /*var threshold: Float
-        get() = _threshold
-        set(value) {
-            require(value > 0.0F && value <= 1.0F) { "Threshold must be between 0 (exclusive) and 1 (inclusive)" }
-            _threshold = value
-        }
-    var probability: Float
-        get() = _probability
-        set(value) {
-            require(value > 0.0F && value <= 1.0F) { "Probability must be between 0 (exclusive) and 1 (inclusive)" }
-            _probability = value
-        }*/
+)
+{
+    init {
+        require(this.threshold in 0.0f .. 1.0f) { "The threshold must lie between 0.0 and 1.0 but is ${this.threshold}."}
+        require(this.probability in 0.0f .. 1.0f) { "The probability must lie between 0.0 and 1.0 but is ${this.probability}."}
+        require(this.falsePositiveProbability in 0.0 .. 1.0) { "The falsePositiveProbability must lie between 0.0 and 1.0 but is ${this.falsePositiveProbability}."}
+    }
 }
+
+
+
+

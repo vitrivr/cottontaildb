@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
+import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.Complex32Value
 import org.vitrivr.cottontail.core.values.Complex64Value
 import org.vitrivr.cottontail.core.values.types.Types
@@ -14,7 +15,7 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.Complex64ValueMetrics
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class Complex64MetricsCollector(): AbstractScalarMetricsCollector<Complex64Value>(Types.Complex64) {
+class Complex64MetricsCollector(override val statisticsConfig : StatisticsConfig, override val expectedNumElements: Int): AbstractScalarMetricsCollector<Complex64Value>(Types.Complex64) {
 
     override fun calculate(probability: Float): Complex64ValueMetrics {
         val sampleMetrics = Complex64ValueMetrics(

@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
 import com.google.common.hash.BloomFilter
+import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractValueMetrics
@@ -17,15 +18,11 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractValueMetrics
  * @version 1.3.0
  */
 sealed class AbstractMetricsCollector<T : Value>(override val type: Types<T>) : MetricsCollector<T> {
-    companion object {
-        const val ENTRIES_KEY = "entries"
-        const val NULL_ENTRIES_KEY = "null_entries"
-    }
 
-    /** Init BloomFilter */
-    private val expectedNumElements = 1000 // TODO get from statistic
-    private val falsePositiveProbability = 0.01 // Todo via CONFIG?
-    private val bloomFilter: BloomFilter<Value> = BloomFilter.create<Value>(Value.ValueFunnel, expectedNumElements, falsePositiveProbability)
+    /** Init a BloomFilter*/
+    abstract override val statisticsConfig: StatisticsConfig
+    abstract override val expectedNumElements: Int
+    private var bloomFilter : BloomFilter<Value> =  BloomFilter.create<Value>(Value.ValueFunnel, expectedNumElements, statisticsConfig.falsePositiveProbability)
 
     /** Global Metrics */
     override var numberOfDistinctEntries = 0L
@@ -39,7 +36,7 @@ sealed class AbstractMetricsCollector<T : Value>(override val type: Types<T>) : 
         if (value != null) {
             numberOfNonNullEntries += 1
 
-            // BloomFilter check for dinstinct entries
+            // BloomFilter check for distinct entries
             if (bloomFilter.mightContain(value)) {
                 numberOfDistinctEntries += 1
             } else {

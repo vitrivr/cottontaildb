@@ -1,11 +1,8 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
-import com.google.common.hash.BloomFilter
-import org.vitrivr.cottontail.core.values.types.ScalarValue
+import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractScalarMetrics
-import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractValueMetrics
 
 /**
  * A basic implementation of a [MetricsCollector] object, which is used by Cottontail DB to collect

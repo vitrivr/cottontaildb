@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
+import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.types.Types
@@ -14,7 +15,7 @@ import java.lang.Integer.min
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-class IntMetricsCollector : RealMetricsCollector<IntValue>(Types.Int) {
+class IntMetricsCollector(override val statisticsConfig : StatisticsConfig, override val expectedNumElements: Int) : RealMetricsCollector<IntValue>(Types.Int) {
 
     /** Local Metrics */
     var min : Int = 0

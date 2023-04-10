@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
+import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.ByteValue
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.LongValue
@@ -16,7 +17,7 @@ import java.lang.Long.min
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-class LongMetricsColelctor : RealMetricsCollector<LongValue>(Types.Long) {
+class LongMetricsColelctor(override val statisticsConfig : StatisticsConfig, override val expectedNumElements: Int) : RealMetricsCollector<LongValue>(Types.Long) {
 
     /** Local Metrics */
     var min : Long = 0
