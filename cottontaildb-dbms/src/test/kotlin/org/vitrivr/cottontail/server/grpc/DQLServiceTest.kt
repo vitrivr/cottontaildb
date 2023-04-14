@@ -17,7 +17,10 @@ import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.embedded
 import org.vitrivr.cottontail.server.CottontailServer
 import org.vitrivr.cottontail.test.GrpcTestUtils
+import org.vitrivr.cottontail.test.GrpcTestUtils.createLuceneIndexOnTestEntity
 import org.vitrivr.cottontail.test.TestConstants
+import org.vitrivr.cottontail.test.TestConstants.DOUBLE_COLUMN_NAME
+import org.vitrivr.cottontail.test.TestConstants.INT_COLUMN_NAME
 import org.vitrivr.cottontail.test.TestConstants.STRING_COLUMN_NAME
 import org.vitrivr.cottontail.test.TestConstants.TEST_ENTITY_NAME
 import org.vitrivr.cottontail.test.TestConstants.TEST_VECTOR_ENTITY_NAME
@@ -118,11 +121,11 @@ class DQLServiceTest {
     @Test
     fun haversineDistance() {
         val query = Query()
-                .select("*")
-                .from(TEST_VECTOR_ENTITY_NAME.fqn)
-                .distance(TWOD_COLUMN_NAME, arrayOf(5f, 10f), Distances.HAVERSINE, "distance")
-                .order("distance", Direction.ASC)
-                .limit(500)
+            .select("*")
+            .from(TEST_VECTOR_ENTITY_NAME.fqn)
+            .distance(TWOD_COLUMN_NAME, arrayOf(5f, 10f), Distances.HAVERSINE, "distance")
+            .order("distance", Direction.ASC)
+            .limit(500)
         val result = client.query(query)
         val el = result.next()
         val distance = el.asDouble("distance")
@@ -132,12 +135,12 @@ class DQLServiceTest {
     @Test
     fun queryNNSWithLikeStart() {
         val query = Query()
-                .select("*")
-                .from(TEST_VECTOR_ENTITY_NAME.fqn)
-                .distance(TWOD_COLUMN_NAME, arrayOf(5f, 10f), Distances.L2, "distance")
-                .where(Expression(STRING_COLUMN_NAME, "LIKE", "a%"))
-                .order("distance", Direction.ASC)
-                .limit(500)
+            .select("*")
+            .from(TEST_VECTOR_ENTITY_NAME.fqn)
+            .distance(TWOD_COLUMN_NAME, arrayOf(5f, 10f), Distances.L2, "distance")
+            .where(Expression(STRING_COLUMN_NAME, "LIKE", "a%"))
+            .order("distance", Direction.ASC)
+            .limit(500)
 
         val result = client.query(query)
         for (r in result) {
@@ -151,11 +154,11 @@ class DQLServiceTest {
     @Test
     fun queryNNSWithLikeEnd() {
         val query = Query().from(TEST_VECTOR_ENTITY_NAME.fqn)
-                .select("*")
-                .distance(TWOD_COLUMN_NAME, arrayOf(5f, 10f), Distances.L2, "distance")
-                .where(Expression(STRING_COLUMN_NAME, "LIKE", "%z"))
-                .order("distance", Direction.ASC)
-                .limit(500)
+            .select("*")
+            .distance(TWOD_COLUMN_NAME, arrayOf(5f, 10f), Distances.L2, "distance")
+            .where(Expression(STRING_COLUMN_NAME, "LIKE", "%z"))
+            .order("distance", Direction.ASC)
+            .limit(500)
         val result = client.query(query)
         for (r in result) {
             val distance = r.asDouble("distance")
@@ -166,8 +169,42 @@ class DQLServiceTest {
     }
 
     @Test
+    fun luceneBasics() {
+        luceneInsertLookupTest("test", "test")
+        luceneInsertLookupTest("test", "t*", false)
+    }
+
+    @Test
+    fun luceneNonAlphanumericCharacters() {
+        luceneInsertLookupTest("test", "tast~")
+        luceneInsertLookupTest("test-", "test\\-", false)
+        luceneInsertLookupTest("a - b", "\\-", false)
+        luceneInsertLookupTest("a - b", "-", false)
+    }
+
+    fun luceneInsertLookupTest(str: String, queryString: String, createIndex: Boolean = true) {
+        val txId = this.client.begin()
+        val insert = Insert().into(TEST_ENTITY_NAME.fqn)
+            .value(STRING_COLUMN_NAME, str)
+            .value(INT_COLUMN_NAME, 1)
+            .value(DOUBLE_COLUMN_NAME, 1.0)
+            .txId(txId)
+        this.client.insert(insert)
+        this.client.commit(txId)
+        if (createIndex) {
+            createLuceneIndexOnTestEntity(this.client)
+        }
+        val query = Query().from(TEST_ENTITY_NAME.fqn)
+            .select("*")
+            .fulltext(STRING_COLUMN_NAME, queryString, "distance")
+            .limit(1)
+        val result = client.query(query)
+        assert(result.hasNext())
+    }
+
+    @Test
     fun distinctLookup() {
-        val entryStrings = listOf("one", "ONE", "two", "three",)
+        val entryStrings = listOf("one", "ONE", "two", "three")
         testDistinct(entryStrings)
     }
 
@@ -177,7 +214,7 @@ class DQLServiceTest {
         testDistinct(entryStrings)
     }
 
-    private fun testDistinct(entryStrings: List<String>){
+    private fun testDistinct(entryStrings: List<String>) {
         /* Create entity with one column. */
         val entityName = TestConstants.TEST_SCHEMA.entity("distinct_test")
         this.client.create(CreateEntity(entityName.fqn).column(STRING_COLUMN_NAME, Type.STRING))
@@ -197,7 +234,7 @@ class DQLServiceTest {
             val query = Query().from(entityName.fqn).distinct(STRING_COLUMN_NAME, null)
             val result = this.client.query(query)
             val set = mutableSetOf<String>()
-            for(r in result){
+            for (r in result) {
                 val string = r.asString(STRING_COLUMN_NAME)!!
                 assertTrue(set.add(string), "$string was returned twice!")
             }
