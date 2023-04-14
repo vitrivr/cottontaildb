@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.LongValue
+import org.vitrivr.cottontail.core.values.types.RealValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
@@ -88,6 +89,8 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * Prevents [DefaultCatalogue] from being closed while transaction is ongoing.
          */
         private val closeStamp: Long
+
+        private val lastGenerated = mutableListOf<Pair<ColumnDef<*>, RealValue<*>>>()
 
         init {
             /** Checks if DBO is still open. */
@@ -317,6 +320,8 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }
         }
 
+        override fun lastGenerated(): List<Pair<ColumnDef<*>, RealValue<*>>> = lastGenerated
+
         /**
          * Creates and returns a new [Iterator] for this [DefaultEntity.Tx] that returns
          * all [TupleId]s contained within the surrounding [DefaultEntity].
@@ -381,6 +386,9 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          */
         @Suppress("UNCHECKED_CAST")
         override fun insert(record: Record): TupleId = this.txLatch.withLock {
+
+            this.lastGenerated.clear()
+
             /* Execute INSERT on entity level. */
             val nextTupleId = SequenceCatalogueEntries.next(this@DefaultEntity.sequenceName, this@DefaultEntity.catalogue, this.context.xodusTx)
                 ?: throw DatabaseException.DataCorruptionException("Sequence entry for entity ${this@DefaultEntity.name} is missing.")
@@ -393,11 +401,13 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                     column.columnDef.autoIncrement -> {
                         val nextValue = SequenceCatalogueEntries.next(this@DefaultEntity.name.sequence(column.name.simple), this@DefaultEntity.catalogue, this.context.xodusTx)
                         check(nextValue != null) { "Failed to generate next value in sequence for column ${column.name}. This is a programmer's error!"}
-                        when (column.type) {
+                        val value = when (column.type) {
                             Types.Int -> IntValue(nextValue)
                             Types.Long -> LongValue(nextValue)
                             else -> throw IllegalStateException("Columns of types ${column.type} do not allow for serial values. This is a programmer's error!")
                         }
+                        this.lastGenerated.add(column.columnDef to value)
+                        value
                     }
                     column.columnDef.nullable -> record[column.columnDef]
                     else -> record[column.columnDef] ?: throw DatabaseException.ValidationException("Cannot INSERT a NULL value into column ${column.columnDef}.")

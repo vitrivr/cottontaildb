@@ -70,7 +70,7 @@ class DMLService(override val catalogue: Catalogue, override val manager: Transa
     /**
      * gRPC endpoint for handling INSERT queries.
      */
-    override suspend fun insert(request: CottontailGrpc.InsertMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) { ctx ->
+    override suspend fun insert(request: CottontailGrpc.InsertMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecuteWithDeferredColumns(request.metadata) { ctx ->
         /* Bind query and create logical plan. */
         val canonical = GrpcQueryBinder.bind(request, ctx)
         ctx.assign(canonical)

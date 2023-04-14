@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.core.basics.Scanable
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.values.types.RealValue
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.dbms.index.Index
@@ -111,4 +112,9 @@ interface EntityTx : Tx, Scanable, Countable, Modifiable {
      * Optimizes the [Entity] underlying this [EntityTx]. Optimization involves rebuilding of [Index]es and statistics.
      */
     fun optimize()
+
+    /**
+     * For entities with generated properties, such as autoincrement, returns a list of the last generated values for the affected columns
+     */
+    fun lastGenerated(): List<Pair<ColumnDef<*>, RealValue<*>>>
 }
