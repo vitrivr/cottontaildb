@@ -310,7 +310,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
             object : Cursor<Record> {
 
                 /** Local [BooleanPredicate.Atomic] instance. */
-                private val predicate: BooleanPredicate.Atomic
+                private val predicate: BooleanPredicate
 
                 /** A [Queue] with values that should be queried. */
                 private val queryValueQueue: Queue<Value> = LinkedList()
@@ -322,15 +322,78 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
                 private var cursor: jetbrains.exodus.env.Cursor
 
                 /* Perform initial sanity checks. */
-                init { //TODO use value combination
-                    require(predicate is BooleanPredicate.Atomic) { "UQBTreeIndex.filter() does only support Atomic.Literal boolean predicates." }
-                    require(!predicate.not) { "UniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
-                    this.predicate = predicate
-                    when (predicate.operator) {
-                        is ComparisonOperator.In -> this.queryValueQueue.addAll((predicate.operator as ComparisonOperator.In).right.mapNotNull { it.value })
-                        is ComparisonOperator.Binary.Equal -> this.queryValueQueue.add((predicate.operator as ComparisonOperator.Binary.Equal).right.value ?: throw IllegalArgumentException("UQBTreeIndex.filter() does not support NULL operands."))
-                        else -> throw IllegalArgumentException("UQBTreeIndex.filter() does only support EQUAL, IN or LIKE operators.")
+                init {
+                    require(predicate is BooleanPredicate) { "UQBTreeIndex.filter() does only support boolean predicates." }
+                    if (predicate is BooleanPredicate.Atomic) {
+                        require(!predicate.not) { "UniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
+
+                        when (predicate.operator) {
+                            is ComparisonOperator.In -> this.queryValueQueue.addAll((predicate.operator as ComparisonOperator.In).right.mapNotNull { it.value })
+                            is ComparisonOperator.Binary.Equal -> this.queryValueQueue.add(
+                                (predicate.operator as ComparisonOperator.Binary.Equal).right.value
+                                    ?: throw IllegalArgumentException("UQBTreeIndex.filter() does not support NULL operands.")
+                            )
+
+                            else -> throw IllegalArgumentException("UQBTreeIndex.filter() does only support EQUAL, or IN operators.")
+                        }
+                    } else {
+
+                        val map = columns.associateWith { mutableSetOf<Value?>() }.toMutableMap()
+
+                        //resolving combined predicates recursively
+                        fun fillMap(predicate: BooleanPredicate) {
+                            when(predicate) {
+                                is BooleanPredicate.Atomic -> {
+                                    require(!predicate.not) { "UniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
+                                    when(predicate.operator) {
+                                        is ComparisonOperator.Binary.Equal -> {
+                                            predicate.operator as ComparisonOperator.Binary.Equal
+                                            predicate.columns.forEach {
+                                                map[it]?.add((predicate.operator as ComparisonOperator.Binary.Equal).right.value)
+                                            }
+                                        }
+                                        is ComparisonOperator.In -> {
+                                            predicate.operator as ComparisonOperator.In
+                                            predicate.columns.forEach {
+                                                map[it]?.addAll((predicate.operator as ComparisonOperator.In).right.mapNotNull { b -> b.value })
+                                            }
+                                        }
+                                        else -> throw IllegalArgumentException("UQBTreeIndex.filter() does only support EQUAL, or IN operators.")
+                                    }
+                                }
+                                is BooleanPredicate.Compound.And -> {
+                                    fillMap(predicate.p1)
+                                    fillMap(predicate.p2)
+                                }
+                                is BooleanPredicate.Compound.Or -> throw IllegalArgumentException("UQBTreeIndex.filter() does not support OR compound predicates.")
+                            }
+                        }
+
+                        fillMap(predicate)
+
+                        require (!map.values.any { it.isEmpty() }) { "Not received values for all columns" }
+
+
+                        //recursively generate all value combinations
+                        val valueMap = mutableMapOf<ColumnDef<*>, Value?>()
+
+                        fun generateCombinations(idx: Int) {
+                            if (idx == columns.size) {
+                                this.queryValueQueue.add(combineValues(columns, valueMap))
+                            } else {
+                                val col = columns[idx]
+                                for (value in map[col]!!) {
+                                    valueMap[col] = value
+                                    generateCombinations(idx + 1)
+                                }
+                            }
+                        }
+
+                        generateCombinations(0)
+
                     }
+
+                    this.predicate = predicate
 
                     /** Initialize cursor. */
                     this.cursor = this@Tx.dataStore.openCursor(this.subTransaction)
