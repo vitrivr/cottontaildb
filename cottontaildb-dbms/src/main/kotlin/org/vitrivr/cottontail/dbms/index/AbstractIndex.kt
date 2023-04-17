@@ -1,7 +1,11 @@
 package org.vitrivr.cottontail.dbms.index
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.values.*
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.ColumnCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
@@ -11,6 +15,8 @@ import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
+import java.io.ByteArrayOutputStream
+import java.io.DataOutputStream
 
 /**
  * An abstract [Index] implementation that outlines the fundamental structure. Implementations of
@@ -115,4 +121,121 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
             this.dbo.catalogue.closeLock.unlockRead(this.closeStamp)
         }
     }
+
+    companion object {
+
+        /**
+         * Generates [Value] to be used for indexing. Combines multiple values in case of composite index.
+         */
+        fun combineValues(columns: Array<ColumnDef<*>>, values: Map<ColumnDef<*>, Value?>): Value? {
+
+            if (columns.isEmpty()) {
+                return null
+            }
+            if (columns.size == 1) {
+                return values[columns[0]]
+            }
+            return combineValues(columns.map { values[it] })
+
+        }
+
+        /**
+         * Generates [Value] to be used for indexing. Combines multiple values in case of composite index.
+         */
+        fun combineValues(columns: Array<ColumnDef<*>>, values: Record): Value? {
+
+            if (columns.isEmpty()) {
+                return null
+            }
+            if (columns.size == 1) {
+                return values[columns[0]]
+            }
+            return combineValues(columns.map { values[it] })
+
+        }
+        private fun combineValues(values: List<Value?>): Value? {
+
+            if (values.all { it == null }) {
+                return null
+            }
+
+            val arrayStream = ByteArrayOutputStream()
+            val out = DataOutputStream(arrayStream)
+
+            for (value in values) {
+                if (value == null) {
+                    out.writeByte(0)
+                } else {
+                    when(value.type){
+                        Types.Boolean -> out.writeBoolean((value as BooleanValue).value)
+                        Types.ByteString -> out.write((value as ByteStringValue).value)
+                        Types.Date -> out.writeLong((value as DateValue).value)
+                        Types.Byte -> out.writeByte((value as ByteValue).value.toInt())
+                        Types.Complex32 -> {
+                            value as Complex32Value
+                            out.writeFloat(value.data[0])
+                            out.writeFloat(value.data[1])
+                        }
+                        Types.Complex64 -> {
+                            value as Complex64Value
+                            out.writeDouble(value.data[0])
+                            out.writeDouble(value.data[1])
+                        }
+                        Types.Double -> out.writeDouble((value as DoubleValue).value)
+                        Types.Float -> out.writeFloat((value as FloatValue).value)
+                        Types.Int -> out.writeInt((value as IntValue).value)
+                        Types.Long -> out.writeLong((value as LongValue).value)
+                        Types.Short -> out.writeShort((value as ShortValue).value.toInt())
+                        Types.String -> out.writeBytes((value as StringValue).value)
+                        is Types.BooleanVector -> {
+                            value as BooleanVectorValue
+                            for (v in value.data) {
+                                out.writeBoolean(v)
+                            }
+                        }
+                        is Types.Complex32Vector -> {
+                            value as Complex32VectorValue
+                            for (v in value.data) {
+                                out.writeFloat(v)
+                            }
+                        }
+                        is Types.Complex64Vector -> {
+                            value as Complex64Value
+                            for (v in value.data) {
+                                out.writeDouble(v)
+                            }
+                        }
+                        is Types.DoubleVector -> {
+                            value as DoubleVectorValue
+                            for (v in value.data) {
+                                out.writeDouble(v)
+                            }
+                        }
+                        is Types.FloatVector -> {
+                            value as FloatVectorValue
+                            for (v in value.data) {
+                                out.writeFloat(v)
+                            }
+                        }
+                        is Types.IntVector -> {
+                            value as IntVectorValue
+                            for (v in value.data) {
+                                out.writeInt(v)
+                            }
+                        }
+                        is Types.LongVector -> {
+                            value as LongVectorValue
+                            for (v in value.data) {
+                                out.writeLong(v)
+                            }
+                        }
+                    }
+                }
+            }
+
+            return ByteStringValue(arrayStream.toByteArray())
+        }
+
+    }
+
 }
