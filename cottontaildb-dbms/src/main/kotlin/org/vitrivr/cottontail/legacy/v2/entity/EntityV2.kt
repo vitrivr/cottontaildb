@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.types.RealValue
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.column.Column
@@ -263,8 +262,6 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun lastGenerated(): List<Pair<ColumnDef<*>, RealValue<*>>> = emptyList()
-
         /**
          * Creates and returns a new [Iterator] for this [EntityV2.Tx] that returns
          * all [TupleId]s contained within the surrounding [EntityV2].
@@ -314,7 +311,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
             override fun close() { /* No op. */ }
         }
 
-        override fun insert(record: Record): TupleId {
+        override fun insert(record: Record): Record {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 

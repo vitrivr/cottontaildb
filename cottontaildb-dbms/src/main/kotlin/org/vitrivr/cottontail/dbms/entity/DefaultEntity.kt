@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.LongValue
-import org.vitrivr.cottontail.core.values.types.RealValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
@@ -89,8 +88,6 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * Prevents [DefaultCatalogue] from being closed while transaction is ongoing.
          */
         private val closeStamp: Long
-
-        private val lastGenerated = mutableListOf<Pair<ColumnDef<*>, RealValue<*>>>()
 
         init {
             /** Checks if DBO is still open. */
@@ -320,8 +317,6 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }
         }
 
-        override fun lastGenerated(): List<Pair<ColumnDef<*>, RealValue<*>>> = lastGenerated
-
         /**
          * Creates and returns a new [Iterator] for this [DefaultEntity.Tx] that returns
          * all [TupleId]s contained within the surrounding [DefaultEntity].
@@ -379,16 +374,13 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * Insert the provided [Record].
          *
          * @param record The [Record] that should be inserted.
-         * @return The ID of the record or null, if nothing was inserted.
+         * @return The generated [Record].
          *
          * @throws TransactionException If some of the [Tx] on [Column] or [Index] level caused an error.
          * @throws DatabaseException If a general database error occurs during the insert.
          */
         @Suppress("UNCHECKED_CAST")
-        override fun insert(record: Record): TupleId = this.txLatch.withLock {
-
-            this.lastGenerated.clear()
-
+        override fun insert(record: Record): Record = this.txLatch.withLock {
             /* Execute INSERT on entity level. */
             val nextTupleId = SequenceCatalogueEntries.next(this@DefaultEntity.sequenceName, this@DefaultEntity.catalogue, this.context.xodusTx)
                 ?: throw DatabaseException.DataCorruptionException("Sequence entry for entity ${this@DefaultEntity.name} is missing.")
@@ -406,7 +398,6 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                             Types.Long -> LongValue(nextValue)
                             else -> throw IllegalStateException("Columns of types ${column.type} do not allow for serial values. This is a programmer's error!")
                         }
-                        this.lastGenerated.add(column.columnDef to value)
                         value
                     }
                     column.columnDef.nullable -> record[column.columnDef]
@@ -427,7 +418,8 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /* Signal event to transaction context. */
             this.context.signalEvent(operation)
 
-            return nextTupleId
+            /* Return generated record. */
+            return StandaloneRecord(nextTupleId, inserts.keys.toTypedArray(), inserts.values.toTypedArray())
         }
 
         /**
@@ -490,6 +482,5 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         override fun cleanup() {
             this.dbo.catalogue.closeLock.unlockRead(this.closeStamp)
         }
-
     }
 }
