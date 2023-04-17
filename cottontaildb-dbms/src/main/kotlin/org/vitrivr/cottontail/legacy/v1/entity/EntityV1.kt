@@ -12,7 +12,6 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.types.RealValue
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.column.Column
@@ -231,8 +230,6 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun lastGenerated(): List<Pair<ColumnDef<*>, RealValue<*>>> = emptyList()
-
         override fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Record {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
@@ -267,7 +264,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
             return this@EntityV1.header.size
         }
 
-        override fun insert(record: Record): TupleId {
+        override fun insert(record: Record): Record {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 

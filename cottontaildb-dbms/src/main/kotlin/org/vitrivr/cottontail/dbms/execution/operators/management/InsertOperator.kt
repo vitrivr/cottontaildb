@@ -8,7 +8,6 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
-import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
@@ -16,14 +15,13 @@ import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import java.util.ArrayList
 
 /**
  * An [Operator.PipelineOperator] used during query execution. Inserts all incoming entries into an
  * [Entity] that it receives with the provided [Value].
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.5.0
  */
 class InsertOperator(groupId: GroupId, val entity: EntityTx, val records: List<Record>) : Operator.SourceOperator(groupId) {
     companion object {
@@ -34,15 +32,8 @@ class InsertOperator(groupId: GroupId, val entity: EntityTx, val records: List<R
         )
     }
 
-    private val extendedColumns = mutableListOf<ColumnDef<*>>()
-
     /** Columns produced by [InsertOperator]. */
-    override val columns: List<ColumnDef<*>>
-        get() = extendedColumns
-
-    init {
-        extendedColumns.addAll(COLUMNS)
-    }
+    override val columns: List<ColumnDef<*>> = COLUMNS + this.entity.listColumns()
 
     /**
      * Converts this [InsertOperator] to a [Flow] and returns it.
@@ -50,41 +41,16 @@ class InsertOperator(groupId: GroupId, val entity: EntityTx, val records: List<R
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [InsertOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
-        return flow {
-            for (record in this@InsertOperator.records) {
-                val start = System.currentTimeMillis()
-                val tupleId = this@InsertOperator.entity.insert(record)
-                val lastGenerated = this@InsertOperator.entity.lastGenerated()
-                if (lastGenerated.isEmpty()) {
-                    emit(
-                        StandaloneRecord(
-                            0L,
-                            extendedColumns.toTypedArray(),
-                            arrayOf(LongValue(tupleId), DoubleValue(System.currentTimeMillis() - start))
-                        )
-                    )
-                } else {
-
-                    val combinedValues = ArrayList<Value?>(COLUMNS.size + lastGenerated.size)
-                    combinedValues.add(LongValue(tupleId))
-                    combinedValues.add(DoubleValue(System.currentTimeMillis() - start))
-
-                    lastGenerated.forEach {
-                        extendedColumns.add(
-                            ColumnDef(Name.ColumnName(it.first.name.columnName), it.first.type, it.first.nullable)
-                        )
-                        combinedValues.add(it.second)
-                    }
-                    emit(
-                        StandaloneRecord(
-                            0L,
-                            extendedColumns.toTypedArray(),
-                            combinedValues.toTypedArray()
-                        )
-                    )
-                }
-            }
+    override fun toFlow(context: TransactionContext): Flow<Record> = flow {
+        val columns = this@InsertOperator.columns.toTypedArray()
+        for (record in this@InsertOperator.records) {
+            val start = System.currentTimeMillis()
+            val created = this@InsertOperator.entity.insert(record)
+            emit(StandaloneRecord(
+                0L,
+                columns,
+                arrayOf<Value?>(LongValue(created.tupleId), DoubleValue(System.currentTimeMillis() - start)) + Array(record.size) { created[it + 2]}
+            ))
         }
     }
 }

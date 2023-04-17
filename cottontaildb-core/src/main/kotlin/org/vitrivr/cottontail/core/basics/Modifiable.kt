@@ -8,16 +8,15 @@ import org.vitrivr.cottontail.core.database.TupleId
  * @see Record
  *
  * @author Ralph Gasser
- * @version 1.1.1
+ * @version 1.2.0
  */
 interface Modifiable {
     /**
      * Inserts a [Record] into this [Modifiable].
      *
-     * @param record The [Record] that should be inserted.
-     * @return The [TupleId] of the new [Record].
+     * @return The generated [Record] of the new [Record].
      */
-    fun insert(record: Record): TupleId
+    fun insert(record: Record): Record
 
     /**
      * Updates a [Record] from this [Modifiable] based on its [TupleId].
