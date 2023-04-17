@@ -49,7 +49,7 @@ class InsertOperator(groupId: GroupId, val entity: EntityTx, val records: List<R
             emit(StandaloneRecord(
                 0L,
                 columns,
-                arrayOf<Value?>(LongValue(created.tupleId), DoubleValue(System.currentTimeMillis() - start)) + Array(record.size) { created[it + 2]}
+                arrayOf<Value?>(LongValue(created.tupleId), DoubleValue(System.currentTimeMillis() - start)) + Array(record.size) { created[it]}
             ))
         }
     }
