@@ -241,7 +241,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
             /* Iterate over entity and update index with entries. */
             val cursor = entityTx.cursor(this.columns)
             cursor.forEach { record ->
-                val value = record[this.columns[0]]
+                val value = combineValues(this.columns, record)
                 if (value != null) {
                     this.addMapping(value, record.tupleId)
                 }
@@ -261,7 +261,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @param operation [Operation.DataManagementOperation.InsertOperation] to apply.
          */
         override fun insert(operation: Operation.DataManagementOperation.InsertOperation) = this.txLatch.withLock {
-            val value = operation.inserts[this.columns[0]]
+            val value = combineValues(this.columns, operation.inserts)
             if (value != null) {
                 this.addMapping(value, operation.tupleId)
             }
@@ -273,11 +273,11 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @param operation [Operation.DataManagementOperation.UpdateOperation] to apply.
          */
         override fun update(operation: Operation.DataManagementOperation.UpdateOperation) = this.txLatch.withLock {
-            val old = operation.updates[this.columns[0]]?.first
+            val old = combineValues(this.columns, operation.updates.mapValues { it.value.first })
             if (old != null) {
                 this.removeMapping(old, operation.tupleId)
             }
-            val new = operation.updates[this.columns[0]]?.second
+            val new = combineValues(this.columns, operation.updates.mapValues { it.value.second })
             if (new != null) {
                 this.addMapping(new, operation.tupleId)
             }
@@ -289,7 +289,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @param operation [Operation.DataManagementOperation.DeleteOperation] to apply.
          */
         override fun delete(operation: Operation.DataManagementOperation.DeleteOperation) = this.txLatch.withLock {
-            val old = operation.deleted[this.columns[0]]
+            val old = combineValues(this.columns, operation.deleted)
             if (old != null) {
                 this.removeMapping(old, operation.tupleId)
             }
@@ -335,7 +335,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
                 private val cursor: jetbrains.exodus.env.Cursor
 
                 /* Perform initial sanity checks. */
-                init {
+                init { //TODO use value combination
                     require(predicate is BooleanPredicate.Atomic) { "NonUniqueHashIndex.filter() does only support Atomic.Literal boolean predicates." }
                     require(!predicate.not) { "NonUniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
                     when (predicate.operator) {

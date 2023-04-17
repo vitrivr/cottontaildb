@@ -225,7 +225,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
             /* Iterate over entity and update index with entries. */
             val cursor = entityTx.cursor(this.columns)
             cursor.forEach { record ->
-                val value = record[this.columns[0]]
+                val value = combineValues(this.columns, record)
                 if (value != null) {
                     this.addMapping(value, record.tupleId)
                 }
@@ -245,7 +245,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @param operation [Operation.DataManagementOperation.InsertOperation]s to process.
          */
         override fun insert(operation: Operation.DataManagementOperation.InsertOperation) = this.txLatch.withLock {
-            val value = operation.inserts[this.columns[0]]
+            val value = combineValues(this.columns, operation.inserts)
             if (value != null) {
                 this.addMapping(value, operation.tupleId)
             }
@@ -257,11 +257,11 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @param operation [Operation.DataManagementOperation.UpdateOperation]s to process.
          */
         override fun update(operation: Operation.DataManagementOperation.UpdateOperation) = this.txLatch.withLock {
-            val old = operation.updates[this.columns[0]]?.first
+            val old = combineValues(this.columns, operation.updates.mapValues { it.value.first })
             if (old != null) {
                 this.removeMapping(old)
             }
-            val new = operation.updates[this.columns[0]]?.second
+            val new = combineValues(this.columns, operation.updates.mapValues { it.value.second })
             if (new != null) {
                 this.addMapping(new, operation.tupleId)
             }
@@ -273,7 +273,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @param operation [Operation.DataManagementOperation.DeleteOperation]s to apply.
          */
         override fun delete(operation: Operation.DataManagementOperation.DeleteOperation) = this.txLatch.withLock {
-            val old = operation.deleted[this.columns[0]]
+            val old = combineValues(this.columns, operation.deleted)
             if (old != null) {
                 this.removeMapping(old)
             }
@@ -322,7 +322,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
                 private var cursor: jetbrains.exodus.env.Cursor
 
                 /* Perform initial sanity checks. */
-                init {
+                init { //TODO use value combination
                     require(predicate is BooleanPredicate.Atomic) { "UQBTreeIndex.filter() does only support Atomic.Literal boolean predicates." }
                     require(!predicate.not) { "UniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
                     this.predicate = predicate
