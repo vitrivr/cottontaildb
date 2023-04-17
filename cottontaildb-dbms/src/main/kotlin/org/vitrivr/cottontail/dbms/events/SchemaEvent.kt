@@ -19,7 +19,7 @@ interface SchemaEvent : Event {
     data class Create(override val name: Name.SchemaName) : SchemaEvent
 
     /**
-     * A [SchemaEvent] that signals a DROP of a new [SchemaCatalogueEntry]
+     * A [SchemaEvent] that signals a DROP of a [SchemaCatalogueEntry]
      */
     data class Drop(override val name: Name.SchemaName) : SchemaEvent
 }

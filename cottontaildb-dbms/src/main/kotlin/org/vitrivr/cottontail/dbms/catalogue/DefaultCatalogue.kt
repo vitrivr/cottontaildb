@@ -25,6 +25,7 @@ import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.statistics.columns.ColumnStatisticsManager
 import org.vitrivr.cottontail.dbms.statistics.index.IndexStatisticsManager
+import org.vitrivr.cottontail.dbms.statistics.storage.MetaDataStatisticsManager
 import org.vitrivr.cottontail.dbms.statistics.storage.StatisticsStorageManager
 import java.nio.file.Files
 import java.nio.file.Path
@@ -102,6 +103,9 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
     /** The [StatisticsStorageManager] used by this [DefaultCatalogue]. */
     val statisticsStorageManager: StatisticsStorageManager
 
+    /** The [MetaDataStatisticsManager] used by this [DefaultCatalogue]. */
+    val metaDataStatisticsStorage: MetaDataStatisticsManager
+
     /** A internal, in-memory cache for frequently used index structures. This is highly experimental! */
     val cache = InMemoryIndexCache()
 
@@ -149,8 +153,9 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         /* Check */
         val statisticsTX = this.statisticsEnvironment.beginExclusiveTransaction()
         try {
-            /** Open the statisticsStorageManager */
+            /** Open the storage managers for statistics */
             this.statisticsStorageManager = StatisticsStorageManager(statisticsEnvironment, statisticsTX)
+            this.metaDataStatisticsStorage = MetaDataStatisticsManager(statisticsEnvironment, statisticsTX)
             statisticsTX.commit()
         } catch (e: Throwable) {
             statisticsTX.abort()

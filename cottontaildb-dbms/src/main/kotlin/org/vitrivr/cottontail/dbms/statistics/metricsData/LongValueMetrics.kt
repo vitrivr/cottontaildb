@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.dbms.statistics.metricsData
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.SignedDoubleBinding
 import jetbrains.exodus.util.LightOutputStream
-import org.vitrivr.cottontail.core.values.ByteValue
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.types.Types
@@ -62,7 +61,7 @@ data class LongValueMetrics(
     }
 
     /**
-     * Resets this [LongValueMetrics] and sets all its values to to the default value.
+     * Resets this [LongValueMetrics] and sets all its values to the default value.
      */
     override fun reset() {
         super.reset()

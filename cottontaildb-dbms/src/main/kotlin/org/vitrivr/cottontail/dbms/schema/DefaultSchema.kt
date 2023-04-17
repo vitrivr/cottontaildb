@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.dbms.catalogue.entries.*
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.events.EntityEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
@@ -142,6 +143,10 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
                 }
             }
 
+            /* Create Event and notify observers */
+            val event = EntityEvent.Create(name, arrayOf(*columns))
+            this.context.txn.signalEvent(event)
+
             /* Return a DefaultEntity instance. */
             return DefaultEntity(name, this@DefaultSchema)
         }
@@ -157,6 +162,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
 
             /* Drop all indexes from entity. */
             val entityTx = DefaultEntity(name, this@DefaultSchema).newTx(this.context)
+            val columns = entityTx.listColumns().toTypedArray() // get columns for dropEntityEvent
             entry.indexes.forEach { entityTx.dropIndex(it) }
 
             /* Drop all columns from entity. */
@@ -178,6 +184,10 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             if (!SequenceCatalogueEntries.delete(name.tid(), this@DefaultSchema.catalogue, this.context.txn.xodusTx)) {
                 throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to delete tuple ID sequence entry.")
             }
+
+            /* Create Event and notify observers */
+            val event = EntityEvent.Drop(name, columns)
+            this.context.txn.signalEvent(event)
         }
 
         /**

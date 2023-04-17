@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.events.*
@@ -16,12 +17,10 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.statistics.metricsCollector.*
-import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
+import org.vitrivr.cottontail.dbms.statistics.metricsData.*
 import org.vitrivr.cottontail.dbms.statistics.storage.ColumnMetrics
-import org.vitrivr.cottontail.dbms.statistics.values.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
-import javax.xml.validation.Schema
 import kotlin.math.min
 
 /**
@@ -46,7 +45,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
      * @return True
      */
     override fun isRelevant(event: Event): Boolean {
-        return event is DataEvent || event is SchemaEvent
+        return event is DataEvent || event is EntityEvent
     }
 
     /**
@@ -62,27 +61,118 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
                     val numberOfEntries = this.numberOfEntriesOfDataEvent(event)
                     this.updateStatisticsOfEntity(event.entity, numberOfEntries)
                 }
-                is SchemaEvent -> {
-                    this.handleSchemaEvent(event)
-                }
-                else -> {} // do nothing for all other events
+                is EntityEvent -> this.handleEntityEvent(event)
+                else -> Unit // do nothing for all other events
             }
         }
     }
 
     /**
-     * Processes the schema events
+     * Processes the [EntityEvent]s
      */
-    private fun handleSchemaEvent(event: SchemaEvent) {
+    private fun handleEntityEvent(event: EntityEvent) {
         when (event) {
-            is SchemaEvent.Create -> {
-                TODO("To be implemented")
+            // Same thing will happen when creating a new one or truncating old entities.
+            is EntityEvent.Create, is EntityEvent.Truncate -> {
+                // Create a task that initializes all the statistics
+                val task: Runnable = CreateEntityStatistics(event)
+                this.manager.executionManager.serviceWorkerPool.schedule(task, 100L, TimeUnit.MILLISECONDS)
+
+                // start transaction for MetaData
+                val statisticsTransaction = this@StatisticsManagerService.catalogue.statisticsEnvironment.beginExclusiveTransaction()
+                try {
+                    // reset change count of newly created entity back to 0
+                    this@StatisticsManagerService.catalogue.metaDataStatisticsStorage.resetEntityChanges(event.name, statisticsTransaction)
+
+                    // Commit
+                    statisticsTransaction.commit()
+
+                } catch (e: Throwable) {
+                    statisticsTransaction.abort()
+                }
+
             }
-            is SchemaEvent.Drop -> {
-                TODO("To be implemented")
+            is EntityEvent.Drop -> {
+                // create task to delete all statistics of this entity
+                val task: Runnable = DropEntityStatistics(event)
+                this.manager.executionManager.serviceWorkerPool.schedule(task, 100L, TimeUnit.MILLISECONDS)
+
+                // start transaction for MetaData
+                val statisticsTransaction = this@StatisticsManagerService.catalogue.statisticsEnvironment.beginExclusiveTransaction()
+                try {
+                    // Delete change count of dropped created entity
+                    this@StatisticsManagerService.catalogue.metaDataStatisticsStorage.deleteEntity(event.name, statisticsTransaction)
+
+                    // Commit
+                    statisticsTransaction.commit()
+
+                } catch (e: Throwable) {
+                    statisticsTransaction.abort()
+                }
             }
         }
     }
+
+    /**
+     * The [Runnable] that removes statistics from all columns of [Name.EntityName] because it was dropped from the database.
+     */
+    inner class DropEntityStatistics(private val event: EntityEvent): Runnable {
+        override fun run() {
+            StatisticsManagerService.LOGGER.info("Starting Task to delete statistics of an entity.")
+
+            // Start statistics transaction
+            val statisticsTransaction = this@StatisticsManagerService.catalogue.statisticsEnvironment.beginExclusiveTransaction() // But an exclusive transaction for the statistics part
+
+            try {
+
+                // Delete all column statistics of this entity
+                event.columns.forEach { colDef ->
+                    this@StatisticsManagerService.catalogue.statisticsStorageManager.deletePersistently(
+                        colDef.name,
+                        statisticsTransaction
+                    )
+                }
+
+                // commit
+                statisticsTransaction.commit()
+            } catch (e: Throwable) {
+                StatisticsManagerService.LOGGER.error("Statistics Manager Drop Entity Event of entity ${event.name}: Failed to delete statistics.")
+                statisticsTransaction.abort()
+            }
+        }
+    }
+
+    /**
+     * The [Runnable] that initializes statistics from all columns of newly created [Name.EntityName].
+     */
+    inner class CreateEntityStatistics(private val event: EntityEvent): Runnable {
+        override fun run() {
+            StatisticsManagerService.LOGGER.info("Starting Task to delete statistics of an entity.")
+
+            // Start statistics transaction
+            val statisticsTransaction = this@StatisticsManagerService.catalogue.statisticsEnvironment.beginExclusiveTransaction() // But an exclusive transaction for the statistics part
+
+            try {
+
+                // Delete all column statistics of this entity
+                event.columns.forEach { colDef ->
+                    val metrics = ColumnMetrics(colDef)
+                    this@StatisticsManagerService.catalogue.statisticsStorageManager.updatePersistently(
+                        metrics,
+                        statisticsTransaction
+                    )
+                }
+
+                // commit
+                statisticsTransaction.commit()
+            } catch (e: Throwable) {
+                StatisticsManagerService.LOGGER.error("Statistics Manager Create Entity Event of entity ${event.name} failed.")
+                statisticsTransaction.abort()
+            }
+        }
+    }
+
+
 
     /**
      * The [StatisticsManagerService] does not care about a delivery failure at the moment.
@@ -92,12 +182,12 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
     }
 
     /**
-     * Schedules a new [Task] for analysing the specified column.
+     * Schedules a new [Runnable] for analysing the specified column.
      *
-     * @param entity The [Name.EntityName] of the [Entity] to analyse.
+     * @param entity The [Name.EntityName] of the [Name.EntityName] to analyse.
      */
     private fun schedule(entity: Name.EntityName, numberOfEntries : Long) {
-        var task: Runnable = AnalysisTask(entity, numberOfEntries)
+        val task: Runnable = AnalysisTask(entity, numberOfEntries)
         this.manager.executionManager.serviceWorkerPool.schedule(task, 100L, TimeUnit.MILLISECONDS)
     }
 
@@ -119,14 +209,15 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
                 val entityTx = entity.newTx(context)
                 val columns = entityTx.listColumns().toTypedArray()
 
-                // get the collectors for all columns and give them the numberOfEntries to init the BloomFilter
-                val columnsCollector = columns.map { columnDef ->
-                    getCollector(columnDef, this@StatisticsManagerService.catalogue.config.statistics, numberOfEntries)
-                }
-
                 // Define random properties for skipping some rows of the entity -> only take a sample of the database
                 val probability = this@StatisticsManagerService.catalogue.config.statistics.probability
                 val randomNumberGenerator = this@StatisticsManagerService.catalogue.config.statistics.randomNumberGenerator
+
+                // get the collectors for all columns and give them the numberOfEntries to init the BloomFilter
+                // numberOfEntries is multiplied with probability since the Bloomfilter is only getting a sample of the whole set
+                val columnsCollector = columns.map { columnDef ->
+                    getCollector(columnDef, this@StatisticsManagerService.catalogue.config.statistics, (probability * numberOfEntries).toLong())
+                }
 
                 // create cursor for all columns of this entity and iterate over all of them
                 val entityCursor = entityTx.cursor(columns)
@@ -137,7 +228,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
                             // iterate over columns and send value to corresponding collector
                             columnsCollector.forEachIndexed { i, collector ->
                                 val value = record[i]
-                                collector.receive(value)
+                                (collector as AbstractMetricsCollector<Value>).receive(value)
                             }
                         }
                     }
@@ -148,7 +239,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
                     collector.calculate(probability)
                 }
 
-                /** Store the */
+                /** Store the metrics */
                 columns.forEachIndexed { i, colDef ->
                     val metrics = metricsList[i]
                     val columnMetrics = ColumnMetrics(colDef.name, metrics.type, metrics)
@@ -176,7 +267,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
      * Function that, based on the [ColumnDef]'s [Types] returns the corresponding [MetricsCollector]
      */
     fun getCollector(def: ColumnDef<*>, statisticsConfig: StatisticsConfig, numberOfEntries: Long) : MetricsCollector<*> {
-        var numberOfEntries = numberOfEntries.toInt()
+        val numberOfEntries = numberOfEntries.toInt()
         val collector = when (def.type) {
             Types.Boolean -> BooleanMetricsCollector(statisticsConfig, numberOfEntries)
             Types.Byte -> ByteMetricsCollector(statisticsConfig, numberOfEntries)
@@ -203,28 +294,41 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
     }
 
     /**
-     * changes is a temporary data struct that tracks the number of changes (and when the last change occurred) in memory
-     * Basically in the form of EntityName: <500 Changes, Timestamp>
-     */
-    private val changesMap: MutableMap<Name.EntityName, Int> = mutableMapOf()
-
-    /**
      * This function updates the statistics/metrics of every column of an entity.
      * But it does so only when a specific Threshold is reached. If you want to force an update the numberOfEntries parameter can just be omitted
      */
     fun updateStatisticsOfEntity(entity: Name.EntityName, numberOfEntries : Long = 0L) {
 
-        val changes = this.changesMap.getOrDefault(entity, 0) // get current count of changes for this entity or init with 0
+        // Get Threshold from config
         val threshold = catalogue.config.statistics.threshold
 
+        // start transaction for MetaData
+        val statisticsTransaction = this@StatisticsManagerService.catalogue.statisticsEnvironment.beginExclusiveTransaction()
 
-        if (changes + 1 >= threshold * numberOfEntries) {
-            LOGGER.info("A new task was schedules to recreate statistics for entity " + entity.schemaName + "." + entity.entityName)
-            this.schedule(entity, numberOfEntries) // schedule task for this column
-            this.changesMap[entity] = 0 // Reset count to 0.
-        } else {
-            LOGGER.info("Change does not trigger a new task for entity " + entity.schemaName + "." + entity.entityName)
-            this.changesMap[entity] = changes + 1 // increase count by 1 if no task was scheduled
+        // Try transaction or rollback
+        try {
+            // Get number of changes
+            val changes  = this@StatisticsManagerService.catalogue.metaDataStatisticsStorage.get(entity)
+
+            if (changes + 1 >= threshold * numberOfEntries) {
+                LOGGER.info("A new task was schedules to recreate statistics for entity " + entity.schemaName + "." + entity.entityName)
+
+                // schedule task for this column
+                this.schedule(entity, numberOfEntries)
+
+                // Reset count of Entity
+                this@StatisticsManagerService.catalogue.metaDataStatisticsStorage.resetEntityChanges(entity, statisticsTransaction)
+
+            } else {
+                LOGGER.info("Change does not trigger a new task for entity " + entity.schemaName + "." + entity.entityName)
+
+                this@StatisticsManagerService.catalogue.metaDataStatisticsStorage.increateEntityChanges(entity, statisticsTransaction)
+            }
+
+            // Commit MetaData transaction
+            statisticsTransaction.commit()
+        } catch (e: Throwable) {
+            statisticsTransaction.abort()
         }
     }
 

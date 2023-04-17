@@ -1,12 +1,10 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
 import org.vitrivr.cottontail.config.StatisticsConfig
-import org.vitrivr.cottontail.core.values.ByteValue
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.statistics.metricsData.ByteValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.metricsData.LongValueMetrics
 import java.lang.Long.max
 import java.lang.Long.min
