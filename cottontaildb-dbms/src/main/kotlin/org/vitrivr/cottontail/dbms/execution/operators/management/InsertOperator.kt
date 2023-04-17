@@ -43,13 +43,16 @@ class InsertOperator(groupId: GroupId, val entity: EntityTx, val records: List<R
      */
     override fun toFlow(context: TransactionContext): Flow<Record> = flow {
         val columns = this@InsertOperator.columns.toTypedArray()
+        val start = System.currentTimeMillis()
+        var lastCreated: Record? = null
         for (record in this@InsertOperator.records) {
-            val start = System.currentTimeMillis()
-            val created = this@InsertOperator.entity.insert(record)
+            lastCreated = this@InsertOperator.entity.insert(record)
+        }
+        if (lastCreated != null) {
             emit(StandaloneRecord(
                 0L,
                 columns,
-                arrayOf<Value?>(LongValue(created.tupleId), DoubleValue(System.currentTimeMillis() - start)) + Array(record.size) { created[it]}
+                arrayOf<Value?>(LongValue(lastCreated.tupleId), DoubleValue(System.currentTimeMillis() - start)) + Array(lastCreated.size) { lastCreated[it]}
             ))
         }
     }
