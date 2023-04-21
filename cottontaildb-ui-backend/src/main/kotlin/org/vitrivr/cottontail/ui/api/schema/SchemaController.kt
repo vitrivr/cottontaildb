@@ -1,6 +1,5 @@
-package schema
+package org.vitrivr.cottontail.ui.api.schema
 
-import com.google.gson.Gson
 import initClient
 import io.javalin.http.Context
 import org.vitrivr.cottontail.client.iterators.TupleIterator

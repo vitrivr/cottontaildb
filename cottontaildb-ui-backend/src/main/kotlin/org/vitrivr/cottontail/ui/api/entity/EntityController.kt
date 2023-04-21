@@ -1,4 +1,4 @@
-package entity
+package org.vitrivr.cottontail.ui.api.entity
 
 import com.google.gson.Gson
 import initClient
@@ -11,12 +11,9 @@ import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.client.language.dml.Delete
 import org.vitrivr.cottontail.client.language.dml.Insert
 import org.vitrivr.cottontail.client.language.dml.Update
-import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc.IndexType
-import java.lang.Error
-import java.lang.Exception
 import java.time.LocalDate
 
 
@@ -54,7 +51,7 @@ object EntityController {
 
     class ColumnEntry (val column: String, val value: Any?)
 
-    data class IndexInfo(val index : IndexType, val skipBuild : Boolean){}
+    data class IndexInfo(val index : IndexType, val skipBuild : Boolean)
 
 
     fun aboutEntity(context: Context) {
@@ -124,16 +121,16 @@ object EntityController {
 
         val create = CreateIndex(entityName, columnName, indexDefinition.index)
         if (!indexDefinition.skipBuild) {
-            create.rebuild()
+            //create.rebuild()
         }
-        client.create(create.rebuild())
+        //client.create(create.rebuild())
     }
 
     fun deleteRow(context: Context){
 
         val client = initClient(context)
 
-        val entity = context.queryParam("entity")
+        val entity = context.queryParam("org/vitrivr/cottontail/ui/api/entity")
         val column = context.queryParam("column")
         val operator = context.queryParam("operator")
         val value = context.queryParam("value")
@@ -204,8 +201,8 @@ object EntityController {
     fun optimizeEntity(context: Context){
         val client = initClient(context)
 
-        val result = client.optimize(OptimizeEntity(context.pathParam("name")))
-        context.json(result)
+        //val result = client.optimize(OptimizeEntity(context.pathParam("name")))
+        //context.json(result)
     }
     fun truncateEntity(context: Context){
         val client = initClient(context)
@@ -217,8 +214,7 @@ object EntityController {
     fun update(context: Context){
 
         val client = initClient(context)
-
-        val entity = context.queryParam("entity")
+        val entity = context.queryParam("org/vitrivr/cottontail/ui/api/entity")
         val column = context.queryParam("column")
         val operator = context.queryParam("operator")
         val value = context.queryParam("value")

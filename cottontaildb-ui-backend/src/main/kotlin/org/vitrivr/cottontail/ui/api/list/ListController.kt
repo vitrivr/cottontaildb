@@ -1,10 +1,10 @@
-package list
+package org.vitrivr.cottontail.ui.api.list
 
 import initClient
 import io.javalin.http.Context
-import org.vitrivr.cottontail.client.language.ddl.ListSchemas
 import org.vitrivr.cottontail.client.iterators.TupleIterator
 import org.vitrivr.cottontail.client.language.ddl.ListEntities
+import org.vitrivr.cottontail.client.language.ddl.ListSchemas
 
 object ListController {
 

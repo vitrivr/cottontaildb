@@ -1,22 +1,22 @@
-package query
+package org.vitrivr.cottontail.ui.api.query
 
 // Javalin Context
-import io.javalin.http.Context
 
 // vitrivr SimpleClient
-import org.vitrivr.cottontail.client.SimpleClient
-import org.vitrivr.cottontail.client.language.dql.Query
 
 // Caches defined in Main.kt
+
+
 import channelCache
 import com.google.gson.Gson
+import io.javalin.http.Context
+import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.basics.Distances
 import org.vitrivr.cottontail.client.language.basics.predicate.*
+import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.client.language.extensions.parseOperator
 import org.vitrivr.cottontail.core.values.types.Types
-
-
 import pageCache
 import pagedCache
 import queryCache
@@ -45,9 +45,7 @@ object QueryController {
             if (sessionID != other.sessionID) return false
             if (!queryRequest.contentEquals(other.queryRequest)) return false
             if (pageSize != other.pageSize) return false
-            if (port != other.port) return false
-
-            return true
+            return port == other.port
         }
 
         override fun hashCode(): Int {
@@ -75,9 +73,7 @@ object QueryController {
             if (!queryRequest.contentEquals(other.queryRequest)) return false
             if (pageSize != other.pageSize) return false
             if (page != other.page) return false
-            if (port != other.port) return false
-
-            return true
+            return port == other.port
         }
 
         override fun hashCode(): Int {
@@ -102,9 +98,7 @@ object QueryController {
 
             if (sessionID != other.sessionID) return false
             if (!queryRequest.contentEquals(other.queryRequest)) return false
-            if (port != other.port) return false
-
-            return true
+            return port == other.port
         }
 
         override fun hashCode(): Int {
@@ -234,7 +228,7 @@ object QueryController {
         return queryCache.get(QueryKey(sessionID,queryRequest,port, address)).paginate(pageSize)
     }
 
-    fun getPage(sessionID: String, queryRequest: Array<QueryFunctionCall>, port: Int, address: String, pageSize: Int, page: Int) : Page{
+    fun getPage(sessionID: String, queryRequest: Array<QueryFunctionCall>, port: Int, address: String, pageSize: Int, page: Int) : Page {
         return pagedCache.get(QueryPagesKey(sessionID,queryRequest,pageSize, port, address))[page]
     }
 

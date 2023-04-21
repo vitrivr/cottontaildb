@@ -1,4 +1,5 @@
 apply plugin: 'application'
+apply plugin: 'kotlin-kapt'
 
 repositories {
     mavenCentral()
@@ -28,6 +29,12 @@ dependencies {
 
     /* Javalin 5 */
     implementation group: 'io.javalin', name: 'javalin', version: version_javalin
+    implementation group: 'io.javalin.community.openapi', name: 'javalin-openapi-plugin', version: version_javalin
+    implementation group: 'io.javalin.community.openapi', name:'javalin-swagger-plugin', version: version_javalin
+    implementation group: 'io.javalin.community.ssl', name: 'ssl-plugin', version: version_javalin
+
+    kapt("io.javalin.community.openapi:openapi-annotation-processor:$version_javalin")
+
 
     /* Jackson databind. */
     implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: version_jackson

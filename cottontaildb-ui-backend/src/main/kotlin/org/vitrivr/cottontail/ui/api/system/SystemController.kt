@@ -1,9 +1,8 @@
-package system
+package org.vitrivr.cottontail.ui.api.system
 
 import initClient
 import io.javalin.http.Context
 import org.vitrivr.cottontail.client.iterators.Tuple
-import java.lang.Exception
 
 object SystemController {
 
