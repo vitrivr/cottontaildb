@@ -1,6 +1,5 @@
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.LoadingCache
-import entity.EntityController
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import io.javalin.Javalin
@@ -8,16 +7,27 @@ import io.javalin.apibuilder.ApiBuilder.*
 import io.javalin.http.Context
 import io.javalin.http.Header
 import io.javalin.http.staticfiles.Location
+import io.javalin.openapi.CookieAuth
+import io.javalin.openapi.plugin.OpenApiPlugin
+import io.javalin.openapi.plugin.OpenApiPluginConfiguration
+import io.javalin.openapi.plugin.SecurityComponentConfiguration
+import io.javalin.openapi.plugin.swagger.SwaggerConfiguration
+import io.javalin.openapi.plugin.swagger.SwaggerPlugin
 import io.javalin.plugin.bundled.CorsContainer
 import io.javalin.plugin.bundled.CorsPluginConfig
-import list.ListController
 import org.eclipse.jetty.server.session.DefaultSessionCache
 import org.eclipse.jetty.server.session.FileSessionDataStore
 import org.eclipse.jetty.server.session.SessionHandler
 import org.vitrivr.cottontail.client.SimpleClient
-import query.QueryController
-import schema.SchemaController
-import system.SystemController
+import org.vitrivr.cottontail.ui.api.entity.EntityController
+import org.vitrivr.cottontail.ui.api.list.ListController
+import org.vitrivr.cottontail.ui.api.query.QueryController
+import org.vitrivr.cottontail.ui.api.schema.SchemaController
+import org.vitrivr.cottontail.ui.api.session.connect
+import org.vitrivr.cottontail.ui.api.session.connections
+import org.vitrivr.cottontail.ui.api.session.disconnect
+import org.vitrivr.cottontail.ui.api.system.SystemController
+import org.vitrivr.cottontail.ui.json.KotlinxJsonMapper
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -60,9 +70,11 @@ fun fileSessionHandler() = SessionHandler().apply {
     httpOnly = true
 }
 
-fun main() {
-
-    val app = Javalin.create { config ->
+/**
+ *
+ */
+fun main(args: Array<String>) {
+    Javalin.create { config ->
         config.staticFiles.add{
             it.directory = "html"
             it.location = Location.CLASSPATH
@@ -70,9 +82,36 @@ fun main() {
         config.jetty.sessionHandler { fileSessionHandler() }
         config.spaRoot.addFile("/", "html/index.html")
         config.plugins.enableCors { cors: CorsContainer -> cors.add { it: CorsPluginConfig -> it.anyHost() } }
-    }.start(7070)
+        config.plugins.register(
+            OpenApiPlugin(
+                OpenApiPluginConfiguration()
+                    .withDocumentationPath("/swagger-docs")
+                    .withDefinitionConfiguration { _, u ->
+                        u.withOpenApiInfo { t ->
+                            t.title = "Thumper API"
+                            t.version = "1.0.0."
+                            t.description = "API for Thumper, the official Cottontail DB UI Version 1.0.0"
+                        }
+                        u.withSecurity(
+                            SecurityComponentConfiguration().withSecurityScheme("CookieAuth", CookieAuth("SESSIONID"))
+                        )
+                    }
 
-    app.routes {
+
+            )
+        )
+        config.jsonMapper(KotlinxJsonMapper)
+
+        config.plugins.register(
+            SwaggerPlugin(
+                SwaggerConfiguration().apply {
+                    this.version = "4.10.3"
+                    this.documentationPath = "/swagger-docs"
+                    this.uiPath = "/swagger-ui"
+                }
+            )
+        )
+    }.routes {
         before { ctx ->
             ctx.method()
             ctx.header(Header.ACCESS_CONTROL_ALLOW_ORIGIN, "*")
@@ -80,10 +119,22 @@ fun main() {
             ctx.header(Header.ACCESS_CONTROL_ALLOW_HEADERS, "Authorization, Content-Type")
             ctx.header(Header.CONTENT_TYPE, "application/json")
         }
-        path("query"){
+
+        /** Path to API related functionality. */
+        path("api") {
+            /** All paths related to session and connection handling. */
+            path("session") {
+                post("connect") { connect(it) }
+                post("disconnect") { disconnect(it) }
+                post("connections") { connections(it) }
+            }
+        }
+
+
+        path("api/query"){
             post(QueryController::query)
         }
-        path("list") {
+        path("api/list") {
             get(ListController::getList)
         }
         path("schemas") {
@@ -121,7 +172,7 @@ fun main() {
             post(EntityController::createIndex)
             delete(EntityController::dropIndex)
         }
-        path("system") {
+        path("api/system") {
             path("transactions") {
                 get(SystemController::listTransactions)
                 path("{txId}") {
@@ -132,6 +183,5 @@ fun main() {
                 get(SystemController::listLocks)
             }
         }
-    }
-
+    }.start(7070)
 }
