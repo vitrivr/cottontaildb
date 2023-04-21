@@ -11,7 +11,6 @@ import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.utilities.VectorUtility
 import org.vitrivr.cottontail.utilities.math.clustering.KMeansClusterer
-import org.vitrivr.cottontail.utilities.math.random.nextInt
 
 /**
  * A unit test for [KMeansClusterer].

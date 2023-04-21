@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.core.values.types.Value
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class StandaloneRecord(override var tupleId: TupleId, override val columns: Array<ColumnDef<*>>, private val values: Array<Value?> = arrayOfNulls(columns.size)) : Record {
+class StandaloneRecord(override var tupleId: TupleId, override val columns: Array<ColumnDef<*>>, val values: Array<Value?> = arrayOfNulls(columns.size)) : Record {
 
     /**
      * Constructor for single entry [StandaloneRecord].

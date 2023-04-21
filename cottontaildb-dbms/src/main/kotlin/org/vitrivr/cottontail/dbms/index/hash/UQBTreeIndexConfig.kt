@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.dbms.index.hash
 
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.util.LightOutputStream
-import org.vitrivr.cottontail.dbms.index.IndexConfig
+import org.vitrivr.cottontail.dbms.index.basic.IndexConfig
 import java.io.ByteArrayInputStream
 
 /**
@@ -13,7 +13,7 @@ import java.io.ByteArrayInputStream
  */
 object UQBTreeIndexConfig: IndexConfig<UQBTreeIndex>, ComparableBinding() {
     override fun readObject(stream: ByteArrayInputStream): Comparable<UQBTreeIndexConfig> = UQBTreeIndexConfig
-    override fun writeObject(output: LightOutputStream, `object`: Comparable<UQBTreeIndexConfig>) {
-    /* No op. */
+    override fun writeObject(output: LightOutputStream, `object`: Comparable<UQBTreeIndexConfig>) {/* No op. */
     }
+    override fun toMap(): Map<String, String> = emptyMap()
 }

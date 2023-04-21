@@ -7,23 +7,17 @@ import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.execution.locking.LockMode
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.sources.partitionFor
-import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager.TransactionImpl
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionStatus
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
+import org.vitrivr.cottontail.dbms.execution.transactions.*
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
-import org.vitrivr.cottontail.dbms.operations.Operation
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.legacy.v2.entity.BrokenIndexV2
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.BufferedWriter
@@ -32,6 +26,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
+import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
@@ -40,7 +35,7 @@ import kotlin.time.measureTime
  * An abstract implementation of the [MigrationManager].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.2.0
  */
 @ExperimentalTime
 abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Path) : MigrationManager {
@@ -146,10 +141,10 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
      */
     protected open fun migrateDBOs(source: Catalogue, destination: DefaultCatalogue) {
         /* Execute actual data migration. */
-        val sourceContext = LegacyMigrationContext()
-        val destinationContext = MigrationContext(destination.environment.beginExclusiveTransaction())
-        val srcCatalogueTx = sourceContext.getTx(source) as CatalogueTx
-        val dstCatalogueTx = destinationContext.getTx(destination) as CatalogueTx
+        val sourceContext = DefaultQueryContext("migration", source, LegacyMigrationContext())
+        val destinationContext = DefaultQueryContext("migration", destination, MigrationContext(destination.environment.beginExclusiveTransaction()))
+        val srcCatalogueTx = source.newTx(sourceContext)
+        val dstCatalogueTx = destination.newTx(destinationContext)
 
         /* Migrate schemas. */
         val schemas = srcCatalogueTx.listSchemas()
@@ -157,29 +152,29 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
             this.log("+ Migrating schema $srcSchemaName (${s + 1} / ${schemas.size}):\n")
 
             val schema = dstCatalogueTx.createSchema(srcSchemaName)
-            val dstSchemaTx = destinationContext.getTx(schema) as SchemaTx
-            val srcSchemaTx = sourceContext.getTx(srcCatalogueTx.schemaForName(srcSchemaName)) as SchemaTx
+            val srcSchemaTx = srcCatalogueTx.schemaForName(srcSchemaName).newTx(sourceContext)
+            val dstSchemaTx = schema.newTx(destinationContext)
             val entities = srcSchemaTx.listEntities()
 
             /* Migrate entities. */
             for ((i, srcEntityName) in entities.withIndex()) {
                 this.log("-- Migrating entity $srcEntityName (${i + 1} / ${entities.size}):\n")
-                val srcEntityTx = sourceContext.getTx(srcSchemaTx.entityForName(srcEntityName)) as EntityTx
+                val srcEntityTx = srcSchemaTx.entityForName(srcEntityName).newTx(sourceContext)
                 val entity = dstSchemaTx.createEntity(srcEntityName, *srcEntityTx.listColumns().toTypedArray())
 
                 /* Migrate indexes. */
                 for (indexName in srcEntityTx.listIndexes()) {
                     this.log("---- Migrating index $indexName...\n")
                     val index = srcEntityTx.indexForName(indexName) as BrokenIndexV2
-                    val destEntityTx = destinationContext.getTx(entity) as EntityTx
+                    val destEntityTx = entity.newTx(destinationContext)
                     destEntityTx.createIndex(index.name, index.type, index.columns.map { it.name }, index.type.descriptor.buildConfig())
                 }
             }
         }
 
         /* Commit after all DBOs have been rebuilt. */
-        sourceContext.commit()
-        destinationContext.commit()
+        sourceContext.txn.commit()
+        destinationContext.txn.commit()
     }
 
     /**
@@ -191,17 +186,18 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
      * @param destination The [DefaultCatalogue] pointing to the destination catalogue.
      */
     protected open fun migrateData(source: Catalogue, destination: DefaultCatalogue) {
-        val sourceContext = LegacyMigrationContext()
-        val srcCatalogueTx = sourceContext.getTx(source) as CatalogueTx
+
+        val sourceContext = DefaultQueryContext("migration", source, LegacyMigrationContext())
+        val srcCatalogueTx = source.newTx(sourceContext)
         val schemas = srcCatalogueTx.listSchemas()
 
         for ((s, srcSchemaName) in schemas.withIndex()) {
-            val srcSchemaTx = sourceContext.getTx(srcCatalogueTx.schemaForName(srcSchemaName)) as SchemaTx
+            val srcSchemaTx = srcCatalogueTx.schemaForName(srcSchemaName).newTx(sourceContext)
             val entities = srcSchemaTx.listEntities()
             this.logStdout("+ Migrating data for schema $srcSchemaName (${s + 1} / ${schemas.size})...\n")
 
             for (srcEntityName in entities) {
-                val srcEntityTx = sourceContext.getTx(srcSchemaTx.entityForName(srcEntityName)) as EntityTx
+                val srcEntityTx = srcSchemaTx.entityForName(srcEntityName).newTx(sourceContext)
                 val count = srcEntityTx.count()
 
                 /* Start migrating column data. */
@@ -211,10 +207,10 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
                     val columns = srcEntityTx.listColumns().toTypedArray()
                     var i = 0L
                     for (p in 0 until partitions) {
-                        val destinationContext = MigrationContext(destination.environment.beginExclusiveTransaction())
-                        val destCatalogueTx = destinationContext.getTx(destination) as CatalogueTx
-                        val destSchemaTx = destinationContext.getTx(destCatalogueTx.schemaForName(srcSchemaName)) as SchemaTx
-                        val destEntityTx = destinationContext.getTx(destSchemaTx.entityForName(srcEntityName)) as EntityTx
+                        val destinationContext = DefaultQueryContext("migration", destination, MigrationContext(destination.environment.beginExclusiveTransaction()))
+                        val destCatalogueTx = destination.newTx(destinationContext)
+                        val destSchemaTx = destCatalogueTx.schemaForName(srcSchemaName).newTx(destinationContext)
+                        val destEntityTx = destSchemaTx.entityForName(srcEntityName).newTx(destinationContext)
                         val cursor = srcEntityTx.cursor(columns, srcEntityTx.partitionFor(p, partitions))
                         cursor.forEach { r ->
                             this.logStdout("-- Migrating data for ${srcEntityName}... (${++i} / $count)\r")
@@ -222,7 +218,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
                         }
                         cursor.close()
                         this.log("-- Migrating data for $srcEntityName; committing... (${i} / $count)\r")
-                        destinationContext.commit()
+                        destinationContext.txn.commit()
                     }
                     this.log("-- Data migration for $srcEntityName completed (${i} / $count).\n")
                 } else {
@@ -232,7 +228,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         }
 
         /* Commit after all DBOs have been rebuilt. */
-        sourceContext.rollback()
+        sourceContext.txn.rollback()
     }
 
     /**
@@ -268,19 +264,20 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
      * @author Ralph Gasser
      * @version 2.0.1
      */
-    inner class LegacyMigrationContext() : TransactionContext, Transaction {
+    inner class LegacyMigrationContext : TransactionContext, Transaction {
         /** The [TransactionId] of the [MigrationContext]. */
         override val txId: TransactionId = transactionIdCounter.getAndIncrement()
 
-        /** The [TransactionId] of the [MigrationContext]. */
+        /** The [LegacyMigrationContext] does not hold a [jetbrains.exodus.env.Transaction] reference. */
         override val xodusTx: jetbrains.exodus.env.Transaction
             get() = throw UnsupportedOperationException("Xodus transaction not available for LegacyMigrationContext.")
 
-        /** The [TransactionType] of a [MigrationManager] is always [TransactionType.SYSTEM]. */
-        override val type: TransactionType = TransactionType.SYSTEM
+        /** A [LegacyMigrationContext] does not have a reference to a [TransactionManager]. */
+        override val manager: TransactionManager
+            get() = throw UnsupportedOperationException("Xodus transaction not available for LegacyMigrationContext.")
 
-        /** [LegacyMigrationContext] are always [readonly]. */
-        override val readonly: Boolean = true
+        /** The [TransactionType] of a [MigrationManager] is always [TransactionType.SYSTEM_EXCLUSIVE]. */
+        override val type: TransactionType = TransactionType.SYSTEM_EXCLUSIVE
 
         /** [LegacyMigrationContext] do not provide any query workers. */
         override val availableQueryWorkers = 0
@@ -293,25 +290,40 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         override var state: TransactionStatus = TransactionStatus.IDLE
             private set
 
+        /** The timestamp at which this [Transaction] was created. */
+        override val created: Long = System.currentTimeMillis()
+
+        /** The timestamp at which this [Transaction] has ended created. */
+        override var ended: Long? = null
+            private set
+
         /** Map of all [Tx] that have been created as part of this [MigrationManager]. Used for final COMMIT or ROLLBACK. */
         private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
         /**
+         * Caches a [Tx] for later re-use.
+         *
+         * @param dbo The [DBO] to create the [Tx] for.
+         * @return True on success, false otherwise.
+         */
+        override fun cacheTxForDBO(dbo: Tx): Boolean {
+            return this.txns.putIfAbsent(dbo.dbo, dbo) != null
+        }
+
+        /**
          * Returns the [Tx] for the provided [DBO]. Creating [Tx] through this method makes sure,
-         * that only on [Tx] per [DBO] and [TransactionImpl] is created.
+         * that only on [Tx] per [DBO] and [Transaction] is created.
          *
          * @param dbo [DBO] to return the [Tx] for.
          * @return entity [Tx]
          */
-        override fun getTx(dbo: DBO): Tx = this.txns.computeIfAbsent(dbo) {
-            dbo.newTx(this)
-        }
+        override fun <T: Tx>getCachedTxForDBO(dbo: DBO): T = this.txns[dbo] as T
 
         override fun requestLock(dbo: DBO, mode: LockMode) {
             /* No op. */
         }
 
-        override fun signalEvent(action: Operation.DataManagementOperation) {
+        override fun signalEvent(event: Event) {
             throw UnsupportedOperationException("Operation signalEvent() not supported for LegacyMigrationContext.")
         }
 
@@ -325,10 +337,8 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         override fun commit() {
             check(this.state === TransactionStatus.IDLE) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
-            for (txn in this.txns.values.reversed()) {
-                txn.beforeCommit()
-            }
             this.txns.clear()
+            this.ended = System.currentTimeMillis()
             this.state = TransactionStatus.COMMIT
         }
 
@@ -338,10 +348,8 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         override fun rollback() {
             check(this.state === TransactionStatus.IDLE || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
-            for (txn in this.txns.values.reversed()) {
-                txn.beforeRollback()
-            }
             this.txns.clear()
+            this.ended = System.currentTimeMillis()
             this.state = TransactionStatus.ROLLBACK
         }
 
@@ -357,22 +365,30 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
      * A [MigrationContext] is a special type of [TransactionContext] used during data migration.
      *
      * @author Ralph Gasser
-     * @version 2.0.0
+     * @version 2.1.0
      */
     inner class MigrationContext(override val xodusTx: jetbrains.exodus.env.Transaction) : TransactionContext, Transaction {
         /** The [TransactionId] of the [MigrationContext]. */
         override val txId: TransactionId = transactionIdCounter.getAndIncrement()
 
-        /** The [TransactionType] of a [MigrationManager] is always [TransactionType.SYSTEM]. */
-        override val type: TransactionType = TransactionType.SYSTEM
+        /** The [TransactionType] of a [MigrationManager] is always [TransactionType.SYSTEM_EXCLUSIVE]. */
+        override val type: TransactionType = TransactionType.SYSTEM_EXCLUSIVE
 
         /** The [TransactionStatus] of this [MigrationContext]. */
         @Volatile
         override var state: TransactionStatus = TransactionStatus.IDLE
             private set
 
-        /** [MigrationContext]s are never readonly. */
-        override val readonly: Boolean = false
+        /** The timestamp at which this [MigrationContext] was created. */
+        override val created: Long = System.currentTimeMillis()
+
+        /** The timestamp at which this [MigrationContext] has ended created. */
+        override var ended: Long? = null
+            private set
+
+        /** A [MigrationContext] does not have a reference to a [TransactionManager]. */
+        override val manager: TransactionManager
+            get() = throw UnsupportedOperationException("Xodus transaction not available for LegacyMigrationContext.")
 
         /** [MigrationContext] do not provide any query workers. */
         override val availableQueryWorkers = 0
@@ -383,6 +399,16 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         /** Map of all [Tx] that have been created as part of this [MigrationManager]. Used for final COMMIT or ROLLBACK. */
         private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
+        /** List of all [Tx.WithCommitFinalization] that must be notified before commit. */
+        private val notifyOnCommit: MutableList<Tx.WithCommitFinalization> = Collections.synchronizedList(LinkedList())
+
+        /** List of all [Tx.WithRollbackFinalization] that must be notified before rollback. */
+        private val notifyOnRollback: MutableList<Tx.WithRollbackFinalization> = Collections.synchronizedList(LinkedList())
+
+        override fun cacheTxForDBO(dbo: Tx): Boolean {
+            return this.txns.putIfAbsent(dbo.dbo, dbo) != null
+        }
+
         /**
          * Returns the [Tx] for the provided [DBO]. Creating [Tx] through this method makes sure,
          * that only on [Tx] per [DBO] and [Transaction] is created.
@@ -390,15 +416,15 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
          * @param dbo [DBO] to return the [Tx] for.
          * @return entity [Tx]
          */
-        override fun getTx(dbo: DBO): Tx = this.txns.computeIfAbsent(dbo) {
-            dbo.newTx(this)
+        override fun <T: Tx>getCachedTxForDBO(dbo: DBO): T? {
+            return this.txns[dbo] as T?
         }
 
         override fun requestLock(dbo: DBO, mode: LockMode) {
             /* No op. */
         }
 
-        override fun signalEvent(action: Operation.DataManagementOperation) {
+        override fun signalEvent(event: Event) {
             /* No op. */
         }
 
@@ -413,17 +439,18 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
             check(this.state === TransactionStatus.IDLE) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
-                for (txn in this.txns.values.reversed()) {
-                    try {
-                        txn.beforeCommit()
-                    } catch (e: Throwable) {
-                        this.xodusTx.abort()
-                        throw e
-                    }
+                for (txn in this.notifyOnCommit) {
+                    txn.beforeCommit()
                 }
                 this.xodusTx.commit()
+            } catch (e: Throwable) {
+                this.xodusTx.abort()
+                throw e
             } finally {
                 this.txns.clear()
+                this.notifyOnCommit.clear()
+                this.notifyOnRollback.clear()
+                this.ended = System.currentTimeMillis()
                 this.state = TransactionStatus.COMMIT
             }
         }
@@ -435,17 +462,18 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
             check(this.state === TransactionStatus.IDLE || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
-                for (txn in this.txns.values.reversed()) {
-                    try {
+                try {
+                    for (txn in this.notifyOnRollback) {
                         txn.beforeRollback()
-                    } catch (e: Throwable) {
-                        this.xodusTx.abort()
-                        throw e
                     }
+                } finally {
+                    this.xodusTx.abort()
                 }
-                this.xodusTx.abort()
             } finally {
                 this.txns.clear()
+                this.notifyOnCommit.clear()
+                this.notifyOnRollback.clear()
+                this.ended = System.currentTimeMillis()
                 this.state = TransactionStatus.ROLLBACK
             }
         }

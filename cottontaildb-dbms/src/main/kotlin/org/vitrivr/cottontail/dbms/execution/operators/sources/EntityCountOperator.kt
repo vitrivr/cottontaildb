@@ -11,15 +11,15 @@ import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * An [Operator.SourceOperator] that counts the number of entries in an [Entity] and returns one [Record] with that number.
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 2.0.0
  */
-class EntityCountOperator(groupId: GroupId, val entity: EntityTx, val out: Binding.Column) : Operator.SourceOperator(groupId) {
+class EntityCountOperator(groupId: GroupId, private val entity: EntityTx, private val out: Binding.Column, override val context: QueryContext) : Operator.SourceOperator(groupId) {
 
     /** The [ColumnDef] returned by this [EntitySampleOperator]. */
     override val columns: List<ColumnDef<*>> = listOf(this.out.column)
@@ -27,12 +27,9 @@ class EntityCountOperator(groupId: GroupId, val entity: EntityTx, val out: Bindi
     /**
      * Converts this [EntityCountOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution.
      * @return [Flow] representing this [EntityCountOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> = flow {
-        val rec = StandaloneRecord(0L, this@EntityCountOperator.columns.toTypedArray(), arrayOf(LongValue(this@EntityCountOperator.entity.count())))
-        this@EntityCountOperator.out.context.update(rec)
-        emit(rec)
+    override fun toFlow(): Flow<Record> = flow {
+        emit(StandaloneRecord(0L, this@EntityCountOperator.columns.toTypedArray(), arrayOf(LongValue(this@EntityCountOperator.entity.count()))))
     }
 }

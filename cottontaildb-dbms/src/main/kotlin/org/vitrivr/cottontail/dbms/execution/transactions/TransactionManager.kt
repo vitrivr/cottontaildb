@@ -4,6 +4,8 @@ import it.unimi.dsi.fastutil.Hash.VERY_FAST_LOAD_FACTOR
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
+
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
@@ -11,11 +13,12 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.slf4j.LoggerFactory
+
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
+import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
 import org.vitrivr.cottontail.dbms.execution.locking.Lock
@@ -26,9 +29,12 @@ import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager.TransactionImpl
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
-import org.vitrivr.cottontail.dbms.operations.Operation
+import org.vitrivr.cottontail.utilities.extensions.write
+
+import java.lang.ref.SoftReference
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.locks.StampedLock
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -36,16 +42,14 @@ import kotlin.coroutines.CoroutineContext
  * create and execute queries within different [TransactionImpl]s.
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.8.0
  */
 class TransactionManager(val executionManager: ExecutionManager, transactionTableSize: Int, val transactionHistorySize: Int, private val catalogue: DefaultCatalogue) {
-    /** Logger used for logging the output. */
-    companion object {
-        private val LOGGER = LoggerFactory.getLogger(TransactionManager::class.java)
-    }
-
     /** Map of [TransactionImpl]s that are currently PENDING or RUNNING. */
     private val transactions = Collections.synchronizedMap(Long2ObjectOpenHashMap<TransactionImpl>(transactionTableSize, VERY_FAST_LOAD_FACTOR))
+
+    /** Set of [TransactionObserver]s registered with this [TransactionManager]. */
+    private val observers = Collections.synchronizedSet(ObjectOpenHashSet<TransactionObserver>())
 
     /** Internal counter to generate [TransactionId]s. Starts with 1 */
     private val tidCounter = AtomicLong(1L)
@@ -54,15 +58,59 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
     internal val lockManager = LockManager<DBO>()
 
     /** List of ongoing or past transactions (limited to [transactionHistorySize] entries). */
-    internal val transactionHistory: MutableList<TransactionImpl> = Collections.synchronizedList(ArrayList(this.transactionHistorySize))
+    internal val transactionHistory: MutableList<Transaction> = Collections.synchronizedList(ArrayList(this.transactionHistorySize))
+
+    /** This lock synchronises exclusive transactions (TODO: More granularity). */
+    private val exclusiveLock = StampedLock()
 
     /**
-     * Returns the [TransactionImpl] for the provided [TransactionId].
+     * Returns the [Transaction] for the provided [TransactionId].
      *
-     * @param txId [TransactionId] to return the [TransactionImpl] for.
-     * @return [TransactionImpl] or null
+     * @param txId [TransactionId] to return the [Transaction] for.
+     * @return [Transaction] or null
      */
-    operator fun get(txId: TransactionId): TransactionImpl? = this.transactions[txId]
+    operator fun get(txId: TransactionId): Transaction? = this.transactions[txId]
+
+    /**
+     * Registers a [TransactionObserver] with this [TransactionManager].
+     *
+     * The mechanism makes sure, that all ongoing transactions finish before registration.
+     *
+     * @param observer [TransactionObserver] to register.
+     * @return True on success, false otherwise.
+     */
+    fun register(observer: TransactionObserver) {
+        this.observers.add(observer)
+    }
+
+    /**
+     * De-registers the given [TransactionObserver] with this [TransactionManager].
+     *
+     * The mechanism makes sure, that all ongoing transactions finish before de-registration.
+     *
+     * @param observer [TransactionObserver] to de-register.
+     * @return True on success, false otherwise.
+     */
+    fun deregister(observer: TransactionObserver) {
+        this.observers.remove(observer)
+    }
+
+    /**
+     * Computes a block of code with exclusive access to the database, i.e., making sure that no concurrent write transaction is running.
+     *
+     * @param callback The [callback] to execute.
+     * @return [T]
+     */
+    fun <T> computeExclusively(callback: () -> T): T = this.exclusiveLock.write {
+        callback()
+    }
+
+    /**
+     * Starts a new [Transaction] through this [TransactionManager].
+     *
+     * @param type The [TransactionType] of the [Transaction] to start.
+     */
+    fun startTransaction(type: TransactionType): Transaction = TransactionImpl(type)
 
     /**
      * A concrete [TransactionImpl] used for executing a query.
@@ -70,20 +118,39 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
      * A [TransactionImpl] can be of different [TransactionType]s. Their execution semantics may differ slightly.
      *
      * @author Ralph Gasser
-     * @version 1.4.0
+     * @version 1.6.0
      */
-    inner class TransactionImpl(override val type: TransactionType) : LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()), Transaction, TransactionContext {
+    private inner class TransactionImpl constructor(override val type: TransactionType) : LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()), Transaction, TransactionContext {
 
         /** The [TransactionStatus] of this [TransactionImpl]. */
         @Volatile
         override var state: TransactionStatus = TransactionStatus.IDLE
             private set
 
+        /** Reference to the enclosing [TransactionManager]. */
+        override val manager: TransactionManager
+            get() = this@TransactionManager
+
         /** The Xodus [Transaction] associated with this [TransactionContext]. */
-        override val xodusTx: jetbrains.exodus.env.Transaction = this@TransactionManager.catalogue.environment.beginTransaction()
+        override val xodusTx: jetbrains.exodus.env.Transaction
+
+        /**
+         * A [MutableMap] of all [TransactionObserver] and the [Event]s that were collected for them.
+         *
+         * Since a lot of [Event]s can build-up during a [Transaction], the [MutableList] is wrapped in a [SoftReference],
+         * which can be claimed by the garbage collector. Such a situation will result in failure to notify observers. Consequently,
+         * the channel provided by this facility must be considered unreliable!
+         */
+        private val localObservers: MutableMap<TransactionObserver, SoftReference<MutableList<Event>>> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
         /** Map of all [Tx] that have been created as part of this [TransactionImpl]. */
         private val txns: MutableMap<Name, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
+
+        /** List of all [Tx.WithCommitFinalization] that must be notified before commit. */
+        private val notifyOnCommit: MutableList<Tx.WithCommitFinalization> = Collections.synchronizedList(LinkedList())
+
+        /** List of all [Tx.WithRollbackFinalization] that must be notified before rollback. */
+        private val notifyOnRollback: MutableList<Tx.WithRollbackFinalization> = Collections.synchronizedList(LinkedList())
 
         /** A [Mutex] data structure used for synchronisation on the [TransactionImpl]. */
         private val mutex = Mutex()
@@ -93,10 +160,11 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
             get() = this.txns.size
 
         /** Timestamp of when this [TransactionImpl] was created. */
-        val created = System.currentTimeMillis()
+        override val created
+            get() = this.xodusTx.startTime
 
         /** Timestamp of when this [TransactionImpl] was either COMMITTED or ABORTED. */
-        var ended: Long? = null
+        override var ended: Long? = null
             private set
 
         /** Number of queries executed successfully in this [TransactionImpl]. */
@@ -124,29 +192,44 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         override val availableIntraQueryWorkers: Int
             get() = this@TransactionManager.executionManager.availableIntraQueryWorkers()
 
-        /** Flag indicating, that this [Transaction] was used to write data. */
-        override var readonly: Boolean = true
-            private set
-
         init {
+            /** Try to start transaction. */
+            if (this.type.exclusive) {
+                this.xodusTx = this@TransactionManager.catalogue.environment.beginExclusiveTransaction()
+            } else {
+                this.xodusTx = this@TransactionManager.catalogue.environment.beginReadonlyTransaction()
+            }
+
             /** Add this to transaction history and transaction table. */
             this@TransactionManager.transactions[this.txId] = this
             this@TransactionManager.transactionHistory.add(this)
             if (this@TransactionManager.transactionHistory.size >= this@TransactionManager.transactionHistorySize) {
                 this@TransactionManager.transactionHistory.removeAt(0)
             }
+
+            /**
+             * Create transaction, local snapshot of the registered transaction observers.
+             *
+             * Observers registered after the transaction has started, are considered! This is a design choice!
+             */
+            for (observer in this@TransactionManager.observers) {
+                this.localObservers[observer] = SoftReference(LinkedList<Event>())
+            }
         }
+        /**
+         * Caches a [Tx] in this [TransactionManager.TransactionImpl]s cache.
+         *
+         * @return The [Tx] to cache
+         */
+        override fun cacheTxForDBO(tx: Tx): Boolean = this.txns.putIfAbsent(tx.dbo.name, tx) != null
 
         /**
-         * Returns the [Tx] for the provided [DBO]. Creating [Tx] through this method makes sure,
-         * that only on [Tx] per [DBO] and [TransactionImpl] is created.
+         * Tries to retrieve a cached [Tx] from this [TransactionManager.TransactionImpl]s cache.
          *
-         * @param dbo [DBO] to return the [Tx] for.
-         * @return entity [Tx]
+         * @param dbo The [DBO] to obtain the [Tx] for.
+         * @return The [Tx] or null
          */
-        override fun getTx(dbo: DBO): Tx = this.txns.computeIfAbsent(dbo.name) {
-            dbo.newTx(this)
-        }
+        override fun <T : Tx> getCachedTxForDBO(dbo: DBO): T? = this.txns[dbo.name] as T?
 
         /**
          * Tries to acquire a [Lock] on a [DBO] for the given [LockMode]. This call is delegated to the
@@ -158,15 +241,19 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         override fun requestLock(dbo: DBO, mode: LockMode) = this@TransactionManager.lockManager.lock(this, dbo, mode)
 
         /**
-         * Signals a [Operation.DataManagementOperation] to this [TransactionImpl].
+         * Signals an [Event] to this [TransactionImpl].
          *
-         * Implementing methods must process these [Operation.DataManagementOperation]s quickly, since they are usually
-         * triggered during an ongoing transaction.
+         * Those [Event]s are stored, if any of the registered [localObservers]s signal interest in the [Event].
          *
-         * @param action The [Operation.DataManagementOperation] that has been reported.
+         * @param event The [Event] that has been reported.
          */
-        override fun signalEvent(action: Operation.DataManagementOperation) {
-            /* ToDo: Do something with the events. */
+        override fun signalEvent(event: Event) {
+            for ((observer, listRef) in this.localObservers) {
+                val list = listRef.get()
+                if (list != null && observer.isRelevant(event)) {
+                    list.add(event)
+                }
+            }
         }
 
         /**
@@ -174,7 +261,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          *
          * @param operator The [Operator.SinkOperator] that should be executed.
          */
-        override fun execute(operator: Operator): Flow<Record>  = operator.toFlow(this).flowOn(this@TransactionManager.executionManager.queryDispatcher).onStart {
+        override fun execute(operator: Operator): Flow<Record>  = operator.toFlow().flowOn(this@TransactionManager.executionManager.queryDispatcher).onStart {
             this@TransactionImpl.mutex.withLock {  /* Update transaction state; synchronise with ongoing COMMITS or ROLLBACKS. */
                 check(this@TransactionImpl.state.canExecute) {
                     "Cannot start execution of transaction ${this@TransactionImpl.txId} because it is in the wrong state (s = ${this@TransactionImpl.state})."
@@ -193,7 +280,6 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
                 } else {
                     this@TransactionImpl.numberOfError += 1
                     this@TransactionImpl.state = TransactionStatus.ERROR
-
                 }
             }
         }.cancellable()
@@ -208,16 +294,18 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
                 this@TransactionImpl.state = TransactionStatus.FINALIZING
                 var commit = false
                 try {
-                    for ((i, txn) in this@TransactionImpl.txns.values.reversed().withIndex()) {
-                        try {
-                            txn.beforeCommit()
-                        } catch (e: Throwable) {
-                            LOGGER.error("An error occurred while preparing Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId} for commit. This is serious!", e)
-                            throw e
+                    for (txn in this@TransactionImpl.notifyOnCommit) {
+                        txn.beforeCommit()
+                    }
+                    if (this@TransactionImpl.xodusTx.isReadonly) {
+                        commit = true /* Xodus read-only transaction cannot be committed. */
+                        this@TransactionImpl.xodusTx.abort()
+                    } else {
+                        commit = this@TransactionImpl.xodusTx.commit()
+                        if (!commit) {
+                            throw TransactionException.InConflict(this@TransactionImpl.txId)
                         }
                     }
-                    commit = this@TransactionImpl.xodusTx.commit()
-                    if (!commit) throw TransactionException.InConflict(this@TransactionImpl.txId)
                 } catch (e: Throwable) {
                     this@TransactionImpl.xodusTx.abort()
                     throw e
@@ -261,15 +349,11 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         private fun performRollback() {
             this@TransactionImpl.state = TransactionStatus.FINALIZING
             try {
-                for ((i, txn) in this@TransactionImpl.txns.values.reversed().withIndex()) {
-                    try {
-                        txn.beforeRollback()
-                    } catch (e: Throwable) {
-                        LOGGER.error("An error occurred while rolling back Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId}. This is serious!", e)
-                    }
+                for (txn in this@TransactionImpl.notifyOnRollback) {
+                    txn.beforeRollback()
                 }
-                this.xodusTx.abort()
             } finally {
+                this.xodusTx.abort()
                 this@TransactionImpl.finalize(false)
             }
         }
@@ -280,15 +364,38 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          * @param committed True if [TransactionImpl] was committed, false otherwise.
          */
         private fun finalize(committed: Boolean) {
-            this@TransactionImpl.allLocks().forEach { this@TransactionManager.lockManager.unlock(this@TransactionImpl, it.obj) }
-            this@TransactionImpl.txns.clear()
-            this@TransactionImpl.ended = System.currentTimeMillis()
-            this@TransactionImpl.state = if (committed) {
-                TransactionStatus.COMMIT
-            } else {
-                TransactionStatus.ROLLBACK
+            try {
+                if (committed) this.notifyObservers()
+            } finally {
+                this@TransactionImpl.txns.clear()
+                this@TransactionImpl.notifyOnCommit.clear()
+                this@TransactionImpl.notifyOnRollback.clear()
+                this@TransactionImpl.ended = System.currentTimeMillis()
+                this@TransactionManager.transactions.remove(this@TransactionImpl.txId)
+                this@TransactionImpl.state = if (committed) {
+                     TransactionStatus.COMMIT
+                } else {
+                    TransactionStatus.ROLLBACK
+                }
+                this@TransactionImpl.allLocks().forEach { this@TransactionManager.lockManager.unlock(this@TransactionImpl, it.obj) }
             }
-            this@TransactionManager.transactions.remove(this@TransactionImpl.txId)
+        }
+
+        /**
+         * Notifies all [TransactionObserver]s about a successfull commit.
+         */
+        private fun notifyObservers(){
+            for ((observer, listRef) in this.localObservers) {
+                val list = listRef.get()
+                if (list != null) {
+                    observer.onCommit(this.txId, list)    /* Signal COMMIT to local observers. */
+                } else {
+                    observer.onDeliveryFailure(this.txId) /* Signal DELIVERY FAILURE to local observers. */
+                }
+            }
+
+            /* Clear local observers to release memory. */
+            this.localObservers.clear()
         }
     }
 }

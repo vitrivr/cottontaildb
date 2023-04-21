@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.queries.context
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.QueryHint
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
@@ -10,7 +9,8 @@ import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.QueryHint
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
 
 /**
@@ -83,8 +83,10 @@ interface QueryContext {
      * process tries to generate a near-optimal [OperatorNode.Physical] from the registered [OperatorNode.Logical].
      *
      * @param planner The [CottontailQueryPlanner] instance to use for planning.
+     * @param bypassCache Flag indicating, whether the [CottontailQueryPlanner] should bypass the plan cache.
+     * @param cache Flag indicating, whether the resulting plan should be cached.
      */
-    fun plan(planner: CottontailQueryPlanner)
+    fun plan(planner: CottontailQueryPlanner, bypassCache: Boolean = false, cache: Boolean = false)
 
     /**
      * Converts the registered [OperatorNode.Logical] to the equivalent [OperatorNode.Physical] and skips query planning.

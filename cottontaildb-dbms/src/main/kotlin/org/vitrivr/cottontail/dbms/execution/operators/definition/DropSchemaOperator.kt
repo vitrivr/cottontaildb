@@ -6,7 +6,7 @@ import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.Schema
 import kotlin.system.measureTimeMillis
 
@@ -14,10 +14,10 @@ import kotlin.system.measureTimeMillis
  * An [Operator.SourceOperator] used during query execution. Drops a [Schema]
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
-class DropSchemaOperator(private val tx: CatalogueTx, private val name: Name.SchemaName) : AbstractDataDefinitionOperator(name, "DROP SCHEMA") {
-    override fun toFlow(context: TransactionContext): Flow<Record> = flow {
+class DropSchemaOperator(private val tx: CatalogueTx, private val name: Name.SchemaName, override val context: QueryContext) : AbstractDataDefinitionOperator(name, "DROP SCHEMA") {
+    override fun toFlow(): Flow<Record> = flow {
         val time = measureTimeMillis {
             this@DropSchemaOperator.tx.dropSchema(this@DropSchemaOperator.name)
         }

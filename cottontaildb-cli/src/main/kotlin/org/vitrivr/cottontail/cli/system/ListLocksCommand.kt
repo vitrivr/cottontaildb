@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.cli.system
 
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractCottontailCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.utilities.TabulationUtilities
 import kotlin.time.ExperimentalTime
@@ -13,7 +13,7 @@ import kotlin.time.measureTimedValue
  * @version 2.0.0
  */
 @ExperimentalTime
-class ListLocksCommand(private val client: SimpleClient) : AbstractCottontailCommand.System(name = "locks", help = "Lists all locks in the current Cottontail DB instance.") {
+class ListLocksCommand(private val client: SimpleClient) : AbstractCottontailCommand(name = "locks", help = "Lists all locks in the current Cottontail DB instance.", false) {
     override fun exec() {
         /* Execute query. */
         val timedTable = measureTimedValue {

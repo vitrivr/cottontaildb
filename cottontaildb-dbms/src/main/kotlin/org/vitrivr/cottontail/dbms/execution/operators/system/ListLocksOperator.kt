@@ -10,19 +10,19 @@ import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.execution.locking.LockManager
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.DBO
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
 
 /**
  * An [Operator.SourceOperator] used during query execution. Used to list all locks.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 2.0.0
  */
-class ListLocksOperator(val manager: LockManager<DBO>) : Operator.SourceOperator() {
+class ListLocksOperator(val manager: LockManager<DBO>, override val context: QueryContext) : Operator.SourceOperator() {
     override val columns: List<ColumnDef<*>> = ColumnSets.DDL_LOCKS_COLUMNS
-    override fun toFlow(context: TransactionContext): Flow<Record> = flow {
+    override fun toFlow(): Flow<Record> = flow {
         var row = 0L
         val columns = this@ListLocksOperator.columns.toTypedArray()
         for (lock in  this@ListLocksOperator.manager.allLocks()) {

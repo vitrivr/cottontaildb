@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown
 
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.projection.CountProjectionPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntityCountPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntityScanPhysicalOperatorNode

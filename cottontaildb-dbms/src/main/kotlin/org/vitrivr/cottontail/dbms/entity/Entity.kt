@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.dbms.entity
 
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.column.Column
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.DBO
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
 
@@ -28,10 +28,10 @@ interface Entity : DBO {
     override val parent: Schema
 
     /**
-     * Creates and returns a new [EntityTx] for the given [TransactionContext].
+     * Creates and returns a new [EntityTx] for the given [QueryContext].
      *
-     * @param context The [TransactionContext] to create the [EntityTx] for.
+     * @param context The [QueryContext] to create the [EntityTx] for.
      * @return New [EntityTx]
      */
-    override fun newTx(context: TransactionContext): EntityTx
+    override fun newTx(context: QueryContext): EntityTx
 }

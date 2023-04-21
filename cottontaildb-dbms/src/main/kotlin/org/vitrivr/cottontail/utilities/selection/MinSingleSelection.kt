@@ -56,4 +56,15 @@ class MinSingleSelection<T : Comparable<T>> : Selection<T> {
         require(i < this.size) { "Index $i is out of bounds for this MinSingleSelect." }
         this.element!!
     }
+
+    /**
+     * Converts the sorted content of this [MinSingleSelection] to a [List] and returns it.
+     *
+     * @return [List] of this [MinSingleSelection]'s content.
+     */
+    override fun toList(): List<T> = if (this.element != null) {
+        listOf(this.element!!)
+    } else {
+        emptyList()
+    }
 }

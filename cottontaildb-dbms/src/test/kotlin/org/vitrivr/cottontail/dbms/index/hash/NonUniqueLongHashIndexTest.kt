@@ -4,21 +4,17 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
-import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.index.IndexType
-import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.utilities.math.random.nextLong
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import java.util.*
 
 /**
@@ -53,37 +49,41 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
     @RepeatedTest(3)
     fun testFilterEqualPositive() {
         /* Obtain necessary transactions. */
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
         try {
-            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+            val catalogueTx = this.catalogue.newTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getTx(schema) as SchemaTx
+            val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getTx(entity) as EntityTx
+            val entityTx = entity.newTx(ctx)
             val index = entityTx.indexForName(this.indexName)
-            val indexTx = txn.getTx(index) as IndexTx
+            val indexTx = index.newTx(ctx)
 
             /* Prepare binding context and predicate. */
-            val context = DefaultBindingContext()
-            val columnBinding = context.bind(this.columns[0])
-            val valueBinding = context.bindNull(Types.Long)
+            val columnBinding = ctx.bindings.bind(this.columns[0])
+            val valueBinding = ctx.bindings.bindNull(Types.Long)
             val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(columnBinding, valueBinding), false)
 
             /* Check all entries. */
-            for (entry in this.list.entries) {
-                valueBinding.update(entry.key) /* Update value binding. */
-                var found = false
-                val cursor = indexTx.filter(predicate)
-                while (cursor.moveNext() && !found) {
-                    val rec = entityTx.read(cursor.key(), this.columns)
-                    val id = rec[this.columns[0]] as LongValue
-                    Assertions.assertEquals(entry.key, id)
-                    if (entry.value.contains(rec[this.columns[1]])) {
-                        found = true
+            with(ctx.bindings) {
+                with(MissingRecord) {
+                    for (entry in this@NonUniqueLongHashIndexTest.list.entries) {
+                        valueBinding.update(entry.key) /* Update value binding. */
+                        var found = false
+                        indexTx.filter(predicate).use {
+                            while (it.moveNext() && !found) {
+                                val rec = entityTx.read(it.key(), this@NonUniqueLongHashIndexTest.columns)
+                                val id = rec[this@NonUniqueLongHashIndexTest.columns[0]] as LongValue
+                                Assertions.assertEquals(entry.key, id)
+                                if (entry.value.contains(rec[this@NonUniqueLongHashIndexTest.columns[1]])) {
+                                    found = true
+                                }
+                            }
+                        }
+                        Assertions.assertTrue(found)
                     }
                 }
-                cursor.close()
-                Assertions.assertTrue(found)
             }
         } finally {
             txn.commit()
@@ -96,18 +96,18 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
     @RepeatedTest(3)
     fun testFilterEqualNegative() {
         /* Obtain necessary transactions. */
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
+        val catalogueTx = this.catalogue.newTx(ctx)
         val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = txn.getTx(schema) as SchemaTx
+        val schemaTx = schema.newTx(ctx)
         val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = txn.getTx(entity) as EntityTx
+        val entityTx = entity.newTx(ctx)
         val index = entityTx.indexForName(this.indexName)
-        val indexTx = txn.getTx(index) as IndexTx
+        val indexTx = index.newTx(ctx)
 
         var count = 0
-        val context = DefaultBindingContext()
-        val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(LongValue(this.random.nextLong(100L, Long.MAX_VALUE)))), false)
+        val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(ctx.bindings.bind(this.columns[0]), ctx.bindings.bind(LongValue(this.random.nextLong(100L, Long.MAX_VALUE)))), false)
         val cursor = indexTx.filter(predicate)
         cursor.forEach { count += 1 }
         cursor.close()

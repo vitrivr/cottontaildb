@@ -11,16 +11,13 @@ import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.*
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.legacy.v2.schema.SchemaV2
-import org.vitrivr.cottontail.utilities.extensions.read
-import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
-import java.util.concurrent.locks.StampedLock
 
 /**
  * The default [Catalogue] implementation based on Map DB.
@@ -58,9 +55,6 @@ class CatalogueV2(override val config: Config) : Catalogue {
     /** Constant parent [DBO], which is null in case of the [CatalogueV2]. */
     override val parent: DBO? = null
 
-    /** A lock used to mediate access to this [CatalogueV2]. */
-    private val closeLock = StampedLock()
-
     /** The [StoreWAL] that contains the Cottontail DB catalogue. */
     private val store: DB = this.config.mapdb.db(this.path.resolve(FILE_CATALOGUE))
 
@@ -76,10 +70,10 @@ class CatalogueV2(override val config: Config) : Catalogue {
 
     /** Size of this [CatalogueV2] in terms of [Schema]s it contains. This is a snapshot and may change anytime! */
     val size: Int
-        get() = this.closeLock.read { this.headerField.get().schemas.size }
+        get() = this.headerField.get().schemas.size
 
     /** Status indicating whether this [CatalogueV2] is open or closed. */
-    override val closed: Boolean
+    val closed: Boolean
         get() = this.store.isClosed()
 
     init {
@@ -104,17 +98,17 @@ class CatalogueV2(override val config: Config) : Catalogue {
     }
 
     /**
-     * Creates and returns a new [CatalogueV2.Tx] for the given [TransactionContext].
+     * Creates and returns a new [CatalogueV2.Tx] for the given [QueryContext].
      *
-     * @param context The [TransactionContext] to create the [CatalogueV2.Tx] for.
+     * @param context The [QueryContext] to create the [CatalogueV2.Tx] for.
      * @return New [CatalogueV2.Tx]
      */
-    override fun newTx(context: TransactionContext): Tx = Tx(context)
+    override fun newTx(context: QueryContext): Tx = Tx(context)
 
     /**
      * Closes the [CatalogueV2] and all objects contained within.
      */
-    override fun close() = this.closeLock.write {
+    override fun close() {
         this.store.close()
         this.registry.forEach { (_, v) -> v.close() }
     }
@@ -125,21 +119,15 @@ class CatalogueV2(override val config: Config) : Catalogue {
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    inner class Tx(context: TransactionContext) : AbstractTx(context), CatalogueTx {
+    inner class Tx(context: QueryContext) : AbstractTx(context), CatalogueTx {
 
         /** Reference to the [CatalogueV2] this [CatalogueTx] belongs to. */
         override val dbo: CatalogueV2
             get() = this@CatalogueV2
 
-        /** Obtains a global (non-exclusive) read-lock on [CatalogueV2]. Prevents enclosing [Schema] from being closed. */
-        private val closeStamp = this@CatalogueV2.closeLock.readLock()
-
         /** Checks if DBO is still open. */
         init {
-            if (this@CatalogueV2.closed) {
-                this@CatalogueV2.closeLock.unlockRead(this.closeStamp)
-                throw TransactionException.DBOClosed(this.context.txId, this@CatalogueV2)
-            }
+            if (this@CatalogueV2.closed) throw TransactionException.DBOClosed(this.context.txn.txId, this@CatalogueV2)
         }
 
         /**
@@ -166,13 +154,6 @@ class CatalogueV2(override val config: Config) : Catalogue {
 
         override fun dropSchema(name: Name.SchemaName) {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
-        /**
-         * Releases the [closeLock] on the [CatalogueV2].
-         */
-        override fun cleanup() {
-            this@CatalogueV2.closeLock.unlockRead(this.closeStamp)
         }
     }
 }

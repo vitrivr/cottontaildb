@@ -12,7 +12,6 @@ import org.vitrivr.cottontail.core.values.generators.Complex32ValueGenerator
 import org.vitrivr.cottontail.core.values.generators.Complex32VectorValueGenerator
 import org.vitrivr.cottontail.core.values.generators.DoubleVectorValueGenerator
 import org.vitrivr.cottontail.math.*
-import org.vitrivr.cottontail.utilities.math.random.nextInt
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin

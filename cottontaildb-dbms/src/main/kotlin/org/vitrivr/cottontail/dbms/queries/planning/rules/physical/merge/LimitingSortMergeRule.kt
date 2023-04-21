@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.merge
 
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.LimitingSortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.SortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.LimitPhysicalOperatorNode
@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.Coun
  * into a [LimitingSortPhysicalOperatorNode]
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.2.1
  */
 object LimitingSortMergeRule : RewriteRule {
     /**
@@ -35,7 +35,7 @@ object LimitingSortMergeRule : RewriteRule {
         require(sort is SortPhysicalOperatorNode) { "Called LimitingSortMergeRule.apply() with with node that does not follow a SortPhysicalOperatorNode." }
 
         /* Perform rewrite. */
-        val input = sort.input?.copyWithInputs() ?: throw IllegalStateException("Encountered null node in physical operator node tree (node = $node). This is a programmer's error!")
+        val input = sort.input.copyWithExistingInput()
         val p = LimitingSortPhysicalOperatorNode(input, sort.sortOn, node.limit)
         return node.output?.copyWithOutput(p) ?: p
     }

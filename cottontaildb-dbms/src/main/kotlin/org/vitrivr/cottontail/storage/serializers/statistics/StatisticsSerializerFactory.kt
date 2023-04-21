@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.storage.serializers.statistics
 
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.statistics.columns.*
+import org.vitrivr.cottontail.dbms.statistics.values.*
 import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
 
 /**
@@ -31,6 +31,7 @@ object StatisticsSerializerFactory {
         Types.Long -> LongValueStatistics.Binding
         Types.Short -> ShortValueStatistics.Binding
         Types.String -> StringValueStatistics.Binding
+        Types.ByteString -> ByteStringValueStatistics.Binding
         is Types.BooleanVector -> BooleanVectorValueStatistics.Binding(type.logicalSize)
         is Types.Complex32Vector -> Complex32VectorValueStatistics.Binding(type.logicalSize)
         is Types.Complex64Vector -> Complex64VectorValueStatistics.Binding(type.logicalSize)
@@ -38,6 +39,5 @@ object StatisticsSerializerFactory {
         is Types.FloatVector -> FloatVectorValueStatistics.Binding(type.logicalSize)
         is Types.IntVector -> IntVectorValueStatistics.Binding(type.logicalSize)
         is Types.LongVector -> LongVectorValueStatistics.Binding(type.logicalSize)
-        is Types.ByteString -> ByteStringValueStatistics.Binding
     } as XodusBinding<ValueStatistics<T>>
 }

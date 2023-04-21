@@ -1,0 +1,38 @@
+<div class="container">
+
+  <form (ngSubmit)="submit()"
+        [formGroup]="connectionForm" class="form">
+
+    <div>
+      <mat-form-field appearance="outline">
+        <mat-label>address</mat-label>
+        <input matInput type="text"
+               formControlName="address"
+               name= "address"
+               ngModel>
+      </mat-form-field>
+    </div>
+
+    <div>
+      <mat-form-field appearance="outline">
+        <mat-label>port</mat-label>
+        <input matInput type="text"
+               formControlName="port"
+               name= "port"
+               ngModel>
+      </mat-form-field>
+    </div>
+
+    <div mat-dialog-actions align="end">
+      <button mat-flat-button
+              class="btn btn-primary"
+              color="custom-green"
+              type="submit"
+              [disabled]="connectionForm.invalid">
+        Create
+      </button>
+    </div>
+
+
+  </form>
+</div>

@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.system
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.execution.locking.LockManager
@@ -8,8 +9,8 @@ import org.vitrivr.cottontail.dbms.execution.operators.system.ListLocksOperator
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
-import org.vitrivr.cottontail.dbms.queries.operators.physical.NullaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
  * A [NullaryPhysicalOperatorNode] used to list all locks.
@@ -28,6 +29,13 @@ class ListLocksPhysicalOperatorNode(val manager: LockManager<DBO>): NullaryPhysi
     override val physicalColumns: List<ColumnDef<*>>
         get() = emptyList()
     override val cost: Cost = Cost.ZERO
-    override fun toOperator(ctx: QueryContext) = ListLocksOperator(this.manager)
+    override fun toOperator(ctx: QueryContext) = ListLocksOperator(this.manager, ctx)
     override fun copy() = ListLocksPhysicalOperatorNode(this.manager)
+
+    /**
+     * Generates and returns a [Digest] for this [ListLocksPhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest = this.hashCode() + 1L
 }

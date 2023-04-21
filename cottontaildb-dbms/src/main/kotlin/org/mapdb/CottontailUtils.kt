@@ -236,7 +236,8 @@ internal object CottontailUtils {
 
     }
 
-    @JvmStatic fun <E> clone(value: E, serializer: Serializer<E>, out:DataOutput2 = DataOutput2()): E {
+    @JvmStatic
+    fun <E : Any> clone(value: E, serializer: Serializer<E>, out:DataOutput2 = DataOutput2()): E {
         out.pos = 0
         serializer.serialize(out, value)
         val in2 = DataInput2.ByteArray(out.copyBytes())

@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.general
 
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * An object that acts as unit of isolation for accesses (read/write) to the underlying [DBO].
@@ -21,20 +22,26 @@ interface Tx {
     /** The [DBO] this [Tx] belongs to. */
     val dbo: DBO
 
-    /** [TransactionContext] this [Tx] takes place in. */
-    val context: TransactionContext
+    /** [QueryContext] this [Tx] takes place in. */
+    val context: QueryContext
 
     /**
-     * Called before the global transaction is committed.
-     *
-     * Can be used by this [Tx] to finalize its portion of the transaction.
+     * A [Tx] that requires commit finalization, i.e., must execute actions before a commit can be executed.
      */
-    fun beforeCommit()
+    interface WithCommitFinalization: Tx {
+        /**
+         * Called when the global transaction is rolled back. Can be used by this [Tx] to finalize its portion of the transaction.
+         */
+        fun beforeCommit()
+    }
 
     /**
-     * Called when the global transaction is rolled back.
-     *
-     * Can be used by this [Tx] to finalize its portion of the transaction.
+     * A [Tx] that requires rollback finalization, i.e., must execute actions before a commit can be executed.
      */
-    fun beforeRollback()
+    interface WithRollbackFinalization: Tx {
+        /**
+         * Called when the global transaction is rolled back. Can be used by this [Tx] to finalize its portion of the transaction.
+         */
+        fun beforeRollback()
+    }
 }

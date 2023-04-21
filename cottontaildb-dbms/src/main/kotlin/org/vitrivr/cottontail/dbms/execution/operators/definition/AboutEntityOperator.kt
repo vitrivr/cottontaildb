@@ -10,26 +10,23 @@ import org.vitrivr.cottontail.core.values.BooleanValue
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
-import org.vitrivr.cottontail.dbms.column.ColumnTx
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import org.vitrivr.cottontail.dbms.index.IndexTx
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
 /**
- * An [Operator.SourceOperator] used during query execution. Retrieves information regarding entities.
+ * An [Operator.SourceOperator] used during query execution. Retrieves information about an entity.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 2.0.0
  */
-class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.EntityName) : Operator.SourceOperator() {
+class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.EntityName, override val context: QueryContext) : Operator.SourceOperator() {
     override val columns: List<ColumnDef<*>> = ColumnSets.DDL_ABOUT_COLUMNS
 
-    override fun toFlow(context: TransactionContext): Flow<Record> = flow {
-        val schemaTxn = context.getTx(this@AboutEntityOperator.tx.schemaForName(this@AboutEntityOperator.name.schema())) as SchemaTx
-        val entityTxn = context.getTx(schemaTxn.entityForName(this@AboutEntityOperator.name)) as EntityTx
+    override fun toFlow(): Flow<Record> = flow {
+        val schemaTxn = this@AboutEntityOperator.tx.schemaForName(this@AboutEntityOperator.name.schema()).newTx(this@AboutEntityOperator.context)
+        val entityTxn = schemaTxn.entityForName(this@AboutEntityOperator.name).newTx(this@AboutEntityOperator.context)
+
         val columns = this@AboutEntityOperator.columns.toTypedArray()
         var rowId = 0L
 
@@ -48,7 +45,7 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
         val cols = entityTxn.listColumns()
         cols.forEach {
             val column = entityTxn.columnForName(it.name)
-            val columnTx = context.getTx(column) as ColumnTx<*>
+            val columnTx = column.newTx(this@AboutEntityOperator.context)
             emit(StandaloneRecord(rowId++, columns, arrayOf(
                 StringValue(it.name.toString()),
                 StringValue("COLUMN"),
@@ -68,12 +65,12 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
         val indexes = entityTxn.listIndexes()
         indexes.forEach {
             val index = entityTxn.indexForName(it)
-            val indexTx = context.getTx(index) as IndexTx
+            val indexTx = index.newTx(this@AboutEntityOperator.context)
             emit(StandaloneRecord(rowId++, columns, arrayOf(
                 StringValue(it.toString()),
                 StringValue("INDEX"),
                 StringValue(index.type.toString()),
-                null,
+                IntValue(indexTx.count()),
                 null,
                 null,
                 StringValue(indexTx.state.toString())

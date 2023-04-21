@@ -6,20 +6,16 @@ import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onCompletion
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.utilities.hashing.RecordHasher
-import java.nio.file.Files
 import java.util.*
 
 /**
@@ -30,11 +26,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.ColumnName, Boolean>>, config: Config) : Operator.PipelineOperator(parent) {
-    companion object {
-        /** [Logger] instance used by [SelectDistinctProjectionOperator]. */
-        private val LOGGER: Logger = LoggerFactory.getLogger(SelectDistinctProjectionOperator::class.java)
-    }
+class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.ColumnName, Boolean>>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
 
     /** Columns produced by [SelectDistinctProjectionOperator]. */
     override val columns: List<ColumnDef<*>> = this.parent.columns.filter { c -> fields.any { f -> f.first == c.name }}
@@ -43,10 +35,10 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.
     private val distinctColumns = this.parent.columns.filter { c -> fields.any { f -> f.first == c.name && f.second}}
 
     /** The name of the temporary [Store] used to execute this [SelectDistinctProjectionOperator] operation. */
-    private val tmpPath = config.temporaryDataFolder().resolve("${UUID.randomUUID()}")
+    private val tmpPath = this.context.catalogue.config.temporaryDataFolder().resolve("${UUID.randomUUID()}")
 
     /** The Xodus [Environment] used by Cottontail DB. This is an internal variable and not part of the official interface. */
-    private val tmpEnvironment: Environment = Environments.newInstance(this.tmpPath.toFile(), config.xodus.toEnvironmentConfig())
+    private val tmpEnvironment: Environment = Environments.newInstance(this.tmpPath.toFile(), this.context.catalogue.config.xodus.toEnvironmentConfig())
 
     /** Start an exclusive transaction. */
     private val tmpTxn = this.tmpEnvironment.beginExclusiveTransaction()
@@ -60,33 +52,24 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.
     /**
      * Converts this [SelectProjectionOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [SelectProjectionOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
-        val columns = this.columns.toTypedArray()
-        val hasher = RecordHasher(this.distinctColumns)
-        return this.parent.toFlow(context).mapNotNull { r ->
+    override fun toFlow(): Flow<Record> = flow {
+        val columns = this@SelectDistinctProjectionOperator.columns.toTypedArray()
+        val hasher = RecordHasher(this@SelectDistinctProjectionOperator.distinctColumns)
+        val incoming = this@SelectDistinctProjectionOperator.parent.toFlow()
+        incoming.collect { r ->
             /* Generates hash from record. */
             val hash = ArrayByteIterable(hasher.hash(r))
 
             /* If record could be added to list of seen records (i.e., is the first of its kind) then entry is returned. */
-            if (this.store.add(this.tmpTxn, hash, r.tupleId.toKey())) {
-                StandaloneRecord(r.tupleId, columns, Array(columns.size) { r[columns[it]]})
-            } else {
-                null
-            }
-        }.onCompletion {
-            try {
-                /* Abort transaction and close environment. */
-                this@SelectDistinctProjectionOperator.tmpTxn.abort()
-                this@SelectDistinctProjectionOperator.tmpEnvironment.close()
-
-                /* Delete temporary environments. */
-                Files.walk(this@SelectDistinctProjectionOperator.tmpPath).sorted(Comparator.reverseOrder()).forEach { Files.delete(it) }
-            } catch (e: Throwable) {
-                LOGGER.warn("Failed to cleanup temporary data structures after query has concluded: ${e.message}")
+            if (this@SelectDistinctProjectionOperator.store.add(this@SelectDistinctProjectionOperator.tmpTxn, hash, r.tupleId.toKey())) {
+                emit(StandaloneRecord(r.tupleId, columns, Array(columns.size) { r[columns[it]]}))
             }
         }
+    }.onCompletion {
+        /* Abort transaction and close environment. */
+        this@SelectDistinctProjectionOperator.tmpTxn.abort()
+        this@SelectDistinctProjectionOperator.tmpEnvironment.close()
     }
 }

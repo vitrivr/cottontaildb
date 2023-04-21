@@ -5,7 +5,7 @@ import org.mapdb.DataOutput2
 import org.vitrivr.cottontail.dbms.column.ColumnEngine
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.DBOVersion
-import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
 
 /**
  * The header section of the [EntityV2] data structure.

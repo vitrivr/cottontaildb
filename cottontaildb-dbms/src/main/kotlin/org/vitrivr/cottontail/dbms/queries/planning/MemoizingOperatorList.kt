@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.planning
 
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import java.util.*
 
 /**
@@ -13,7 +13,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.0.1
  */
-class MemoizingOperatorList<T : org.vitrivr.cottontail.dbms.queries.operators.OperatorNode>(vararg elements: T) {
+class MemoizingOperatorList<T : OperatorNode>(vararg elements: T) {
 
     /** Internal list of [OperatorNode]s. */
     private val list = LinkedList<T>()
@@ -43,7 +43,7 @@ class MemoizingOperatorList<T : org.vitrivr.cottontail.dbms.queries.operators.Op
      * @return True on success, false if [OperatorNode] is already known.
      */
     fun enqueue(node: T, force: Boolean = false): Boolean {
-        val digest = node.digest()
+        val digest = node.totalDigest()
         if (force || !this.digests.contains(digest)) {
             this.list.add(node)
             this.digests.add(digest)

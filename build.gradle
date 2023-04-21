@@ -3,6 +3,7 @@ plugins {
     id "org.jetbrains.kotlin.plugin.serialization" version "$version_kotlin"
     id "com.github.johnrengelman.shadow" version "7.1.2"
     id 'idea'
+    id "org.openapi.generator" version "6.2.0"
 }
 
 apply plugin: 'distribution'
@@ -41,14 +42,28 @@ subprojects {
     apply plugin: 'java-library'
     apply plugin: 'java-test-fixtures'
 
+    /* Compiler options for Kotlin. */
+    def kotlinCompilerOptions = ["-Xcontext-receivers"]
     compileKotlin {
-        kotlinOptions.jvmTarget = "1.8"
         kotlinOptions {
-            freeCompilerArgs = ["-Xinline-classes"]
+            freeCompilerArgs = kotlinCompilerOptions
+            jvmTarget = "1.8"
         }
     }
+
+    /* Compiler options for Kotlin when running tests. */
     compileTestKotlin {
-        kotlinOptions.jvmTarget = "1.8"
+        kotlinOptions {
+            freeCompilerArgs = kotlinCompilerOptions
+            jvmTarget = "1.8"
+        }
+    }
+
+    compileTestFixturesKotlin {
+        kotlinOptions {
+            freeCompilerArgs = kotlinCompilerOptions
+            jvmTarget = "1.8"
+        }
     }
 
     java {
@@ -71,12 +86,12 @@ subprojects {
     }
 
     /* Important warnings that are currently missing simply because there are too many: "cast", "rawtypes". Ideally, "all" should be used in the future. */
-    def enabledWarnings = ["-Xlint:deprecation", "-Xlint:empty", "-Xlint:overrides", "-Xlint:serial", "-Xlint:static", "-Xlint:unchecked", "-Xlint:varargs"]
+    def javaCompilerOptions = []
     compileJava {
         options.encoding = 'UTF-8'
-        options.compilerArgs += enabledWarnings
+        options.compilerArgs += javaCompilerOptions
     }
-    compileTestJava.options.compilerArgs += enabledWarnings
+    compileTestJava.options.compilerArgs += javaCompilerOptions
 
     /* Common dependencies. */
     dependencies {
@@ -93,7 +108,7 @@ subprojects {
         implementation group: 'com.google.protobuf', name: 'protobuf-java', version: version_protobuf
 
         ////// Log4j2 & SLF4j
-        implementation group: 'org.slf4j', name: 'slf4j-api', version:  version_slf4j
+        implementation group: 'org.slf4j', name: 'slf4j-api', version: version_slf4j
         implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: version_log4j2
         implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: version_log4j2
         implementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j2-impl', version: version_log4j2

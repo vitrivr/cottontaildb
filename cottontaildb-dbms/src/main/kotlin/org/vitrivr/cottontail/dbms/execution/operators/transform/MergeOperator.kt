@@ -1,15 +1,14 @@
 package org.vitrivr.cottontail.dbms.execution.operators.transform
 
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * A [MergeOperator] merges the results of multiple incoming operators into a single [Flow].
@@ -18,10 +17,10 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
  * outgoing [Flow] may be arbitrary.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 2.0.0
  */
 
-class MergeOperator(parents: List<Operator>, val context: BindingContext): Operator.MergingPipelineOperator(parents) {
+class MergeOperator(parents: List<Operator>, override val context: QueryContext): Operator.MergingPipelineOperator(parents) {
     /** The columns produced by this [MergeOperator]. */
     override val columns: List<ColumnDef<*>>
         get() = this.parents.first().columns
@@ -32,20 +31,15 @@ class MergeOperator(parents: List<Operator>, val context: BindingContext): Opera
     /**
      * Converts this [MergeOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [MergeOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> = channelFlow {
-        val mutex = Mutex(false) /* Mutex to prevent multiple flows from updating the context. */
+    override fun toFlow(): Flow<Record> = channelFlow {
         this@MergeOperator.parents.map { p ->
             launch {
-                p.toFlow(context).collect {
-                    mutex.withLock {
-                        this@MergeOperator.context.update(it)
-                        send(it)
-                    }
+                p.toFlow().collect {
+                    send(it)
                 }
             }
         }
-    }
+    }.buffer(Channel.UNLIMITED)
 }

@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
@@ -11,8 +12,8 @@ import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.sources.EntityCountOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.physical.NullaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
  * A [NullaryPhysicalOperatorNode] that formalizes the counting entries in a physical [Entity].
@@ -21,7 +22,6 @@ import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
  * @version 2.5.0
  */
 class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val out: Binding.Column) : NullaryPhysicalOperatorNode() {
-
     companion object {
         private const val NODE_NAME = "CountEntity"
     }
@@ -63,23 +63,19 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): EntityCountOperator {
-        /* Bind all column bindings to context. */
-        this.out.bind(ctx.bindings)
-
-        /* Generate and return EntityCountOperator. */
-        return EntityCountOperator(this.groupId, this.entity, this.out)
-    }
+    override fun toOperator(ctx: QueryContext): EntityCountOperator = EntityCountOperator(this.groupId, this.entity, this.out, ctx)
 
     /** Generates and returns a [String] representation of this [EntityCountPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is EntityCountPhysicalOperatorNode) return false
-        if (entity != other.entity) return false
-        return true
+    /**
+     * Generates and returns a [Digest] for this [EntityCountPhysicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest {
+        var result = this.entity.dbo.name.hashCode() + 3L
+        result += 31L * result + this.out.hashCode()
+        return result
     }
-
-    override fun hashCode(): Int = this.entity.hashCode()
 }

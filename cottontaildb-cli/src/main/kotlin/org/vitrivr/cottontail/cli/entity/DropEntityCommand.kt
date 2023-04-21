@@ -4,7 +4,7 @@ import com.github.ajalt.clikt.output.TermUi
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import io.grpc.StatusException
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.DropEntity
 import org.vitrivr.cottontail.utilities.TabulationUtilities
@@ -18,7 +18,7 @@ import kotlin.time.measureTimedValue
  * @version 2.0.0
  */
 @ExperimentalTime
-class DropEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "drop", help = "Drops the given entity from the database. Usage: entity drop <schema>.<entity>") {
+class DropEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "drop", help = "Drops the given entity from the database. Usage: entity drop <schema>.<entity>") {
 
     /** Flag that can be used to directly provide confirmation. */
     private val confirm: Boolean by option(
