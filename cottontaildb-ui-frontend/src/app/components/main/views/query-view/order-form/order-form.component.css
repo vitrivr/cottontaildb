@@ -1,0 +1,16 @@
+.form-container{
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px;
+  width: 150px;
+  background-color: white;
+  border-left: solid 1px grey;
+  border-right: solid 1px grey;
+  border-bottom: solid 1px grey;
+  border-radius: 4px;
+}
+mat-card {
+  margin: 0;
+  padding: 0;
+}

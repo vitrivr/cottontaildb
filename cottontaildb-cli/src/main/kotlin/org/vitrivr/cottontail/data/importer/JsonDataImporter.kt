@@ -9,7 +9,6 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.data.Format
 import java.nio.file.Files
 import java.nio.file.Path
@@ -20,7 +19,7 @@ import java.nio.file.Path
  * fields must occur in order of definition.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 class JsonDataImporter(override val path: Path, override val schema: List<ColumnDef<*>>) : DataImporter {
 
@@ -48,23 +47,23 @@ class JsonDataImporter(override val path: Path, override val schema: List<Column
      *
      * @return [Tuple]
      */
-    override fun next(): Map<ColumnDef<*>,Value?> {
+    override fun next(): Map<ColumnDef<*>,Any?> {
         this.reader.beginObject()
-        val value = Object2ObjectArrayMap<ColumnDef<*>, Value?>(this.schema.size)
+        val value = Object2ObjectArrayMap<ColumnDef<*>, Any?>(this.schema.size)
         for (column in this.schema) {
             val parsed = this.reader.nextName().split('.')
             val name = Name.ColumnName(parsed[0], parsed[1], parsed[2])
             check(name == column.name) { "$name does not match the expected column name ${column.name}." }
             value[column] = when (column.type) {
-                is Types.Boolean -> BooleanValue(this.reader.nextBoolean())
-                is Types.Byte -> ByteValue(this.reader.nextInt())
-                is Types.Short -> ShortValue(this.reader.nextInt())
-                is Types.Int -> IntValue(this.reader.nextInt())
-                is Types.Long -> LongValue(this.reader.nextLong())
-                is Types.Float -> FloatValue(this.reader.nextDouble().toFloat())
-                is Types.Double -> DoubleValue(this.reader.nextDouble())
-                is Types.Date -> DateValue(this.reader.nextLong())
-                is Types.String ->  StringValue(this.reader.nextString())
+                is Types.Boolean ->this.reader.nextBoolean()
+                is Types.Byte -> this.reader.nextInt()
+                is Types.Short -> this.reader.nextInt()
+                is Types.Int -> this.reader.nextInt()
+                is Types.Long -> this.reader.nextLong()
+                is Types.Float -> this.reader.nextDouble().toFloat()
+                is Types.Double -> this.reader.nextDouble()
+                is Types.Date -> this.reader.nextLong()
+                is Types.String ->  this.reader.nextString()
                 is Types.Complex32 -> this.readComplex32Value()
                 is Types.Complex64 -> this.readComplex64Value()
                 is Types.IntVector -> this.readIntVector(column.type.logicalSize)
@@ -92,31 +91,31 @@ class JsonDataImporter(override val path: Path, override val schema: List<Column
     /**
      * Reads a [Complex32Value] value from the JSON file.
      *
-     * @return [Complex32Value] containing the value.
+     * @return [Pair] containing the value.
      */
-    private fun readComplex32Value(): Complex32Value {
+    private fun readComplex32Value(): Pair<Float,Float> {
         this.reader.beginObject()
         this.reader.nextName()
         val real = this.reader.nextDouble().toFloat()
         this.reader.nextName()
         val imaginary = this.reader.nextDouble().toFloat()
         this.reader.endObject()
-        return Complex32Value(real, imaginary)
+        return real to imaginary
     }
 
     /**
      * Reads a [Complex64Value] value from the JSON file.
      *
-     * @return [Complex64Value] containing the value.
+     * @return [Pair] containing the value.
      */
-    private fun readComplex64Value(): Complex64Value {
+    private fun readComplex64Value(): Pair<Double,Double>  {
         this.reader.beginObject()
         this.reader.nextName()
         val real = this.reader.nextDouble()
         this.reader.nextName()
         val imaginary = this.reader.nextDouble()
         this.reader.endObject()
-        return Complex64Value(real, imaginary)
+        return real to imaginary
     }
 
     /**
@@ -133,14 +132,14 @@ class JsonDataImporter(override val path: Path, override val schema: List<Column
     }
 
     /**
-     * Reads a int vector of the given size from the JSON file.
+     * Reads an int vector of the given size from the JSON file.
      *
      * @param size The size of the int vector.
-     * @return [IntVectorValue] containing the vector.
+     * @return [IntArray] containing the vector.
      */
-    private fun readIntVector(size: Int): IntVectorValue {
+    private fun readIntVector(size: Int): IntArray {
         this.reader.beginArray()
-        val vector = IntVectorValue(IntArray(size) { this.reader.nextInt() })
+        val vector = IntArray(size) { this.reader.nextInt() }
         this.reader.endArray()
         return vector
     }
@@ -149,11 +148,11 @@ class JsonDataImporter(override val path: Path, override val schema: List<Column
      * Reads a long vector of the given size from the JSON file.
      *
      * @param size The size of the long vector.
-     * @return [LongVectorValue] containing the vector.
+     * @return [LongArray] containing the vector.
      */
-    private fun readLongVector(size: Int): LongVectorValue {
+    private fun readLongVector(size: Int): LongArray {
         this.reader.beginArray()
-        val vector = LongVectorValue(LongArray(size) { this.reader.nextLong() })
+        val vector = LongArray(size) { this.reader.nextLong() }
         this.reader.endArray()
         return vector
     }
@@ -162,11 +161,11 @@ class JsonDataImporter(override val path: Path, override val schema: List<Column
      * Reads a float vector of the given size from the JSON file.
      *
      * @param size The size of the float vector.
-     * @return [FloatVectorValue] containing the vector.
+     * @return [FloatArray] containing the vector.
      */
-    private fun readFloatVector(size: Int): FloatVectorValue {
+    private fun readFloatVector(size: Int): FloatArray {
         this.reader.beginArray()
-        val vector = FloatVectorValue(FloatArray(size) { this.reader.nextDouble().toFloat() })
+        val vector = FloatArray(size) { this.reader.nextDouble().toFloat() }
         this.reader.endArray()
         return vector
     }
@@ -175,11 +174,11 @@ class JsonDataImporter(override val path: Path, override val schema: List<Column
      * Reads a double vector of the given size from the JSON file.
      *
      * @param size The size of the double vector.
-     * @return [DoubleVectorValue] containing the vector.
+     * @return [DoubleArray] containing the vector.
      */
-    private fun readDoubleVector(size: Int): DoubleVectorValue {
+    private fun readDoubleVector(size: Int): DoubleArray {
         this.reader.beginArray()
-        val vector = DoubleVectorValue(DoubleArray(size) { this.reader.nextDouble() })
+        val vector = DoubleArray(size) { this.reader.nextDouble() }
         this.reader.endArray()
         return vector
     }
@@ -190,9 +189,9 @@ class JsonDataImporter(override val path: Path, override val schema: List<Column
      * @param size The size of the double vector.
      * @return [Complex32VectorValue] containing the vector.
      */
-    private fun readComplex32Vector(size: Int): Complex32VectorValue {
+    private fun readComplex32Vector(size: Int): Array<Pair<Float,Float>> {
         this.reader.beginArray()
-        val vector = Complex32VectorValue(Array(size) { this.readComplex32Value() })
+        val vector = Array(size) { this.readComplex32Value() }
         this.reader.endArray()
         return vector
     }
@@ -203,9 +202,9 @@ class JsonDataImporter(override val path: Path, override val schema: List<Column
      * @param size The size of the complex64 vector.
      * @return [Complex64VectorValue] containing the vector.
      */
-    private fun readComplex64Vector(size: Int): Complex64VectorValue {
+    private fun readComplex64Vector(size: Int): Array<Pair<Double,Double>> {
         this.reader.beginArray()
-        val vector = Complex64VectorValue(Array(size) { this.readComplex64Value() })
+        val vector = Array(size) { this.readComplex64Value() }
         this.reader.endArray()
         return vector
     }

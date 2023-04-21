@@ -2,13 +2,13 @@ package org.vitrivr.cottontail.dbms.execution.transactions
 
 import jetbrains.exodus.env.Transaction
 import org.vitrivr.cottontail.core.database.TransactionId
+import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.execution.ExecutionContext
 import org.vitrivr.cottontail.dbms.execution.locking.Lock
 import org.vitrivr.cottontail.dbms.execution.locking.LockManager
 import org.vitrivr.cottontail.dbms.execution.locking.LockMode
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
-import org.vitrivr.cottontail.dbms.operations.Operation
 
 /**
  * A [TransactionContext] can be used to query and interact with a [Transaction].
@@ -27,12 +27,20 @@ interface TransactionContext: ExecutionContext {
     val xodusTx: Transaction
 
     /**
-     * Obtains a [Tx] for the given [DBO]. This method should make sure, that only one [Tx] per [DBO] is created.
+     * Caches a [Tx] for later re-use.
      *
-     * @param dbo The DBO] to create the [Tx] for.
-     * @return The resulting [Tx]
+     * @param dbo The [DBO] to create the [Tx] for.
+     * @return True on success, false otherwise.
      */
-    fun getTx(dbo: DBO): Tx
+    fun cacheTxForDBO(dbo: Tx): Boolean
+
+    /**
+     * Obtains a cached [Tx] for the given [DBO].
+     *
+     * @param dbo The [DBO] to create the [Tx] for.
+     * @return The resulting [Tx] or null
+     */
+    fun <T: Tx> getCachedTxForDBO(dbo: DBO): T?
 
     /**
      * Acquires a [Lock] on a [DBO] for the given [LockMode]. This call is delegated to the
@@ -44,12 +52,13 @@ interface TransactionContext: ExecutionContext {
     fun requestLock(dbo: DBO, mode: LockMode)
 
     /**
-     * Signals a [Operation.DataManagementOperation] to this [TransactionContext].
+     * Signals an [Event] to this [TransactionContext].
      *
-     * Implementing methods must process these [Operation.DataManagementOperation]s quickly, since they are usually
-     * triggered during an ongoing transaction.
+     * This method is a facility to communicate actions that take place within a
+     * [TransactionContext] to the 'outside' world. Usually, that communication
+     * must be withheld until the [TransactionContext] commits.
      *
-     * @param action The [Operation.DataManagementOperation] that has been reported.
+     * @param event The [Event] that has been reported.
      */
-    fun signalEvent(action: Operation.DataManagementOperation)
+    fun signalEvent(event: Event)
 }

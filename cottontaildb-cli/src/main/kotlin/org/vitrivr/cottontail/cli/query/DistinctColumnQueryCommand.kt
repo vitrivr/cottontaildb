@@ -5,7 +5,7 @@ import com.github.ajalt.clikt.parameters.arguments.convert
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractQueryCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.core.database.Name
@@ -18,7 +18,7 @@ import kotlin.time.ExperimentalTime
  * @version 1.0.0
  */
 @ExperimentalTime
-class DistinctColumnQueryCommand(client: SimpleClient) : AbstractCottontailCommand.Query(client, name = "distinct", help = "Returns all distinct entries for a given column") {
+class DistinctColumnQueryCommand(client: SimpleClient) : AbstractQueryCommand(client, name = "distinct", help = "Returns all distinct entries for a given column") {
 
     private val entityName: Name.EntityName by argument(name = "entity", help = "The fully qualified entity name targeted by the command. Has the form of [\"warren\"].<schema>.<entity>").convert {
         val split = it.split(Name.DELIMITER)

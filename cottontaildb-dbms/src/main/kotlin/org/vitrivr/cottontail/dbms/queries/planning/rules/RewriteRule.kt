@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules
 
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 
 /**
  * A [RewriteRule] is a rule used during query planning. It tries to replace an [OperatorNode]
@@ -30,5 +30,5 @@ interface RewriteRule {
      *
      * @return The output [OperatorNode] or null, if no rewrite was done.
      */
-    fun apply(node:OperatorNode, ctx: QueryContext): OperatorNode?
+    fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode?
 }

@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.planning.rules.logical
 
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 
@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * into a sequence of two [FilterLogicalOperatorNode]s.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.2.1
  */
 object RightConjunctionRewriteRule : RewriteRule {
 
@@ -39,7 +39,7 @@ object RightConjunctionRewriteRule : RewriteRule {
         require(node is FilterLogicalOperatorNode) { "Called RightConjunctionRewriteRule.apply() with node of type ${node.javaClass.simpleName} that is not a FilterLogicalOperatorNode. This is a programmer's error!"}
         require(node.predicate is BooleanPredicate.Compound.And) { "Called RightConjunctionRewriteRule.apply() with node a predicate that is not a conjunction. This is a programmer's error!" }
 
-        val parent = node.input?.copyWithInputs() ?: throw IllegalStateException("Encountered null node in logical operator node tree (node = $node). This is a programmer's error!")
+        val parent = node.input.copyWithExistingInput()
         val ret = FilterLogicalOperatorNode(FilterLogicalOperatorNode(parent, node.predicate.p2), node.predicate.p1)
         return node.output?.copyWithOutput(ret) ?: ret
     }

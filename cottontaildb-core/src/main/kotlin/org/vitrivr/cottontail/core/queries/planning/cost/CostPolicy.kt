@@ -6,7 +6,7 @@ package org.vitrivr.cottontail.core.queries.planning.cost
  * @author Ralph Gasser
  * @version 1.0.0
  */
-interface CostPolicy: Comparator<Cost> {
+interface CostPolicy: Comparator<NormalizedCost> {
 
     /** The weight / importance of the IO aspect of the [CostPolicy]. */
     val wio: Float
@@ -28,7 +28,7 @@ interface CostPolicy: Comparator<Cost> {
     val speedupPerWorker: Float
 
     /** The non-parallelisable fraction of IO work. This is usually higher for HDDs than SSDs. */
-    val nonParallelisableIO: Float
+    val parallelisableIO: Float
 
     /**
      * Transforms the given [Cost] object into a cost score given this [CostPolicy].
@@ -38,17 +38,17 @@ interface CostPolicy: Comparator<Cost> {
      * @param cost The [Cost] to transform.
      * @return The cost score.
      */
-    fun toScore(cost: Cost): Float =
+    fun toScore(cost: NormalizedCost): Float =
         (this.wio * cost.io + this.wcpu * cost.cpu + this.wmemory * cost.memory + this.waccuracy * cost.accuracy)
 
     /**
-     * Compares two [Cost] objects based on the score.
+     * Compares two [NormalizedCost] objects based on the score.
      *
-     * @param o1 The first [Cost] in the comparison.
-     * @param o2 The second [Cost] in the comparison.
+     * @param o1 The first [NormalizedCost] in the comparison.
+     * @param o2 The second [NormalizedCost] in the comparison.
      * @return
      */
-    override fun compare(o1: Cost, o2: Cost): Int = this.toScore(o1).compareTo(this.toScore(o2))
+    override fun compare(o1: NormalizedCost, o2: NormalizedCost): Int = this.toScore(o1).compareTo(this.toScore(o2))
 
     /**
      * Estimates, how much parallelization makes sense given the parallelisable portion vs the total [Cost]. The estimation
@@ -60,11 +60,11 @@ interface CostPolicy: Comparator<Cost> {
      * @return parallelization estimation for this [Cost].
      */
     fun parallelisation(parallelisableCost: Cost, totalCost: Cost, pmax: Int): Int {
-        if (pmax <= 2) return 1
-        if (parallelisableCost.cpu < 1.0f) return 1
-        val sp = this.wcpu * parallelisableCost.cpu + this.wio * parallelisableCost.io * this.nonParallelisableIO /* Parallelisable portion of the cost. */
-        val ss = this.wcpu * (totalCost.cpu - parallelisableCost.cpu) + this.wio *(totalCost.io - parallelisableCost.io * this.nonParallelisableIO) /* Serial portion of the cost. */
-        val ov = 0.01f * sp /* Overhead = 1% of the parallel cost. */
+        if (pmax < 2) return 1
+        val sp = parallelisableCost.cpu + parallelisableCost.io * this.parallelisableIO /* Parallelisable portion of the cost. */
+        if (sp < 1.0f) return 1
+        val ss = (totalCost.cpu - parallelisableCost.cpu) + (totalCost.io - parallelisableCost.io * this.parallelisableIO) /* Serial portion of the cost. */
+        val ov = 0.01f * parallelisableCost.cpu /* Overhead = 0.1% of the parallel cost. */
         var prevSpeedup = 0.0f
         for (p in 2 .. pmax) {
             val s = (ss + sp) / (ss + (sp / p) + p * ov)

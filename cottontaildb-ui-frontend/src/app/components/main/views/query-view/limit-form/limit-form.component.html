@@ -1,0 +1,23 @@
+<ng-container>
+  <mat-card>
+    <mat-card-content>
+      <div [formGroup]="conditions" class="query-form">
+
+        <div class="query-form-header">
+          <mat-icon>drag_indicator</mat-icon>
+          LIMIT
+          <button mat-icon-button (click)="remove()"><mat-icon>delete</mat-icon></button>
+        </div>
+
+        <div class="form-container">
+          <mat-form-field appearance="outline">
+            <mat-label> limit </mat-label>
+            <!--Input is controlled by numberOnly(), only positive integers and backspace possible.-->
+            <input (keydown)="numberOnly($event)" matInput formControlName="limit">
+          </mat-form-field>
+        </div>
+
+      </div>
+    </mat-card-content>
+  </mat-card>
+</ng-container>

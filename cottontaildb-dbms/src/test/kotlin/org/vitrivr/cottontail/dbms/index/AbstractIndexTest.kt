@@ -8,12 +8,12 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
+import org.vitrivr.cottontail.dbms.index.basic.Index
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.schema.Schema
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.test.TestConstants
 
 /**
@@ -40,7 +40,7 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
     protected abstract val indexType: IndexType
 
     /** [IndexType] of the test [Index]. */
-    protected val indexParams: Map<String, String> = emptyMap()
+    protected open val indexParams: Map<String, String> = emptyMap()
 
     /** The [JDKRandomGenerator] random number generator. */
     protected val random = JDKRandomGenerator()
@@ -78,11 +78,17 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
      */
     protected fun prepareSchema(): Schema {
         log("Creating schema ${this.schemaName}.")
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
-        val ret = catalogueTx.createSchema(this.schemaName)
-        txn.commit()
-        return ret
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx = DefaultQueryContext("index-test-prepare-schema", this.catalogue, txn)
+        try {
+            val catalogueTx = this.catalogue.newTx(ctx)
+            val ret = catalogueTx.createSchema(this.schemaName)
+            txn.commit()
+            return ret
+        } catch (e: Throwable) {
+            txn.rollback()
+            throw e
+        }
     }
 
     /**
@@ -90,12 +96,18 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
      */
     protected fun prepareEntity() {
         log("Creating schema ${this.entityName}.")
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
-        val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = txn.getTx(schema) as SchemaTx
-        schemaTx.createEntity(this.entityName, *this.columns)
-        txn.commit()
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx = DefaultQueryContext("index-test-prepare-entity", this.catalogue, txn)
+        try {
+            val catalogueTx = this.catalogue.newTx(ctx)
+            val schema = catalogueTx.schemaForName(this.schemaName)
+            val schemaTx = schema.newTx(ctx)
+            schemaTx.createEntity(this.entityName, *this.columns)
+            txn.commit()
+        } catch (e: Throwable) {
+            txn.rollback()
+            throw e
+        }
     }
 
     /**
@@ -103,15 +115,21 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
      */
     protected fun prepareIndex() {
         log("Creating index ${this.indexName}.")
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
-        val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = txn.getTx(schema) as SchemaTx
-        val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = txn.getTx(entity) as EntityTx
-        val config = this.indexType.descriptor.buildConfig(this.indexParams)
-        entityTx.createIndex(this.indexName, this.indexType, listOf(this.indexColumn.name), config)
-        txn.commit()
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx = DefaultQueryContext("index-test-prepare-index", this.catalogue, txn)
+        try {
+            val catalogueTx = this.catalogue.newTx(ctx)
+            val schema = catalogueTx.schemaForName(this.schemaName)
+            val schemaTx = schema.newTx(ctx)
+            val entity = schemaTx.entityForName(this.entityName)
+            val entityTx = entity.newTx(ctx)
+            val config = this.indexType.descriptor.buildConfig(this.indexParams)
+            entityTx.createIndex(this.indexName, this.indexType, listOf(this.indexColumn.name), config)
+            txn.commit()
+        } catch (e: Throwable) {
+            txn.rollback()
+            throw e
+        }
     }
 
     /**
@@ -119,16 +137,22 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
      */
     protected fun updateIndex() {
         log("Updating index ${this.indexName}.")
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
-        val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = txn.getTx(schema) as SchemaTx
-        val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = txn.getTx(entity) as EntityTx
-        val index = entityTx.indexForName(this.indexName)
-        val indexTx = txn.getTx(index) as IndexTx
-        indexTx.rebuild()
-        txn.commit()
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx = DefaultQueryContext("index-test-update-index", this.catalogue, txn)
+
+        try {
+            val catalogueTx = this.catalogue.newTx(ctx)
+            val schema = catalogueTx.schemaForName(this.schemaName)
+            val schemaTx = schema.newTx(ctx)
+            val entity = schemaTx.entityForName(this.entityName)
+            val entityTx = entity.newTx(ctx)
+            val index = entityTx.indexForName(this.indexName)
+            index.newRebuilder(ctx).rebuild()
+            txn.commit()
+        } catch (e: Throwable) {
+            txn.rollback()
+            throw e
+        }
     }
 
 
@@ -137,18 +161,24 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
      */
     protected fun populateDatabase() {
         log("Inserting data (${collectionSize} items).")
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
-        val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = txn.getTx(schema) as SchemaTx
-        val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = txn.getTx(entity) as EntityTx
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx = DefaultQueryContext("index-test-populate", this.catalogue, txn)
+        try {
+            val catalogueTx = this.catalogue.newTx(ctx)
+            val schema = catalogueTx.schemaForName(this.schemaName)
+            val schemaTx = schema.newTx(ctx)
+            val entity = schemaTx.entityForName(this.entityName)
+            val entityTx = entity.newTx(ctx)
 
-        /* Insert data and track how many entries have been stored for the test later. */
-        for (i in 0..this.collectionSize) {
-            entityTx.insert(nextRecord())
+            /* Insert data and track how many entries have been stored for the test later. */
+            for (i in 0..this.collectionSize) {
+                entityTx.insert(nextRecord())
+            }
+            txn.commit()
+        } catch (e: Throwable) {
+            txn.rollback()
+            throw e
         }
-        txn.commit()
     }
 
     /**
@@ -164,24 +194,37 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
         log("Optimizing entity ${this.entityName}.")
 
         /* Create entry. */
-        val tx1 = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        val catalogueTx = tx1.getTx(this.catalogue) as CatalogueTx
-        val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = tx1.getTx(schema) as SchemaTx
-        val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = tx1.getTx(entity) as EntityTx
-        val preCount = entityTx.count()
-        entityTx.optimize()
-        tx1.commit()
+        val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx1 = DefaultQueryContext("index-test-optimize", this.catalogue, txn1)
+        try {
+            val catalogueTx = this.catalogue.newTx(ctx1)
+            val schema = catalogueTx.schemaForName(this.schemaName)
+            val schemaTx = schema.newTx(ctx1)
+            val entity = schemaTx.entityForName(this.entityName)
+            val entityTx = entity.newTx(ctx1)
+            val preCount = entityTx.count()
+            entityTx.listIndexes().map {
+                val rebuilder = entityTx.indexForName(it).newRebuilder(ctx1)
+                rebuilder.rebuild()
+            }
+            txn1.commit()
 
-        /* Test count. */
-        val tx2 = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        val countTx = tx2.getTx(entity) as EntityTx
-        val postCount = countTx.count()
-        if (postCount != preCount) {
-            Assertions.fail<Unit>("Optimizing caused elements to disappear")
+            /* Test count. */
+            val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+            val ctx2 = DefaultQueryContext("index-test-optimize-02", this.catalogue, txn2)
+            try {
+                val countTx = entity.newTx(ctx2)
+                val postCount = countTx.count()
+                if (postCount != preCount) {
+                    Assertions.fail<Unit>("Optimizing caused elements to disappear")
+                }
+                txn2.commit()
+            } catch (e: Throwable) {
+                txn2.rollback()
+            }
+        } catch (e: Throwable) {
+            txn1.rollback()
         }
-        tx2.commit()
     }
 
     /**

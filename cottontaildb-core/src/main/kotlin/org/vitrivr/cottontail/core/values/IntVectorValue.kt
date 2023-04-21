@@ -14,6 +14,9 @@ import kotlin.math.pow
 value class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
     constructor(input: List<Number>) : this(IntArray(input.size) { input[it].toInt() })
     constructor(input: Array<Number>) : this(IntArray(input.size) { input[it].toInt() })
+    constructor(input: DoubleArray) : this(IntArray(input.size) { input[it].toInt() })
+    constructor(input: FloatArray) : this(IntArray(input.size) { input[it].toInt() })
+    constructor(input: LongArray) : this(IntArray(input.size) { input[it].toInt() })
 
     /** The logical size of this [IntVectorValue]. */
     override val logicalSize: Int

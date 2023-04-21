@@ -15,7 +15,7 @@ import java.nio.file.Path
  * Data import and export format used and supported by Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
 enum class Format(val suffix: String) {
     /** ProtocolBuffer format. */
@@ -26,6 +26,21 @@ enum class Format(val suffix: String) {
 
     /** CSV format. */
     CSV("csv");
+
+    companion object {
+        /**
+         * Tries to detect the [Format] for the file under the given [Path] by comparing its suffix.
+         *
+         * @param path The [Path] to check.
+         * @return The detected [Format].
+         */
+        fun detectFormatForPath(path: Path) = when {
+            path.toString().endsWith(PROTO.suffix) -> PROTO
+            path.toString().endsWith(JSON.suffix) -> JSON
+            path.toString().endsWith(CSV.suffix) -> CSV
+            else -> throw IllegalArgumentException("Input format of file $path could not be detected (supported: ${Format.values().joinToString(", ")}).")
+        }
+    }
 
     /**
      * Creates and returns a new [DataImporter] for this [Format].

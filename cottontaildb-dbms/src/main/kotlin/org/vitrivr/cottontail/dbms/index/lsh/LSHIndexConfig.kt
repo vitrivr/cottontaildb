@@ -8,7 +8,7 @@ import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.CosineDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.InnerProductDistance
-import org.vitrivr.cottontail.dbms.index.IndexConfig
+import org.vitrivr.cottontail.dbms.index.basic.IndexConfig
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignatureGenerator
 import org.vitrivr.cottontail.dbms.index.lsh.signature.SBLSHSignatureGenerator
 import java.io.ByteArrayInputStream
@@ -23,16 +23,16 @@ data class LSHIndexConfig(val distance: Name.FunctionName, val buckets: Int, val
 
     companion object {
         /** Configuration key for name of the distance function. */
-        const val KEY_DISTANCES = "distances"
+        const val KEY_DISTANCES = "lsh.distance"
 
         /** Configuration key for the number of stages. */
-        const val KEY_NUM_STAGES = "stages"
+        const val KEY_NUM_STAGES = "lsh.stages"
 
         /** Configuration key for the number of buckets. */
-        const val KEY_NUM_BUCKETS = "buckets"
+        const val KEY_NUM_BUCKETS = "lsh.buckets"
 
         /** Configuration key for the random number generator seed. */
-        const val KEY_SEED = "seed"
+        const val KEY_SEED = "lsh.seed"
 
         /** The [Name.FunctionName] of the default distance. */
         val DEFAULT_DISTANCE = CosineDistance.FUNCTION_NAME
@@ -76,4 +76,16 @@ data class LSHIndexConfig(val distance: Name.FunctionName, val buckets: Int, val
         require(this.stages > 0) { "LSHIndex requires at least a single stage." }
         require(this.distance in SUPPORTED_DISTANCES) { "LSHIndex only support COSINE and INNERPRODUCT distance."}
     }
+
+    /**
+     * Converts this [LSHIndexConfig] to a [Map] of key-value pairs.
+     *
+     * @return [Map]
+     */
+    override fun toMap(): Map<String, String> = mapOf(
+        KEY_DISTANCES to this.distance.simple,
+        KEY_NUM_STAGES to this.stages.toString(),
+        KEY_NUM_BUCKETS to this.buckets.toString(),
+        KEY_SEED to this.seed.toString()
+    )
 }

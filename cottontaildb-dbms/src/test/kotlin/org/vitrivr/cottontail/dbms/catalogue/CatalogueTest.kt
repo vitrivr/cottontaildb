@@ -6,8 +6,8 @@ import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.nio.file.Files
@@ -16,7 +16,7 @@ import java.nio.file.Files
  * A set of unit tests to test basic [DefaultCatalogue] functionality.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 class CatalogueTest: AbstractDatabaseTest() {
 
@@ -37,9 +37,10 @@ class CatalogueTest: AbstractDatabaseTest() {
     @Test
     fun createSchemaCommitTest() {
         /* Transaction 1: Create schema. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx1 = DefaultQueryContext("create-schema-01", this.catalogue, txn1)
         try {
-            val catalogueTxn1 = txn1.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn1 = this.catalogue.newTx(ctx1)
             catalogueTxn1.createSchema(this.schemaName)
             txn1.commit()
         } catch (t: Throwable) {
@@ -48,11 +49,12 @@ class CatalogueTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Read and compare schema. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx2 = DefaultQueryContext("create-schema-02", this.catalogue, txn2)
         try {
-            val catalogueTxn2 = txn2.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn2 = this.catalogue.newTx(ctx2)
             val schema = catalogueTxn2.schemaForName(this.schemaName)
-            val schemaTxn2 = txn2.getTx(schema) as SchemaTx
+            val schemaTxn2 = schema.newTx(ctx2)
 
             /* Check if schema contains the expected number of entities (zero). */
             Assertions.assertEquals(0, schemaTxn2.listEntities().size)
@@ -67,18 +69,20 @@ class CatalogueTest: AbstractDatabaseTest() {
     @Test
     fun createSchemaRollbackTest() {
         /* Transaction 1: Create schema. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx1 = DefaultQueryContext("create-schema-01", this.catalogue, txn1)
         try {
-            val catalogueTxn1 = txn1.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn1 = this.catalogue.newTx(ctx1)
             catalogueTxn1.createSchema(this.schemaName)
         } finally {
             txn1.rollback()
         }
 
         /* Transaction 2: Read and compare schema. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx2 = DefaultQueryContext("create-schema-02", this.catalogue, txn2)
         try {
-            val catalogueTxn2 = txn2.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn2 = this.catalogue.newTx(ctx2)
 
             /* Read schema (should throw error). */
             Assertions.assertThrows(DatabaseException.SchemaDoesNotExistException::class.java) {
@@ -97,9 +101,10 @@ class CatalogueTest: AbstractDatabaseTest() {
     @Test
     fun dropSchemaCommitTest() {
         /* Transaction 1: Create schema. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx1 = DefaultQueryContext("drop-schema-01", this.catalogue, txn1)
         try {
-            val catalogueTxn1 = txn1.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn1 = this.catalogue.newTx(ctx1)
             catalogueTxn1.createSchema(this.schemaName)
             txn1.commit()
         } catch (t: Throwable) {
@@ -109,9 +114,10 @@ class CatalogueTest: AbstractDatabaseTest() {
 
 
         /* Transaction 2: Read, check and drop schema. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx2 = DefaultQueryContext("drop-schema-02", this.catalogue, txn2)
         try {
-            val catalogueTxn2 = txn2.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn2 = this.catalogue.newTx(ctx2)
             catalogueTxn2.schemaForName(this.schemaName)
 
             /* Drop schema. */
@@ -123,9 +129,11 @@ class CatalogueTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 3: Read and compare schema. */
-        val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn3 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx3 = DefaultQueryContext("drop-schema-03", this.catalogue, txn3)
+
         try {
-            val catalogueTxn3 = txn3.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn3 = this.catalogue.newTx(ctx3)
 
             /* Read schema (should throw error). */
             Assertions.assertThrows(DatabaseException.SchemaDoesNotExistException::class.java) {
@@ -144,9 +152,10 @@ class CatalogueTest: AbstractDatabaseTest() {
     @Test
     fun dropSchemaRollbackTest() {
         /* Transaction 1: Create schema. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx1 = DefaultQueryContext("drop-schema-01", this.catalogue, txn1)
         try {
-            val catalogueTxn1 = txn1.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn1 = this.catalogue.newTx(ctx1)
             catalogueTxn1.createSchema(this.schemaName)
             txn1.commit()
         } catch (t: Throwable) {
@@ -156,9 +165,10 @@ class CatalogueTest: AbstractDatabaseTest() {
 
 
         /* Transaction 2: Read, check and drop schema. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx2 = DefaultQueryContext("drop-schema-02", this.catalogue, txn2)
         try {
-            val catalogueTxn2 = txn2.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn2 = this.catalogue.newTx(ctx2)
             Assertions.assertDoesNotThrow {
                 catalogueTxn2.schemaForName(this.schemaName)
             }
@@ -171,9 +181,10 @@ class CatalogueTest: AbstractDatabaseTest() {
 
 
         /* Transaction 3: Read and compare schema. */
-        val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn3 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx3 = DefaultQueryContext("drop-schema-03", this.catalogue, txn3)
         try {
-            val catalogueTxn3 = txn3.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn3 = this.catalogue.newTx(ctx3)
             Assertions.assertDoesNotThrow {
                 catalogueTxn3.schemaForName(this.schemaName)
             }
@@ -190,9 +201,10 @@ class CatalogueTest: AbstractDatabaseTest() {
     @Test
     fun createAndDropSchemaSingleTransactionTest() {
         /* Transaction 1: Create schema. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx1 = DefaultQueryContext("create-drop-schema-01", this.catalogue, txn1)
         try {
-            val catalogueTxn1 = txn1.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn1 = this.catalogue.newTx(ctx1)
             Assertions.assertDoesNotThrow {
                 catalogueTxn1.createSchema(this.schemaName)
                 catalogueTxn1.dropSchema(this.schemaName)
@@ -202,9 +214,10 @@ class CatalogueTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Read and compare schema. */
-        val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn3 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx3 = DefaultQueryContext("create-drop-schema-01", this.catalogue, txn3)
         try {
-            val catalogueTxn3 = txn3.getTx(this.catalogue) as CatalogueTx
+            val catalogueTxn3 = this.catalogue.newTx(ctx3)
 
             /* Read schema (should throw error). */
             Assertions.assertThrows(DatabaseException.SchemaDoesNotExistException::class.java) {

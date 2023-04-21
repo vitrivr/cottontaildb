@@ -37,6 +37,13 @@ object ColumnSets {
         ColumnDef(Name.ColumnName("info"), Types.String, true)
     )
 
+    /** The columns returned by ABOUT ENTITY operation. */
+    val DDL_INTROSPECTION_COLUMNS: List<ColumnDef<*>> = listOf(
+        ColumnDef(Name.ColumnName("dbo"), Types.String, false),
+        ColumnDef(Name.ColumnName("key"), Types.String, false),
+        ColumnDef(Name.ColumnName("value"), Types.String, false),
+    )
+
     /** The columns returned by LIST LOCKS operation. */
     val DDL_LOCKS_COLUMNS: List<ColumnDef<*>> = listOf(
         ColumnDef(Name.ColumnName("dbo"), Types.String, false),
@@ -50,8 +57,6 @@ object ColumnSets {
         ColumnDef(Name.ColumnName("txId"), Types.Long, false),
         ColumnDef(Name.ColumnName("type"), Types.String, false),
         ColumnDef(Name.ColumnName("state"), Types.String, false),
-        ColumnDef(Name.ColumnName("lock_count"), Types.Int, false),
-        ColumnDef(Name.ColumnName("tx_count"), Types.Int, false),
         ColumnDef(Name.ColumnName("created"), Types.Date, false),
         ColumnDef(Name.ColumnName("ended"), Types.Date, true),
         ColumnDef(Name.ColumnName("duration[s]"), Types.Double, true)

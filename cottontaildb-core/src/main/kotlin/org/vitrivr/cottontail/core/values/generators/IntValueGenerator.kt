@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.core.values.generators
 
-import org.apache.commons.math3.random.RandomGenerator
 import org.vitrivr.cottontail.core.values.IntValue
+import java.util.random.RandomGenerator
 
 /**
  * A [NumericValueGenerator] for [IntValue]s.

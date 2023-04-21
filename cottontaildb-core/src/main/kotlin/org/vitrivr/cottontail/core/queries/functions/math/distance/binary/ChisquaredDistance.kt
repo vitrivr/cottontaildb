@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.core.queries.functions.math.distance.binary
 
+import jdk.incubator.vector.VectorOperators
+import jdk.incubator.vector.VectorSpecies
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.functions.Argument
+import org.vitrivr.cottontail.core.queries.functions.*
 import org.vitrivr.cottontail.core.queries.functions.Function
-import org.vitrivr.cottontail.core.queries.functions.FunctionGenerator
-import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.*
@@ -52,7 +52,7 @@ sealed class ChisquaredDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Ve
 
     /** The [Cost] of applying this [ChisquaredDistance]. */
     override val cost: Cost
-        get() = (Cost.FLOP * 5.0f + Cost.MEMORY_ACCESS * 4.0f) * this.d
+        get() = (Cost.FLOP * 5.0f + Cost.MEMORY_ACCESS * 4.0f) * this.vectorSize
 
     /**
      * [ChisquaredDistance] for a [DoubleVectorValue].
@@ -74,7 +74,7 @@ sealed class ChisquaredDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Ve
     /**
      * [ChisquaredDistance] for a [FloatVectorValue].
      */
-    class FloatVector(type: Types.Vector<FloatVectorValue,*>): ChisquaredDistance<FloatVectorValue>(type) {
+    class FloatVector(type: Types.Vector<FloatVectorValue,*>): ChisquaredDistance<FloatVectorValue>(type), VectorisableFunction<DoubleValue> {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
             val probing = arguments[0] as FloatVectorValue
@@ -86,6 +86,40 @@ sealed class ChisquaredDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Ve
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
+
+        override fun vectorized() = FloatVectorVectorized(this.type)
+    }
+
+    /**
+     * SIMD implementation: [ChisquaredDistance] for a [FloatVectorValue]
+     */
+    class FloatVectorVectorized(type: Types.Vector<FloatVectorValue,*>): EuclideanDistance<FloatVectorValue>(type), VectorisedFunction<DoubleValue> {
+        override val name: Name.FunctionName = FUNCTION_NAME
+        override fun invoke(vararg arguments: Value?): DoubleValue {
+            // Changing SPECIES to SPECIES.PREFERRED results in a HUGE performance decrease
+            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
+            val probing = arguments[0] as FloatVectorValue
+            val query = arguments[1] as FloatVectorValue
+            var vectorSum = jdk.incubator.vector.FloatVector.zero(species)
+
+            //Vectorized calculation
+            for (i in 0 until species.loopBound(this.vectorSize) step species.length()) {
+                val vp = jdk.incubator.vector.FloatVector.fromArray(species, probing.data, i)
+                val vq = jdk.incubator.vector.FloatVector.fromArray(species, query.data, i)
+                vectorSum = vectorSum.lanewise(VectorOperators.ADD, vp.lanewise(VectorOperators.SUB, vq).pow(2f)
+                    .div(vp.lanewise(VectorOperators.ADD, vq)))
+            }
+
+            var sum = vectorSum.reduceLanes(VectorOperators.ADD)
+
+            // Scalar calculation for the remaining lanes, since SPECIES.loopBound(this.d) <= this.d
+            for (i in species.loopBound(this.vectorSize) until this.vectorSize) {
+                sum += ((query.data[i] - probing.data[i]).pow(2)) / (query.data[i] + probing.data[i])
+            }
+
+            return DoubleValue(sum)
+        }
+        override fun copy(d: Int) = FloatVectorVectorized(Types.FloatVector(d))
     }
 
     /**

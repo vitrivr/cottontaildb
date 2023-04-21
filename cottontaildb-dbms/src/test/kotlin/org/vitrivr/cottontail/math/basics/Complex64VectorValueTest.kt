@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.math.basics
 
 import org.apache.commons.math3.complex.Complex
 import org.apache.commons.math3.exception.DimensionMismatchException
-import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
@@ -12,7 +11,7 @@ import org.vitrivr.cottontail.core.values.generators.Complex64ValueGenerator
 import org.vitrivr.cottontail.core.values.generators.Complex64VectorValueGenerator
 import org.vitrivr.cottontail.core.values.generators.DoubleVectorValueGenerator
 import org.vitrivr.cottontail.math.*
-import org.vitrivr.cottontail.utilities.math.random.nextInt
+import java.util.*
 
 /**
  * Some basic test cases that test for correctness of [Complex64VectorValue] arithmetic operations.
@@ -23,7 +22,7 @@ import org.vitrivr.cottontail.utilities.math.random.nextInt
 @Disabled
 class Complex64VectorValueTest {
 
-    private val random = JDKRandomGenerator()
+    private val random = SplittableRandom()
 
     companion object;
 

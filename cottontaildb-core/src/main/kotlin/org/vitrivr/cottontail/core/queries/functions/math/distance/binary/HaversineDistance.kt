@@ -57,7 +57,7 @@ sealed class HaversineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vec
 
     /** The [Cost] of applying this [HaversineDistance]. */
     override val cost: Cost
-        get() = (Cost.FLOP * 27.0f + Cost.MEMORY_ACCESS * 22.0f) * this.d
+        get() = (Cost.FLOP * 27.0f + Cost.MEMORY_ACCESS * 22.0f) * this.vectorSize
 
     /**
      * Calculates the haversine distance between two points a, b.

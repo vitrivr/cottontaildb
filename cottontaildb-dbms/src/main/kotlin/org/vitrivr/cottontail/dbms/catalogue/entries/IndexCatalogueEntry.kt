@@ -11,17 +11,17 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.index.Index
-import org.vitrivr.cottontail.dbms.index.IndexConfig
-import org.vitrivr.cottontail.dbms.index.IndexState
-import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.index.basic.Index
+import org.vitrivr.cottontail.dbms.index.basic.IndexConfig
+import org.vitrivr.cottontail.dbms.index.basic.IndexState
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import java.io.ByteArrayInputStream
 
 /**
  * A [IndexCatalogueEntry] in the Cottontail DB [Catalogue]. Used to store metadata about [Index]es.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 data class IndexCatalogueEntry(val name: Name.IndexName, val type: IndexType, val state: IndexState, val columns: List<Name.ColumnName>, val config: IndexConfig<*>) {
 
@@ -154,5 +154,25 @@ data class IndexCatalogueEntry(val name: Name.IndexName, val type: IndexType, va
          */
         internal fun delete(name: Name.IndexName, catalogue: DefaultCatalogue, transaction: Transaction): Boolean =
             store(catalogue, transaction).delete(transaction, NameBinding.Index.objectToEntry(name))
+
+        /**
+         * Convenience method to update the [IndexState] of this [IndexCatalogueEntry].
+         *
+         * @param name [Name.IndexName] of the [IndexCatalogueEntry] that should be deleted.
+         * @param state
+         * @param catalogue [DefaultCatalogue] to write [IndexCatalogueEntry] to.
+         * @param state The new [IndexState]
+         * @param transaction The Xodus [Transaction] to use.
+         * @return True if state was written OR if state did not change, false otherwise.
+         */
+        internal fun updateState(name: Name.IndexName, catalogue: DefaultCatalogue, state: IndexState, transaction: Transaction): Boolean {
+            /* Obtain old entry and compare state. */
+            val oldEntry = read(name, catalogue, transaction) ?: throw DatabaseException.DataCorruptionException("Failed to update state for index $name: Could not read catalogue entry for index.")
+            return if (oldEntry.state != state) {
+                write(oldEntry.copy(state = state), catalogue, transaction)
+            } else {
+                true
+            }
+        }
     }
 }

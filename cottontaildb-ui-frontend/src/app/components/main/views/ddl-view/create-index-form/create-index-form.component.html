@@ -1,0 +1,43 @@
+<div class="container">
+
+  <h1> Create a new index for </h1>
+
+  <div class="body">
+
+    <form #name="ngForm"
+          (ngSubmit)="sumbmitIndexForm()"
+          [formGroup]="indexForm">
+
+      <div class="content">
+
+        <mat-form-field appearance="outline">
+          <mat-label>Index Type</mat-label>
+          <mat-select  formControlName="index"  class="form-control">
+            <mat-option>--- None ---</mat-option>
+            <mat-option value="{{index}}" *ngFor="let index of indexTypes">{{index}}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Skip build</mat-label>
+          <mat-select  formControlName="skipBuild"  class="form-control">
+            <mat-option>--- None ---</mat-option>
+            <mat-option value="{{skipBuild}}" *ngFor="let skipBuild of [true,false]">{{skipBuild}}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <button mat-flat-button
+                color="custom-green"
+                type="submit">
+          Submit
+        </button>
+
+        <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+
+

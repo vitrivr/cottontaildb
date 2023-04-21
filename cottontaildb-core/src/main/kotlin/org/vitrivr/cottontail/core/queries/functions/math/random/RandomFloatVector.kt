@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.core.queries.functions.math.random
 
-import org.apache.commons.math3.random.JDKRandomGenerator
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Function
@@ -11,20 +10,16 @@ import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.generators.FloatVectorValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import java.util.*
 
 /**
  * An [Function] that generates and returns a random value.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 object RandomFloatVector: Function<FloatVectorValue> {
     /** The [Name.FunctionName] backing this [RandomFloatVector]. */
     val FUNCTION_NAME = Name.FunctionName("rnd_floatvec")
-
-    /** The [SplittableRandom] backing this [RandomFloatVector]. */
-    private val RANDOM = JDKRandomGenerator()
 
     /** [Cost] of executing this function. TODO: This is probably very much off... */
     override val cost: Cost = Cost.FLOP

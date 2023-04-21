@@ -3,20 +3,20 @@ package org.vitrivr.cottontail.data.importer
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.data.Format
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.utilities.extensions.*
+import org.vitrivr.cottontail.utilities.extensions.fqn
 import java.io.InputStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
+import java.util.*
 
 /**
  * A [DataImporter] implementation that can be used to read a [Format.PROTO] file containing an list of entries.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.2.0
  */
 class ProtoDataImporter(override val path: Path, override val schema: List<ColumnDef<*>>) : DataImporter {
 
@@ -38,31 +38,31 @@ class ProtoDataImporter(override val path: Path, override val schema: List<Colum
      *
      * @return [CottontailGrpc.InsertMessage.Builder]
      */
-    override fun next(): Map<ColumnDef<*>, Value?>{
-        val value = Object2ObjectArrayMap<ColumnDef<*>, Value?>(this.schema.size)
+    override fun next(): Map<ColumnDef<*>, Any?>{
+        val value = Object2ObjectArrayMap<ColumnDef<*>, Any?>(this.schema.size)
         for (column in this.schema) {
             val element = this.next?.elementsList?.singleOrNull {
                 it.column.fqn().matches(column.name)
             } ?: throw IllegalStateException("Could not find column ${column.name} in input.")
             value[column] = when (column.type) {
-                is Types.Boolean -> element.value.toShortValue()
-                is Types.Byte -> element.value.toByteValue()
-                is Types.Short -> element.value.toShortValue()
-                is Types.Int -> element.value.toIntValue()
-                is Types.Long -> element.value.toLongValue()
-                is Types.Float -> element.value.toFloatValue()
-                is Types.Double -> element.value.toDoubleValue()
-                is Types.Date -> element.value.toDateValue()
-                is Types.String ->  element.value.toStringValue()
-                is Types.Complex32 -> element.value.toComplex32Value()
-                is Types.Complex64 -> element.value.toComplex64Value()
-                is Types.IntVector -> element.value.vectorData.toIntVectorValue()
-                is Types.LongVector -> element.value.vectorData.toLongVectorValue()
-                is Types.FloatVector -> element.value.vectorData.toFloatVectorValue()
-                is Types.DoubleVector -> element.value.vectorData.toDoubleVectorValue()
-                is Types.BooleanVector -> element.value.vectorData.toBooleanVectorValue()
-                is Types.Complex32Vector -> element.value.vectorData.toComplex32VectorValue()
-                is Types.Complex64Vector -> element.value.vectorData.toComplex64VectorValue()
+                is Types.Boolean -> element.value.booleanData
+                is Types.Byte -> element.value.intData.toByte()
+                is Types.Short -> element.value.intData.toByte()
+                is Types.Int -> element.value.intData
+                is Types.Long -> element.value.longData
+                is Types.Float -> element.value.floatData
+                is Types.Double -> element.value.doubleData
+                is Types.Date -> Date(element.value.dateData.utcTimestamp)
+                is Types.String ->  element.value.stringData
+                is Types.Complex32 -> element.value.complex32Data.real to element.value.complex32Data.imaginary
+                is Types.Complex64 -> element.value.complex64Data.real to element.value.complex64Data.imaginary
+                is Types.IntVector -> element.value.vectorData.intVector.vectorList.toIntArray()
+                is Types.LongVector -> element.value.vectorData.longVector.vectorList.toLongArray()
+                is Types.FloatVector -> element.value.vectorData.floatVector.vectorList.toFloatArray()
+                is Types.DoubleVector -> element.value.vectorData.doubleVector.vectorList.toDoubleArray()
+                is Types.BooleanVector -> element.value.vectorData.boolVector.vectorList.toBooleanArray()
+                is Types.Complex32Vector -> element.value.vectorData.complex32Vector.vectorList.map { it.real to it.imaginary }.toTypedArray()
+                is Types.Complex64Vector -> element.value.vectorData.complex64Vector.vectorList.map { it.real to it.imaginary }.toTypedArray()
                 is Types.ByteString -> TODO()
             }
         }

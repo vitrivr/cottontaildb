@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.core.queries.binding
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.nodes.BindableNode
 import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Types
@@ -13,12 +13,9 @@ import org.vitrivr.cottontail.core.values.types.Value
  * This class acts as a level of indirection for [Value]'s used during query planning, optimization and execution.
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 2.0.0
  */
-sealed interface Binding: BindableNode, NodeWithCost {
-
-    /** The bound [Value]. */
-    val value: Value?
+sealed interface Binding: NodeWithCost {
 
     /** The [Types] held by this [Binding]. */
     val type: Types<*>
@@ -29,32 +26,27 @@ sealed interface Binding: BindableNode, NodeWithCost {
     /** Flag indicating whether [Binding] remains static in the context of a query. */
     val static: Boolean
 
-    /** The [BindingContext] associated with this [Binding]. */
-    val context: BindingContext
-
     /**
-     * Copies this [Binding], creating a new [Binding] that is initially bound to the same [BindingContext].
+     * Obtains the current value for this [Binding].
      *
-     * @return Copy of this [Binding]
+     * @return [Value]
      */
-    override fun copy(): Binding
+    context(BindingContext,Record)
+    fun getValue(): Value?
 
     /**
-     *
+     * Caclulates and returns the [Digest] for this [Binding]
      */
     override fun digest(): Digest = this.hashCode().toLong()
 
     /** A [Binding] for a literal [Value] without any indirection other than the [Binding] itself. */
-    data class Literal(val bindingIndex: Int, override val static: Boolean, override val canBeNull: Boolean, override val type: Types<*>, override var context: BindingContext): Binding {
-        override val value: Value?
-            get() = this.context[this]
+    data class Literal(val bindingIndex: Int, override val static: Boolean, override val canBeNull: Boolean, override val type: Types<*>): Binding {
         override val cost: Cost
             get() = Cost.MEMORY_ACCESS
-        override fun copy() = Literal(this.bindingIndex, this.static, this.canBeNull, this.type, this.context)
-        override fun bind(context: BindingContext) {
-            this.context = context
-        }
-        fun update(value: Value?) = this.context.update(this, value)
+        context(BindingContext,Record)
+        override fun getValue(): Value? = this@BindingContext[this]
+        context(BindingContext,Record)
+        fun update(value: Value?) = this@BindingContext.update(this, value)
         override fun toString(): String = ":$bindingIndex"
     }
 
@@ -63,9 +55,7 @@ sealed interface Binding: BindableNode, NodeWithCost {
      *
      * Can only be accessed during query execution.
      */
-    data class Column(val column: ColumnDef<*>, override var context: BindingContext): Binding  {
-        override val value: Value?
-            get() = this.context[this]
+    data class Column(val column: ColumnDef<*>): Binding  {
         override val type: Types<*>
             get() = this.column.type
         override val canBeNull: Boolean
@@ -74,10 +64,9 @@ sealed interface Binding: BindableNode, NodeWithCost {
             get() = false
         override val cost: Cost
             get() = Cost.MEMORY_ACCESS
-        override fun copy() = Column(this.column, this.context)
-        override fun bind(context: BindingContext) {
-            this.context = context
-        }
+        context(BindingContext,Record)
+        override fun getValue(): Value? = this@Record[this.column]
+
         override fun toString(): String = "${this.column.name}"
     }
 
@@ -86,15 +75,12 @@ sealed interface Binding: BindableNode, NodeWithCost {
      *
      * Can only be accessed during query execution.
      */
-    data class Function(val bindingIndex: Int, val function: org.vitrivr.cottontail.core.queries.functions.Function<*>, val arguments: List<Binding>, override var context: BindingContext): Binding {
+    data class Function(val bindingIndex: Int, val function: org.vitrivr.cottontail.core.queries.functions.Function<*>, val arguments: List<Binding>): Binding {
         init {
             this.function.signature.arguments.forEachIndexed {  i, arg ->
                 check(arg.type == this.arguments[i].type) { "Type ${this.arguments[i].type} of argument $i is incompatible with function ${function.signature}." }
             }
         }
-
-        override val value: Value?
-            get() = this.context[this]
         override val type: Types<*>
             get() = this.function.signature.returnType
         override val canBeNull: Boolean
@@ -103,11 +89,11 @@ sealed interface Binding: BindableNode, NodeWithCost {
             get() = this.function.cost + this.arguments.map { it.cost }.reduce { c1, c2 -> c1 + c2}
         override val static: Boolean
             get() = false
-        override fun copy() = Function(this.bindingIndex, this.function.copy(), this.arguments.map { it.copy() }, this.context)
-        override fun bind(context: BindingContext) {
-            this.context = context
-            this.arguments.forEach { it.bind(context) }
-        }
+        val executable: Boolean
+            get() = this.function.executable
+        context(BindingContext,Record)
+        override fun getValue(): Value? = this@BindingContext[this]
+
         override fun toString(): String = "${this.function.signature}"
 
         /**
@@ -131,11 +117,7 @@ sealed interface Binding: BindableNode, NodeWithCost {
      *
      * Can only be accessed during query execution.
      */
-    data class Subquery(val dependsOn: GroupId, val column: ColumnDef<*>, override var context: BindingContext): Binding {
-        override val value: Value?
-            get() = this.values.firstOrNull()
-        val values: Collection<Value?>
-            get() = this.context[this]
+    data class Subquery(val dependsOn: GroupId, val column: ColumnDef<*>): Binding {
         override val type: Types<*>
             get() = this.column.type
         override val canBeNull: Boolean
@@ -144,21 +126,30 @@ sealed interface Binding: BindableNode, NodeWithCost {
             get() = false
         override val cost: Cost
             get() = Cost.ZERO
-        override fun copy() = Subquery(this.dependsOn, this.column, this.context)
-        override fun bind(context: BindingContext) {
-            this.context = context
-        }
+
+        context(BindingContext,Record)
+        override fun getValue(): Value? = this@BindingContext[this].firstOrNull()
+
+        /**
+         * Returns all values held for this [Subquery] in the context of the provided [BindingContext].
+         *
+         * @return List of [Value]s.
+         */
+        context(BindingContext,Record)
+        fun getValues(): Collection<Value?> = this@BindingContext[this]
 
         /**
          * Appends a [Value] to this [Subquery] in the provided [BindingContext].
          *
          * @param value The [Value] to append.
          */
-        fun append(value: Value) = this.context.append(this, value)
+        context(BindingContext,Record)
+        fun append(value: Value) = this@BindingContext.append(this, value)
 
         /**
          * Clears all [Value]s bound to this [Subquery] within the provided [BindingContext].
          */
-        fun clear() = this.context.clear(this)
+        context(BindingContext,Record)
+        fun clear() = this@BindingContext.clear(this)
     }
 }

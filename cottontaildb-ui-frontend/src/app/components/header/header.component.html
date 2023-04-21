@@ -1,0 +1,26 @@
+<div class="header-container">
+  <h1>Cottontail DB</h1>
+  <ng-container *ngIf="connection">
+    <button routerLink="/ddl"
+         class="button"
+         routerLinkActive='is-active'>
+      DDL
+    </button>
+    <button class="button"
+         routerLink="/dml"
+         routerLinkActive='is-active'>
+      DML
+    </button>
+    <button routerLink="/query"
+         class="button"
+         routerLinkActive='is-active'>
+      Query
+    </button>
+    <button routerLink="/system"
+         class="button"
+         routerLinkActive='is-active'>
+      System
+    </button>
+  </ng-container>
+</div>
+

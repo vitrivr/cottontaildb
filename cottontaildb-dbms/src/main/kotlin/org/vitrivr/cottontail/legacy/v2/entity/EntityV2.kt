@@ -18,20 +18,19 @@ import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
-import org.vitrivr.cottontail.dbms.index.Index
-import org.vitrivr.cottontail.dbms.index.IndexConfig
-import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.index.basic.Index
+import org.vitrivr.cottontail.dbms.index.basic.IndexConfig
+import org.vitrivr.cottontail.dbms.index.basic.IndexTx
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.statistics.entity.EntityStatistics
 import org.vitrivr.cottontail.legacy.v2.column.ColumnV2
 import org.vitrivr.cottontail.legacy.v2.schema.SchemaV2
-import org.vitrivr.cottontail.utilities.extensions.write
+import java.io.Closeable
 import java.nio.file.Path
-import java.util.concurrent.locks.StampedLock
 
 /**
  * Represents a single entity in the Cottontail DB data model. An [EntityV2] has name that must remain unique within a [DefaultSchema].
@@ -47,7 +46,7 @@ import java.util.concurrent.locks.StampedLock
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoCloseable {
+class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, Closeable {
     /**
      * Companion object of the [EntityV2]
      */
@@ -78,9 +77,6 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
     /** The [Name.EntityName] of this [EntityV2]. */
     override val name: Name.EntityName = this.parent.name.entity(this.headerField.get().name)
 
-    /** An internal lock that is used to synchronize access to this [EntityV2] in presence of ongoing [Tx]. */
-    private val closeLock = StampedLock()
-
     /** List of all the [Column]s associated with this [EntityV2]; Iteration order of entries as defined in schema! */
     private val columns: MutableMap<Name.ColumnName, ColumnV2<*>> = Object2ObjectLinkedOpenHashMap()
 
@@ -96,7 +92,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
         get() = DBOVersion.V2_0
 
     /** Status indicating whether this [EntityV2] is open or closed. */
-    override val closed: Boolean
+    val closed: Boolean
         get() = this.store.isClosed()
 
     init {
@@ -117,12 +113,12 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
     }
 
     /**
-     * Creates and returns a new [EntityV2.Tx] for the given [TransactionContext].
+     * Creates and returns a new [EntityV2.Tx] for the given [QueryContext].
      *
-     * @param context The [TransactionContext] to create the [EntityV2.Tx] for.
+     * @param context The [QueryContext] to create the [EntityV2.Tx] for.
      * @return New [EntityV2.Tx]
      */
-    override fun newTx(context: TransactionContext) = this.Tx(context)
+    override fun newTx(context: QueryContext) = this.Tx(context)
 
     /**
      * Closes the [EntityV2].
@@ -131,7 +127,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
      * as all involved [Column]s are involved.Therefore, access to the method is mediated by an
      * global [EntityV2] wide lock.
      */
-    override fun close() = this.closeLock.write {
+    override fun close() {
         if (!this.closed) {
             this.store.close()
             this.columns.values.forEach { it.close() }
@@ -145,10 +141,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
      * @author Ralph Gasser
      * @version 1.3.0
      */
-    inner class Tx(context: TransactionContext) : AbstractTx(context), EntityTx {
-
-        /** Obtains a global non-exclusive lock on [EntityV2]. Prevents [EntityV2] from being closed. */
-        private val closeStamp = this@EntityV2.closeLock.readLock()
+    inner class Tx(context: QueryContext) : AbstractTx(context), EntityTx {
 
         /** Reference to the surrounding [EntityV2]. */
         override val dbo: EntityV2
@@ -158,10 +151,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
 
         /** Checks if DBO is still open. */
         init {
-            if (this@EntityV2.closed) {
-                this@EntityV2.closeLock.unlockRead(this.closeStamp)
-                throw TransactionException.DBOClosed(this.context.txId, this@EntityV2)
-            }
+            if (this@EntityV2.closed) throw TransactionException.DBOClosed(this.context.txn.txId, this@EntityV2)
         }
 
         /**
@@ -177,7 +167,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
             /* Read values from underlying columns. */
             val values = columns.map {
                 val column = this@EntityV2.columns[it.name] ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@EntityV2.name}.")
-                (this.context.getTx(column) as ColumnTx<*>).get(tupleId)
+                column.newTx(this@Tx.context).get(tupleId)
             }.toTypedArray()
 
             /* Return value of all the desired columns. */
@@ -258,10 +248,6 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun optimize() {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
         /**
          * Creates and returns a new [Iterator] for this [EntityV2.Tx] that returns
          * all [TupleId]s contained within the surrounding [EntityV2].
@@ -288,7 +274,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
             /** List of [ColumnTx]s used by  this [Iterator]. */
             private val txs = columns.map {
                 val column = this@EntityV2.columns[it.name] ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@EntityV2.name}.")
-                (this@Tx.context.getTx(column) as ColumnV2<*>.Tx)
+                column.newTx(this@Tx.context)
             }
 
             /** The wrapped [Iterator] of the first column. */
@@ -305,9 +291,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
                 return StandaloneRecord(tupleId, columns, this.values)
             }
             override fun key(): TupleId = this.wrapped.next()
-            override fun moveNext(): Boolean {
-                return this.wrapped.hasNext()
-            }
+            override fun moveNext(): Boolean = this.wrapped.hasNext()
             override fun close() { /* No op. */ }
         }
 
@@ -321,13 +305,6 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
 
         override fun delete(tupleId: TupleId) {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
-        /**
-         * Releases the [closeLock] on the [EntityV2].
-         */
-        override fun cleanup() {
-            this@EntityV2.closeLock.unlockRead(this.closeStamp)
         }
     }
 }

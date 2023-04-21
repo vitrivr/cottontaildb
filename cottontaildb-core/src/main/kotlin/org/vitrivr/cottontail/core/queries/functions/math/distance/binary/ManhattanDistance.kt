@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.core.queries.functions.math.distance.binary
 
+import jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
+import jdk.incubator.vector.VectorOperators
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.functions.Argument
+import org.vitrivr.cottontail.core.queries.functions.*
 import org.vitrivr.cottontail.core.queries.functions.Function
-import org.vitrivr.cottontail.core.queries.functions.FunctionGenerator
-import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.*
@@ -58,7 +58,7 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
 
     /** The [Cost] of applying this [ManhattanDistance]. */
     override val cost: Cost
-        get() = ((Cost.FLOP * 2.0f + Cost.MEMORY_ACCESS * 2.0f) * this.d) + Cost.MEMORY_ACCESS
+        get() = ((Cost.FLOP * 2.0f + Cost.MEMORY_ACCESS * 2.0f) * this.vectorSize) + Cost.MEMORY_ACCESS
 
     /** The [ManhattanDistance] is a [MinkowskiDistance] with p = 1. */
     override val p: Int
@@ -73,7 +73,7 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
             val probing = arguments[0] as Complex64VectorValue
             val query = arguments[1] as Complex64VectorValue
             var sum = 0.0
-            for (i in 0 until this.d) {
+            for (i in 0 until this.vectorSize) {
                 val diffReal = query.data[i shl 1] - probing.data[i shl 1]
                 val diffImaginary = query.data[(i shl 1) + 1] - probing.data[(i shl 1) + 1]
                 sum += sqrt(diffReal.pow(2) + diffImaginary.pow(2))
@@ -92,7 +92,7 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
             val probing = arguments[0] as Complex32VectorValue
             val query = arguments[1] as Complex32VectorValue
             var sum = 0.0
-            for (i in 0 until this.d) {
+            for (i in 0 until this.vectorSize) {
                 val diffReal = query.data[i shl 1] - probing.data[i shl 1]
                 val diffImaginary = query.data[(i shl 1) + 1] - probing.data[(i shl 1) + 1]
                 sum += sqrt(diffReal.pow(2) + diffImaginary.pow(2))
@@ -111,7 +111,7 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
             val probing = arguments[0] as DoubleVectorValue
             val query = arguments[1] as DoubleVectorValue
             var sum = 0.0
-            for (i in 0 until this.d) {
+            for (i in 0 until this.vectorSize) {
                 sum += (query.data[i] - probing.data[i]).absoluteValue
             }
             return DoubleValue(sum)
@@ -122,18 +122,49 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
     /**
      * [ManhattanDistance] for a [FloatVectorValue].
      */
-    class FloatVector(type: Types.Vector<FloatVectorValue,*>): ManhattanDistance<FloatVectorValue>(type) {
+    class FloatVector(type: Types.Vector<FloatVectorValue,*>): ManhattanDistance<FloatVectorValue>(type), VectorisableFunction<DoubleValue> {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
             val probing = arguments[0] as FloatVectorValue
             val query = arguments[1] as FloatVectorValue
             var sum = 0.0
-            for (i in 0 until this.d) {
+            for (i in 0 until this.vectorSize) {
                 sum += (query.data[i] - probing.data[i]).absoluteValue
             }
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
+        override fun vectorized() = FloatVectorVectorized(this.type)
+    }
+
+    /**
+     * SIMD implementation: [ManhattanDistance] for a [FloatVectorValue].
+     */
+    class FloatVectorVectorized(type: Types.Vector<FloatVectorValue,*>): ManhattanDistance<FloatVectorValue>(type), VectorisedFunction<DoubleValue> {
+        override val name: Name.FunctionName = FUNCTION_NAME
+
+        override fun invoke(vararg arguments: Value?): DoubleValue {
+            val probing = (arguments[0] as FloatVectorValue).data
+            val query = (arguments[1] as FloatVectorValue).data
+            var vectorSum = jdk.incubator.vector.FloatVector.zero(SPECIES_PREFERRED)
+
+            /* Vectorised distance calculation. */
+            val bound = SPECIES_PREFERRED.loopBound(this.vectorSize)
+            for (i in 0 until bound step SPECIES_PREFERRED.length()) {
+                val vp = jdk.incubator.vector.FloatVector.fromArray(SPECIES_PREFERRED, probing, i)
+                val vq = jdk.incubator.vector.FloatVector.fromArray(SPECIES_PREFERRED, query, i)
+                vectorSum = vectorSum.add(vp.sub(vq).abs())
+            }
+
+            /* Scalar version for remainder. */
+            var sum = vectorSum.reduceLanes(VectorOperators.ADD)
+            for (i in bound until this.vectorSize) {
+                sum += (query[i] - probing[i]).absoluteValue
+            }
+
+            return DoubleValue(sum)
+        }
+        override fun copy(d: Int) = FloatVectorVectorized(Types.FloatVector(d))
     }
 
     /**
@@ -145,7 +176,7 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
             val probing = arguments[0] as LongVectorValue
             val query = arguments[1] as LongVectorValue
             var sum = 0.0
-            for (i  in 0 until this.d) {
+            for (i  in 0 until this.vectorSize) {
                 sum += (query.data[i] - probing.data[i]).absoluteValue
             }
             return DoubleValue(sum)
@@ -162,7 +193,7 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
             val probing = arguments[0] as IntVectorValue
             val query = arguments[1] as IntVectorValue
             var sum = 0.0
-            for (i in 0 until this.d) {
+            for (i in 0 until this.vectorSize) {
                 sum += (query.data[i] - probing.data[i]).absoluteValue
             }
             return DoubleValue(sum)

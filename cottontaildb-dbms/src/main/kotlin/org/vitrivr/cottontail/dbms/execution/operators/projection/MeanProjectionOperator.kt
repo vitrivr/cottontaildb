@@ -1,34 +1,31 @@
 package org.vitrivr.cottontail.dbms.execution.operators.projection
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.*
+import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
 import org.vitrivr.cottontail.dbms.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
 
 /**
  * An [Operator.PipelineOperator] used during query execution. It calculates the MEAN of all values
  * it has encountered and returns it as a [Record].
  *
- * Only produces a single [Record] and converts the projected columns to a [Types.Double] column.
- * Acts as pipeline breaker.
+ * Only produces a single [Record]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 2.0.1
  */
-class MeanProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : Operator.PipelineOperator(parent) {
+class MeanProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
 
     /** [MaxProjectionOperator] does act as a pipeline breaker. */
     override val breaker: Boolean = true
@@ -50,38 +47,38 @@ class MeanProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : 
     /**
      * Converts this [MeanProjectionOperator] to a [Flow] and returns it.
      *
-     * @param context The [DefaultQueryContext] used for execution
      * @return [Flow] representing this [MeanProjectionOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
-        val parentFlow = this.parent.toFlow(context)
-        val columns = this.columns.toTypedArray()
-        return flow {
-            /* Prepare holder of type double. */
-            val count = this@MeanProjectionOperator.parentColumns.map { 0L }.toTypedArray()
-            val sum = this@MeanProjectionOperator.parentColumns.map { 0.0 }.toTypedArray()
-            parentFlow.onEach {
-                this@MeanProjectionOperator.parentColumns.forEachIndexed { i, c ->
-                    val value = it[c]
-                    if (value != null) {
-                        count[i] += 1L
-                        sum[i] += when (value) {
-                            is ByteValue -> value.value.toDouble()
-                            is ShortValue -> value.value.toDouble()
-                            is IntValue -> value.value.toDouble()
-                            is LongValue -> value.value.toDouble()
-                            is FloatValue -> value.value.toDouble()
-                            is DoubleValue -> value.value
-                            null -> 0.0
-                            else -> throw ExecutionException.OperatorExecutionException(this@MeanProjectionOperator, "The provided column $c cannot be used for a ${Projection.MEAN} projection.")
-                        }
-                    }
-                }
-            }.collect()
+    override fun toFlow(): Flow<Record> = flow {
+        val incoming = this@MeanProjectionOperator.parent.toFlow()
+        val columns = this@MeanProjectionOperator.columns.toTypedArray()
 
-            /** Emit record. */
-            val results = Array<Value?>(sum.size) { DoubleValue(sum[it] / count[it]) }
-            emit(StandaloneRecord(0L, columns, results))
+        /* Prepare holder of type. */
+        val count = this@MeanProjectionOperator.parentColumns.map { 0L }.toTypedArray()
+        val sum: Array<NumericValue<*>> = this@MeanProjectionOperator.parentColumns.map {
+            when (it.type) {
+                is Types.Byte -> ByteValue.ZERO
+                is Types.Short -> ShortValue.ZERO
+                is Types.Int -> IntValue.ZERO
+                is Types.Long -> LongValue.ZERO
+                is Types.Float -> FloatValue.ZERO
+                is Types.Double -> DoubleValue.ZERO
+                is Types.Complex32 -> Complex32Value.ZERO
+                is Types.Complex64 -> Complex64Value.ZERO
+                else -> throw ExecutionException.OperatorExecutionException(this@MeanProjectionOperator, "The provided column $it cannot be used for a ${Projection.SUM} projection. ")
+            }
+        }.toTypedArray()
+
+        /* Prepare holder of type double. */
+        incoming.collect {
+            for ((i,c) in this@MeanProjectionOperator.parentColumns.withIndex()) {
+                count[i] += 1L
+                sum[i] += it[c] as NumericValue<*>
+            }
         }
+
+        /** Emit record. */
+        val results = Array<Value?>(sum.size) { sum[it] / LongValue(count[it]) }
+        emit(StandaloneRecord(0L, columns, results))
     }
 }

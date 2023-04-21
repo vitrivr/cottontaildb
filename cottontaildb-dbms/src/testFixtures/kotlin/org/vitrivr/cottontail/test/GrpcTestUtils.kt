@@ -102,8 +102,9 @@ object GrpcTestUtils {
      * Creates a Lucene index on the [TestConstants.TEST_ENTITY_NAME].
      */
     fun createLuceneIndexOnTestEntity(client: SimpleClient) {
-        client.create(CreateIndex(TestConstants.TEST_ENTITY_NAME.fqn, STRING_COLUMN_NAME, CottontailGrpc.IndexType.LUCENE))
-        client.optimize(OptimizeEntity(TestConstants.TEST_ENTITY_NAME.fqn))
+        val name = "lucene-index"
+        client.create(CreateIndex(TestConstants.TEST_ENTITY_NAME.fqn, STRING_COLUMN_NAME, CottontailGrpc.IndexType.LUCENE).name(name))
+        client.rebuild(RebuildIndex("${TestConstants.TEST_ENTITY_NAME.fqn}.$name"))
     }
 
     /**

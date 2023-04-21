@@ -2,12 +2,12 @@ package org.vitrivr.cottontail.utilities.math.clustering
 
 import org.apache.commons.math3.exception.ConvergenceException
 import org.apache.commons.math3.exception.util.LocalizedFormats
-import org.apache.commons.math3.random.RandomGenerator
 import org.apache.commons.math3.stat.descriptive.moment.Variance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import java.util.*
+import java.util.random.RandomGenerator
 import kotlin.math.pow
 
 /**
@@ -16,7 +16,7 @@ import kotlin.math.pow
  * This implementation is an adaption of the Apache Commons Math [org.apache.commons.math3.ml.clustering.KMeansPlusPlusClusterer].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 class KMeansClusterer(val k: Int, override val distance: VectorDistance<*>, private val random: RandomGenerator, private val iterations: Int = MAX_ITERATIONS): Clusterer {
 

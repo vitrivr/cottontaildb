@@ -3,13 +3,12 @@ package org.vitrivr.cottontail.legacy.v1.entity
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
 
 /**
- * An entry pointing to an [Index][org.vitrivr.cottontail.database.index.AbstractIndex]
+ * An entry pointing to an [Index]
  *
  * @see EntityV1
- * @see org.vitrivr.cottontail.database.index.AbstractIndex
  *
  * @author Ralph Gasser
  * @version 1.0.0

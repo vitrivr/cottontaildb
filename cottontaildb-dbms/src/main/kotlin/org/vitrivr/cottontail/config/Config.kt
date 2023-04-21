@@ -9,7 +9,7 @@ import java.nio.file.Paths
  * Cottontail DB configuration class.
  *
  * @author Ralph Gasser
- * @version 1.6.1
+ * @version 1.6.2
  */
 @Serializable
 data class Config(
@@ -17,11 +17,12 @@ data class Config(
         @Serializable(with = PathSerializer::class)
         val root: Path = Paths.get("./data"),
 
+        /** Path to a custom Log4j2 config file (XML). Defaults to null! */
+        @Serializable(with = PathSerializer::class)
+        val logConfig: Path? = null,
+
         /** Flag indicating whether Cottontail DB should be allowed to start even in the presence of broken indexes.*/
         val allowBrokenIndex: Boolean = true,
-
-        /** Path to a custom Log4j2 config file (XML). Defaults to null! */
-        val logConfig: Path? = null,
 
         /** Reference to [XodusConfig], which contains configuration regarding Xodus. */
         val xodus: XodusConfig = XodusConfig(),
