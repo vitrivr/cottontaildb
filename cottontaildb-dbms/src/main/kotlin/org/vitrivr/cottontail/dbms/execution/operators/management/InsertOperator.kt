@@ -40,7 +40,7 @@ class InsertOperator(groupId: GroupId, private val entity: EntityTx, private val
      *
      * @return [Flow] representing this [InsertOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> = flow {
+    override fun toFlow() = flow {
         val columns = this@InsertOperator.columns.toTypedArray()
         val start = System.currentTimeMillis()
         var lastCreated: Record? = null

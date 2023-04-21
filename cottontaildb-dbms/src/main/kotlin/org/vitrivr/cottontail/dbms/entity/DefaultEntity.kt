@@ -65,8 +65,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
     override fun equals(other: Any?): Boolean {
         if (other !is DefaultEntity) return false
         if (other.catalogue != this.catalogue) return false
-        if (other.name != this.name) return false
-        return true
+        return other.name == this.name
     }
 
     override fun hashCode(): Int {
@@ -338,7 +337,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                 /* Make necessary checks for value. */
                 val value = when {
                     column.columnDef.autoIncrement -> {
-                        val nextValue = SequenceCatalogueEntries.next(this@DefaultEntity.name.sequence(column.name.simple), this@DefaultEntity.catalogue, this.context.xodusTx)
+                        val nextValue = SequenceCatalogueEntries.next(this@DefaultEntity.name.sequence(column.name.simple), this@DefaultEntity.catalogue, this.context.txn.xodusTx)
                         check(nextValue != null) { "Failed to generate next value in sequence for column ${column.name}. This is a programmer's error!"}
                         val value = when (column.type) {
                             Types.Int -> IntValue(nextValue)
@@ -353,7 +352,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
 
                 /* Record and perform insert. */
                 inserts[column.columnDef] = value
-                (this.context.getTx(column) as ColumnTx<Value>).add(nextTupleId, value)
+                (column.newTx(this.context) as ColumnTx<Value>).add(nextTupleId, value)
             }
 
             /* Issue DataChangeEvent.InsertDataChange event and update indexes. */
