@@ -95,9 +95,9 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             get() = this@DefaultColumn
 
         /**
-         * Gets and returns [ValueStatistics] for this [ColumnTx]
+         * Gets and returns [ValueMetrics] for this [ColumnTx]
          *
-         * @return [ValueStatistics].
+         * @return [ValueMetrics].
          */
         @Suppress("UNCHECKED_CAST")
         override fun statistics(): ValueMetrics<T> = this.txLatch.withLock {

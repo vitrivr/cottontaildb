@@ -54,7 +54,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
     /** [EntityScanPhysicalOperatorNode] is always executable. */
     override val executable: Boolean = true
 
-    /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
+    /** [ValueMetrics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
     override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueMetrics<*>>()
 
     /** The estimated [Cost] incurred by scanning the [Entity]. */

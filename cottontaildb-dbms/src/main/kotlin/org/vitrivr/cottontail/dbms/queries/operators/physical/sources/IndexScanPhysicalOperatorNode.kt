@@ -58,7 +58,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
     /** [IndexScanPhysicalOperatorNode] are always executable. */
     override val executable: Boolean = true
 
-    /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
+    /** [ValueMetrics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
     override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueMetrics<*>>()
 
     /** Cost estimation for [IndexScanPhysicalOperatorNode]s is delegated to the [Index]. */

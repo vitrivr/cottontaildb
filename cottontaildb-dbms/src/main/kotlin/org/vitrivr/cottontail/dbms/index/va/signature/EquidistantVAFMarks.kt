@@ -51,7 +51,7 @@ class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, Ind
     }
 
     /**
-     * Constructs [EquidistantVAFMarks] from the [RealVectorValueStatistics].
+     * Constructs [EquidistantVAFMarks] from the [RealVectorValueMetrics].
      *
      * @param statistics [VectorValueStatistics<*>] to construct [EquidistantVAFMarks] for.
      * @param marksPerDimension The number of marks per dimension.

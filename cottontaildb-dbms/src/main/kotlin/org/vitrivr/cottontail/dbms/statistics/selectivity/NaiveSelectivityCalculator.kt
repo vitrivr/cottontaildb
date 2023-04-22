@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 /**
  * This is a very naive calculator for [Selectivity] values.
  *
- * It simply delegates [Selectivity] calculation for [BooleanPredicate.Atomic]to the [ValueStatistics] object of
+ * It simply delegates [Selectivity] calculation for [BooleanPredicate.Atomic]to the [ValueMetrics] object of
  * the column and then combines these [Selectivity] values as if they were uncorrelated.
  *
  * @author Ralph Gasser
@@ -19,10 +19,10 @@ import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
  */
 object NaiveSelectivityCalculator {
     /**
-     * Estimates the selectivity of a [BooleanPredicate] given the [ValueStatistics].
+     * Estimates the selectivity of a [BooleanPredicate] given the [ValueMetrics].
      *
      * @param predicate The [BooleanPredicate] to evaluate.
-     * @param statistics The map of [ValueStatistics] to use in the calculation.
+     * @param statistics The map of [ValueMetrics] to use in the calculation.
      */
     context(BindingContext,Record)
     fun estimate(predicate: BooleanPredicate, statistics: Map<ColumnDef<*>, ValueMetrics<*>>) = when (predicate) {
@@ -31,10 +31,10 @@ object NaiveSelectivityCalculator {
     }
 
     /**
-     * Estimates the selectivity of a [BooleanPredicate.Atomic] given the [ValueStatistics].
+     * Estimates the selectivity of a [BooleanPredicate.Atomic] given the [ValueMetrics].
      *
      * @param predicate The [BooleanPredicate.Atomic] to evaluate.
-     * @param statistics The map of [ValueStatistics] to use in the calculation.
+     * @param statistics The map of [ValueMetrics] to use in the calculation.
      */
     context(BindingContext,Record)
     private fun estimateAtomicReference(predicate: BooleanPredicate.Atomic, statistics: Map<ColumnDef<*>, ValueMetrics<*>>): Selectivity {

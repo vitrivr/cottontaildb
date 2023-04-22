@@ -165,7 +165,7 @@ sealed class OperatorNode : NodeWithTrait {
         /** The base of this [OperatorNode], i.e., the starting point(s) in terms of operation. Depending on the tree structure, multiple bases may exist. */
         abstract val base: List<Physical>
 
-        /** Map containing all [ValueStatistics] about the [ColumnDef]s processed in this [OperatorNode.Physical]. */
+        /** Map containing all [ValueMetrics] about the [ColumnDef]s processed in this [OperatorNode.Physical]. */
         abstract val statistics: Map<ColumnDef<*>, ValueMetrics<*>>
 
         /** Most [OperatorNode.Physical]s are executable by default. */

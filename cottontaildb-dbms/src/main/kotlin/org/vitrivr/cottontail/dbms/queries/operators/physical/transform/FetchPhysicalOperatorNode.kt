@@ -46,7 +46,7 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
     override val columns: List<ColumnDef<*>>
         get() = super.columns + this.fetch.map { it.first.column }
 
-    /** The map of [ValueStatistics] employed by this [FetchPhysicalOperatorNode]. */
+    /** The map of [ValueMetrics] employed by this [FetchPhysicalOperatorNode]. */
     override val statistics: Map<ColumnDef<*>, ValueMetrics<*>>
         get() = super.statistics + this.localStatistics
 

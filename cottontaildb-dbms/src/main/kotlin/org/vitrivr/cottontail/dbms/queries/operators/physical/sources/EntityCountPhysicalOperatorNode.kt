@@ -46,7 +46,7 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
     /** The estimated [Cost] of incurred by this [EntityCountPhysicalOperatorNode]. */
     override val cost = Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS
 
-    /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
+    /** [ValueMetrics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
     override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueMetrics<*>>()
 
     /** The [EntityCountOperator] cannot be partitioned. */
