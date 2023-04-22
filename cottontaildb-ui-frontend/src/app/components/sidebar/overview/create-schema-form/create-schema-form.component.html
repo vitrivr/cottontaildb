@@ -1,0 +1,28 @@
+<div class="container">
+
+  <form (ngSubmit)="submit()"
+        [formGroup]="schemaForm" class="form">
+
+    <div>
+      <mat-form-field appearance="outline">
+        <mat-label>new schema</mat-label>
+        <input matInput type="text"
+               formControlName="name"
+               name= "name"
+               class="form-control"
+               ngModel>
+      </mat-form-field>
+    </div>
+
+    <div mat-dialog-actions align="end">
+      <button mat-flat-button
+                 class="btn btn-primary"
+                 color="custom-green"
+                 type="submit"
+                 [disabled]="schemaForm.invalid">
+        Create
+      </button>
+    </div>
+
+  </form>
+</div>

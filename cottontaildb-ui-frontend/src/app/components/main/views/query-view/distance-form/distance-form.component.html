@@ -1,0 +1,60 @@
+<ng-container>
+  <mat-card>
+    <mat-card-content>
+      <div [formGroup]="conditions" class="query-form">
+
+        <div class="query-form-header">
+          <mat-icon>drag_indicator</mat-icon>
+          DISTANCE
+          <button mat-icon-button (click)="remove()"><mat-icon>delete</mat-icon></button>
+        </div>
+
+        <div class="form-container">
+
+          <mat-form-field appearance="outline">
+            <mat-label> column </mat-label>
+            <mat-select formControlName="column">
+              <ng-container *ngFor="let item of aboutEntityData; index as i">
+                <ng-container *ngIf="item.lsize > 0">
+                  <mat-option [value]="item.dbo">{{item.dbo.split(".")[3]}}</mat-option>
+                </ng-container>
+              </ng-container>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field class="example-full-width" appearance="outline">
+            <mat-label>vector</mat-label>
+            <textarea type="text"
+                      placeholder="Pick or specify"
+                      aria-label="vector"
+                      matInput
+                      formControlName="vector"
+                      autocomplete="off"
+                      [matAutocomplete]="auto">
+          </textarea>
+            <mat-autocomplete #auto="matAutocomplete">
+              <ng-container *ngFor="let vector of standardVectors; index as i">
+                <mat-option [value]="jsonStringify(vector)">{{jsonStringify(vector)}}</mat-option>
+              </ng-container>
+            </mat-autocomplete>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label> distance </mat-label>
+            <mat-select formControlName="distance">
+              <ng-container *ngFor="let distance of distances; index as i">
+                <mat-option [value]="distance">{{distance}}</mat-option>
+              </ng-container>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label> name </mat-label>
+            <input matInput formControlName="name">
+          </mat-form-field>
+
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</ng-container>

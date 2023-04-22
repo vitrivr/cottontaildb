@@ -1,0 +1,47 @@
+.function-list{
+  display: flex;
+  flex-direction: row;
+}
+.function-list>div{
+  margin-right: 10px;
+}
+.query-header {
+  display: flex;
+  width: auto;
+  justify-content: space-between;
+  align-content: center;
+}
+.function-buttons button
+{
+  margin-left: 10px;
+}
+.drop-list{
+  min-height: 125px;
+  display: flex;
+  margin-bottom: 10px;
+}
+.drop-list div{
+  margin-right: 10px;
+  cursor: grab;
+}
+.query-header{
+  margin-bottom: 10px;
+}
+.query-builder{
+  width: 100%;
+  overflow-x: scroll;
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+.cdk-drag-placeholder {
+  opacity: 50%;
+}
+.cdk-drag-animating {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+.example-box:last-child {
+  border: none;
+}
+.example-list.cdk-drop-list-dragging .example-box:not(.cdk-drag-placeholder) {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}

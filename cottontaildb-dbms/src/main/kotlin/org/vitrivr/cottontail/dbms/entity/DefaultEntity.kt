@@ -8,6 +8,9 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.values.IntValue
+import org.vitrivr.cottontail.core.values.LongValue
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.ColumnCatalogueEntry
@@ -62,8 +65,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
     override fun equals(other: Any?): Boolean {
         if (other !is DefaultEntity) return false
         if (other.catalogue != this.catalogue) return false
-        if (other.name != this.name) return false
-        return true
+        return other.name == this.name
     }
 
     override fun hashCode(): Int {
@@ -318,13 +320,13 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * Insert the provided [Record].
          *
          * @param record The [Record] that should be inserted.
-         * @return The ID of the record or null, if nothing was inserted.
+         * @return The generated [Record].
          *
          * @throws TransactionException If some of the [Tx] on [Column] or [Index] level caused an error.
          * @throws DatabaseException If a general database error occurs during the insert.
          */
         @Suppress("UNCHECKED_CAST")
-        override fun insert(record: Record): TupleId = this.txLatch.withLock {
+        override fun insert(record: Record): Record = this.txLatch.withLock {
             /* Execute INSERT on entity level. */
             val nextTupleId = SequenceCatalogueEntries.next(this@DefaultEntity.sequenceName, this@DefaultEntity.catalogue, this.context.txn.xodusTx)
                 ?: throw DatabaseException.DataCorruptionException("Sequence entry for entity ${this@DefaultEntity.name} is missing.")
@@ -332,13 +334,24 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /* Execute INSERT on column level. */
             val inserts = Object2ObjectArrayMap<ColumnDef<*>, Value>(this.columns.size)
             for (column in this.columns.values) {
-                val value = record[column.columnDef]
-                inserts[column.columnDef] = value
-
-                /* Check if null value is allowed. */
-                if (value == null && !column.columnDef.nullable) {
-                    throw DatabaseException.ValidationException("Cannot INSERT a NULL value into column ${column.columnDef}.")
+                /* Make necessary checks for value. */
+                val value = when {
+                    column.columnDef.autoIncrement -> {
+                        val nextValue = SequenceCatalogueEntries.next(this@DefaultEntity.name.sequence(column.name.simple), this@DefaultEntity.catalogue, this.context.txn.xodusTx)
+                        check(nextValue != null) { "Failed to generate next value in sequence for column ${column.name}. This is a programmer's error!"}
+                        val value = when (column.type) {
+                            Types.Int -> IntValue(nextValue)
+                            Types.Long -> LongValue(nextValue)
+                            else -> throw IllegalStateException("Columns of types ${column.type} do not allow for serial values. This is a programmer's error!")
+                        }
+                        value
+                    }
+                    column.columnDef.nullable -> record[column.columnDef]
+                    else -> record[column.columnDef] ?: throw DatabaseException.ValidationException("Cannot INSERT a NULL value into column ${column.columnDef}.")
                 }
+
+                /* Record and perform insert. */
+                inserts[column.columnDef] = value
                 (column.newTx(this.context) as ColumnTx<Value>).add(nextTupleId, value)
             }
 
@@ -351,7 +364,8 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /* Signal event to transaction context. */
             this.context.txn.signalEvent(event)
 
-            return nextTupleId
+            /* Return generated record. */
+            return StandaloneRecord(nextTupleId, inserts.keys.toTypedArray(), inserts.values.toTypedArray())
         }
 
         /**

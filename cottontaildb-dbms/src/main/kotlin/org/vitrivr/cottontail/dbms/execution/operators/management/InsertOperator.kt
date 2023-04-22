@@ -33,19 +33,26 @@ class InsertOperator(groupId: GroupId, private val entity: EntityTx, private val
     }
 
     /** Columns produced by [InsertOperator]. */
-    override val columns: List<ColumnDef<*>> = COLUMNS
+    override val columns: List<ColumnDef<*>> = COLUMNS + this.entity.listColumns()
 
     /**
      * Converts this [InsertOperator] to a [Flow] and returns it.
      *
      * @return [Flow] representing this [InsertOperator]
      */
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow() = flow {
         val columns = this@InsertOperator.columns.toTypedArray()
+        val start = System.currentTimeMillis()
+        var lastCreated: Record? = null
         for (record in this@InsertOperator.records) {
-            val start = System.currentTimeMillis()
-            val tupleId = this@InsertOperator.entity.insert(record)
-            emit(StandaloneRecord(0L, columns, arrayOf(LongValue(tupleId), DoubleValue(System.currentTimeMillis() - start))))
+            lastCreated = this@InsertOperator.entity.insert(record)
+        }
+        if (lastCreated != null) {
+            emit(StandaloneRecord(
+                0L,
+                columns,
+                arrayOf<Value?>(LongValue(lastCreated.tupleId), DoubleValue(System.currentTimeMillis() - start)) + Array(lastCreated.size) { lastCreated[it]}
+            ))
         }
     }
 }

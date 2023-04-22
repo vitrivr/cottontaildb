@@ -1,0 +1,54 @@
+apply plugin: 'application'
+apply plugin: 'kotlin-kapt'
+apply plugin: 'kotlinx-serialization'
+
+repositories {
+    mavenCentral()
+}
+
+/* Configuration for frontend classpath files (see dependencies). */
+configurations {
+    frontendClasspath {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
+/* General application attributes. */
+application {
+    applicationName = 'cottontaildb-ui'
+    applicationDefaultJvmArgs = ["-Xms256M", "-Xmx1G"]
+    mainClassName = 'MainKt'
+}
+
+dependencies {
+    /* Frontend artifact (HTML, JavaScript, CSS). */
+    implementation frontendClasspath(project(path: ":cottontaildb-ui-frontend", configuration: 'frontendFiles'))
+
+    /* Cottontail DB core project artifact. */
+    api project(':cottontaildb-core')
+
+    /* Javalin 5 */
+    implementation group: 'io.javalin', name: 'javalin', version: version_javalin
+    implementation group: 'io.javalin.community.openapi', name: 'javalin-openapi-plugin', version: version_javalin
+    implementation group: 'io.javalin.community.openapi', name:'javalin-swagger-plugin', version: version_javalin
+    implementation group: 'io.javalin.community.ssl', name: 'ssl-plugin', version: version_javalin
+
+    kapt("io.javalin.community.openapi:openapi-annotation-processor:$version_javalin")
+
+
+    /* Jackson databind. */
+    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: version_jackson
+
+    /* Caffeine 3 */
+    implementation group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: version_caffeine
+
+}
+
+test {
+    useJUnitPlatform()
+}
+
+
+
+

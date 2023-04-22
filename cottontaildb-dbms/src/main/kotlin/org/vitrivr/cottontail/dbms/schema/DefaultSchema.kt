@@ -22,7 +22,7 @@ import kotlin.concurrent.withLock
  * @see SchemaTx
 
  * @author Ralph Gasser
- * @version 3.0.0
+ * @version 3.1.0
  */
 class DefaultSchema(override val name: Name.SchemaName, override val parent: DefaultCatalogue) : Schema {
 
@@ -137,6 +137,11 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
 
                 this@DefaultSchema.catalogue.columnStatistics.updatePersistently(ColumnStatistic(it), this.context.txn.xodusTx)
 
+                /* Write sequence catalogue entry. */
+                if (it.autoIncrement && !SequenceCatalogueEntries.create(name.sequence(it.name.simple), this@DefaultSchema.catalogue, this.context.txn.xodusTx)) {
+                    throw DatabaseException.DataCorruptionException("CREATE entity $name failed: Failed to create sequence entry for column ${it.name}.")
+                }
+
                 if (this@DefaultSchema.catalogue.environment.openStore(it.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.context.txn.xodusTx, true) == null) {
                     throw DatabaseException.DataCorruptionException("CREATE entity $name failed: Failed to create store for column $it.")
                 }
@@ -161,8 +166,12 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
 
             /* Drop all columns from entity. */
             entry.columns.forEach {
-                if (!ColumnCatalogueEntry.delete(it, this@DefaultSchema.catalogue, this.context.txn.xodusTx))
+                if (!ColumnCatalogueEntry.delete(it, this@DefaultSchema.catalogue, this.context.txn.xodusTx)) {
                     throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to delete column entry for column $it.")
+                }
+
+                /* Delete column sequence catalogue entry (if exists). */
+                SequenceCatalogueEntries.delete(name.sequence(it.simple), this@DefaultSchema.catalogue, this.context.txn.xodusTx)
 
                 /* Delete column statistics entry. */
                 this@DefaultSchema.catalogue.columnStatistics.deletePersistently(it, this.context.txn.xodusTx)

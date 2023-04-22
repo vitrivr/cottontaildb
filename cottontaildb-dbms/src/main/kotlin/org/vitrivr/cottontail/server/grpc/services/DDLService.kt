@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
+import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.services.AutoAnalyzerService
@@ -64,7 +65,11 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
         val columns = request.definition.columnsList.map {
             val type = Types.forName(it.type.name, it.length)
             val name = entityName.column(it.name.name) /* To make sure that columns belongs to entity. */
-            ColumnDef(name, type, it.nullable)
+            try {
+                ColumnDef(name, type, it.nullable, it.primary, it.autoIncrement)
+            } catch (e: IllegalArgumentException) {
+                throw DatabaseException.ValidationException(e.message ?: "Failed to validate query input.")
+            }
         }.toTypedArray()
         ctx.assign(CreateEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName, columns))
         ctx.toOperatorTree()

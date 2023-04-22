@@ -295,7 +295,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, Closeabl
             override fun close() { /* No op. */ }
         }
 
-        override fun insert(record: Record): TupleId {
+        override fun insert(record: Record): Record {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 

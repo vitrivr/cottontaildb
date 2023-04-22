@@ -1,0 +1,17 @@
+.select-form{
+  color: dimgrey;
+}
+.form-container{
+  padding: 10px;
+  background-color: white;
+  border-left: solid 1px grey;
+  border-right: solid 1px grey;
+  border-bottom: solid 1px grey;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+}
+mat-card {
+  margin: 0;
+  padding: 0;
+}

@@ -3,6 +3,7 @@ plugins {
     id "org.jetbrains.kotlin.plugin.serialization" version "$version_kotlin"
     id "com.github.johnrengelman.shadow" version "7.1.2"
     id 'idea'
+    id "org.openapi.generator" version "6.2.0"
 }
 
 apply plugin: 'distribution'
