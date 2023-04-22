@@ -23,7 +23,6 @@ import org.vitrivr.cottontail.dbms.statistics.storage.ColumnMetrics
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.min
-import kotlin.reflect.KClass
 import kotlin.reflect.typeOf
 
 /**
@@ -231,7 +230,8 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
                             // iterate over columns and send value to corresponding collector
                             columnsCollector.forEachIndexed { i, collector ->0
                                 val value = record[i]
-                                (collector as AbstractMetricsCollector<Value>).receive(value)
+                                this@StatisticsManagerService.transmitValue(collector,  value)
+                                //collector.receive(value)
                             }
                         }
                     }
@@ -295,6 +295,35 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
         }
         return collector
     }
+
+    /**
+     * This functions transmits the received value to the collectors by casting them to the correct value type
+     * TODO check for nicer ways to write this
+     */
+    fun transmitValue(collector: MetricsCollector<*>, value: Value?): Unit {
+        when (value) {
+            is BooleanValue -> (collector as AbstractMetricsCollector<BooleanValue>).receive(value)
+            is BooleanVectorValue -> (collector as AbstractMetricsCollector<BooleanVectorValue>).receive(value)
+            is ByteValue -> (collector as AbstractMetricsCollector<ByteValue>).receive(value)
+            is ByteStringValue -> (collector as AbstractMetricsCollector<ByteStringValue>).receive(value)
+            is Complex32Value -> (collector as AbstractMetricsCollector<Complex32Value>).receive(value)
+            is Complex32VectorValue -> (collector as AbstractMetricsCollector<Complex32VectorValue>).receive(value)
+            is Complex64Value -> (collector as AbstractMetricsCollector<Complex64Value>).receive(value)
+            is Complex64VectorValue -> (collector as AbstractMetricsCollector<Complex64VectorValue>).receive(value)
+            is DateValue -> (collector as AbstractMetricsCollector<DateValue>).receive(value)
+            is DoubleValue -> (collector as AbstractMetricsCollector<DoubleValue>).receive(value)
+            is DoubleVectorValue -> (collector as AbstractMetricsCollector<DoubleVectorValue>).receive(value)
+            is FloatValue -> (collector as AbstractMetricsCollector<FloatValue>).receive(value)
+            is FloatVectorValue -> (collector as AbstractMetricsCollector<FloatVectorValue>).receive(value)
+            is IntValue -> (collector as AbstractMetricsCollector<IntValue>).receive(value)
+            is IntVectorValue -> (collector as AbstractMetricsCollector<IntVectorValue>).receive(value)
+            is LongValue -> (collector as AbstractMetricsCollector<LongValue>).receive(value)
+            is LongVectorValue -> (collector as AbstractMetricsCollector<LongVectorValue>).receive(value)
+            is StringValue -> (collector as AbstractMetricsCollector<StringValue>).receive(value)
+            else -> collector.receive(null) // Just give them null  value for unknown type
+        }
+    }
+
 
 
     /**
