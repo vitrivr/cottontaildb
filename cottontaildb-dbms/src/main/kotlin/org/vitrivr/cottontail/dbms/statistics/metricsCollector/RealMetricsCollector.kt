@@ -3,6 +3,8 @@ package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 import org.vitrivr.cottontail.core.values.types.RealValue
 import org.vitrivr.cottontail.core.values.types.Types
 import kotlin.math.pow
+import java.lang.Double.max
+import java.lang.Double.min
 
 /**
  * A [MetricsCollector] implementation for [RealValue]s.
@@ -12,7 +14,11 @@ import kotlin.math.pow
  */
 sealed class RealMetricsCollector<T: RealValue<*>>(type: Types<T>): AbstractScalarMetricsCollector<T>(type) {
 
-    /** Local Metrics */
+    /** General metrics for Real Values*/
+    var min : Double = 0.0
+    var max : Double = 0.0
+    var sum : Double = 0.0
+
     var mean : Long = 0
     var variance : Long = 0
     var skewness : Long = 0
@@ -29,7 +35,13 @@ sealed class RealMetricsCollector<T: RealValue<*>>(type: Types<T>): AbstractScal
     override fun receive(value: T?) {
         super.receive(value)
         if (value != null) {
-            this.receiveNumberAndCalculateMoments(value.value)
+            // Calculate statistical moments (mean, variance, skewness, kurtosis)
+            this.calculateMoments(value.value)
+
+            // Calculate min, max, sum
+            this.min = min(value.value.toDouble(), this.min)
+            this.max = max(value.value.toDouble(), this.max)
+            this.sum += value.value.toDouble()
         }
     }
 
@@ -37,7 +49,7 @@ sealed class RealMetricsCollector<T: RealValue<*>>(type: Types<T>): AbstractScal
      * Receives a number for which to compute statistical moments in a one-pass computation.
      * Based on https://doi.org/10.2172/1028931. Others might be numerically unstable
      */
-    fun receiveNumberAndCalculateMoments(num: Number) {
+    private fun calculateMoments(num: Number) {
         val number = num.toLong()
 
         // First we compute intermediate results for this pass

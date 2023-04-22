@@ -19,24 +19,6 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.ByteValueMetrics
  */
 class ShortMetricsCollector (override val statisticsConfig : StatisticsConfig, override val expectedNumElements: Int) : RealMetricsCollector<ShortValue>(Types.Short) {
 
-    /** Local Metrics */
-    var min : Short = 0
-    var max : Short = 0
-    var sum : Double = 0.0
-
-    /**
-     * Receives the values for which to compute the statistics
-     */
-    override fun receive(value: ShortValue?) {
-        super.receive(value)
-        if (value != null) {
-            // set new min, max, and sum
-            this.min = min(value.value, this.min)
-            this.max = max(value.value, this.max)
-            this.sum += value.value
-        }
-    }
-
     override fun calculate(probability: Float): ShortValueMetrics {
         val sampleMetrics = ShortValueMetrics(
             this.numberOfNullEntries,

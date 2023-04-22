@@ -4,10 +4,7 @@ import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.metricsData.LongValueMetrics
-import java.lang.Long.max
-import java.lang.Long.min
 
 /**
  * A [MetricsCollector] implementation for [LongValue]s.
@@ -16,24 +13,6 @@ import java.lang.Long.min
  * @version 1.3.0
  */
 class LongMetricsColelctor(override val statisticsConfig : StatisticsConfig, override val expectedNumElements: Int) : RealMetricsCollector<LongValue>(Types.Long) {
-
-    /** Local Metrics */
-    var min : Long = 0
-    var max : Long = 0
-    var sum : Double = 0.0
-
-    /**
-     * Receives the values for which to compute the statistics
-     */
-    override fun receive(value: LongValue?) {
-        super.receive(value)
-        if (value != null) {
-            // set new min, max, and sum
-            this.min = min(value.value, this.min)
-            this.max = max(value.value, this.max)
-            this.sum += value.value
-        }
-    }
 
     override fun calculate(probability: Float): LongValueMetrics {
         val sampleMetrics = LongValueMetrics(
