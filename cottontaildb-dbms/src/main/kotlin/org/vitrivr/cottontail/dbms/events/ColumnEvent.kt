@@ -13,8 +13,4 @@ interface ColumnEvent: Event {
     /** The name of the [C] affected by this [ColumnEvent]. */
     val column: Name.ColumnName
 
-    /**
-     * An [ColumnEvent] that signals that column statistics of [Column] have turned stale.
-     */
-    data class Stale(override val column: Name.ColumnName): ColumnEvent
 }

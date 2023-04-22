@@ -19,6 +19,7 @@ import org.vitrivr.cottontail.dbms.execution.operators.management.UpdateOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.management.InsertLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
@@ -44,7 +45,7 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
     override val columns: List<ColumnDef<*>> = InsertOperator.COLUMNS
 
     /** The statistics for this [InsertPhysicalOperatorNode]. */
-    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
+    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueMetrics<*>>()
 
     /** The [InsertPhysicalOperatorNode] produces a single record. */
     override val outputSize: Long = 1L
@@ -62,7 +63,7 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
         /* Obtain statistics costs and  */
         var estimatedInsertSize = 0
         this.entity.listColumns().forEach { columnDef ->
-            val statistic = this.entity.columnForName(columnDef.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
+            val statistic = this.entity.columnForName(columnDef.name).newTx(this.entity.context).statistics() as ValueMetrics<Value>
             this.statistics[columnDef] = statistic
             estimatedInsertSize += if (columnDef.type == Types.String) {
                 statistic.avgWidth * Char.SIZE_BYTES  /* GA: This is not a good cost estimate for empty tables but we don't really need a better one. */

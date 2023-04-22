@@ -21,6 +21,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOpera
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import java.lang.Math.floorDiv
 
@@ -54,7 +55,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
     override val executable: Boolean = true
 
     /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
-    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
+    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueMetrics<*>>()
 
     /** The estimated [Cost] incurred by scanning the [Entity]. */
     override val cost: Cost
@@ -71,7 +72,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
         var fetchSize = 0
         for ((binding, physical) in this.fetch) {
             if (!this.statistics.containsKey(binding.column)) {
-                this.statistics[binding.column] = this.entity.columnForName(physical.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
+                this.statistics[binding.column] = this.entity.columnForName(physical.name).newTx(this.entity.context).statistics() as ValueMetrics<Value>
             }
             fetchSize += if (binding.type == Types.String) {
                 this.statistics[binding.column]!!.avgWidth * Char.SIZE_BYTES

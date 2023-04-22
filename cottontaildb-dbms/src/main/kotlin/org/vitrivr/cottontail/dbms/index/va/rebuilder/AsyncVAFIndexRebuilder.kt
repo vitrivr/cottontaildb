@@ -19,6 +19,7 @@ import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.index.IndexStatistic
+import org.vitrivr.cottontail.dbms.statistics.metricsData.RealVectorValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -56,7 +57,7 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
         this.indexedColumn = columnTx.columnDef
 
         /* Generates new marks. */
-        this.newMarks = EquidistantVAFMarks(columnTx.statistics() as RealVectorValueStatistics<*>, config.marksPerDimension)
+        this.newMarks = EquidistantVAFMarks(columnTx.statistics() as RealVectorValueMetrics<*>, config.marksPerDimension)
     }
 
     /**

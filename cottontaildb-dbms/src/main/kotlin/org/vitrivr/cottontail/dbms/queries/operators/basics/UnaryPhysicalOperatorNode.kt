@@ -12,6 +12,7 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergeLimitingSortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.LimitPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import java.io.PrintStream
 
@@ -61,7 +62,7 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
         get() = this.input.traits
 
     /** By default, a [UnaryPhysicalOperatorNode]'s statistics are retained from its input. Can be overridden! */
-    override val statistics:Map<ColumnDef<*>, ValueStatistics<*>>
+    override val statistics:Map<ColumnDef<*>, ValueMetrics<*>>
         get() = this.input.statistics
 
     /** The [totalCost] of a [UnaryPhysicalOperatorNode] is always the sum of its own and its input cost. */

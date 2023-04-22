@@ -5,6 +5,7 @@ import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
 import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
@@ -14,7 +15,7 @@ import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
  * @version 1.0.0
  */
 abstract class DataDefinitionPhysicalOperatorNode(override val name: String): NullaryPhysicalOperatorNode() {
-    override val statistics: Map<ColumnDef<*>, ValueStatistics<*>> = emptyMap()
+    override val statistics: Map<ColumnDef<*>, ValueMetrics<*>> = emptyMap()
     override val outputSize: Long = 1
     override val groupId: GroupId = 0
     override val physicalColumns: List<ColumnDef<*>> = emptyList()

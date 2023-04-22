@@ -5,7 +5,6 @@ import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.execution.operators.definition.AnalyseEntityOperator
-import org.vitrivr.cottontail.dbms.execution.services.AutoAnalyzerService
 import org.vitrivr.cottontail.dbms.execution.services.StatisticsManagerService
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 

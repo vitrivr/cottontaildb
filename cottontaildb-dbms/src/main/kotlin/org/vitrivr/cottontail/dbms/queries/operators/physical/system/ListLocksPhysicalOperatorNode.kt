@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
 import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
@@ -22,7 +23,7 @@ class ListLocksPhysicalOperatorNode(val manager: LockManager<DBO>): NullaryPhysi
     override val groupId: GroupId = 0
     override val name: String = "ListLocks"
     override val outputSize: Long = 1L
-    override val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
+    override val statistics: Map<ColumnDef<*>, ValueMetrics<*>>
         get() = emptyMap()
     override val columns: List<ColumnDef<*>>
         get() = ColumnSets.DDL_LOCKS_COLUMNS

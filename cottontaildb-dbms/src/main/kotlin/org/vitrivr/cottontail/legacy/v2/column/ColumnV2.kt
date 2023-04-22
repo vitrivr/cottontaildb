@@ -20,6 +20,7 @@ import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import org.vitrivr.cottontail.legacy.v1.column.ColumnV1
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
@@ -211,11 +212,7 @@ class ColumnV2<T : Value>(val path: Path, override val parent: Entity) : Column<
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun analyse() {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
-        override fun statistics(): ValueStatistics<T> {
+        override fun statistics(): ValueMetrics<T> {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 

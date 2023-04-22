@@ -11,6 +11,7 @@ import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.index.va.VAFIndexConfig
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import org.vitrivr.cottontail.dbms.statistics.metricsData.RealVectorValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
 
 /**
@@ -40,7 +41,7 @@ class VAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractIndexRe
         val count = columnTx.count()
 
         /* Obtain new marks. */
-        val marks = EquidistantVAFMarks(columnTx.statistics() as RealVectorValueStatistics<*>, config.marksPerDimension)
+        val marks = EquidistantVAFMarks(columnTx.statistics() as RealVectorValueMetrics<*>, config.marksPerDimension)
 
         /* Iterate over entity and update index with entries. */
         var counter = 1

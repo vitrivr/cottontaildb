@@ -15,6 +15,7 @@ import org.vitrivr.cottontail.dbms.execution.operators.transform.FetchOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
@@ -46,7 +47,7 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
         get() = super.columns + this.fetch.map { it.first.column }
 
     /** The map of [ValueStatistics] employed by this [FetchPhysicalOperatorNode]. */
-    override val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
+    override val statistics: Map<ColumnDef<*>, ValueMetrics<*>>
         get() = super.statistics + this.localStatistics
 
     /** The [Cost] of a [FetchPhysicalOperatorNode]. */
@@ -62,13 +63,13 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
 
 
     /** Local reference to entity statistics. */
-    private val localStatistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
+    private val localStatistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueMetrics<*>>()
 
     /* Initialize local statistics. */
     init {
         for ((binding, physical) in this.fetch) {
             if (!this.localStatistics.containsKey(binding.column)) {
-                this.localStatistics[binding.column] = this.entity.columnForName(physical.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
+                this.localStatistics[binding.column] = this.entity.columnForName(physical.name).newTx(this.entity.context).statistics() as ValueMetrics<Value>
             }
         }
     }

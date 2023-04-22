@@ -23,6 +23,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergeLimitingSortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.LimitPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
 import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
@@ -58,7 +59,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
     override val executable: Boolean = true
 
     /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
-    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
+    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueMetrics<*>>()
 
     /** Cost estimation for [IndexScanPhysicalOperatorNode]s is delegated to the [Index]. */
     override val cost: Cost by lazy {
@@ -120,7 +121,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
 
             /* Populate statistics. */
             if (!this.statistics.containsKey(binding.column) && entityProduces.contains(physical)) {
-                this.statistics[binding.column] = entityTx.columnForName(physical.name).newTx(this.index.context).statistics() as ValueStatistics<Value>
+                this.statistics[binding.column] = entityTx.columnForName(physical.name).newTx(this.index.context).statistics() as ValueMetrics<Value>
             }
         }
 

@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import java.io.PrintStream
 
@@ -70,7 +71,7 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
         get() = (this.inputs.firstOrNull()?.columns ?: emptyList())
 
     /** By default, a [NAryPhysicalOperatorNode]'s statistics are retained.  Can be overridden! */
-    override val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
+    override val statistics: Map<ColumnDef<*>, ValueMetrics<*>>
         get() = this.inputs.firstOrNull()?.statistics ?: emptyMap()
 
     /** By default, a [NAryPhysicalOperatorNode]'s parallelizable costs are [Cost.ZERO].  Can be overridden! */

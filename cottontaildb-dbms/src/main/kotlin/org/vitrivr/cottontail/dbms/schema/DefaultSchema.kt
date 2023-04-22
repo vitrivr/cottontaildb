@@ -13,7 +13,6 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.columns.ColumnStatistic
 import kotlin.concurrent.withLock
 
 /**
@@ -136,8 +135,6 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
                     throw DatabaseException.DataCorruptionException("CREATE entity $name failed: Failed to create column entry for column $it.")
                 }
 
-                this@DefaultSchema.catalogue.columnStatistics.updatePersistently(ColumnStatistic(it), this.context.txn.xodusTx)
-
                 if (this@DefaultSchema.catalogue.environment.openStore(it.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.context.txn.xodusTx, true) == null) {
                     throw DatabaseException.DataCorruptionException("CREATE entity $name failed: Failed to create store for column $it.")
                 }
@@ -169,9 +166,6 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             entry.columns.forEach {
                 if (!ColumnCatalogueEntry.delete(it, this@DefaultSchema.catalogue, this.context.txn.xodusTx))
                     throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to delete column entry for column $it.")
-
-                /* Delete column statistics entry. */
-                this@DefaultSchema.catalogue.columnStatistics.deletePersistently(it, this.context.txn.xodusTx)
 
                 /* Remove store for column. */
                 this@DefaultSchema.parent.environment.removeStore(it.storeName(), this.context.txn.xodusTx)

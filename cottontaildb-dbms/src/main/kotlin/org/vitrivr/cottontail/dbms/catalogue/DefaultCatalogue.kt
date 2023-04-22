@@ -23,7 +23,6 @@ import org.vitrivr.cottontail.dbms.index.cache.InMemoryIndexCache
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
-import org.vitrivr.cottontail.dbms.statistics.columns.ColumnStatisticsManager
 import org.vitrivr.cottontail.dbms.statistics.index.IndexStatisticsManager
 import org.vitrivr.cottontail.dbms.statistics.storage.MetaDataStatisticsManager
 import org.vitrivr.cottontail.dbms.statistics.storage.StatisticsStorageManager
@@ -97,9 +96,6 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
     /** The [IndexStatisticsManager] used by this [DefaultCatalogue]. */
     val indexStatistics: IndexStatisticsManager
 
-    /** The [ColumnStatisticsManager] used by this [DefaultCatalogue]. */
-    val columnStatistics: ColumnStatisticsManager
-
     /** The [StatisticsStorageManager] used by this [DefaultCatalogue]. */
     val statisticsStorageManager: StatisticsStorageManager
 
@@ -135,7 +131,6 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
             /** Open the IndexStatisticsManager. */
             this.indexStatistics = IndexStatisticsManager(this.environment, tx)
-            this.columnStatistics = ColumnStatisticsManager(this.environment, tx)
 
             /* Check database version. */
             val version = MetadataEntry.read(METADATA_ENTRY_DB_VERSION, this, tx)?.let { it -> DBOVersion.valueOf(it.value) } ?: DBOVersion.UNDEFINED
@@ -162,7 +157,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
             throw e
         }
 
-        /* Tries to clean-up the temporary environment. */
+        /* Tries to clean up the temporary environment. */
         if (!Files.exists(this.config.temporaryDataFolder())) {
             Files.createDirectories(this.config.temporaryDataFolder())
         } else {

@@ -13,12 +13,11 @@ import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
-import org.vitrivr.cottontail.dbms.events.ColumnEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.columns.ColumnStatistic
+import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
@@ -96,31 +95,14 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             get() = this@DefaultColumn
 
         /**
-         * Performs analysis of the [DefaultColumn] backing this [ColumnTx] and updates the associated [ValueStatistics].
-         */
-        @Suppress("UNCHECKED_CAST")
-        override fun analyse() = this.txLatch.withLock {
-            /* Reset and refresh statistics object. */
-            val cursor = this.cursor()
-            val newEntry = ColumnStatistic(this@DefaultColumn.columnDef)
-            while (cursor.moveNext()) {
-                (newEntry.statistics as ValueStatistics<T>).insert(cursor.value())
-            }
-            cursor.close()
-
-            /* Update statistics entry.*/
-            this@DefaultColumn.catalogue.columnStatistics.update(newEntry)
-        }
-
-        /**
          * Gets and returns [ValueStatistics] for this [ColumnTx]
          *
          * @return [ValueStatistics].
          */
         @Suppress("UNCHECKED_CAST")
-        override fun statistics(): ValueStatistics<T> = this.txLatch.withLock {
-            (this@DefaultColumn.catalogue.columnStatistics[this@DefaultColumn.name]?.statistics
-                ?: throw DatabaseException.DataCorruptionException("Failed to read column statistics.")) as ValueStatistics<T>
+        override fun statistics(): ValueMetrics<T> = this.txLatch.withLock {
+            (this@DefaultColumn.catalogue.statisticsStorageManager[this@DefaultColumn.name]?.statistics
+                ?: throw DatabaseException.DataCorruptionException("Failed to read column statistics.")) as ValueMetrics<T>
         }
 
         /**
@@ -199,7 +181,6 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             if (!this.dataStore.add(this.context.txn.xodusTx, rawTuple, valueRaw)) {
                 throw DatabaseException.DataCorruptionException("Failed to ADD tuple $tupleId to column ${this@DefaultColumn.name}.")
             }
-            this.statistics().insert(value)
 
             /* Return success status. */
             return true
@@ -223,7 +204,6 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             if (!this.dataStore.put(this.context.txn.xodusTx, rawTuple, valueRaw)) {
                 throw DatabaseException.DataCorruptionException("Failed to PUT tuple $tupleId to column ${this@DefaultColumn.name}.")
             }
-            this.statistics().update(existing, value)
 
             /* Return updated value. */
             return existing
@@ -245,7 +225,6 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             if (!this.dataStore.delete(this.context.txn.xodusTx, rawTuple)) {
                 throw DatabaseException.DataCorruptionException("Failed to DELETE tuple $tupleId to column ${this@DefaultColumn.name}.")
             }
-            this.statistics().delete(existing)
 
             /* Return existing value. */
             return existing
@@ -276,9 +255,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
          * Checks for freshness of [ColumnStatistic].
          */
         override fun beforeCommit() {
-            if (!this.statistics().fresh) {
-                this.context.txn.signalEvent(ColumnEvent.Stale(this@DefaultColumn.name))
-            }
+            /* No op. */
         }
     }
 }

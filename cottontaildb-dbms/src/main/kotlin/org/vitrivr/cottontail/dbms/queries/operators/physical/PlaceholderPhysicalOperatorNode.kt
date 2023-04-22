@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
@@ -20,7 +21,7 @@ import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 data class PlaceholderPhysicalOperatorNode(override val groupId: GroupId, override val physicalColumns: List<ColumnDef<*>>, override val columns: List<ColumnDef<*>>): NullaryPhysicalOperatorNode() {
     override fun copy() = PlaceholderPhysicalOperatorNode(this.groupId, this.physicalColumns, this.columns)
     override val name = "Placeholder"
-    override val statistics: Map<ColumnDef<*>, ValueStatistics<*>> = emptyMap()
+    override val statistics: Map<ColumnDef<*>, ValueMetrics<*>> = emptyMap()
     override val outputSize: Long = 0L
     override fun toOperator(ctx: QueryContext): Operator = throw UnsupportedOperationException("A PlaceholderPhysicalOperatorNode cannot be converted to an operator.")
     override val cost: Cost = Cost.ZERO

@@ -7,6 +7,7 @@ import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
+import org.vitrivr.cottontail.dbms.statistics.metricsData.*
 import org.vitrivr.cottontail.dbms.statistics.values.*
 import java.io.ByteArrayInputStream
 
@@ -55,18 +56,18 @@ class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, Ind
      * @param statistics [VectorValueStatistics<*>] to construct [EquidistantVAFMarks] for.
      * @param marksPerDimension The number of marks per dimension.
      */
-    constructor(statistics: RealVectorValueStatistics<*>, marksPerDimension: Int): this(
+    constructor(statistics: RealVectorValueMetrics<*>, marksPerDimension: Int): this(
         when (statistics) {
-            is FloatVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
-            is DoubleVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) {  statistics.min.data[it] }
-            is IntVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
-            is LongVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
+            is FloatVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
+            is DoubleVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) {  statistics.min.data[it] }
+            is IntVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
+            is LongVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
         },
         when (statistics) {
-            is FloatVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
-            is DoubleVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) {  statistics.max.data[it] }
-            is IntVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
-            is LongVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
+            is FloatVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
+            is DoubleVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) {  statistics.max.data[it] }
+            is IntVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
+            is LongVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
         },
         marksPerDimension
     )
