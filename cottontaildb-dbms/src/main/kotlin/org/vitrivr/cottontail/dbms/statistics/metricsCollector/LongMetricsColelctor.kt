@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
-import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.types.Types
@@ -12,7 +11,7 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.LongValueMetrics
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-class LongMetricsColelctor(override val statisticsConfig : StatisticsConfig, override val expectedNumElements: Int) : RealMetricsCollector<LongValue>(Types.Long) {
+class LongMetricsColelctor(config: MetricsConfig) : RealMetricsCollector<LongValue>(Types.Long, config) {
 
     override fun calculate(probability: Float): LongValueMetrics {
         val sampleMetrics = LongValueMetrics(

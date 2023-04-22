@@ -17,12 +17,10 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractValueMetrics
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-sealed class AbstractMetricsCollector<T : Value>(override val type: Types<T>) : MetricsCollector<T> {
+sealed class AbstractMetricsCollector<T : Value>(override val type: Types<T>, override val config: MetricsConfig) : MetricsCollector<T> {
 
     /** Init a BloomFilter*/
-    abstract override val statisticsConfig: StatisticsConfig
-    abstract override val expectedNumElements: Int
-    private var bloomFilter : BloomFilter<Value> =  BloomFilter.create<Value>(Value.ValueFunnel, expectedNumElements, statisticsConfig.falsePositiveProbability)
+    private var bloomFilter : BloomFilter<Value> =  BloomFilter.create<Value>(Value.ValueFunnel, config.expectedNumElements, config.statisticsConfig.falsePositiveProbability)
 
     /** Global Metrics */
     override var numberOfDistinctEntries = 0L

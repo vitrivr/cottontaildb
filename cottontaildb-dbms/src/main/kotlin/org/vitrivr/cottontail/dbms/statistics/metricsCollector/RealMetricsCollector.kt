@@ -12,7 +12,7 @@ import java.lang.Double.min
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.1.0
  */
-sealed class RealMetricsCollector<T: RealValue<*>>(type: Types<T>): AbstractScalarMetricsCollector<T>(type) {
+sealed class RealMetricsCollector<T: RealValue<*>>(type: Types<T>, config: MetricsConfig): AbstractScalarMetricsCollector<T>(type, config) {
 
     /** General metrics for Real Values*/
     var min : Double = 0.0

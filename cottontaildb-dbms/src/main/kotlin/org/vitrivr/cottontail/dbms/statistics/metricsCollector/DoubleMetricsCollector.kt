@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
-import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.statistics.metricsData.DoubleValueMetrics
@@ -11,7 +10,7 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.DoubleValueMetrics
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-class DoubleMetricsCollector(override val statisticsConfig : StatisticsConfig, override val expectedNumElements: Int) : RealMetricsCollector<DoubleValue>(Types.Double) {
+class DoubleMetricsCollector(config: MetricsConfig) : RealMetricsCollector<DoubleValue>(Types.Double, config) {
 
     override fun calculate(probability: Float): DoubleValueMetrics {
         val sampleMetrics = DoubleValueMetrics(

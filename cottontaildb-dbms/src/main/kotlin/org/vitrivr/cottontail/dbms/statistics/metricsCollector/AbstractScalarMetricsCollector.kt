@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
-import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 
@@ -14,7 +13,7 @@ import org.vitrivr.cottontail.core.values.types.Value
  * @author Florian Burkhardt
  * @version 1.0.0
  */
-sealed class AbstractScalarMetricsCollector<T: Value>(type: Types<T>) : AbstractMetricsCollector<T>(type) {
+sealed class AbstractScalarMetricsCollector<T: Value>(type: Types<T>, config: MetricsConfig) : AbstractMetricsCollector<T>(type, config) {
 
 }
 

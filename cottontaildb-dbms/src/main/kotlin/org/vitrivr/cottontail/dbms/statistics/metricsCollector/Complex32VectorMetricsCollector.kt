@@ -1,11 +1,7 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
-import org.vitrivr.cottontail.config.StatisticsConfig
-import org.vitrivr.cottontail.core.values.BooleanVectorValue
 import org.vitrivr.cottontail.core.values.Complex32VectorValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.metricsData.Complex32VectorValueMetrics
 
 /**
@@ -14,7 +10,7 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.Complex32VectorValueMe
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.0.1
  */
-class Complex32VectorMetricsCollector(val logicalSize: Int, override val statisticsConfig : StatisticsConfig, override val expectedNumElements: Int): AbstractVectorMetricsCollector<Complex32VectorValue>(Types.Complex32Vector(logicalSize)) {
+class Complex32VectorMetricsCollector(val logicalSize: Int, config: MetricsConfig): AbstractVectorMetricsCollector<Complex32VectorValue>(Types.Complex32Vector(logicalSize), config) {
 
     override fun calculate(probability: Float): Complex32VectorValueMetrics {
         val sampleMetrics = Complex32VectorValueMetrics(

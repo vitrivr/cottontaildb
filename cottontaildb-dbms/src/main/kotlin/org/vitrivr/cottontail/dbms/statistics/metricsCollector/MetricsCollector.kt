@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 
 /**
@@ -22,17 +21,8 @@ sealed interface MetricsCollector <T : Value> {
     /** The [Types] of [MetricsCollector]. */
     val type: Types<T>
 
-    /**
-     * The instance of the [StatisticsConfig] that is currently used
-     */
-    val statisticsConfig : StatisticsConfig
-
-    /**
-     * The expected number of elements that the Bloom Filter will see.
-     * This should be the whole number of elements known from previous collections
-     * The collector is responsible to reduce this number if it's in sampling mode (e.g., probability < 1 )
-     */
-    val expectedNumElements: Int
+    /** The instance of [MetricsConfig] that is used to pass up variables to super classes */
+    val config: MetricsConfig
 
     /** Global Metrics */
     var numberOfDistinctEntries : Long

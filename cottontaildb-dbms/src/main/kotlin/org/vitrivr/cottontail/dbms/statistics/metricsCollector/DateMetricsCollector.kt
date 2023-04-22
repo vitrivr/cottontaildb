@@ -1,9 +1,7 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
-import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.DateValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.metricsData.DateValueMetrics
 import java.lang.Long.max
 import java.lang.Long.min
@@ -14,7 +12,7 @@ import java.lang.Long.min
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-class DateMetricsCollector(override val statisticsConfig : StatisticsConfig, override val expectedNumElements: Int) : AbstractScalarMetricsCollector<DateValue>(Types.Date) {
+class DateMetricsCollector(config: MetricsConfig) : AbstractScalarMetricsCollector<DateValue>(Types.Date, config) {
 
     /** Local Metrics */
     var min : Long = 0

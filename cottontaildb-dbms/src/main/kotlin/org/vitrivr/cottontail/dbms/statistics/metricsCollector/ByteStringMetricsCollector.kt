@@ -1,12 +1,16 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
-import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.ByteStringValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.metricsData.ByteStringValueMetrics
 
-class ByteStringMetricsCollector(override val statisticsConfig : StatisticsConfig, override val expectedNumElements: Int) : AbstractScalarMetricsCollector<ByteStringValue>(Types.ByteString) {
+/**
+ * A [MetricsCollector] implementation for [ByteStringValue]s.
+ *
+ * @author Ralph Gasser, Florian Burkhardt
+ * @version 1.0.0
+ */
+class ByteStringMetricsCollector(config: MetricsConfig) : AbstractScalarMetricsCollector<ByteStringValue>(Types.ByteString, config) {
 
     var minWidth : Int = Int.MAX_VALUE
     var maxWidth : Int = Int.MIN_VALUE

@@ -242,7 +242,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
                     collector.calculate(probability)
                 }
 
-                /** Store the metrics */
+                /** Persistently Store the metrics */
                 columns.forEachIndexed { i, colDef ->
                     val metrics = metricsList[i]
                     val columnMetrics = ColumnMetrics(colDef.name, metrics.type, metrics)
@@ -271,26 +271,27 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
      */
     fun getCollector(def: ColumnDef<*>, statisticsConfig: StatisticsConfig, numberOfEntries: Long) : MetricsCollector<*> {
         val numberOfEntries = numberOfEntries.toInt()
+        val config = MetricsConfig(statisticsConfig, numberOfEntries)
         val collector = when (def.type) {
-            Types.Boolean -> BooleanMetricsCollector(statisticsConfig, numberOfEntries)
-            Types.Byte -> ByteMetricsCollector(statisticsConfig, numberOfEntries)
-            Types.Short -> ShortMetricsCollector(statisticsConfig, numberOfEntries)
-            Types.Date -> DateMetricsCollector(statisticsConfig, numberOfEntries)
-            Types.Double -> DoubleMetricsCollector(statisticsConfig, numberOfEntries)
-            Types.Float -> FloatMetricsCollector(statisticsConfig, numberOfEntries)
-            Types.Int -> IntMetricsCollector(statisticsConfig, numberOfEntries)
-            Types.Long -> LongMetricsColelctor(statisticsConfig, numberOfEntries)
-            Types.String -> StringMetricsCollector(statisticsConfig, numberOfEntries)
-            Types.ByteString -> ByteStringMetricsCollector(statisticsConfig, numberOfEntries)
-            Types.Complex32 -> Complex32MetricsCollector(statisticsConfig, numberOfEntries)
-            Types.Complex64 -> Complex64MetricsCollector(statisticsConfig, numberOfEntries)
-            is Types.BooleanVector -> BooleanVectorMetricsCollector(def.type.logicalSize, statisticsConfig, numberOfEntries)
-            is Types.DoubleVector -> DoubleVectorMetricsCollector(def.type.logicalSize, statisticsConfig, numberOfEntries)
-            is Types.FloatVector -> FloatVectorMetricsCollector(def.type.logicalSize, statisticsConfig, numberOfEntries)
-            is Types.IntVector -> IntVectorMetricsCollector(def.type.logicalSize, statisticsConfig, numberOfEntries)
-            is Types.LongVector -> LongVectorMetricsCollector(def.type.logicalSize,statisticsConfig, numberOfEntries)
-            is Types.Complex32Vector -> Complex32VectorMetricsCollector(def.type.logicalSize, statisticsConfig, numberOfEntries)
-            is Types.Complex64Vector -> Complex64VectorMetricsCollector(def.type.logicalSize, statisticsConfig, numberOfEntries)
+            Types.Boolean -> BooleanMetricsCollector(config)
+            Types.Byte -> ByteMetricsCollector(config)
+            Types.Short -> ShortMetricsCollector(config)
+            Types.Date -> DateMetricsCollector(config)
+            Types.Double -> DoubleMetricsCollector(config)
+            Types.Float -> FloatMetricsCollector(config)
+            Types.Int -> IntMetricsCollector(config)
+            Types.Long -> LongMetricsColelctor(config)
+            Types.String -> StringMetricsCollector(config)
+            Types.ByteString -> ByteStringMetricsCollector(config)
+            Types.Complex32 -> Complex32MetricsCollector(config)
+            Types.Complex64 -> Complex64MetricsCollector(config)
+            is Types.BooleanVector -> BooleanVectorMetricsCollector(def.type.logicalSize, config)
+            is Types.DoubleVector -> DoubleVectorMetricsCollector(def.type.logicalSize, config)
+            is Types.FloatVector -> FloatVectorMetricsCollector(def.type.logicalSize, config)
+            is Types.IntVector -> IntVectorMetricsCollector(def.type.logicalSize, config)
+            is Types.LongVector -> LongVectorMetricsCollector(def.type.logicalSize, config)
+            is Types.Complex32Vector -> Complex32VectorMetricsCollector(def.type.logicalSize, config)
+            is Types.Complex64Vector -> Complex64VectorMetricsCollector(def.type.logicalSize, config)
             else -> throw IllegalArgumentException("Invalid column type")
         }
         return collector
@@ -302,24 +303,24 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
      */
     fun transmitValue(collector: MetricsCollector<*>, value: Value?): Unit {
         when (value) {
-            is BooleanValue -> (collector as AbstractMetricsCollector<BooleanValue>).receive(value)
-            is BooleanVectorValue -> (collector as AbstractMetricsCollector<BooleanVectorValue>).receive(value)
-            is ByteValue -> (collector as AbstractMetricsCollector<ByteValue>).receive(value)
-            is ByteStringValue -> (collector as AbstractMetricsCollector<ByteStringValue>).receive(value)
-            is Complex32Value -> (collector as AbstractMetricsCollector<Complex32Value>).receive(value)
-            is Complex32VectorValue -> (collector as AbstractMetricsCollector<Complex32VectorValue>).receive(value)
-            is Complex64Value -> (collector as AbstractMetricsCollector<Complex64Value>).receive(value)
-            is Complex64VectorValue -> (collector as AbstractMetricsCollector<Complex64VectorValue>).receive(value)
-            is DateValue -> (collector as AbstractMetricsCollector<DateValue>).receive(value)
-            is DoubleValue -> (collector as AbstractMetricsCollector<DoubleValue>).receive(value)
-            is DoubleVectorValue -> (collector as AbstractMetricsCollector<DoubleVectorValue>).receive(value)
-            is FloatValue -> (collector as AbstractMetricsCollector<FloatValue>).receive(value)
-            is FloatVectorValue -> (collector as AbstractMetricsCollector<FloatVectorValue>).receive(value)
-            is IntValue -> (collector as AbstractMetricsCollector<IntValue>).receive(value)
-            is IntVectorValue -> (collector as AbstractMetricsCollector<IntVectorValue>).receive(value)
-            is LongValue -> (collector as AbstractMetricsCollector<LongValue>).receive(value)
-            is LongVectorValue -> (collector as AbstractMetricsCollector<LongVectorValue>).receive(value)
-            is StringValue -> (collector as AbstractMetricsCollector<StringValue>).receive(value)
+            is BooleanValue -> (collector as BooleanMetricsCollector).receive(value)
+            is BooleanVectorValue -> (collector as BooleanVectorMetricsCollector).receive(value)
+            is ByteValue -> (collector as ByteMetricsCollector).receive(value)
+            is ByteStringValue -> (collector as ByteStringMetricsCollector).receive(value)
+            is Complex32Value -> (collector as Complex32MetricsCollector).receive(value)
+            is Complex32VectorValue -> (collector as Complex32VectorMetricsCollector).receive(value)
+            is Complex64Value -> (collector as Complex64MetricsCollector).receive(value)
+            is Complex64VectorValue -> (collector as Complex64VectorMetricsCollector).receive(value)
+            is DateValue -> (collector as DateMetricsCollector).receive(value)
+            is DoubleValue -> (collector as DoubleMetricsCollector).receive(value)
+            is DoubleVectorValue -> (collector as DoubleVectorMetricsCollector).receive(value)
+            is FloatValue -> (collector as FloatMetricsCollector).receive(value)
+            is FloatVectorValue -> (collector as FloatVectorMetricsCollector).receive(value)
+            is IntValue -> (collector as IntMetricsCollector).receive(value)
+            is IntVectorValue -> (collector as IntVectorMetricsCollector).receive(value)
+            is LongValue -> (collector as LongMetricsColelctor).receive(value)
+            is LongVectorValue -> (collector as LongVectorMetricsCollector).receive(value)
+            is StringValue -> (collector as StringMetricsCollector).receive(value)
             else -> collector.receive(null) // Just give them null  value for unknown type
         }
     }

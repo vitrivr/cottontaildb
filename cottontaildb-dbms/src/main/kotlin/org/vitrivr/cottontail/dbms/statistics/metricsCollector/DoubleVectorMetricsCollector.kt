@@ -1,12 +1,7 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
-import org.vitrivr.cottontail.config.StatisticsConfig
-import org.vitrivr.cottontail.core.values.BooleanVectorValue
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
-import org.vitrivr.cottontail.core.values.IntVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.metricsData.DoubleVectorValueMetrics
 
 /**
@@ -15,7 +10,7 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.DoubleVectorValueMetri
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-class DoubleVectorMetricsCollector(val logicalSize: Int, override val statisticsConfig : StatisticsConfig, override val expectedNumElements: Int) : RealVectorMetricsCollector<DoubleVectorValue>(Types.DoubleVector(logicalSize)) {
+class DoubleVectorMetricsCollector(val logicalSize: Int, config: MetricsConfig) : RealVectorMetricsCollector<DoubleVectorValue>(Types.DoubleVector(logicalSize), config) {
 
     /** Local Metrics */
     val min: DoubleVectorValue = DoubleVectorValue(DoubleArray(logicalSize) { Double.MAX_VALUE })

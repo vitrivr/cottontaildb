@@ -21,14 +21,11 @@ class StatisticsPersisterTask(private val catalogue: DefaultCatalogue): Runnable
      */
     override fun run() {
         val indexIsDirty = this.catalogue.indexStatistics.isDirty()
-        val columnIsDirty = this.catalogue.columnStatistics.isDirty()
-        if (indexIsDirty || columnIsDirty) {
+        if (indexIsDirty) {
             val tx = this.catalogue.environment.beginExclusiveTransaction()
             try {
                 if (indexIsDirty)
                     this.catalogue.indexStatistics.persistInTransaction(tx)
-                if (columnIsDirty)
-                    this.catalogue.columnStatistics.persistInTransaction(tx)
                 tx.commit()
                 LOGGER.info("Successfully persisted up-to-date index & column statistics!")
             } catch (e: Throwable) {
@@ -36,7 +33,7 @@ class StatisticsPersisterTask(private val catalogue: DefaultCatalogue): Runnable
                 LOGGER.error("Persisting statistics failed due to error: ${e.message}!")
             }
         } else {
-            LOGGER.info("Persisting up-to-date index and/or column statistics was not necessary!")
+            LOGGER.info("Persisting up-to-date index statistics was not necessary!")
         }
     }
 }

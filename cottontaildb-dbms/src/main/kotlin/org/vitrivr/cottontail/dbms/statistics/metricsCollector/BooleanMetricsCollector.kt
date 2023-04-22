@@ -1,11 +1,8 @@
 package org.vitrivr.cottontail.dbms.statistics.metricsCollector
 
-import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.BooleanValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.metricsData.BooleanValueMetrics
-
 
 /**
  * A [MetricsCollector] implementation for [BooleanValue]s.
@@ -13,8 +10,7 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.BooleanValueMetrics
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-class BooleanMetricsCollector (override val statisticsConfig : StatisticsConfig,
-                               override val expectedNumElements: Int): AbstractScalarMetricsCollector<BooleanValue>(Types.Boolean) {
+class BooleanMetricsCollector (override val config: MetricsConfig): AbstractScalarMetricsCollector<BooleanValue>(Types.Boolean, config) {
 
     /** Local Metrics */
     private var numberOfTrueEntries = 0L
