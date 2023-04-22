@@ -213,7 +213,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
 
                 // Define random properties for skipping some rows of the entity -> only take a sample of the database
                 val probability = this@StatisticsManagerService.catalogue.config.statistics.probability
-                val randomNumberGenerator = this@StatisticsManagerService.catalogue.config.statistics.randomNumberGenerator
+                val randomNumberGenerator = this@StatisticsManagerService.catalogue.config.statistics.randomGenerator
 
                 // get the collectors for all columns and give them the numberOfEntries to init the BloomFilter
                 // numberOfEntries is multiplied with probability since the Bloomfilter is only getting a sample of the whole set
@@ -225,7 +225,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
                 val entityCursor = entityTx.cursor(columns)
                 entityCursor.use { cursor ->
                     while (cursor.moveNext()) {
-                        if (randomNumberGenerator.nextDouble() <= probability) { //  will be between 0 and 1 (inclusive of both endpoints)
+                        if (randomNumberGenerator.nextDouble(0.0, 1.0) <= probability) { //  will be between 0 and 1 (inclusive of both endpoints)
                             val record = cursor.value()
                             // iterate over columns and send value to corresponding collector
                             columnsCollector.forEachIndexed { i, collector ->0

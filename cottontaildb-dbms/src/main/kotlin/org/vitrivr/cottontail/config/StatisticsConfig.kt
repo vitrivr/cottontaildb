@@ -1,8 +1,7 @@
 package org.vitrivr.cottontail.config
 
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.dbms.statistics.random.KotlinRandomNumberGenerator
-import org.vitrivr.cottontail.dbms.statistics.random.RandomNumberGenerator
+import java.util.random.RandomGenerator
 
 /**
  * Config for Cottontail DB's management of statistics.
@@ -24,9 +23,14 @@ data class StatisticsConfig(
      * The lower the false positive probability, the larger the size of the Bloom filter and the more expensive it is to use and maintain.*/
     var falsePositiveProbability: Double = 0.01, // Default is 1%. Typical value between 1% to 10%
 
-    /** The random number generator to use. Defaults to Kotlin's built-in. */
-    var randomNumberGenerator: RandomNumberGenerator = KotlinRandomNumberGenerator()
-    // Todo make serilizable
+    /** The random number generator to use. */
+    private var randomGeneratorName: String = "L32X64MixRandom",
+
+    /** The seed with which to use the randomNumberGenerator */
+    private var randomSeed: Int? = null,
+
+    /** The Random Number Generator we use. Set to default */
+    var randomGenerator: RandomGenerator = RandomGenerator.getDefault()
 
     // TODO maybe add a threshold for the numberOfEntries there have to be before sampling?
 )
@@ -35,6 +39,8 @@ data class StatisticsConfig(
         require(this.threshold in 0.0f .. 1.0f) { "The threshold must lie between 0.0 and 1.0 but is ${this.threshold}."}
         require(this.probability in 0.0f .. 1.0f) { "The probability must lie between 0.0 and 1.0 but is ${this.probability}."}
         require(this.falsePositiveProbability in 0.0 .. 1.0) { "The falsePositiveProbability must lie between 0.0 and 1.0 but is ${this.falsePositiveProbability}."}
+        require(this.randomGeneratorName in setOf("Xoroshiro128PlusPlus", "Xoshiro256PlusPlus", "L128X1024MixRandom", "128X128MixRandom", "L128X256MixRandom", "L32X64MixRandom", "L64X1024MixRandom", "L64X128MixRandom", "L64X128StarStarRandom", "L64X256MixRandom")) { "randomGeneratorName must be one of: Xoroshiro128PlusPlus, Xoshiro256PlusPlus, L128X1024MixRandom, 128X128MixRandom, L128X256MixRandom, L32X64MixRandom, L64X1024MixRandom, L64X128MixRandom, L64X128StarStarRandom, L64X256MixRandom, but is ${this.randomGeneratorName}" }
+        this.randomGenerator = RandomGenerator.of(this.randomGeneratorName) // Init the randomGenerator based on the name
     }
 }
 
