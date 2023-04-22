@@ -13,9 +13,9 @@ class ByteStringMetricsCollector(override val statisticsConfig : StatisticsConfi
     /**
      * Receives the values for which to compute the statistics
      */
-    override fun receive(value: Value?) {
+    override fun receive(value: ByteStringValue?) {
         super.receive(value)
-        if (value != null && value is ByteStringValue) {
+        if (value != null) {
             minWidth = Integer.min(value.logicalSize, minWidth)
             maxWidth = Integer.max(value.logicalSize, maxWidth)
         }

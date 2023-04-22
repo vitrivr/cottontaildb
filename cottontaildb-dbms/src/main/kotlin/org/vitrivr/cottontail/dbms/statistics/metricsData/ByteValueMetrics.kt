@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.statistics.metricsData
 import jetbrains.exodus.bindings.ByteBinding
 import jetbrains.exodus.bindings.DoubleBinding
 import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.bindings.SignedDoubleBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.ByteValue
 import org.vitrivr.cottontail.core.values.DoubleValue
@@ -23,7 +24,11 @@ data class ByteValueMetrics(
     override var numberOfDistinctEntries: Long = 0L,
     override var min: ByteValue = ByteValue.MAX_VALUE,
     override var max: ByteValue = ByteValue.MIN_VALUE,
-    override var sum: DoubleValue = DoubleValue.ZERO
+    override var sum: DoubleValue = DoubleValue.ZERO,
+    override val mean: DoubleValue = DoubleValue.ZERO,
+    override val variance: DoubleValue = DoubleValue.ZERO,
+    override val skewness: DoubleValue = DoubleValue.ZERO,
+    override val kurtosis: DoubleValue = DoubleValue.ZERO
 ) : RealValueMetrics<ByteValue>(Types.Byte) {
 
     /**
@@ -35,7 +40,11 @@ data class ByteValueMetrics(
         numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
         min = metrics.min,
         max = metrics.max,
-        sum = DoubleValue(metrics.sum.value * factor)
+        sum = DoubleValue(metrics.sum.value * factor),
+        mean = metrics.mean,
+        variance = metrics.variance,
+        skewness = metrics.skewness,
+        kurtosis = metrics.kurtosis
     )
 
     /**
@@ -49,7 +58,21 @@ data class ByteValueMetrics(
             val min = ByteValue(ByteBinding.BINDING.readObject(stream))
             val max = ByteValue(ByteBinding.BINDING.readObject(stream))
             val sum = DoubleValue(DoubleBinding.BINDING.readObject(stream))
-            return ByteValueMetrics(numberOfNullEntries, numberOfNonNullEntries, numberOfDistinctEntries, min, max, sum)
+            val mean = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            val variance = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            val skewness = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            val kurtosis = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            return ByteValueMetrics(
+                numberOfNullEntries,
+                numberOfNonNullEntries,
+                numberOfDistinctEntries,
+                min,
+                max,
+                sum,
+                mean,
+                variance,
+                skewness,
+                kurtosis)
         }
 
         override fun write(output: LightOutputStream, statistics: ByteValueMetrics) {
@@ -59,6 +82,10 @@ data class ByteValueMetrics(
             ByteBinding.BINDING.writeObject(output, statistics.min.value)
             ByteBinding.BINDING.writeObject(output, statistics.max.value)
             DoubleBinding.BINDING.writeObject(output, statistics.sum.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.mean.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.variance.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.skewness.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.kurtosis.value)
         }
     }
 

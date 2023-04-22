@@ -21,7 +21,11 @@ data class LongValueMetrics(
     override var numberOfDistinctEntries: Long = 0L,
     override var min: LongValue = LongValue.MAX_VALUE,
     override var max: LongValue = LongValue.MIN_VALUE,
-    override var sum: DoubleValue = DoubleValue.ZERO
+    override var sum: DoubleValue = DoubleValue.ZERO,
+    override val mean: DoubleValue = DoubleValue.ZERO,
+    override val variance: DoubleValue = DoubleValue.ZERO,
+    override val skewness: DoubleValue = DoubleValue.ZERO,
+    override val kurtosis: DoubleValue = DoubleValue.ZERO
 ) : RealValueMetrics<LongValue>(Types.Long) {
 
     /**
@@ -33,7 +37,11 @@ data class LongValueMetrics(
         numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
         min = metrics.min,
         max = metrics.max,
-        sum = DoubleValue(metrics.sum.value * factor)
+        sum = DoubleValue(metrics.sum.value * factor),
+        mean = metrics.mean,
+        variance = metrics.variance,
+        skewness = metrics.skewness,
+        kurtosis = metrics.kurtosis
     )
 
     /**
@@ -47,7 +55,21 @@ data class LongValueMetrics(
             val min = LongValue(LongBinding.BINDING.readObject(stream))
             val max = LongValue(LongBinding.BINDING.readObject(stream))
             val sum = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
-            return LongValueMetrics(numberOfNullEntries, numberOfNonNullEntries, numberOfDistinctEntries, min, max, sum)
+            val mean = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            val variance = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            val skewness = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            val kurtosis = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            return LongValueMetrics(
+                numberOfNullEntries,
+                numberOfNonNullEntries,
+                numberOfDistinctEntries,
+                min,
+                max,
+                sum,
+                mean,
+                variance,
+                skewness,
+                kurtosis)
         }
 
         override fun write(output: LightOutputStream, statistics: LongValueMetrics) {
@@ -57,6 +79,10 @@ data class LongValueMetrics(
             LongBinding.BINDING.writeObject(output, statistics.min.value)
             LongBinding.BINDING.writeObject(output, statistics.max.value)
             SignedDoubleBinding.BINDING.writeObject(output, statistics.sum.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.mean.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.variance.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.skewness.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.kurtosis.value)
         }
     }
 

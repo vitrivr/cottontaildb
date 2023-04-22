@@ -5,6 +5,7 @@ import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
+import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
@@ -22,6 +23,8 @@ import org.vitrivr.cottontail.dbms.statistics.storage.ColumnMetrics
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.min
+import kotlin.reflect.KClass
+import kotlin.reflect.typeOf
 
 /**
  * A [TransactionObserver] that keeps track of different Columns and triggers an analysis for the columns that have reached a specific threshold.
@@ -226,7 +229,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
                         if (randomNumberGenerator.nextDouble() <= probability) { //  will be between 0 and 1 (inclusive of both endpoints)
                             val record = cursor.value()
                             // iterate over columns and send value to corresponding collector
-                            columnsCollector.forEachIndexed { i, collector ->
+                            columnsCollector.forEachIndexed { i, collector ->0
                                 val value = record[i]
                                 (collector as AbstractMetricsCollector<Value>).receive(value)
                             }
@@ -292,6 +295,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
         }
         return collector
     }
+
 
     /**
      * This function updates the statistics/metrics of every column of an entity.

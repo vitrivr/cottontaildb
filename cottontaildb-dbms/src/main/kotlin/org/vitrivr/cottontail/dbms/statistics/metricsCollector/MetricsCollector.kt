@@ -42,7 +42,7 @@ sealed interface MetricsCollector <T : Value> {
     /**
      * Receives the values for which to compute the statistics
      */
-    fun receive(value: Value?): Unit
+    fun receive(value: T?): Unit
 
 
     /**

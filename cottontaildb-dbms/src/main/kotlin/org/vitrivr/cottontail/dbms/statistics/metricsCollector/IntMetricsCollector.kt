@@ -4,7 +4,6 @@ import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.metricsData.IntValueMetrics
 import java.lang.Integer.max
 import java.lang.Integer.min
@@ -26,24 +25,28 @@ class IntMetricsCollector(override val statisticsConfig : StatisticsConfig, over
     /**
      * Receives the values for which to compute the statistics
      */
-    override fun receive(value: Value?) {
+    override fun receive(value: IntValue?) {
         super.receive(value)
-        if (value != null && value is IntValue) {
+        if (value != null) {
             // set new min, max, and sum
-            min = min(value.value, min)
-            max = max(value.value, max)
-            sum += value.value
+            this.min = min(value.value, this.min)
+            this.max = max(value.value, this.max)
+            this.sum += value.value
         }
     }
 
     override fun calculate(probability: Float): IntValueMetrics {
         val sampleMetrics = IntValueMetrics(
-            numberOfNullEntries,
-            numberOfNonNullEntries,
-            numberOfDistinctEntries,
-            IntValue(min),
-            IntValue(max),
-            DoubleValue(sum)
+            this.numberOfNullEntries,
+            this.numberOfNonNullEntries,
+            this.numberOfDistinctEntries,
+            IntValue(this.min),
+            IntValue(this.max),
+            DoubleValue(this.sum),
+            DoubleValue(this.mean),
+            DoubleValue(this.variance),
+            DoubleValue(this.skewness),
+            DoubleValue(this.kurtosis)
         )
 
         return IntValueMetrics(1/probability, sampleMetrics)

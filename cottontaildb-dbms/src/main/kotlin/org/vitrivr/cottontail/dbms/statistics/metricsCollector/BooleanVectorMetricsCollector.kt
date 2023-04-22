@@ -18,9 +18,9 @@ class BooleanVectorMetricsCollector(val logicalSize: Int, override val statistic
     /**
      * Receives the values for which to compute the statistics
      */
-    override fun receive(value: Value?) {
+    override fun receive(value: BooleanVectorValue?) {
         super.receive(value)
-        if (value != null && value is BooleanVectorValue) {
+        if (value != null) {
             for ((i, d) in value.data.withIndex()) {
                 if (d) {
                     numberOfTrueEntries[i] = numberOfTrueEntries[i] + 1

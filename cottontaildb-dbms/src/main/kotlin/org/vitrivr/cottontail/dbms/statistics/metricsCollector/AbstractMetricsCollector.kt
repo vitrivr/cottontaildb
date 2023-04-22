@@ -32,7 +32,7 @@ sealed class AbstractMetricsCollector<T : Value>(override val type: Types<T>) : 
     /**
      * Receives the values for which to compute the statistics
      */
-    override fun receive(value: Value?) {
+    override fun receive(value: T?) {
         if (value != null) {
             numberOfNonNullEntries += 1
 

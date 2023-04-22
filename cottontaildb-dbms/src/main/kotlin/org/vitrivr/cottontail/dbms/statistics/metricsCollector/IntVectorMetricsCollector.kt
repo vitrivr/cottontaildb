@@ -22,9 +22,9 @@ class IntVectorMetricsCollector(val logicalSize: Int, override val  statisticsCo
     /**
      * Receives the values for which to compute the statistics
      */
-    override fun receive(value: Value?) {
+    override fun receive(value: IntVectorValue?) {
         super.receive(value)
-        if (value != null && value is IntVectorValue) {
+        if (value != null) {
             for ((i, d) in value.data.withIndex()) {
                 // update min, max, sum
                 min.data[i] = Integer.min(d, min.data[i])

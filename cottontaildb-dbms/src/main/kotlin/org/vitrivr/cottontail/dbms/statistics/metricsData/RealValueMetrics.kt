@@ -27,9 +27,17 @@ sealed class RealValueMetrics<T: RealValue<*>>(type: Types<T>): AbstractScalarMe
     /** Sum of all values seen by this [RealValueMetrics]. */
     abstract val sum: DoubleValue
 
-    /** The arithmetic mean for the values seen by this [RealValueMetrics]. */
-    val mean: DoubleValue
-        get() =  DoubleValue(this.sum.value / this.numberOfNonNullEntries)
+    /** The arithmetic mean for the values seen by this [RealValueMetrics]*/
+    abstract val mean : DoubleValue
+
+    /** The variance for the values seen by this [RealValueMetrics]*/
+    abstract val variance : DoubleValue
+
+    /** The skewness for the values seen by this [RealValueMetrics]*/
+    abstract val skewness : DoubleValue
+
+    /** The kurtosis for the values seen by this [RealValueMetrics]*/
+    abstract val kurtosis : DoubleValue
 
     /**
      * Creates a descriptive map of this [RealValueMetrics].

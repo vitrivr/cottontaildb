@@ -23,9 +23,9 @@ class DateMetricsCollector(override val statisticsConfig : StatisticsConfig, ove
     /**
      * Receives the values for which to compute the statistics
      */
-    override fun receive(value: Value?) {
+    override fun receive(value: DateValue?) {
         super.receive(value)
-        if (value != null && value is DateValue) {
+        if (value != null) {
             // set new min and max
             min = min(value.value, min)
             max = max(value.value, max)

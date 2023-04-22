@@ -23,9 +23,9 @@ class BooleanMetricsCollector (override val statisticsConfig : StatisticsConfig,
     /**
      * Receives the values for which to compute the statistics
      */
-    override fun receive(value: Value?) {
+    override fun receive(value: BooleanValue?) {
         super.receive(value)
-        if (value != null && value is BooleanValue) {
+        if (value != null) {
             when (value.value) {
                 // count true and false entries
                 true -> numberOfTrueEntries += 1

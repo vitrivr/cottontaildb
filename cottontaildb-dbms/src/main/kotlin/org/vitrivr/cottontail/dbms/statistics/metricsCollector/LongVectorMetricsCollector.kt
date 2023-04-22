@@ -23,9 +23,9 @@ class LongVectorMetricsCollector(val logicalSize: Int, override val statisticsCo
     /**
      * Receives the values for which to compute the statistics
      */
-    override fun receive(value: Value?) {
+    override fun receive(value: LongVectorValue?) {
         super.receive(value)
-        if (value != null && value is LongVectorValue) {
+        if (value != null) {
             for ((i, d) in value.data.withIndex()) {
                 // update min, max,
                 min.data[i] = java.lang.Long.min(d, min.data[i])

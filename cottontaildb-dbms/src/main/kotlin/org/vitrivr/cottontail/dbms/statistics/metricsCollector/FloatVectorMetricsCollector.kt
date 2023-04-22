@@ -22,9 +22,9 @@ class FloatVectorMetricsCollector(val logicalSize: Int, override val statisticsC
     /**
      * Receives the values for which to compute the statistics
      */
-    override fun receive(value: Value?) {
+    override fun receive(value: FloatVectorValue?) {
         super.receive(value)
-        if (value != null && value is FloatVectorValue) {
+        if (value != null) {
             for ((i, d) in value.data.withIndex()) {
                 // update min, max, sum
                 min.data[i] = java.lang.Float.min(d, min.data[i])

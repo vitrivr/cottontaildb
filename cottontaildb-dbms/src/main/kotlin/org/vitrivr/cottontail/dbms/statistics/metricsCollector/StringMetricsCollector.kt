@@ -23,9 +23,9 @@ class StringMetricsCollector(override val statisticsConfig : StatisticsConfig, o
     /**
      * Receives the values for which to compute the statistics
      */
-    override fun receive(value: Value?) {
+    override fun receive(value: StringValue?) {
         super.receive(value)
-        if (value != null && value is StringValue) {
+        if (value != null) {
             minWidth = min(value.logicalSize, minWidth)
             maxWidth = max(value.logicalSize, maxWidth)
         }

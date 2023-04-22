@@ -26,24 +26,28 @@ class DoubleMetricsCollector(override val statisticsConfig : StatisticsConfig, o
     /**
      * Receives the values for which to compute the statistics
      */
-    override fun receive(value: Value?) {
+    override fun receive(value: DoubleValue?) {
         super.receive(value)
-        if (value != null && value is DoubleValue) {
+        if (value != null) {
             // set new min, max, and sum
-            min = min(value.value, min)
-            max = max(value.value, max)
-            sum += value.value
+            this.min = min(value.value, this.min)
+            this.max = max(value.value, this.max)
+            this.sum += value.value
         }
     }
 
     override fun calculate(probability: Float): DoubleValueMetrics {
         val sampleMetrics = DoubleValueMetrics(
-            numberOfNullEntries,
-            numberOfNonNullEntries,
-            numberOfDistinctEntries,
-            DoubleValue(min),
-            DoubleValue(max),
-            DoubleValue(sum)
+            this.numberOfNullEntries,
+            this.numberOfNonNullEntries,
+            this.numberOfDistinctEntries,
+            DoubleValue(this.min),
+            DoubleValue(this.max),
+            DoubleValue(this.sum),
+            DoubleValue(this.mean),
+            DoubleValue(this.variance),
+            DoubleValue(this.skewness),
+            DoubleValue(this.kurtosis)
         )
 
         return DoubleValueMetrics(1/probability, sampleMetrics)
