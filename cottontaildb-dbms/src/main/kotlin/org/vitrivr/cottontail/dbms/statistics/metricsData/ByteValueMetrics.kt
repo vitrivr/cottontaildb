@@ -25,10 +25,10 @@ data class ByteValueMetrics(
     override var min: ByteValue = ByteValue.MAX_VALUE,
     override var max: ByteValue = ByteValue.MIN_VALUE,
     override var sum: DoubleValue = DoubleValue.ZERO,
-    override val mean: DoubleValue = DoubleValue.ZERO,
-    override val variance: DoubleValue = DoubleValue.ZERO,
-    override val skewness: DoubleValue = DoubleValue.ZERO,
-    override val kurtosis: DoubleValue = DoubleValue.ZERO
+    override var mean: DoubleValue = DoubleValue.ZERO,
+    override var variance: DoubleValue = DoubleValue.ZERO,
+    override var skewness: DoubleValue = DoubleValue.ZERO,
+    override var kurtosis: DoubleValue = DoubleValue.ZERO
 ) : RealValueMetrics<ByteValue>(Types.Byte) {
 
     /**

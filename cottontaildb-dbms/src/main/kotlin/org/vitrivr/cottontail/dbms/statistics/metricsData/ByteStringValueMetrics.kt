@@ -48,11 +48,25 @@ data class ByteStringValueMetrics(
         }
     }
 
-
+    /**
+     * Resets this [ValueMetrics] and sets all its values to the default value.
+     */
     override fun reset() {
         super.reset()
         this.minWidth = Int.MAX_VALUE
         this.maxWidth = Int.MIN_VALUE
+    }
+
+    /**
+     * Creates a descriptive map of this [ValueMetrics].
+     *
+     * @return Descriptive map of this [ValueMetrics]
+     */
+    override fun about(): Map<String, String> {
+        return super.about() + mapOf(
+            MIN_WIDTH_KEY to this.minWidth.toString(),
+            MAX_WIDTH_KEY to this.maxWidth.toString()
+        )
     }
 
 }

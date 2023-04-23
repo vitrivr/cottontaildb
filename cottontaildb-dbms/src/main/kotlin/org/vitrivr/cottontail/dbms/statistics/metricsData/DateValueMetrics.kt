@@ -21,6 +21,11 @@ data class DateValueMetrics (
     var max: DateValue = DateValue(Long.MIN_VALUE),
 ) : AbstractScalarMetrics<DateValue>(Types.Date) {
 
+    companion object {
+        const val MIN_KEY = "min"
+        const val MAX_KEY = "max"
+    }
+
     /**
      * Constructor for the collector to get from the sample to the population
      */
@@ -56,11 +61,23 @@ data class DateValueMetrics (
 
 
     /**
-     * Resets this [DateValueMetrics] and sets all its values to to the default value.
+     * Resets this [DateValueMetrics] and sets all its values to the default value.
      */
     override fun reset() {
         super.reset()
         this.min = DateValue(Long.MAX_VALUE)
         this.max = DateValue(Long.MIN_VALUE)
+    }
+
+    /**
+     * Creates a descriptive map of this [ValueMetrics].
+     *
+     * @return Descriptive map of this [ValueMetrics]
+     */
+    override fun about(): Map<String, String> {
+        return super.about() + mapOf(
+            MIN_KEY to this.min.value.toString(),
+            MAX_KEY to this.max.value.toString()
+        )
     }
 }

@@ -65,4 +65,16 @@ data class StringValueMetrics(
         this.maxWidth = Int.MIN_VALUE
     }
 
+    /**
+     * Creates a descriptive map of this [ValueMetrics].
+     *
+     * @return Descriptive map of this [ValueMetrics]
+     */
+    override fun about(): Map<String, String> {
+        return super.about() + mapOf(
+            MIN_WIDTH_KEY to this.minWidth.toString(),
+            MAX_WIDTH_KEY to this.maxWidth.toString()
+        )
+    }
+
 }

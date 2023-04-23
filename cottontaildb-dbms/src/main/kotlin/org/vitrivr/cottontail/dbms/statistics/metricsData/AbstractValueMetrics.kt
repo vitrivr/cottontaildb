@@ -20,9 +20,9 @@ import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
  */
 sealed class AbstractValueMetrics<T : Value>(override val type: Types<T>) : ValueMetrics<T> {
     companion object {
-        const val FRESH_KEY = "fresh"
         const val ENTRIES_KEY = "entries"
         const val NULL_ENTRIES_KEY = "null_entries"
+        const val DISTINCT_ENTRIES = "distinct_entries"
     }
 
     /** Number of null entries known to this [AbstractValueMetrics]. */
@@ -57,6 +57,7 @@ sealed class AbstractValueMetrics<T : Value>(override val type: Types<T>) : Valu
     override fun reset() {
         this.numberOfNullEntries = 0L
         this.numberOfNonNullEntries = 0L
+        this.numberOfDistinctEntries = 0L
     }
 
     /**
@@ -65,9 +66,9 @@ sealed class AbstractValueMetrics<T : Value>(override val type: Types<T>) : Valu
      * @return Descriptive map of this [AbstractValueMetrics]
      */
     override fun about(): Map<String, String> = mapOf(
-        //FRESH_KEY to this.fresh.toString(),
         NULL_ENTRIES_KEY to this.numberOfNullEntries.toString(),
-        ENTRIES_KEY to (this.numberOfNullEntries + this.numberOfNonNullEntries).toString()
+        ENTRIES_KEY to (this.numberOfNullEntries + this.numberOfNonNullEntries).toString(),
+        DISTINCT_ENTRIES to this.numberOfDistinctEntries.toString()
     )
 
     /**
