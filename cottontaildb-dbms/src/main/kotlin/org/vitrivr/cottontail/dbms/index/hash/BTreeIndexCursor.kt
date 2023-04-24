@@ -20,10 +20,10 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index: BTreeIndex.Tx) : Cursor<Record> {
     /** Internal cursor used for navigation. */
-    protected val subTransaction = this.index.context.txn.xodusTx.readonlySnapshot
+    private val subTransaction = this.index.context.txn.xodusTx.readonlySnapshot
 
     /** Internal cursor used for navigation. */
-    protected val cursor: jetbrains.exodus.env.Cursor
+    protected val cursor: jetbrains.exodus.env.Cursor = this.index.dataStore.openCursor(this.subTransaction)
 
     /** A beginning of cursor (BoC) flag. */
     protected val boc = AtomicBoolean(false)
@@ -31,9 +31,11 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
     /** Flag indicating, that this [BTreeIndexCursor] is empty. */
     protected val empty: Boolean
 
+    /** Internal list of query values for IN predicate. */
+    protected val queryValueQueue = LinkedList<Value>()
+
     /* Perform initial sanity checks. */
     init {
-        this.cursor = this.index.dataStore.openCursor(this.subTransaction)
         with(this@BTreeIndexCursor.index.context.bindings) {
             with(MissingRecord) {
                 this@BTreeIndexCursor.boc.compareAndExchange(false, this@BTreeIndexCursor.initialize())
@@ -66,9 +68,6 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
      * A [BTreeIndexCursor] variant to evaluate  [ComparisonOperator.In] operators.
      */
     class In(operator: ComparisonOperator.In, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.In>(operator, index) {
-
-        /** Internal list of query values for IN predicate. */
-        private val queryValueQueue = LinkedList<Value>()
 
         context(BindingContext,Record)
         override fun initialize(): Boolean {
