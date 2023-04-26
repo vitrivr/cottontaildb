@@ -9,4 +9,17 @@ import kotlinx.serialization.Serializable
  * @version 1.0.0
  */
 @Serializable
-data class Connection(val host: String, val port: Int)
+data class Connection(val host: String, val port: Int) {
+    companion object {
+        /**
+         * Parses a [Connection] from a string.
+         *
+         * @param string The string to parse.
+         * @return [Connection]
+         */
+        fun parse(string: String): Connection {
+            val parts = string.split(":")
+            return Connection(parts[0], parts[1].toInt())
+        }
+    }
+}

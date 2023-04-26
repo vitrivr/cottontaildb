@@ -23,14 +23,11 @@ import org.eclipse.jetty.server.session.DefaultSessionCache
 import org.eclipse.jetty.server.session.FileSessionDataStore
 import org.eclipse.jetty.server.session.SessionHandler
 import org.vitrivr.cottontail.client.SimpleClient
-import org.vitrivr.cottontail.ui.api.entity.EntityController
-import org.vitrivr.cottontail.ui.api.list.ListController
+import org.vitrivr.cottontail.ui.api.ddl.*
 import org.vitrivr.cottontail.ui.api.query.QueryController
-import org.vitrivr.cottontail.ui.api.schema.SchemaController
 import org.vitrivr.cottontail.ui.api.session.connect
 import org.vitrivr.cottontail.ui.api.session.connections
 import org.vitrivr.cottontail.ui.api.session.disconnect
-import org.vitrivr.cottontail.ui.api.system.SystemController
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -142,38 +139,34 @@ fun main(args: Array<String>) {
                 post("disconnect") { disconnect(it) }
                 get("connections") { connections(it) }
             }
+
+            /** All paths related to a specific connection. */
+            path("{connection}") {
+                get("list") { listSchemas(it) }
+                post("{schema}") { createSchema(it) }
+                delete("{schema}") { dropSchema(it) }
+                path("{schema}") {
+                    get("list") { listEntities(it) }
+                    get("{entity}") { aboutEntity(it) }
+                    post("{entity}") { createEntity(it) }
+                    delete("{entity}") { dropEntity(it) }
+                    path("{entity}") {
+                        delete("{truncate}") { truncateEntity(it) }
+                    }
+                }
+            }
         }
 
 
         path("api/query"){
             post(QueryController::query)
         }
-        path("api/list") {
+        /*path("api/list") {
             get(ListController::getList)
         }
-        path("schemas") {
-            get(SchemaController::listAllSchemas)
-            path("{name}") {
-                post(SchemaController::createSchema)
-                get(SchemaController::listEntities)
-                delete(SchemaController::dropSchema)
-                path("data") {
-                    get(SchemaController::dumpSchema)
-                }
-            }
-        }
-        path("entities") {
-            get(EntityController::listAllEntities)
-        }
         path("entities/{name}") {
-            get(EntityController::aboutEntity)
-            post(EntityController::createEntity)
-            delete(EntityController::dropEntity)
             path("truncate") {
                 delete(EntityController::truncateEntity)
-            }
-            path("clear") {
-                delete(EntityController::clearEntity)
             }
             path("data") {
                 get(EntityController::dumpEntity)
@@ -196,6 +189,6 @@ fun main(args: Array<String>) {
             path("locks") {
                 get(SystemController::listLocks)
             }
-        }
+        }*/
     }.start(7070)
 }
