@@ -1,3 +1,6 @@
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.KotlinFeature
+import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.LoadingCache
 import io.grpc.ManagedChannel
@@ -7,6 +10,7 @@ import io.javalin.apibuilder.ApiBuilder.*
 import io.javalin.http.Context
 import io.javalin.http.Header
 import io.javalin.http.staticfiles.Location
+import io.javalin.json.JavalinJackson
 import io.javalin.openapi.CookieAuth
 import io.javalin.openapi.plugin.OpenApiPlugin
 import io.javalin.openapi.plugin.OpenApiPluginConfiguration
@@ -27,7 +31,6 @@ import org.vitrivr.cottontail.ui.api.session.connect
 import org.vitrivr.cottontail.ui.api.session.connections
 import org.vitrivr.cottontail.ui.api.session.disconnect
 import org.vitrivr.cottontail.ui.api.system.SystemController
-import org.vitrivr.cottontail.ui.json.KotlinxJsonMapper
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -100,8 +103,19 @@ fun main(args: Array<String>) {
 
             )
         )
-        config.jsonMapper(KotlinxJsonMapper)
 
+        /* Configure serialization using Jackson + Kotlin module. */
+        val mapper = ObjectMapper().registerModule(
+            KotlinModule.Builder()
+            .configure(KotlinFeature.NullToEmptyCollection, true)
+            .configure(KotlinFeature.NullToEmptyMap, true)
+            .configure(KotlinFeature.NullIsSameAsDefault, true)
+            .configure(KotlinFeature.SingletonSupport, true)
+            .configure(KotlinFeature.StrictNullChecks, true)
+            .build())
+        config.jsonMapper(JavalinJackson(mapper))
+
+        /* Registers Swagger Plugin. */
         config.plugins.register(
             SwaggerPlugin(
                 SwaggerConfiguration().apply {
@@ -126,7 +140,7 @@ fun main(args: Array<String>) {
             path("session") {
                 post("connect") { connect(it) }
                 post("disconnect") { disconnect(it) }
-                post("connections") { connections(it) }
+                get("connections") { connections(it) }
             }
         }
 

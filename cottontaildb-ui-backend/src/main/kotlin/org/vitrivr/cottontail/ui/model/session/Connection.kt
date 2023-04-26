@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.ui.model.session
 import kotlinx.serialization.Serializable
 
 /**
- * A [Connection] as used by the Cottontail DB UI.
+ * A [Connection] as used by the Thumper UI.
  *
  * @author Ralph Gasser
  * @version 1.0.0

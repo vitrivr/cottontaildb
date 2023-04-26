@@ -4,6 +4,7 @@ import io.javalin.http.BadRequestResponse
 import io.javalin.http.Context
 import io.javalin.openapi.*
 import org.vitrivr.cottontail.ui.model.session.Connection
+import org.vitrivr.cottontail.ui.model.session.Session
 import org.vitrivr.cottontail.ui.model.status.ErrorStatus
 import org.vitrivr.cottontail.ui.model.status.ErrorStatusException
 import org.vitrivr.cottontail.ui.model.status.SuccessStatus
@@ -21,15 +22,15 @@ import org.vitrivr.cottontail.ui.model.status.SuccessStatus
         OpenApiResponse("401", [OpenApiContent(ErrorStatus::class)])
     ]
 )
-fun connect(ctx: Context): SuccessStatus {
+fun connect(ctx: Context) {
     val session = ctx.session()
     val connection = try {
         ctx.bodyAsClass(Connection::class.java)
     } catch (e: BadRequestResponse) {
         throw ErrorStatusException(400, "Invalid parameters. This is a programmers error!")
     }
-    if (session.connect(connection)) {
-        return SuccessStatus("Connection to $connection established successfully.")
+    if (ConnectionManager.connect(session, connection)) {
+        ctx.json(SuccessStatus("Connection to $connection established successfully."))
     } else {
         throw ErrorStatusException(400, "Failed to establish connection because connection already exists.")
     }
@@ -48,15 +49,15 @@ fun connect(ctx: Context): SuccessStatus {
         OpenApiResponse("401", [OpenApiContent(ErrorStatus::class)])
     ]
 )
-fun disconnect(ctx: Context): SuccessStatus {
+fun disconnect(ctx: Context) {
     val session = ctx.session()
     val connection = try {
         ctx.bodyAsClass(Connection::class.java)
     } catch (e: BadRequestResponse) {
         throw ErrorStatusException(400, "Invalid parameters. This is a programmers error!")
     }
-    if (session.disconnect(connection)) {
-        return SuccessStatus("Disconnected from $connection successfully.")
+    if (ConnectionManager.disconnect(session, connection)) {
+        ctx.json(SuccessStatus("Connection to $connection established successfully."))
     } else {
         throw ErrorStatusException(400, "Failed to disconnect connection because connection does not exist.")
     }
@@ -72,19 +73,20 @@ fun disconnect(ctx: Context): SuccessStatus {
         OpenApiResponse("200", [OpenApiContent(Array<Connection>::class)])
     ]
 )
-fun connections(ctx: Context): List<Connection> {
+fun connections(ctx: Context) {
     val session = ctx.session()
-    return session.list()
+    val list = ConnectionManager.list(session)
+    ctx.json(list)
 }
 
 /**
  * Extracts the [Session] from the [Context] or creates a new one if none exists.
  */
 fun Context.session(): Session {
-    var session = this.sessionAttribute<Session>(Session.SESSION_ATTRIBUTE_KEY)
+    var session = this.sessionAttribute<Session>(Session.USER_SESSION_KEY)
     if (session == null) {
-        session = Session()
-        this.sessionAttribute(Session.SESSION_ATTRIBUTE_KEY, session)
+        session = Session(this.req().session.id, mutableListOf())
+        this.sessionAttribute(Session.USER_SESSION_KEY, session)
     }
     return session
 }
