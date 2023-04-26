@@ -1,10 +1,10 @@
 import {Component, OnInit, Inject} from '@angular/core';
 import { FormControl, FormGroup, Validators} from "@angular/forms";
-import {SchemaService} from "../../../../services/schema.service";
-import {TreeDataService} from "../../../../services/tree-data.service";
+import {SchemaService} from "../../../services/schema.service";
+import {TreeDataService} from "../../../services/tree-data.service";
 import {MatDialogRef} from "@angular/material/dialog";
 import {MAT_DIALOG_DATA} from '@angular/material/dialog';
-import {Connection} from "../../../../services/connection.service";
+import {Connection} from "../../../../../openapi";
 
 
 @Component({

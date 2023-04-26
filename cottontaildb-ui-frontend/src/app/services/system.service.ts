@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import {BehaviorSubject} from "rxjs";
 import {HttpClient} from "@angular/common/http";
-import {Connection, ConnectionService} from "./connection.service";
+import {ConnectionService} from "./connection.service";
+import {Connection} from "../../../openapi";
 
 @Injectable({
   providedIn: 'root'

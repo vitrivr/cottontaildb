@@ -4,11 +4,7 @@ import { AppComponent } from './app.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MainComponent } from './components/main/main.component';
 import { MatTabsModule} from "@angular/material/tabs";
-import { SidebarComponent} from "./components/sidebar/sidebar.component";
 import { HeaderComponent} from "./components/header/header.component";
-import { OverviewComponent } from './components/sidebar/overview/overview.component';
-import { TreeComponent } from './components/sidebar/overview/tree/tree.component';
-import { MatTreeModule } from '@angular/material/tree';
 import { MatIconModule } from '@angular/material/icon';
 import {DragDropModule} from "@angular/cdk/drag-drop";
 import { DmlViewComponent } from './components/main/views/dml-view/dml-view.component';
@@ -20,8 +16,7 @@ import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatButtonModule } from "@angular/material/button";
 import { MatInputModule } from "@angular/material/input";
 import { ReactiveFormsModule, FormsModule}  from "@angular/forms";
-import { CreateSchemaFormComponent } from './components/sidebar/overview/create-schema-form/create-schema-form.component';
-import { CreateEntityFormComponent } from './components/sidebar/overview/create-entity-form/create-entity-form.component';
+import { CreateEntityFormComponent } from './components/sidebar/create-entity-form/create-entity-form.component';
 import {MatStepperModule} from "@angular/material/stepper";
 import {MatSelectModule} from "@angular/material/select";
 import {MatCheckboxModule} from "@angular/material/checkbox";
@@ -35,7 +30,6 @@ import {DdlViewComponent} from "./components/main/views/ddl-view/ddl-view.compon
 import {SelectionService} from "./services/selection.service";
 import {MatButtonToggleModule} from "@angular/material/button-toggle";
 import { CreateIndexFormComponent } from './components/main/views/ddl-view/create-index-form/create-index-form.component';
-import { AddConnectionFormComponent } from './components/sidebar/overview/add-connection-form/add-connection-form.component';
 import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
 import {MatProgressBarModule} from "@angular/material/progress-bar";
 import { SelectFormComponent } from './components/main/views/query-view/select-form/select-form.component';
@@ -57,22 +51,30 @@ import { InsertFormComponent } from './components/main/views/dml-view/insert-for
 import { UpdateFormComponent } from './components/main/views/dml-view/update-form/update-form.component';
 import { VectorDetailsComponent } from './components/main/views/query-view/vector-details/vector-details.component';
 import { WelcomeViewComponent } from './components/main/views/welcome-view/welcome-view.component';
+import {ApiModule, Configuration} from "../../openapi";
+import {SidebarModule} from "./components/sidebar/sidebar.module";
+
+
+
+/**
+ * Provides the {@link AppConfig} reference.
+ *
+ * @param appConfig Reference (provided by DI).
+ */
+export function initializeApiConfig() {
+  return new Configuration({ basePath: "http://localhost:7070", withCredentials: true });
+}
+
 @NgModule({
   declarations: [
     AppComponent,
-    SidebarComponent,
     MainComponent,
     HeaderComponent,
-    OverviewComponent,
-    TreeComponent,
     DmlViewComponent,
     QueryViewComponent,
     SystemViewComponent,
     DdlViewComponent,
-    CreateSchemaFormComponent,
-    CreateEntityFormComponent,
     CreateIndexFormComponent,
-    AddConnectionFormComponent,
     SelectFormComponent,
     WhereFormComponent,
     OrderFormComponent,
@@ -90,10 +92,10 @@ import { WelcomeViewComponent } from './components/main/views/welcome-view/welco
     WelcomeViewComponent
   ],
     imports: [
+        {ngModule: ApiModule, providers: [{ provide: Configuration, useFactory: initializeApiConfig }] },
         BrowserModule,
         BrowserAnimationsModule,
         MatTabsModule,
-        MatTreeModule,
         MatIconModule,
         DragDropModule,
         HttpClientModule,
@@ -118,13 +120,14 @@ import { WelcomeViewComponent } from './components/main/views/welcome-view/welco
         MatAutocompleteModule,
         MatCardModule,
         MatDividerModule,
-        MatChipsModule
+        MatChipsModule,
+        SidebarModule
     ],
   providers: [
     CreateEntityFormComponent,
     SelectionService,
     { provide: MAT_DIALOG_DATA, useValue: {} },
-    { provide: MatDialogRef, useValue: {} }
+    { provide: MatDialogRef, useValue: {} },
   ],
   exports: [
   ],

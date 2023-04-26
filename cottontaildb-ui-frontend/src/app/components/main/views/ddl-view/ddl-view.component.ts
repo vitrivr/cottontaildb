@@ -3,7 +3,7 @@ import {EntityService} from "../../../../services/entity.service";
 import {SelectionService} from "../../../../services/selection.service";
 import {MatDialog} from "@angular/material/dialog";
 import {CreateIndexFormComponent} from "./create-index-form/create-index-form.component";
-import {Connection} from "../../../../services/connection.service";
+import {Connection} from "../../../../../../openapi";
 
 @Component({
   selector: 'app-ddl-view',

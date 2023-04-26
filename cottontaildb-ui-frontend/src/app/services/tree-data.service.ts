@@ -2,7 +2,8 @@ import {Injectable} from '@angular/core';
 import {TreeNode} from "../interfaces/TreeNode";
 import {BehaviorSubject, Observable, shareReplay} from "rxjs";
 import {HttpClient} from "@angular/common/http";
-import {Connection, ConnectionService} from "./connection.service";
+import {ConnectionService} from "./connection.service";
+import {Connection} from "../../../openapi";
 
 
 

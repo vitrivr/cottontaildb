@@ -14,7 +14,7 @@ export class HeaderComponent implements OnInit {
 
   ngOnInit(): void {
     this.connectionService.connectionSubject.subscribe({
-      next: value => {this.connection = value.size != 0}
+      next: value => {this.connection = value.length != 0}
     })
   }
 

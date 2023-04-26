@@ -3,8 +3,9 @@ import {BehaviorSubject, Observable} from "rxjs";
 import {HttpClient} from "@angular/common/http";
 import {ColumnDefinition} from "../interfaces/ColumnDefinition";
 import {IndexDefinition} from "../interfaces/IndexDefinition";
-import {Connection, ConnectionService} from "./connection.service";
+import {ConnectionService} from "./connection.service";
 import {MatSnackBar} from "@angular/material/snack-bar";
+import {Connection} from "../../../openapi";
 
 export class ColumnEntry {
   column: string

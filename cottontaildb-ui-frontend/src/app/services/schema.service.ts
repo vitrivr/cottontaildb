@@ -2,7 +2,8 @@ import { Injectable } from '@angular/core';
 import {HttpClient} from "@angular/common/http";
 import {Observable} from "rxjs";
 import {Entity} from "../interfaces/Entity";
-import {Connection, ConnectionService} from "./connection.service";
+import {ConnectionService} from "./connection.service";
+import {Connection} from "../../../openapi";
 
 export interface Schema {
   name : string

@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
 import {HttpClient} from "@angular/common/http";
 import {catchError, map, throwError} from "rxjs";
-import {Connection, ConnectionService} from "./connection.service";
 import {MatSnackBar} from "@angular/material/snack-bar";
+import {Connection} from "../../../openapi";
+import {ConnectionService} from "./connection.service";
 
 export class QueryData {
 }

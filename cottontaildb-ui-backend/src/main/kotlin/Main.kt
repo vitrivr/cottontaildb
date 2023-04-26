@@ -17,7 +17,6 @@ import io.javalin.openapi.plugin.OpenApiPluginConfiguration
 import io.javalin.openapi.plugin.SecurityComponentConfiguration
 import io.javalin.openapi.plugin.swagger.SwaggerConfiguration
 import io.javalin.openapi.plugin.swagger.SwaggerPlugin
-import io.javalin.plugin.bundled.CorsContainer
 import io.javalin.plugin.bundled.CorsPluginConfig
 import org.eclipse.jetty.server.session.DefaultSessionCache
 import org.eclipse.jetty.server.session.FileSessionDataStore
@@ -81,7 +80,25 @@ fun main(args: Array<String>) {
         }
         config.jetty.sessionHandler { fileSessionHandler() }
         config.spaRoot.addFile("/", "html/index.html")
-        config.plugins.enableCors { cors: CorsContainer -> cors.add { it: CorsPluginConfig -> it.anyHost() } }
+        config.plugins.enableCors { cors ->
+            cors.add {
+                it.reflectClientOrigin = true // anyHost() has similar implications and might be used in production? I'm not sure how to cope with production and dev here simultaneously
+                it.allowCredentials = true
+            }
+        }
+
+        /* Configure serialization using Jackson + Kotlin module. */
+        val mapper = ObjectMapper().registerModule(
+            KotlinModule.Builder()
+            .configure(KotlinFeature.NullToEmptyCollection, true)
+            .configure(KotlinFeature.NullToEmptyMap, true)
+            .configure(KotlinFeature.NullIsSameAsDefault, true)
+            .configure(KotlinFeature.SingletonSupport, true)
+            .configure(KotlinFeature.StrictNullChecks, true)
+            .build())
+        config.jsonMapper(JavalinJackson(mapper))
+
+        /* Registers Open API plugin. */
         config.plugins.register(
             OpenApiPlugin(
                 OpenApiPluginConfiguration()
@@ -101,17 +118,6 @@ fun main(args: Array<String>) {
             )
         )
 
-        /* Configure serialization using Jackson + Kotlin module. */
-        val mapper = ObjectMapper().registerModule(
-            KotlinModule.Builder()
-            .configure(KotlinFeature.NullToEmptyCollection, true)
-            .configure(KotlinFeature.NullToEmptyMap, true)
-            .configure(KotlinFeature.NullIsSameAsDefault, true)
-            .configure(KotlinFeature.SingletonSupport, true)
-            .configure(KotlinFeature.StrictNullChecks, true)
-            .build())
-        config.jsonMapper(JavalinJackson(mapper))
-
         /* Registers Swagger Plugin. */
         config.plugins.register(
             SwaggerPlugin(
@@ -124,10 +130,6 @@ fun main(args: Array<String>) {
         )
     }.routes {
         before { ctx ->
-            ctx.method()
-            ctx.header(Header.ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-            ctx.header(Header.ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, PATCH, PUT, DELETE, OPTIONS")
-            ctx.header(Header.ACCESS_CONTROL_ALLOW_HEADERS, "Authorization, Content-Type")
             ctx.header(Header.CONTENT_TYPE, "application/json")
         }
 

@@ -1,16 +1,7 @@
 import { Injectable } from '@angular/core';
-import {BehaviorSubject} from "rxjs";
-import {MatSnackBar} from "@angular/material/snack-bar";
+import {BehaviorSubject, mergeMap} from "rxjs";
 import {HttpParams} from "@angular/common/http";
-
-export class Connection {
-  address: string;
-  port: number;
-  constructor(address: string, port: number) {
-    this.address = address
-    this.port = port
-  }
-}
+import {Connection, SessionService} from "../../../openapi";
 
 @Injectable({
   providedIn: 'root'
@@ -19,36 +10,48 @@ export class ConnectionService {
 
   public apiURL = 'http://localhost:7070/'
 
-  connectionSubject = new BehaviorSubject<Set<Connection>>(new Set<Connection>);
+  connectionSubject = new BehaviorSubject<Array<Connection>>(new Array<Connection>);
 
-  constructor(private snackBar: MatSnackBar) {
+  constructor(private service: SessionService) {
   }
 
-  addConnection(address: string, port: number) {
-    let uniqueConnection = true
-    this.connectionSubject.getValue().forEach(connection => {
-      if(connection.address == address && connection.port == port){
-        uniqueConnection = false
-        this.snackBar.open("connection already present", "ok", {duration:2000})
-      }
+  /**
+   * Tries to establish a new connection to a Cottontail DB instance at given address with given port.
+   *
+   * @param connection
+   */
+  public connect(connection: Connection) {
+    this.service.postApiSessionConnect(connection).subscribe(c => {
+      this.connectionSubject.next(c)
     })
-    if(uniqueConnection) {
-      let value = this.connectionSubject.getValue()
-      value.add(new Connection(address, port))
-      this.connectionSubject.next(value)
-    }
   }
 
-  removeConnection(connection: Connection) {
-    this.connectionSubject.getValue().delete(connection)
+  /**
+   * Tries to disconnect an existing connection to a Cottontail DB instance.
+   *
+   * @param connection
+   */
+  public disconnect(connection: Connection) {
+    this.service.postApiSessionDisconnect(connection).subscribe(c => {
+      this.connectionSubject.next(c)
+    })
+  }
+
+  /**
+   * Refreshes the list of connections.
+   */
+  public refresh() {
+    this.service.getApiSessionConnections().subscribe(c => {
+      this.connectionSubject.next(c)
+    })
   }
 
   public httpParams(connection: Connection): HttpParams {
-    return new HttpParams().set("address", connection.address).set("port", connection.port)
+    return new HttpParams().set("address", connection.host).set("port", connection.port)
   }
 
   public connectionName(connection: Connection) {
-    return `${connection.address}:${connection.port}`
+    return `${connection.host}:${connection.port}`
   }
 
 }
