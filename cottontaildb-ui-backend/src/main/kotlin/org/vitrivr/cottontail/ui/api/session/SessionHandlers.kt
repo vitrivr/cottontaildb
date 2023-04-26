@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.ui.model.status.SuccessStatus
     methods = [HttpMethod.POST],
     requestBody = OpenApiRequestBody([OpenApiContent(Connection::class)]),
     responses = [
-        OpenApiResponse("200", [OpenApiContent(SuccessStatus::class)]),
+        OpenApiResponse("200", [OpenApiContent(Array<Connection>::class)]),
         OpenApiResponse("400", [OpenApiContent(ErrorStatus::class)]),
         OpenApiResponse("401", [OpenApiContent(ErrorStatus::class)])
     ]
@@ -30,7 +30,7 @@ fun connect(ctx: Context) {
         throw ErrorStatusException(400, "Invalid parameters. This is a programmers error!")
     }
     if (ConnectionManager.connect(session, connection)) {
-        ctx.json(SuccessStatus("Connection to $connection established successfully."))
+        ctx.json(ConnectionManager.list(session))
     } else {
         throw ErrorStatusException(400, "Failed to establish connection because connection already exists.")
     }
@@ -44,7 +44,7 @@ fun connect(ctx: Context) {
     methods = [HttpMethod.POST],
     requestBody = OpenApiRequestBody([OpenApiContent(Connection::class)]),
     responses = [
-        OpenApiResponse("200", [OpenApiContent(SuccessStatus::class)]),
+        OpenApiResponse("200", [OpenApiContent(Array<Connection>::class)]),
         OpenApiResponse("400", [OpenApiContent(ErrorStatus::class)]),
         OpenApiResponse("401", [OpenApiContent(ErrorStatus::class)])
     ]
@@ -57,7 +57,7 @@ fun disconnect(ctx: Context) {
         throw ErrorStatusException(400, "Invalid parameters. This is a programmers error!")
     }
     if (ConnectionManager.disconnect(session, connection)) {
-        ctx.json(SuccessStatus("Connection to $connection established successfully."))
+        ctx.json(ConnectionManager.list(session))
     } else {
         throw ErrorStatusException(400, "Failed to disconnect connection because connection does not exist.")
     }

@@ -32,7 +32,10 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/SuccessStatus"
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/Connection"
+                  }
                 }
               }
             }
@@ -109,7 +112,10 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/SuccessStatus"
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/Connection"
+                  }
                 }
               }
             }
