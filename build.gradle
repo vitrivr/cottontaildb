@@ -1,9 +1,10 @@
 plugins {
+    id 'idea'
     id "org.jetbrains.kotlin.jvm" version "$version_kotlin"
     id "org.jetbrains.kotlin.plugin.serialization" version "$version_kotlin"
     id "com.github.johnrengelman.shadow" version "7.1.2"
-    id 'idea'
     id "org.openapi.generator" version "6.2.0"
+    id "de.undercouch.download" version "5.4.0"
 }
 
 apply plugin: 'distribution'
@@ -145,3 +146,34 @@ distributions {
 //// Change name for distribution to C(arrot)LI.
 distZip.archiveFileName = 'cottontaildb-full.zip'
 distTar.archiveFileName = 'cottontaildb-full.tar'
+
+/// Variables used for Open API generation.
+def fullOAS = 'http://localhost:7070/swagger-docs'
+def oasFile = "${project.projectDir}/doc/oas.json"
+
+/// Generates the openapi frontend bindings
+openApiGenerate {
+    /// Source command:
+    /// openapi-generator generate -g typescript-angular -i http://localhost:8080/swagger-docs -o openapi --skip-validate-spec --additional-properties npmName=@dres-openapi/api,snapshot=true,ngVersion=9.1.0
+    generateApiTests = false // No tests please
+    generateModelTests = false // No tests please
+    validateSpec = false // No validation please (as in command above)
+    skipValidateSpec = true
+
+    generatorName = 'typescript-angular'
+    inputSpec = oasFile
+    outputDir = file("${project.projectDir}/cottontaildb-ui-frontend/openapi").toString()
+    configOptions = [
+        npmName: '@thumper-openapi/api',
+        ngVersion: '13.2.3',
+        snapshot: 'true', /// I suggest to remove this, as soon as we automate this,
+        enumPropertyNaming: 'original'
+    ]
+}
+
+tasks.register('generateOAS', Download) {
+    /* Requires DRES running on default port */
+    def f = new File(oasFile)
+    src fullOAS
+    dest f
+}
