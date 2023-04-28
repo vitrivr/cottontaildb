@@ -27,6 +27,8 @@ import org.vitrivr.cottontail.ui.api.query.QueryController
 import org.vitrivr.cottontail.ui.api.session.connect
 import org.vitrivr.cottontail.ui.api.session.connections
 import org.vitrivr.cottontail.ui.api.session.disconnect
+import org.vitrivr.cottontail.ui.model.status.ErrorStatus
+import org.vitrivr.cottontail.ui.model.status.ErrorStatusException
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -113,8 +115,6 @@ fun main(args: Array<String>) {
                             SecurityComponentConfiguration().withSecurityScheme("CookieAuth", CookieAuth("SESSIONID"))
                         )
                     }
-
-
             )
         )
 
@@ -160,7 +160,7 @@ fun main(args: Array<String>) {
         }
 
 
-        path("api/query"){
+        path("api/query") {
             post(QueryController::query)
         }
         /*path("api/list") {
@@ -192,5 +192,9 @@ fun main(args: Array<String>) {
                 get(SystemController::listLocks)
             }
         }*/
+    }.exception(ErrorStatusException::class.java) { e, ctx ->
+        ctx.status(e.code).json(e.toStatus())
+    }.exception(Exception::class.java) { e, ctx ->
+        ctx.status(500).json(ErrorStatus(500, "Internal server error: ${e.localizedMessage}"))
     }.start(7070)
 }

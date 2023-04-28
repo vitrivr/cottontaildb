@@ -123,7 +123,7 @@ export class DboDatasource implements DataSource<DboNode> {
         this.dataChange.next(null)
         return []
       }),
-      map((schemas) => schemas.map((schema) => new DboNode(schema.name, DboNodeType.SCHEMA))),
+      map((schemas) => schemas.map((schema) => new DboNode(schema.name, DboNodeType.SCHEMA, [], false, schema))),
     ).subscribe((schemas) => {
         node.mergeChildren(schemas)
         this.dataChange.next(null)

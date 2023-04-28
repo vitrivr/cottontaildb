@@ -96,11 +96,10 @@ export class SidebarComponent implements OnInit {
       if (result) {
         this.schemas.postApiByConnectionBySchema(node.name, result).pipe(
           catchError((err) => {
-            console.log(err);
-            let snackBarRef = this._snackBar.open(`Error occurred when trying to create schema ${result}: ${err.message}.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
+            this._snackBar.open(`Error occurred when trying to create schema '${result}': ${err.error.description}.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
             return []
           })).subscribe(r => {
-            let snackBarRef = this._snackBar.open(`Schema ${result} created successfully.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
+            this._snackBar.open(`Schema ${result} created successfully.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
             this.dataSource.refreshConnection(node); /* Reload children. */
         })
       }
