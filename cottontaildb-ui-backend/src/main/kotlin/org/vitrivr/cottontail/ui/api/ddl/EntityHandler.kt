@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.ui.api.ddl
 
-import com.google.gson.Gson
 import io.grpc.Status
 import io.grpc.StatusException
 import io.javalin.http.BadRequestResponse
@@ -32,11 +31,15 @@ data class IndexInfo(val index : CottontailGrpc.IndexType, val skipBuild : Boole
 
 
 @OpenApi(
-    summary = "Lists all entities in the database and schema specified by the connection string.",
     path = "/api/{connection}/{schema}/list",
-    tags = ["DDL", "Entity"],
-    operationId = OpenApiOperation.AUTO_GENERATE,
     methods = [HttpMethod.GET],
+    summary = "Lists all entities in the database and schema specified by the connection string.",
+    operationId = OpenApiOperation.AUTO_GENERATE,
+    tags = ["DDL", "Entity"],
+    pathParams = [
+        OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true),
+        OpenApiParam(name = "schema", description = "Name of the schema to list entities for.", required = true)
+    ],
     responses = [
         OpenApiResponse("200", [OpenApiContent(Array<String>::class)]),
         OpenApiResponse("400", [OpenApiContent(ErrorStatus::class)]),
@@ -63,11 +66,16 @@ fun listEntities(context: Context){
 }
 
 @OpenApi(
-    summary = "Lists details about the entity specified by the connection string.",
     path = "/api/{connection}/{schema}/{entity}",
-    tags = ["DDL", "Entity"],
-    operationId = OpenApiOperation.AUTO_GENERATE,
     methods = [HttpMethod.GET],
+    summary = "Lists details about the entity specified by the connection string.",
+    operationId = OpenApiOperation.AUTO_GENERATE,
+    tags = ["DDL", "Entity"],
+    pathParams = [
+        OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true),
+        OpenApiParam(name = "schema", description = "Name of the schema the entity belongs to.", required = true),
+        OpenApiParam(name = "entity", description = "Name of the entity to list details about.", required = true)
+    ],
     responses = [
         OpenApiResponse("200", [OpenApiContent(Entity::class)]),
         OpenApiResponse("400", [OpenApiContent(ErrorStatus::class)]),
@@ -101,12 +109,17 @@ fun aboutEntity(context: Context) {
 }
 
 @OpenApi(
-    summary = "Creates the entity specified by the connection string.",
     path = "/api/{connection}/{schema}/{entity}",
-    tags = ["DDL", "Entity"],
-    operationId = OpenApiOperation.AUTO_GENERATE,
     methods = [HttpMethod.POST],
+    summary = "Creates the entity specified by the connection string.",
+    operationId = OpenApiOperation.AUTO_GENERATE,
+    tags = ["DDL", "Entity"],
     requestBody = OpenApiRequestBody([OpenApiContent(Array<Column>::class)]),
+    pathParams = [
+        OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true),
+        OpenApiParam(name = "schema", description = "Name of the schema the entity belongs to.", required = true),
+        OpenApiParam(name = "entity", description = "Name of the entity to create.", required = true)
+    ],
     responses = [
         OpenApiResponse("200", [OpenApiContent(SuccessStatus::class)]),
         OpenApiResponse("400", [OpenApiContent(ErrorStatus::class)]),
@@ -141,11 +154,16 @@ fun createEntity(context: Context) {
 }
 
 @OpenApi(
-    summary = "Drops the entity specified by the connection string.",
     path = "/api/{connection}/{schema}/{entity}",
-    tags = ["DDL", "Entity"],
-    operationId = OpenApiOperation.AUTO_GENERATE,
     methods = [HttpMethod.DELETE],
+    summary = "Drops the entity specified by the connection string.",
+    operationId = OpenApiOperation.AUTO_GENERATE,
+    tags = ["DDL", "Entity"],
+    pathParams = [
+        OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true),
+        OpenApiParam(name = "schema", description = "Name of the schema the entity belongs to.", required = true),
+        OpenApiParam(name = "entity", description = "Name of the entity to drop.", required = true)
+    ],
     responses = [
         OpenApiResponse("200", [OpenApiContent(SuccessStatus::class)]),
         OpenApiResponse("400", [OpenApiContent(ErrorStatus::class)]),
@@ -170,11 +188,16 @@ fun dropEntity(context: Context){
 }
 
 @OpenApi(
-    summary = "Drops the entity specified by the connection string.",
-    path = "/api/{connection}/{schema}/{entity}",
-    tags = ["DDL", "Entity"],
-    operationId = OpenApiOperation.AUTO_GENERATE,
+    path = "/api/{connection}/{schema}/{entity}/truncate",
     methods = [HttpMethod.DELETE],
+    summary = "Truncates the entity specified by the connection string.",
+    operationId = OpenApiOperation.AUTO_GENERATE,
+    tags = ["DDL", "Entity"],
+    pathParams = [
+        OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true),
+        OpenApiParam(name = "schema", description = "Name of the schema the entity belongs to.", required = true),
+        OpenApiParam(name = "entity", description = "Name of the entity to truncate.", required = true)
+    ],
     responses = [
         OpenApiResponse("200", [OpenApiContent(SuccessStatus::class)]),
         OpenApiResponse("400", [OpenApiContent(ErrorStatus::class)]),

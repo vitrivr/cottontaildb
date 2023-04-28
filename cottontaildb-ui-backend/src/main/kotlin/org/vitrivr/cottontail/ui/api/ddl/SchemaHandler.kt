@@ -15,11 +15,15 @@ import org.vitrivr.cottontail.ui.model.status.ErrorStatusException
 import org.vitrivr.cottontail.ui.model.status.SuccessStatus
 
 @OpenApi(
-    summary = "Creates a new schema in the database specified by the connection string.",
     path = "/api/{connection}/{schema}",
-    tags = ["DDL", "Schema"],
-    operationId = OpenApiOperation.AUTO_GENERATE,
     methods = [HttpMethod.POST],
+    summary = "Creates a new schema in the database specified by the connection string.",
+    operationId = OpenApiOperation.AUTO_GENERATE,
+    tags = ["DDL", "Schema"],
+    pathParams = [
+        OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true),
+        OpenApiParam(name = "schema", description = "Name of the schema to create.", required = true)
+    ],
     responses = [
         OpenApiResponse("201", [OpenApiContent(SuccessStatus::class)]),
         OpenApiResponse("400", [OpenApiContent(ErrorStatus::class)]),
@@ -40,11 +44,15 @@ fun createSchema(context: Context){
 }
 
 @OpenApi(
-    summary = "Creates a new schema in the database specified by the connection string.",
     path = "/api/{connection}/{schema}",
-    tags = ["DDL", "Schema"],
-    operationId = OpenApiOperation.AUTO_GENERATE,
     methods = [HttpMethod.DELETE],
+    summary = "Creates a new schema in the database specified by the connection string.",
+    operationId = OpenApiOperation.AUTO_GENERATE,
+    tags = ["DDL", "Schema"],
+    pathParams = [
+        OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true),
+        OpenApiParam(name = "schema", description = "Name of the schema to drop.", required = true)
+    ],
     responses = [
         OpenApiResponse("200", [OpenApiContent(SuccessStatus::class)]),
         OpenApiResponse("400", [OpenApiContent(ErrorStatus::class)]),
@@ -65,11 +73,14 @@ fun dropSchema(context: Context){
 }
 
 @OpenApi(
-    summary = "Lists all schemas in the database specified by the connection string.",
     path = "/api/{connection}/list",
-    tags = ["DDL", "Schema"],
-    operationId = OpenApiOperation.AUTO_GENERATE,
     methods = [HttpMethod.GET],
+    summary = "Lists all schemas in the database specified by the connection string.",
+    operationId = OpenApiOperation.AUTO_GENERATE,
+    tags = ["DDL", "Schema"],
+    pathParams = [
+        OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true)
+    ],
     responses = [
         OpenApiResponse("200", [OpenApiContent(Array<Schema>::class)]),
         OpenApiResponse("400", [OpenApiContent(ErrorStatus::class)]),
