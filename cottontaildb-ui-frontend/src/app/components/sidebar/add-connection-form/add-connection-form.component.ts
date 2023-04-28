@@ -1,7 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import {Component} from '@angular/core';
 import {FormControl, FormGroup, Validators} from "@angular/forms";
-import {ConnectionService} from "../../../services/connection.service";
-import {TreeDataService} from "../../../services/tree-data.service";
 import {MatDialogRef} from "@angular/material/dialog";
 import {Connection} from "../../../../../openapi";
 
@@ -12,7 +10,7 @@ import {Connection} from "../../../../../openapi";
 })
 export class AddConnectionFormComponent {
 
-
+  /** The {@link FormGroup} used to enter the connection details. */
   public connectionForm = new FormGroup({
     port: new FormControl<number|null>(null, [
       Validators.required,
@@ -24,12 +22,11 @@ export class AddConnectionFormComponent {
   });
 
   /**
+   * Default constructor.
    *
-   * @param dialogRef
+   * @param dialogRef The {@link MatDialogRef} to use.
    */
-  constructor(private dialogRef : MatDialogRef<AddConnectionFormComponent>) {
-
-  }
+  constructor(private dialogRef : MatDialogRef<AddConnectionFormComponent>) { }
 
   /**
    *

@@ -1,58 +1,43 @@
-import {Component, OnDestroy, OnInit} from '@angular/core';
+import {ChangeDetectorRef, Component, OnDestroy, OnInit} from '@angular/core';
 import {ConnectionService} from "../../services/connection.service";
 import {CreateSchemaFormComponent} from "./create-schema-form/create-schema-form.component";
 import {AddConnectionFormComponent} from "./add-connection-form/add-connection-form.component";
 import {MatDialog} from "@angular/material/dialog";
 import {MatTreeNestedDataSource} from "@angular/material/tree";
 import {DboNode} from "./tree/dbo-node";
-import {NestedTreeControl} from "@angular/cdk/tree";
+import {FlatTreeControl, NestedTreeControl} from "@angular/cdk/tree";
 import {DboNodeType} from "./tree/dbo-node-type";
-import {Connection} from "../../../../openapi";
-import {Subscription} from "rxjs";
+import {Connection, SchemaService} from "../../../../openapi";
+import {catchError} from "rxjs";
+import {MatSnackBar, MatSnackBarConfig} from "@angular/material/snack-bar";
+import {DboDatasource} from "./tree/dbo-datasource";
 
 @Component({
   selector: 'app-sidebar',
   templateUrl: './sidebar.component.html',
   styleUrls: ['./sidebar.component.css']
 })
-export class SidebarComponent implements OnInit, OnDestroy {
-
-
-  /** */
-  private _connectionSubscription: Subscription
-
-  /** The raw {@link DboNode} array that backs the sidebar tree. */
-  private readonly _data: Array<DboNode> = []
-
-  /** The {@link MatTreeNestedDataSource} used as data source for the sidebar tree. */
-  public readonly dataSource = new MatTreeNestedDataSource<DboNode>();
+export class SidebarComponent implements OnInit {
 
   /** The {@link NestedTreeControl} used as control for the sidebar tree. */
-  public readonly treeControl = new NestedTreeControl<DboNode>(node=> node.children);
+  public readonly treeControl = new FlatTreeControl<DboNode,DboNode>(
+    (node: DboNode) => node.level,
+    (node) => node.expandable
+  );
+
+  /** The {@link MatTreeNestedDataSource} used as data source for the sidebar tree. */
+  public readonly dataSource = new DboDatasource(this.treeControl, this.connections, this.schemas);
 
   /**
    *
    * @param dialog
+   * @param _snackBar
+   * @param cdr
    * @param connections
+   * @param schemas
    */
-  constructor(private dialog: MatDialog, private connections: ConnectionService) {
-    /* Subscription that synchronises connection state with view. */
-    this._connectionSubscription = this.connections.connectionSubject.subscribe(connections => {
-      for (let c of connections) {
-        if (this._data.findIndex(v => v.type === DboNodeType.CONNECTION && v.name === `${c.host}:${c.port}`) == -1) {
-          this._data.push(new DboNode(`${c.host}:${c.port}`, DboNodeType.CONNECTION, []))
-        }
-      }
+  constructor(private dialog: MatDialog, private _snackBar: MatSnackBar, private cdr: ChangeDetectorRef, private connections: ConnectionService, private schemas: SchemaService) {
 
-      for (let c of this._data) {
-        let index = connections.findIndex(v => c.name === `${v.host}:${v.port}`)
-        if (index === -1) {
-          this._data.splice(index, 1)
-        }
-      }
-
-      this.dataSource.data = this._data
-    })
   }
 
   /**
@@ -63,34 +48,29 @@ export class SidebarComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Returns true if provided {@link DboNode} represents a connection.
    *
+   * @param index The index.
+   * @param node The {@link DboNode} to check.
    */
-  ngOnDestroy() {
-    this._connectionSubscription.unsubscribe()
+  public isConnection(index: number, node: DboNode): boolean {
+    return node.type === DboNodeType.CONNECTION
   }
 
   /**
+   * Returns true if provided {@link DboNode} represents a schema.
    *
-   * @param node
+   * @param index The index.
+   * @param node The {@link DboNode} to check.
    */
-  public hasChild(index: number, node: DboNode) {
-    return true;
+  public isSchema(index: number, node: DboNode): boolean {
+    return node.type === DboNodeType.SCHEMA
   }
 
   /**
-   * Loads the children of the given node.
-   *
-   * @param node
-   * @private
+   * Opens the form to create a new connection and establishes the connection upon completion.
    */
-  private refreshChildren(node: DboNode): DboNode[] {
-    return []
-  }
-
-  /**
-   *
-   */
-  public createConnection() {
+  public connect() {
     let ref = this.dialog.open<AddConnectionFormComponent>(AddConnectionFormComponent, {
       width: 'fit-content',
       height: 'fit-content',
@@ -98,16 +78,32 @@ export class SidebarComponent implements OnInit, OnDestroy {
     ref.afterClosed().subscribe((result: Connection) => this.connections.connect(result))
   }
 
-
   /**
    *
    * @param connection
    */
-  onCreateSchema(connection: Connection) {
-    let ref = this.dialog.open<CreateSchemaFormComponent>(CreateSchemaFormComponent, {width: 'fit-content', height: 'fit-content'})
-    ref.afterClosed().subscribe((result: Connection) => this.connections.connect(result))
-  }
-  onRemoveConnection(connection: any) {
+  public disconnect(connection: Connection) {
     this.connections.disconnect(connection)
+  }
+
+  /**
+   * Opens the form to create a new schema and creates it upon completion.
+   */
+  public createSchema(node: DboNode) {
+    if (node.type !== DboNodeType.CONNECTION) throw new Error("Cannot create schema for non-connection node.");
+    let ref = this.dialog.open<CreateSchemaFormComponent>(CreateSchemaFormComponent, {width: 'fit-content', height: 'fit-content'})
+    ref.afterClosed().subscribe((result: string) => {
+      if (result) {
+        this.schemas.postApiByConnectionBySchema(node.name, result).pipe(
+          catchError((err) => {
+            console.log(err);
+            let snackBarRef = this._snackBar.open(`Error occurred when trying to create schema ${result}: ${err.message}.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
+            return []
+          })).subscribe(r => {
+            let snackBarRef = this._snackBar.open(`Schema ${result} created successfully.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
+            this.dataSource.refreshConnection(node); /* Reload children. */
+        })
+      }
+    })
   }
 }
