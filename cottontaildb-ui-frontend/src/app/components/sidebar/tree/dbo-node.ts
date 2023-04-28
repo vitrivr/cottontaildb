@@ -1,4 +1,5 @@
 import {DboNodeType} from "./dbo-node-type";
+import {Connection, Schema} from "../../../../../openapi";
 
 /**
  * An enumeration of the different DBO node types displayed in the tree view.
@@ -12,21 +13,19 @@ export class DboNode {
    * @param name
    * @param type
    * @param children
+   * @param parent
    * @param isLoading
    * @param context
    */
-  constructor(public readonly name: string, public readonly type: DboNodeType, public children: DboNode[] = [], public isLoading: boolean = false, public context: any = null) {
+  constructor(
+    public readonly name: string,
+    public readonly type: DboNodeType,
+    public readonly children: DboNode[] = [],
+    public parent: DboNode | undefined = undefined,
+    public isLoading: boolean = false,
+    public context: Connection | Schema | undefined = undefined
+  ) {
 
-  }
-
-
-  /**
-   * Creates a deep copy of this {@link DboNode} and returns it.
-   *
-   * @return {@link DboNode}
-   */
-  public deepCopy(): DboNode {
-    return new DboNode(this.name, this.type, this.children.map(child => child.deepCopy()), this.isLoading, this.context);
   }
 
   /**
@@ -38,16 +37,19 @@ export class DboNode {
       case DboNodeType.CONNECTION:
         if (child.type == DboNodeType.SCHEMA) {
           this.children.push(child)
+          child.parent = this
         }
         break;
       case DboNodeType.SCHEMA:
         if (child.type == DboNodeType.ENTITY) {
           this.children.push(child)
+          child.parent = this
         }
         break;
       case DboNodeType.ENTITY:
         if (child.type == DboNodeType.INDEX || child.type == DboNodeType.COLUMN) {
           this.children.push(child)
+          child.parent = this
         }
         break;
       default:
@@ -66,9 +68,9 @@ export class DboNode {
       }
     }
 
-    for (const [index, child] of children.entries()) {
+    for (const [index, child] of this.children.entries()) {
       if (children.findIndex(v => v.name === child.name) == -1) {
-        children.splice(index, 1)
+        this.children.splice(index, 1)
       }
     }
   }

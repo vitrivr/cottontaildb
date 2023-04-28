@@ -7,7 +7,7 @@ import {MatTreeNestedDataSource} from "@angular/material/tree";
 import {DboNode} from "./tree/dbo-node";
 import {FlatTreeControl, NestedTreeControl} from "@angular/cdk/tree";
 import {DboNodeType} from "./tree/dbo-node-type";
-import {Connection, SchemaService} from "../../../../openapi";
+import {Connection, Schema, SchemaService} from "../../../../openapi";
 import {catchError} from "rxjs";
 import {MatSnackBar, MatSnackBarConfig} from "@angular/material/snack-bar";
 import {DboDatasource} from "./tree/dbo-datasource";
@@ -103,6 +103,21 @@ export class SidebarComponent implements OnInit {
             this.dataSource.refreshConnection(node); /* Reload children. */
         })
       }
+    })
+  }
+
+  /**
+   * Opens the form to create a new schema and creates it upon completion.
+   */
+  public dropSchema(node: DboNode) {
+    if (node.type !== DboNodeType.SCHEMA) throw new Error("Cannot drop schema for non-schema node.");
+    this.schemas.deleteApiByConnectionBySchema(node.parent!!.name, (node.context!! as Schema).name).pipe(
+      catchError((err) => {
+        this._snackBar.open(`Error occurred when trying to create schema '${node.name}': ${err.error.description}.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
+        return []
+      })).subscribe(r => {
+        this._snackBar.open(`Schema ${node.name} dropped successfully.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
+        this.dataSource.refreshConnection(node.parent!!); /* Reload children. */
     })
   }
 }

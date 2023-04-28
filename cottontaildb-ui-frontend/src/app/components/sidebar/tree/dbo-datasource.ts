@@ -1,7 +1,7 @@
 import {CollectionViewer, DataSource, SelectionChange} from "@angular/cdk/collections";
 import {catchError, map, merge, Observable, Subject, Subscription} from "rxjs";
 import {DboNode} from "./dbo-node";
-import {FlatTreeControl, NestedTreeControl} from "@angular/cdk/tree";
+import {FlatTreeControl} from "@angular/cdk/tree";
 import {ConnectionService} from "../../../services/connection.service";
 import {SchemaService} from "../../../../../openapi";
 import {DboNodeType} from "./dbo-node-type";
@@ -39,6 +39,11 @@ export class DboDatasource implements DataSource<DboNode> {
 
   /**
    *
+   */
+  get data(): DboNode[] { return this._data; }
+
+  /**
+   *
    * @param collectionViewer
    */
   public connect(collectionViewer: CollectionViewer): Observable<DboNode[]> {
@@ -46,7 +51,7 @@ export class DboDatasource implements DataSource<DboNode> {
     this._connectionSubscription = this.connections.connectionSubject.subscribe(connections => {
       for (let c of connections) {
         if (this._data.findIndex(v => v.type === DboNodeType.CONNECTION && v.name === `${c.host}:${c.port}`) == -1) {
-          this._data.push(new DboNode(`${c.host}:${c.port}`, DboNodeType.CONNECTION, []))
+          this._data.push(new DboNode(`${c.host}:${c.port}`, DboNodeType.CONNECTION, [], undefined, false, c))
         }
       }
 
@@ -63,7 +68,7 @@ export class DboDatasource implements DataSource<DboNode> {
         change.added.forEach(node => this.refresh(node));
       }
       if ((change as SelectionChange<DboNode>).removed) {
-        change.removed.forEach(node => node.children = []);
+        change.removed.forEach(node => node.children.splice(0, node.children.length));
         this.dataChange.next(null)
       }
     });
@@ -119,11 +124,11 @@ export class DboDatasource implements DataSource<DboNode> {
     this.schemas.getApiByConnectionList(node.name).pipe(
       catchError((err) => {
         console.error(err)
-        node.children = []
+        node.children.splice(0, node.children.length)
         this.dataChange.next(null)
         return []
       }),
-      map((schemas) => schemas.map((schema) => new DboNode(schema.name, DboNodeType.SCHEMA, [], false, schema))),
+      map((schemas) => schemas.map((schema) => new DboNode(schema.name, DboNodeType.SCHEMA, [], undefined, false, schema)))
     ).subscribe((schemas) => {
         node.mergeChildren(schemas)
         this.dataChange.next(null)
