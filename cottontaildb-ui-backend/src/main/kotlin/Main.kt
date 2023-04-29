@@ -156,7 +156,7 @@ fun main(args: Array<String>) {
                     post("{entity}") { createEntity(it) }
                     delete("{entity}") { dropEntity(it) }
                     path("{entity}") {
-                        delete("preview") { previewEntity(it) }
+                        get("preview") { previewEntity(it) }
                         delete("{truncate}") { truncateEntity(it) }
                     }
                 }
