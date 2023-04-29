@@ -11,8 +11,7 @@ import kotlin.math.pow
  * @version 1.6.0
  * @author Manuel Huerbin & Ralph Gasser
  */
-@JvmInline
-value class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Float> {
+class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Float> {
 
     /**
      * Constructor given an array of [Number]s
@@ -532,4 +531,19 @@ value class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Floa
             DoubleValue(sum)
         }
     } else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as Complex32VectorValue
+
+        if (!data.contentEquals(other.data)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return data.contentHashCode()
+    }
 }

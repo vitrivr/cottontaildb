@@ -10,8 +10,7 @@ import kotlin.math.pow
  * @author Ralph Gasser
  * @version 1.6.0
  */
-@JvmInline
-value class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
+class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
     constructor(input: List<Number>) : this(LongArray(input.size) { input[it].toLong() })
     constructor(input: Array<Number>) : this(LongArray(input.size) { input[it].toLong() })
     constructor(input: DoubleArray) : this(LongArray(input.size) { input[it].toLong() })
@@ -268,4 +267,18 @@ value class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
      * @return The [LongVectorValue] representing the sub-vector.
      */
     override fun slice(start: Int, length: Int) = LongVectorValue(this.data.copyOfRange(start, start + length))
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as LongVectorValue
+
+        if (!data.contentEquals(other.data)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return data.contentHashCode()
+    }
 }
