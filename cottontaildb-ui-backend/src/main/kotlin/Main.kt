@@ -22,6 +22,7 @@ import org.eclipse.jetty.server.session.FileSessionDataStore
 import org.eclipse.jetty.server.session.SessionHandler
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.ui.api.ddl.*
+import org.vitrivr.cottontail.ui.api.dql.previewEntity
 import org.vitrivr.cottontail.ui.api.query.QueryController
 import org.vitrivr.cottontail.ui.api.session.connect
 import org.vitrivr.cottontail.ui.api.session.connections
@@ -155,6 +156,7 @@ fun main(args: Array<String>) {
                     post("{entity}") { createEntity(it) }
                     delete("{entity}") { dropEntity(it) }
                     path("{entity}") {
+                        delete("preview") { previewEntity(it) }
                         delete("{truncate}") { truncateEntity(it) }
                     }
                 }
