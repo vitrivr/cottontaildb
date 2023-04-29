@@ -1150,9 +1150,13 @@
             "items" : {
               "type" : "string"
             }
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int64"
           }
         },
-        "required" : [ "columns", "values" ]
+        "required" : [ "columns", "values", "size" ]
       },
       "Connection" : {
         "type" : "object",

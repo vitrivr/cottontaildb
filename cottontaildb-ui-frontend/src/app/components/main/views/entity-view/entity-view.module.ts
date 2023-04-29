@@ -9,6 +9,9 @@ import {MatTabsModule} from "@angular/material/tabs";
 import {MatSortModule} from "@angular/material/sort";
 import {EntityViewComponent} from "./entity-view.component";
 import {EntityPreviewComponent} from "./entity-preview.component";
+import {MatInputModule} from "@angular/material/input";
+import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
+import {MatProgressBarModule} from "@angular/material/progress-bar";
 
 @NgModule({
   declarations: [
@@ -23,7 +26,10 @@ import {EntityPreviewComponent} from "./entity-preview.component";
     MatIconModule,
     MatPaginatorModule,
     MatTabsModule,
-    MatSortModule
+    MatSortModule,
+    MatInputModule,
+    MatProgressSpinnerModule,
+    MatProgressBarModule
   ],
   providers: [EntityViewComponent],
   exports: [EntityViewComponent],
