@@ -11,11 +11,12 @@ import {Connection, Dbo, EntityService, SchemaService} from "../../../../openapi
 import {catchError} from "rxjs";
 import {MatSnackBar, MatSnackBarConfig} from "@angular/material/snack-bar";
 import {DboDatasource} from "./tree/dbo-datasource";
+import {ActivatedRoute, Params, Router} from "@angular/router";
 
 @Component({
   selector: 'app-sidebar',
   templateUrl: './sidebar.component.html',
-  styleUrls: ['./sidebar.component.css']
+  styleUrls: ['./sidebar.component.scss']
 })
 export class SidebarComponent implements OnInit {
 
@@ -25,6 +26,9 @@ export class SidebarComponent implements OnInit {
     (node) => node.expandable
   );
 
+  /** The currently selected {@link DboNode}. */
+  public selectedNode: DboNode | undefined = undefined
+
   /** The {@link MatTreeNestedDataSource} used as data source for the sidebar tree. */
   public readonly dataSource = new DboDatasource(this.treeControl, this.connections, this.schemas, this.entities);
 
@@ -32,13 +36,17 @@ export class SidebarComponent implements OnInit {
    *
    * @param dialog
    * @param _snackBar
-   * @param cdr
+   * @param router
+   * @param activatedRoute
    * @param connections
    * @param schemas
+   * @param entities
    */
   constructor(private dialog: MatDialog,
               private _snackBar: MatSnackBar,
-             private connections: ConnectionService,
+              private router: Router,
+              private activatedRoute: ActivatedRoute,
+              private connections: ConnectionService,
               private schemas: SchemaService,
               private entities: EntityService
   ) {
@@ -99,6 +107,31 @@ export class SidebarComponent implements OnInit {
    */
   public disconnect(connection: Connection) {
     this.connections.disconnect(connection)
+  }
+
+  /**
+   * Handles selection of a {@link DboNode} in the sidebar. Updates the navigation state accordingly.
+   *
+   * @param node The {@link DboNode} that was selected.
+   */
+  public nodeSelected(node: DboNode) {
+    const queryParams: Params = { };
+    switch (node.type) {
+      case DboNodeType.CONNECTION:
+        queryParams['connection'] = node.name
+        break;
+      case DboNodeType.SCHEMA:
+        queryParams['connection'] = node.parent!!.name
+        queryParams['schema'] = node.name
+        break;
+      case DboNodeType.ENTITY:
+        queryParams['connection'] = node.parent!!.parent!!.name
+        queryParams['schema'] = node.parent!!.name
+        queryParams['entity'] = node.name
+        break;
+    }
+    this.selectedNode = node
+    this.router.navigate([], {relativeTo: this.activatedRoute, queryParams: queryParams, queryParamsHandling: 'merge'})
   }
 
   /**

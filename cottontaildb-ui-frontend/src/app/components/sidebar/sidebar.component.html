@@ -14,7 +14,7 @@
       </mat-tree-node>
 
       <!-- Handle connection tree nodes -->
-      <mat-tree-node *matTreeNodeDef="let node; when: isConnection">
+      <mat-tree-node *matTreeNodeDef="let node; when: isConnection" (click)="nodeSelected(node)" [class]="node == selectedNode ? 'selected' : ''">
         <div class="mat-tree-node">
           <button mat-icon-button [attr.aria-label]="'Toggle ' + node.name" matTreeNodeToggle>
             <mat-icon class="mat-icon-rtl-mirror">
@@ -43,7 +43,7 @@
       </mat-tree-node>
 
       <!-- Handle schema tree nodes -->
-      <mat-tree-node *matTreeNodeDef="let node; when: isSchema" matTreeNodePadding>
+      <mat-tree-node *matTreeNodeDef="let node; when: isSchema" matTreeNodePadding (click)="nodeSelected(node)" [class]="node == selectedNode ? 'selected' : ''">
         <div>
           <button mat-icon-button [attr.aria-label]="'Toggle ' + node.name" matTreeNodeToggle >
             <mat-icon class="mat-icon-rtl-mirror">
@@ -69,7 +69,7 @@
       </mat-tree-node>
 
       <!-- Handle schema tree nodes -->
-      <mat-tree-node *matTreeNodeDef="let node; when: isEntity" matTreeNodePadding>
+      <mat-tree-node *matTreeNodeDef="let node; when: isEntity" matTreeNodePadding (click)="nodeSelected(node)"  [class]="node == selectedNode ? 'selected' : ''">
         <div>
           <button mat-icon-button [attr.aria-label]="'Toggle ' + node.name" matTreeNodeToggle >
             <mat-icon class="mat-icon-rtl-mirror">
