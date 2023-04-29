@@ -1,7 +1,7 @@
-import { Injectable } from '@angular/core';
+import {Injectable} from '@angular/core';
 import {HttpClient} from "@angular/common/http";
 import {Observable} from "rxjs";
-import {Entity} from "../interfaces/Entity";
+import {Entity} from "../model/Entity";
 import {ConnectionService} from "./connection.service";
 import {Connection} from "../../../openapi";
 

@@ -1,16 +1,15 @@
 package org.vitrivr.cottontail.ui.api.ddl
 
 import io.grpc.Status
-import io.grpc.StatusException
 import io.grpc.StatusRuntimeException
 import io.javalin.http.Context
 import io.javalin.openapi.*
-import org.vitrivr.cottontail.client.iterators.TupleIterator
 import org.vitrivr.cottontail.client.language.ddl.CreateSchema
 import org.vitrivr.cottontail.client.language.ddl.DropSchema
 import org.vitrivr.cottontail.client.language.ddl.ListSchemas
+import org.vitrivr.cottontail.ui.api.database.drainToList
 import org.vitrivr.cottontail.ui.api.database.obtainClientForContext
-import org.vitrivr.cottontail.ui.model.dbo.Schema
+import org.vitrivr.cottontail.ui.model.dbo.Dbo
 import org.vitrivr.cottontail.ui.model.status.ErrorStatus
 import org.vitrivr.cottontail.ui.model.status.ErrorStatusException
 import org.vitrivr.cottontail.ui.model.status.SuccessStatus
@@ -89,7 +88,7 @@ fun dropSchema(context: Context){
         OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true)
     ],
     responses = [
-        OpenApiResponse("200", [OpenApiContent(Array<Schema>::class)]),
+        OpenApiResponse("200", [OpenApiContent(Array<Dbo>::class)]),
         OpenApiResponse("400", [OpenApiContent(ErrorStatus::class)]),
         OpenApiResponse("500", [OpenApiContent(ErrorStatus::class)]),
         OpenApiResponse("503", [OpenApiContent(ErrorStatus::class)])
@@ -100,15 +99,9 @@ fun listSchemas(context: Context) {
 
     /** using ClientConfig's client, sending ListSchemas message to Cottontail DB. */
     try {
-        val result: TupleIterator = client.list(ListSchemas())
-        val schemas: MutableList<Schema> = mutableListOf()
-
         /** Iterate through schemas and create list. */
-        result.forEach {
-            val string = it.asString(0)
-            if (!string.isNullOrBlank()) {
-                schemas.add(Schema(string!!.split('.')[1], string))
-            }
+        val schemas = client.list(ListSchemas()).drainToList {
+            Dbo.schema(it.asString(0)!!)
         }
         context.json(schemas)
     } catch (e: StatusRuntimeException) {

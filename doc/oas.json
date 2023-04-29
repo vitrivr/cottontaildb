@@ -169,7 +169,7 @@
                 "schema" : {
                   "type" : "array",
                   "items" : {
-                    "$ref" : "#/components/schemas/Schema"
+                    "$ref" : "#/components/schemas/Dbo"
                   }
                 }
               }
@@ -177,6 +177,188 @@
           },
           "400" : {
             "description" : "Bad Request",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Server Error",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "Service Unavailable",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          }
+        },
+        "deprecated" : false,
+        "security" : [ ]
+      }
+    },
+    "/api/{connection}/locks" : {
+      "get" : {
+        "tags" : [ "System" ],
+        "summary" : "Lists details about the entity specified by the connection string.",
+        "operationId" : "getListLocks",
+        "parameters" : [ {
+          "name" : "connection",
+          "in" : "path",
+          "description" : "Connection string in the for <host>:<port>.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Entity"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Server Error",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          }
+        },
+        "deprecated" : false,
+        "security" : [ ]
+      }
+    },
+    "/api/{connection}/transactions" : {
+      "get" : {
+        "tags" : [ "System", "Transaction" ],
+        "summary" : "Lists all ongoing transactions in the database specified by the connection string.",
+        "operationId" : "getListTransactions",
+        "parameters" : [ {
+          "name" : "connection",
+          "in" : "path",
+          "description" : "Connection string in the for <host>:<port>.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/Transaction"
+                  }
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Server Error",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          }
+        },
+        "deprecated" : false,
+        "security" : [ ]
+      }
+    },
+    "/api/{connection}/transactions/{txId}" : {
+      "delete" : {
+        "tags" : [ "System", "Transaction" ],
+        "summary" : "Kills an ongoing transaction in the database specified by the connection string.",
+        "operationId" : "deleteKillTransaction",
+        "parameters" : [ {
+          "name" : "connection",
+          "in" : "path",
+          "description" : "Connection string in the for <host>:<port>.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "txId",
+          "in" : "path",
+          "description" : "The numeric transaction ID to kill.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/Transaction"
+                  }
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Not Found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Server Error",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -236,6 +418,26 @@
                 }
               }
             }
+          },
+          "500" : {
+            "description" : "Server Error",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "Service Unavailable",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
           }
         },
         "deprecated" : false,
@@ -286,6 +488,26 @@
                 }
               }
             }
+          },
+          "500" : {
+            "description" : "Server Error",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "Service Unavailable",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
           }
         },
         "deprecated" : false,
@@ -326,7 +548,7 @@
                 "schema" : {
                   "type" : "array",
                   "items" : {
-                    "type" : "string"
+                    "$ref" : "#/components/schemas/Dbo"
                   }
                 }
               }
@@ -354,6 +576,16 @@
           },
           "500" : {
             "description" : "Server Error",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "Service Unavailable",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -622,6 +854,130 @@
         "security" : [ ]
       }
     },
+    "/api/{connection}/{schema}/{entity}/preview" : {
+      "get" : {
+        "tags" : [ "DQL", "Entity" ],
+        "summary" : "Previews data for the entity specified by the connection string The preview can be customised through parameters.",
+        "operationId" : "getEntityPreview",
+        "parameters" : [ {
+          "name" : "connection",
+          "in" : "path",
+          "description" : "Connection string in the for <host>:<port>.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "schema",
+          "in" : "path",
+          "description" : "Name of the schema the entity belongs to.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "entity",
+          "in" : "path",
+          "description" : "Name of the entity to list details about.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "description" : "The maximum size of the result set. Used for pagination.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "skip",
+          "in" : "query",
+          "description" : "The number of items to skip in the result set. Used for pagination.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "sortColumn",
+          "in" : "query",
+          "description" : "The name of the column to sort by.",
+          "required" : false,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "sortDirection",
+          "in" : "query",
+          "description" : "The requested sort direct.",
+          "required" : false,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Resultset"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Not Found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Server Error",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          }
+        },
+        "deprecated" : false,
+        "security" : [ ]
+      }
+    },
     "/api/{connection}/{schema}/{entity}/truncate" : {
       "delete" : {
         "tags" : [ "DDL", "Entity" ],
@@ -720,19 +1076,29 @@
           },
           "type" : {
             "$ref" : "#/components/schemas/Type"
-          },
-          "length" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "nullable" : {
-            "type" : "boolean"
-          },
-          "autoIncrement" : {
-            "type" : "boolean"
           }
         },
-        "required" : [ "name", "type", "length", "nullable", "autoIncrement" ]
+        "required" : [ "name", "type" ]
+      },
+      "Dbo" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "fqn" : {
+            "type" : "string"
+          },
+          "type" : {
+            "$ref" : "#/components/schemas/DboType"
+          }
+        },
+        "required" : [ "name", "fqn", "type" ]
+      },
+      "DboType" : {
+        "type" : "string",
+        "enum" : [ "SCHEMA", "ENTITY", "COLUMN", "INDEX" ]
       },
       "Entity" : {
         "type" : "object",
@@ -769,18 +1135,24 @@
         },
         "required" : [ "name", "type" ]
       },
-      "Schema" : {
+      "Resultset" : {
         "type" : "object",
         "additionalProperties" : false,
         "properties" : {
-          "name" : {
-            "type" : "string"
+          "columns" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Column"
+            }
           },
-          "fqn" : {
-            "type" : "string"
+          "values" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
           }
         },
-        "required" : [ "name", "fqn" ]
+        "required" : [ "columns", "values" ]
       },
       "Connection" : {
         "type" : "object",
@@ -819,6 +1191,37 @@
           }
         },
         "required" : [ "description" ]
+      },
+      "Transaction" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "txId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "type" : {
+            "type" : "string"
+          },
+          "state" : {
+            "$ref" : "#/components/schemas/TransactionStatus"
+          },
+          "created" : {
+            "type" : "string"
+          },
+          "ended" : {
+            "type" : "string"
+          },
+          "duration" : {
+            "type" : "number",
+            "format" : "double"
+          }
+        },
+        "required" : [ "txId", "type", "state", "created", "duration" ]
+      },
+      "TransactionStatus" : {
+        "type" : "string",
+        "enum" : [ "IDLE", "RUNNING", "FINALIZING", "ERROR", "COMMIT", "ROLLBACK" ]
       }
     },
     "securitySchemes" : {

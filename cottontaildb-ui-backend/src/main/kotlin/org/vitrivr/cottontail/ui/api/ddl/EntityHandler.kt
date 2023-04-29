@@ -2,33 +2,29 @@ package org.vitrivr.cottontail.ui.api.ddl
 
 import io.grpc.Status
 import io.grpc.StatusException
+import io.grpc.StatusRuntimeException
 import io.javalin.http.BadRequestResponse
 import io.javalin.http.Context
 import io.javalin.openapi.*
 import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.client.language.ddl.*
-import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.ui.api.database.drainToList
 import org.vitrivr.cottontail.ui.api.database.obtainClientForContext
 import org.vitrivr.cottontail.ui.model.dbo.Column
+import org.vitrivr.cottontail.ui.model.dbo.Dbo
 import org.vitrivr.cottontail.ui.model.dbo.Entity
 import org.vitrivr.cottontail.ui.model.dbo.Index
 import org.vitrivr.cottontail.ui.model.status.ErrorStatus
 import org.vitrivr.cottontail.ui.model.status.ErrorStatusException
 import org.vitrivr.cottontail.ui.model.status.SuccessStatus
-import java.util.LinkedList
+import java.util.*
 
 @Suppress("unused")
 class DeleteDetails(details: Tuple){
     var deleted: Long? = details.asLong("deleted")
     var duration_ms : Double? = details.asDouble("duration_ms")
 }
-
-class ColumnEntry (val column: String, val value: Any?)
-
-data class IndexInfo(val index : CottontailGrpc.IndexType, val skipBuild : Boolean)
-
 
 @OpenApi(
     path = "/api/{connection}/{schema}/list",
@@ -41,10 +37,11 @@ data class IndexInfo(val index : CottontailGrpc.IndexType, val skipBuild : Boole
         OpenApiParam(name = "schema", description = "Name of the schema to list entities for.", required = true)
     ],
     responses = [
-        OpenApiResponse("200", [OpenApiContent(Array<String>::class)]),
+        OpenApiResponse("200", [OpenApiContent(Array<Dbo>::class)]),
         OpenApiResponse("400", [OpenApiContent(ErrorStatus::class)]),
         OpenApiResponse("404", [OpenApiContent(ErrorStatus::class)]),
         OpenApiResponse("500", [OpenApiContent(ErrorStatus::class)]),
+        OpenApiResponse("503", [OpenApiContent(ErrorStatus::class)]),
     ]
 )
 fun listEntities(context: Context){
@@ -54,12 +51,13 @@ fun listEntities(context: Context){
     /* Prepare query and empty list all entities. */
     try {
         val result = client.list(ListEntities(schemaName)).drainToList {
-            it.asString(0)!! /* This cannot be null. */
+            Dbo.entity(it.asString(0)!!)
         }
         context.json(result)
-    } catch (e: StatusException) {
-        when (e.status) {
-            Status.NOT_FOUND -> throw ErrorStatusException(404, "Failed to list entities because schema $schemaName does not exist.")
+    } catch (e: StatusRuntimeException) {
+        when (e.status.code) {
+            Status.Code.NOT_FOUND -> throw ErrorStatusException(404, "Failed to list entities because schema $schemaName does not exist.")
+            Status.Code.UNAVAILABLE -> throw ErrorStatusException(503, "Connection is currently not available.")
             else -> throw ErrorStatusException(500, "Failed to list entities for schema $schemaName.")
         }
     }

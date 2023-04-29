@@ -3,7 +3,7 @@
  *
  * @author Ralph Gasser
  */
-export enum DboNodeType {
+export enum DboType {
   CONNECTION = 0,
   SCHEMA = 1,
   ENTITY = 2,

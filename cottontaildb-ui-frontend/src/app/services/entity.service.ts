@@ -1,8 +1,8 @@
-import { Injectable } from '@angular/core';
+import {Injectable} from '@angular/core';
 import {BehaviorSubject, Observable} from "rxjs";
 import {HttpClient} from "@angular/common/http";
-import {ColumnDefinition} from "../interfaces/ColumnDefinition";
-import {IndexDefinition} from "../interfaces/IndexDefinition";
+import {ColumnDefinition} from "../model/ColumnDefinition";
+import {IndexDefinition} from "../model/IndexDefinition";
 import {ConnectionService} from "./connection.service";
 import {MatSnackBar} from "@angular/material/snack-bar";
 import {Connection} from "../../../openapi";

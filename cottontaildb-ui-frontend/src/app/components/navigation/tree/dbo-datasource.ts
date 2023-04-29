@@ -3,8 +3,8 @@ import {catchError, map, merge, Observable, Subject, Subscription} from "rxjs";
 import {DboNode} from "./dbo-node";
 import {FlatTreeControl} from "@angular/cdk/tree";
 import {ConnectionService} from "../../../services/connection.service";
-import {SchemaService} from "../../../../../openapi";
-import {DboNodeType} from "./dbo-node-type";
+import {EntityService, SchemaService} from "../../../../../openapi";
+import {DboType} from "../../../model/dbo/dbo-type";
 
 /**
  * File database, it can build a tree structured Json object from string.
@@ -33,7 +33,8 @@ export class DboDatasource implements DataSource<DboNode> {
   constructor(
     private _treeControl: FlatTreeControl<DboNode>,
     private connections: ConnectionService,
-    private schemas: SchemaService
+    private schemas: SchemaService,
+    private entities: EntityService
   ) {
   }
 
@@ -50,8 +51,8 @@ export class DboDatasource implements DataSource<DboNode> {
     /* Subscription that synchronises connection state with view. */
     this._connectionSubscription = this.connections.connectionSubject.subscribe(connections => {
       for (let c of connections) {
-        if (this._data.findIndex(v => v.type === DboNodeType.CONNECTION && v.name === `${c.host}:${c.port}`) == -1) {
-          this._data.push(new DboNode(`${c.host}:${c.port}`, DboNodeType.CONNECTION, [], undefined, false, c))
+        if (this._data.findIndex(v => v.type === DboType.CONNECTION && v.name === `${c.host}:${c.port}`) == -1) {
+          this._data.push(new DboNode(`${c.host}:${c.port}`, DboType.CONNECTION, [], undefined, false, c))
         }
       }
 
@@ -104,8 +105,11 @@ export class DboDatasource implements DataSource<DboNode> {
    */
   public refresh(node: DboNode) {
     switch (node.type) {
-      case DboNodeType.CONNECTION:
+      case DboType.CONNECTION:
         this.refreshConnection(node);
+        break;
+      case DboType.SCHEMA:
+        this.refreshSchema(node);
         break;
       default:
         break;
@@ -119,7 +123,7 @@ export class DboDatasource implements DataSource<DboNode> {
    * @private
    */
   public refreshConnection(node: DboNode) {
-    if (node.type !== DboNodeType.CONNECTION) throw new Error("Cannot refresh connection for non-connection node.");
+    if (node.type !== DboType.CONNECTION) throw new Error("Cannot refresh connection for non-connection node.");
     node.isLoading = true
     this.schemas.getApiByConnectionList(node.name).pipe(
       catchError((err) => {
@@ -128,11 +132,35 @@ export class DboDatasource implements DataSource<DboNode> {
         this.dataChange.next(null)
         return []
       }),
-      map((schemas) => schemas.map((schema) => new DboNode(schema.name, DboNodeType.SCHEMA, [], undefined, false, schema)))
+      map((schemas) => schemas.map((schema) => new DboNode(schema.name, DboType.SCHEMA, [], undefined, false, schema)))
     ).subscribe((schemas) => {
         node.mergeChildren(schemas)
         this.dataChange.next(null)
         node.isLoading = false
+    })
+  }
+
+  /**
+   * Handles the expansion of the children of the given node of type {@link DboType.SCHEMA}.
+   *
+   * @param node
+   * @private
+   */
+  public refreshSchema(node: DboNode) {
+    if (node.type !== DboType.SCHEMA) throw new Error("Cannot refresh schema for non-schema node.");
+    node.isLoading = true
+    this.entities.getApiByConnectionBySchemaList(node.parent!!.name, node.name).pipe(
+      catchError((err) => {
+        console.error(err)
+        node.children.splice(0, node.children.length)
+        this.dataChange.next(null)
+        return []
+      }),
+      map((entities) => entities.map((entity) => new DboNode(entity.name, DboType.ENTITY, [], undefined, false, entity)))
+    ).subscribe((entities) => {
+      node.mergeChildren(entities)
+      this.dataChange.next(null)
+      node.isLoading = false
     })
   }
 }

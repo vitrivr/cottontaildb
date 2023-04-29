@@ -1,5 +1,5 @@
-import {DboNodeType} from "./dbo-node-type";
-import {Connection, Schema} from "../../../../../openapi";
+import {Connection, Dbo} from "../../../../../openapi";
+import {DboType} from "../../../model/dbo/dbo-type";
 
 /**
  * An enumeration of the different DBO node types displayed in the tree view.
@@ -19,11 +19,11 @@ export class DboNode {
    */
   constructor(
     public readonly name: string,
-    public readonly type: DboNodeType,
+    public readonly type: DboType,
     public readonly children: DboNode[] = [],
     public parent: DboNode | undefined = undefined,
     public isLoading: boolean = false,
-    public context: Connection | Schema | undefined = undefined
+    public context: Connection | Dbo | undefined = undefined
   ) {
 
   }
@@ -34,20 +34,20 @@ export class DboNode {
    */
   public addChild(child : DboNode){
     switch (this.type) {
-      case DboNodeType.CONNECTION:
-        if (child.type == DboNodeType.SCHEMA) {
+      case DboType.CONNECTION:
+        if (child.type == DboType.SCHEMA) {
           this.children.push(child)
           child.parent = this
         }
         break;
-      case DboNodeType.SCHEMA:
-        if (child.type == DboNodeType.ENTITY) {
+      case DboType.SCHEMA:
+        if (child.type == DboType.ENTITY) {
           this.children.push(child)
           child.parent = this
         }
         break;
-      case DboNodeType.ENTITY:
-        if (child.type == DboNodeType.INDEX || child.type == DboNodeType.COLUMN) {
+      case DboType.ENTITY:
+        if (child.type == DboType.INDEX || child.type == DboType.COLUMN) {
           this.children.push(child)
           child.parent = this
         }
@@ -86,26 +86,6 @@ export class DboNode {
    *
    */
   get expandable(): boolean {
-    return (this.type == DboNodeType.CONNECTION || this.type == DboNodeType.SCHEMA || this.type == DboNodeType.ENTITY)
-  }
-
-  /**
-   *
-   */
-  get hasChild(): boolean {
-    switch (this.type) {
-      case DboNodeType.CONNECTION:
-        return true;
-      case DboNodeType.ENTITY:
-        return true;
-      case DboNodeType.SCHEMA:
-        return true;
-      case DboNodeType.INDEX:
-        return false;
-      case DboNodeType.COLUMN:
-        return false;
-      default:
-        return false
-    }
+    return (this.type == DboType.CONNECTION || this.type == DboType.SCHEMA || this.type == DboType.ENTITY)
   }
 }

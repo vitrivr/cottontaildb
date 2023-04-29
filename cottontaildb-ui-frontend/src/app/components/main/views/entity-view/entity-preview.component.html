@@ -1,0 +1,12 @@
+<table mat-table [dataSource]="dataSource" [style.width]="'100%'" matSort>
+  <ng-container *ngFor="let disCol of columns; let colIndex = index" matColumnDef="{{disCol}}">
+    <mat-header-cell *matHeaderCellDef>{{disCol}}</mat-header-cell>
+    <mat-cell *matCellDef="let element "> {{element}}
+    </mat-cell>
+  </ng-container>
+
+  <tr mat-header-row *matHeaderRowDef="columns"></tr>
+  <tr mat-row *matRowDef="let row; columns: columns;"></tr>
+</table>
+
+<mat-paginator [pageSizeOptions]="[10, 25, 50]" aria-label="Select page of transactions."></mat-paginator>

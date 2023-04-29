@@ -17,10 +17,12 @@ import {BrowserModule} from "@angular/platform-browser";
 import {MatToolbarModule} from "@angular/material/toolbar";
 import {MatProgressBarModule} from "@angular/material/progress-bar";
 import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
+import {HeaderComponent} from "./header.component";
 
 @NgModule({
   declarations: [
     SidebarComponent,
+    HeaderComponent,
     CreateSchemaFormComponent,
     CreateEntityFormComponent,
     AddConnectionFormComponent
@@ -42,10 +44,10 @@ import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
     MatProgressBarModule,
     MatProgressSpinnerModule
   ],
-  providers: [SidebarComponent],
-  exports: [SidebarComponent],
+  providers: [SidebarComponent, HeaderComponent],
+  exports: [SidebarComponent, HeaderComponent],
   bootstrap: []
 })
-export class SidebarModule {
+export class NavigationModule {
 
 }
