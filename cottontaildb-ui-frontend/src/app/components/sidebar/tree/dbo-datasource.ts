@@ -3,7 +3,7 @@ import {catchError, map, merge, Observable, Subject, Subscription} from "rxjs";
 import {DboNode} from "./dbo-node";
 import {FlatTreeControl} from "@angular/cdk/tree";
 import {ConnectionService} from "../../../services/connection.service";
-import {SchemaService} from "../../../../../openapi";
+import {EntityService, SchemaService} from "../../../../../openapi";
 import {DboNodeType} from "./dbo-node-type";
 
 /**
@@ -33,7 +33,8 @@ export class DboDatasource implements DataSource<DboNode> {
   constructor(
     private _treeControl: FlatTreeControl<DboNode>,
     private connections: ConnectionService,
-    private schemas: SchemaService
+    private schemas: SchemaService,
+    private entities: EntityService
   ) {
   }
 
@@ -107,6 +108,9 @@ export class DboDatasource implements DataSource<DboNode> {
       case DboNodeType.CONNECTION:
         this.refreshConnection(node);
         break;
+      case DboNodeType.SCHEMA:
+        this.refreshSchema(node);
+        break;
       default:
         break;
     }
@@ -133,6 +137,30 @@ export class DboDatasource implements DataSource<DboNode> {
         node.mergeChildren(schemas)
         this.dataChange.next(null)
         node.isLoading = false
+    })
+  }
+
+  /**
+   * Handles the expansion of the children of the given node of type {@link DboNodeType.SCHEMA}.
+   *
+   * @param node
+   * @private
+   */
+  public refreshSchema(node: DboNode) {
+    if (node.type !== DboNodeType.SCHEMA) throw new Error("Cannot refresh schema for non-schema node.");
+    node.isLoading = true
+    this.entities.getApiByConnectionBySchemaList(node.parent!!.name, node.name).pipe(
+      catchError((err) => {
+        console.error(err)
+        node.children.splice(0, node.children.length)
+        this.dataChange.next(null)
+        return []
+      }),
+      map((entities) => entities.map((entity) => new DboNode(entity.name, DboNodeType.ENTITY, [], undefined, false, entity)))
+    ).subscribe((entities) => {
+      node.mergeChildren(entities)
+      this.dataChange.next(null)
+      node.isLoading = false
     })
   }
 }

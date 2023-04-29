@@ -1,4 +1,4 @@
-import {ChangeDetectorRef, Component, OnDestroy, OnInit} from '@angular/core';
+import {Component, OnInit} from '@angular/core';
 import {ConnectionService} from "../../services/connection.service";
 import {CreateSchemaFormComponent} from "./create-schema-form/create-schema-form.component";
 import {AddConnectionFormComponent} from "./add-connection-form/add-connection-form.component";
@@ -7,7 +7,7 @@ import {MatTreeNestedDataSource} from "@angular/material/tree";
 import {DboNode} from "./tree/dbo-node";
 import {FlatTreeControl, NestedTreeControl} from "@angular/cdk/tree";
 import {DboNodeType} from "./tree/dbo-node-type";
-import {Connection, Schema, SchemaService} from "../../../../openapi";
+import {Connection, Dbo, EntityService, SchemaService} from "../../../../openapi";
 import {catchError} from "rxjs";
 import {MatSnackBar, MatSnackBarConfig} from "@angular/material/snack-bar";
 import {DboDatasource} from "./tree/dbo-datasource";
@@ -26,7 +26,7 @@ export class SidebarComponent implements OnInit {
   );
 
   /** The {@link MatTreeNestedDataSource} used as data source for the sidebar tree. */
-  public readonly dataSource = new DboDatasource(this.treeControl, this.connections, this.schemas);
+  public readonly dataSource = new DboDatasource(this.treeControl, this.connections, this.schemas, this.entities);
 
   /**
    *
@@ -36,7 +36,12 @@ export class SidebarComponent implements OnInit {
    * @param connections
    * @param schemas
    */
-  constructor(private dialog: MatDialog, private _snackBar: MatSnackBar, private cdr: ChangeDetectorRef, private connections: ConnectionService, private schemas: SchemaService) {
+  constructor(private dialog: MatDialog,
+              private _snackBar: MatSnackBar,
+             private connections: ConnectionService,
+              private schemas: SchemaService,
+              private entities: EntityService
+  ) {
 
   }
 
@@ -65,6 +70,16 @@ export class SidebarComponent implements OnInit {
    */
   public isSchema(index: number, node: DboNode): boolean {
     return node.type === DboNodeType.SCHEMA
+  }
+
+  /**
+   * Returns true if provided {@link DboNode} represents a schema.
+   *
+   * @param index The index.
+   * @param node The {@link DboNode} to check.
+   */
+  public isEntity(index: number, node: DboNode): boolean {
+    return node.type === DboNodeType.ENTITY
   }
 
   /**
@@ -111,7 +126,7 @@ export class SidebarComponent implements OnInit {
    */
   public dropSchema(node: DboNode) {
     if (node.type !== DboNodeType.SCHEMA) throw new Error("Cannot drop schema for non-schema node.");
-    this.schemas.deleteApiByConnectionBySchema(node.parent!!.name, (node.context!! as Schema).name).pipe(
+    this.schemas.deleteApiByConnectionBySchema(node.parent!!.name, (node.context!! as Dbo).name).pipe(
       catchError((err) => {
         this._snackBar.open(`Error occurred when trying to create schema '${node.name}': ${err.error.description}.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
         return []

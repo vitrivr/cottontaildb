@@ -169,7 +169,7 @@
                 "schema" : {
                   "type" : "array",
                   "items" : {
-                    "$ref" : "#/components/schemas/Schema"
+                    "$ref" : "#/components/schemas/Dbo"
                   }
                 }
               }
@@ -177,6 +177,26 @@
           },
           "400" : {
             "description" : "Bad Request",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Server Error",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "Service Unavailable",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -236,6 +256,26 @@
                 }
               }
             }
+          },
+          "500" : {
+            "description" : "Server Error",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "Service Unavailable",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
           }
         },
         "deprecated" : false,
@@ -286,6 +326,26 @@
                 }
               }
             }
+          },
+          "500" : {
+            "description" : "Server Error",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "Service Unavailable",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
           }
         },
         "deprecated" : false,
@@ -326,7 +386,7 @@
                 "schema" : {
                   "type" : "array",
                   "items" : {
-                    "type" : "string"
+                    "$ref" : "#/components/schemas/Dbo"
                   }
                 }
               }
@@ -354,6 +414,16 @@
           },
           "500" : {
             "description" : "Server Error",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "Service Unavailable",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -734,6 +804,26 @@
         },
         "required" : [ "name", "type", "length", "nullable", "autoIncrement" ]
       },
+      "Dbo" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "fqn" : {
+            "type" : "string"
+          },
+          "type" : {
+            "$ref" : "#/components/schemas/DboType"
+          }
+        },
+        "required" : [ "name", "fqn", "type" ]
+      },
+      "DboType" : {
+        "type" : "string",
+        "enum" : [ "SCHEMA", "ENTITY", "COLUMN", "INDEX" ]
+      },
       "Entity" : {
         "type" : "object",
         "additionalProperties" : false,
@@ -768,19 +858,6 @@
           }
         },
         "required" : [ "name", "type" ]
-      },
-      "Schema" : {
-        "type" : "object",
-        "additionalProperties" : false,
-        "properties" : {
-          "name" : {
-            "type" : "string"
-          },
-          "fqn" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "name", "fqn" ]
       },
       "Connection" : {
         "type" : "object",
