@@ -9,6 +9,10 @@ import java.lang.Double.min
 /**
  * A [MetricsCollector] implementation for [RealValue]s.
  *
+ * The calculation of the statistical moments mean, variance, skewness, and kurtosis is based on the approach outlined in
+ * the paper "Formulas for robust, one-pass parallel computation of covariances and arbitrary-order statistical moments."
+ * (https://doi.org/10.2172/1028931). Others approaches might be numerically unstable
+ *
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.1.0
  */
@@ -47,7 +51,6 @@ sealed class RealMetricsCollector<T: RealValue<*>>(type: Types<T>, config: Metri
 
     /**
      * Receives a number for which to compute statistical moments in a one-pass computation.
-     * Based on https://doi.org/10.2172/1028931. Others might be numerically unstable
      */
     private fun calculateMoments(num: Number) {
         val number = num.toLong()
@@ -65,7 +68,7 @@ sealed class RealMetricsCollector<T: RealValue<*>>(type: Types<T>, config: Metri
         // Then we compute the statistical moments for this pass
         this.mean += deltaN
         this.variance = this.M2/(count-1)
-        this.skewness = (kotlin.math.sqrt(count.toDouble()) * this.M3/ this.M2.toDouble().pow(1.5)).toLong();
+        this.skewness = (kotlin.math.sqrt(count.toDouble()) * this.M3/ this.M2.toDouble().pow(1.5)).toLong()
         this.kurtosis = count * this.M4 / (this.M2 * this.M2) - 3
     }
 

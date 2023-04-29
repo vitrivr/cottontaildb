@@ -89,14 +89,4 @@ data class ByteValueMetrics(
         }
     }
 
-    /**
-     * Resets this [ByteValueMetrics] and sets all its values to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        this.min = ByteValue.MAX_VALUE
-        this.max = ByteValue.MIN_VALUE
-        this.sum = DoubleValue.ZERO
-    }
-
 }

@@ -89,12 +89,4 @@ data class IntValueMetrics (
         }
     }
 
-    /**
-     * Resets this [IntValueMetrics] and sets all its values to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        this.min = IntValue.MAX_VALUE
-        this.max = IntValue.MIN_VALUE
-    }
 }

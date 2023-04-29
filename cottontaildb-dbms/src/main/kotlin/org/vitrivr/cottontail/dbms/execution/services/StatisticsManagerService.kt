@@ -78,7 +78,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
             is EntityEvent.Create, is EntityEvent.Truncate -> {
                 // Create a task that initializes all the statistics
                 val task: Runnable = CreateEntityStatistics(event)
-                this.manager.executionManager.serviceWorkerPool.schedule(task, 100L, TimeUnit.MILLISECONDS)
+                this.manager.executionManager.serviceWorkerPool.schedule(task, 0, TimeUnit.MILLISECONDS)
 
                 // start transaction for MetaData
                 val statisticsTransaction = this@StatisticsManagerService.catalogue.statisticsEnvironment.beginExclusiveTransaction()
@@ -97,7 +97,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
             is EntityEvent.Drop -> {
                 // create task to delete all statistics of this entity
                 val task: Runnable = DropEntityStatistics(event)
-                this.manager.executionManager.serviceWorkerPool.schedule(task, 100L, TimeUnit.MILLISECONDS)
+                this.manager.executionManager.serviceWorkerPool.schedule(task, 0, TimeUnit.MILLISECONDS)
 
                 // start transaction for MetaData
                 val statisticsTransaction = this@StatisticsManagerService.catalogue.statisticsEnvironment.beginExclusiveTransaction()
@@ -190,7 +190,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
      */
     private fun schedule(entity: Name.EntityName, numberOfEntries : Long) {
         val task: Runnable = AnalysisTask(entity, numberOfEntries)
-        this.manager.executionManager.serviceWorkerPool.schedule(task, 100L, TimeUnit.MILLISECONDS)
+        this.manager.executionManager.serviceWorkerPool.schedule(task, 0, TimeUnit.MILLISECONDS)
     }
 
     /**

@@ -87,13 +87,4 @@ data class FloatValueMetrics (
         }
     }
 
-    /**
-     * Resets this [FloatValueMetrics] and sets all its values to to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        this.min = FloatValue.MAX_VALUE
-        this.max = FloatValue.MIN_VALUE
-        this.sum = DoubleValue.ZERO
-    }
 }

@@ -86,12 +86,4 @@ data class LongValueMetrics(
         }
     }
 
-    /**
-     * Resets this [LongValueMetrics] and sets all its values to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        this.min = LongValue.MAX_VALUE
-        this.max = LongValue.MIN_VALUE
-    }
 }

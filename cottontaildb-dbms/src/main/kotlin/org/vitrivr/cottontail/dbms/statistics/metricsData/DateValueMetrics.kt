@@ -59,16 +59,6 @@ data class DateValueMetrics (
         }
     }
 
-
-    /**
-     * Resets this [DateValueMetrics] and sets all its values to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        this.min = DateValue(Long.MAX_VALUE)
-        this.max = DateValue(Long.MIN_VALUE)
-    }
-
     /**
      * Creates a descriptive map of this [ValueMetrics].
      *

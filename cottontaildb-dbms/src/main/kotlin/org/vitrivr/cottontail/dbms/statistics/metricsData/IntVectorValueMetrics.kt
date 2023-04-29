@@ -72,15 +72,4 @@ data class IntVectorValueMetrics(
         }
     }
 
-    /**
-     * Resets this [IntVectorValueMetrics] and sets all its values to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        for (i in 0 until this.type.logicalSize) {
-            this.min.data[i] = Int.MAX_VALUE
-            this.max.data[i] = Int.MIN_VALUE
-        }
-    }
-
 }

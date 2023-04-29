@@ -62,15 +62,6 @@ data class BooleanValueMetrics(
 
 
     /**
-     * Resets this [BooleanValueMetrics] and sets all its values to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        this.numberOfTrueEntries = 0L
-        this.numberOfFalseEntries = 0L
-    }
-
-    /**
      * Creates a descriptive map of this [BooleanValueMetrics].
      *
      * @return Descriptive map of this [BooleanValueMetrics]

@@ -86,13 +86,4 @@ data class DoubleValueMetrics (
         }
     }
 
-    /**
-     * Resets this [DoubleValueMetrics] and sets all its values to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        this.min = DoubleValue.MAX_VALUE
-        this.max = DoubleValue.MIN_VALUE
-        this.sum = DoubleValue.ZERO
-    }
 }

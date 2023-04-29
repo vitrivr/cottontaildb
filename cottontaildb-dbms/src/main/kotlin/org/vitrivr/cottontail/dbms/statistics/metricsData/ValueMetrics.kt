@@ -46,11 +46,6 @@ sealed interface ValueMetrics<T : Value> {
     fun about(): Map<String,String>
 
     /**
-     * Resets this [ValueMetrics] and sets all its values to the default value.
-     */
-    fun reset()
-
-    /**
      * Estimates [Selectivity] of the given [BooleanPredicate.Atomic], i.e., the percentage of [org.vitrivr.cottontail.core.basics.Record]s that match it.
      * Defaults to [Selectivity.DEFAULT] but can be overridden by concrete implementations.
      *

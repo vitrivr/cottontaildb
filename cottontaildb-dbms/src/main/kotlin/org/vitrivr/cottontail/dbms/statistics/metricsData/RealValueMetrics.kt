@@ -58,15 +58,4 @@ sealed class RealValueMetrics<T: RealValue<*>>(type: Types<T>): AbstractScalarMe
         KURTOSIS_KEY to this.kurtosis.value.toString()
     )
 
-    /**
-     * Resets this [IntValueMetrics] and sets all its values to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        this.sum = DoubleValue.ZERO
-        this.mean = DoubleValue.ZERO
-        this.variance = DoubleValue.ZERO
-        this.skewness = DoubleValue.ZERO
-        this.kurtosis = DoubleValue.ZERO
-    }
 }

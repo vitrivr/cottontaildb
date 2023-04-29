@@ -51,16 +51,6 @@ sealed class AbstractValueMetrics<T : Value>(override val type: Types<T>) : Valu
         get() = (this.minWidth + this.maxWidth) / 2
 
     /**
-     * Resets this [AbstractValueMetrics] and sets all its values to the default value.
-     */
-    @Synchronized
-    override fun reset() {
-        this.numberOfNullEntries = 0L
-        this.numberOfNonNullEntries = 0L
-        this.numberOfDistinctEntries = 0L
-    }
-
-    /**
      * Creates a descriptive map of this [AbstractValueMetrics].
      *
      * @return Descriptive map of this [AbstractValueMetrics]

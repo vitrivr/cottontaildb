@@ -12,8 +12,8 @@ import org.vitrivr.cottontail.core.values.types.Value
 sealed class AbstractScalarMetrics<T: Value>(type: Types<T>): AbstractValueMetrics<T>(type) {
 
     companion object {
-        const val MIN_WIDTH_KEY = "minWidth"
-        const val MAX_WIDTH_KEY = "maxWidth"
+        const val MIN_WIDTH_KEY = "min_width"
+        const val MAX_WIDTH_KEY = "max_width"
     }
 
 }

@@ -90,14 +90,4 @@ data class ShortValueMetrics(
         }
     }
 
-    /**
-     * Resets this [ShortValueMetrics] and sets all its values to to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        this.min = ShortValue.MAX_VALUE
-        this.max = ShortValue.MIN_VALUE
-        this.sum = DoubleValue.ZERO
-    }
-
 }

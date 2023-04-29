@@ -56,14 +56,6 @@ data class StringValueMetrics(
         }
     }
 
-    /**
-     * Resets this [StringValueMetrics] and sets all its values to to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        this.minWidth = Int.MAX_VALUE
-        this.maxWidth = Int.MIN_VALUE
-    }
 
     /**
      * Creates a descriptive map of this [ValueMetrics].

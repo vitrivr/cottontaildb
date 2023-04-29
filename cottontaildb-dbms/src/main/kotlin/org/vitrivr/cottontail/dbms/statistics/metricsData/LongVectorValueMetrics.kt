@@ -72,15 +72,4 @@ class LongVectorValueMetrics(
         }
     }
 
-    /**
-     * Resets this [LongVectorValueMetrics] and sets all its values to to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        for (i in 0 until this.type.logicalSize) {
-            this.min.data[i] = Long.MAX_VALUE
-            this.max.data[i] = Long.MIN_VALUE
-        }
-    }
-
 }

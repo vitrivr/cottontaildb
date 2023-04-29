@@ -73,15 +73,4 @@ data class FloatVectorValueMetrics(
         }
     }
 
-    /**
-     * Resets this [FloatVectorValueMetrics] and sets all its values to to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        for (i in 0 until this.type.logicalSize) {
-            this.min.data[i] = Float.MAX_VALUE
-            this.max.data[i] = Float.MIN_VALUE
-            this.sum.data[i] = 0.0f
-        }
-    }
 }
