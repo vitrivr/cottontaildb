@@ -126,72 +126,70 @@ internal interface TransactionalGrpcService {
         }
 
         /* Phase 1b: Obtain operator by means of query parsing, binding and planning. */
-        val operator = prepare(context)
-        val planDuration = m1.elapsedNow()
-        LOGGER.debug("[${context.txn.txId}, ${context.queryId}] Preparation of ${context.physical?.name} completed successfully in $planDuration.")
+        try {
+            val operator = prepare(context)
+            val planDuration = m1.elapsedNow()
+            LOGGER.debug("[${context.txn.txId}, ${context.queryId}] Preparation of ${context.physical?.name} completed successfully in $planDuration.")
 
-        /* Phase 2a: Build query response message. */
-        val m2 = TimeSource.Monotonic.markNow()
-        val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder()
-            .setMetadata(CottontailGrpc.ResponseMetadata.newBuilder()
-            .setQueryId(context.queryId)
-            .setTransactionId(context.txn.txId)
-            .setQueryDuration(0L)
-            .setPlanDuration(planDuration.toLong(DurationUnit.MILLISECONDS))
-        )
-        for (c in operator.columns) {
-            val builder = responseBuilder.addColumnsBuilder()
-            builder.name = c.name.proto()
-            builder.nullable = c.nullable
-            builder.primary = c.primary
-            builder.type = c.type.proto()
-        }
-
-        /* Contextual information used by Flow. */
-        val headerSize = responseBuilder.build().serializedSize
-        var accumulatedSize = headerSize
-        var results = 0
-
-        /* Phase 2b: Execute query and stream back results. */
-        context.txn.execute(operator).onCompletion {
-            if (it != null) {
-                val wrapped = context.toStatusException(it, true)
-                if (context.txn.type.autoRollback) context.txn.rollback() /* Handle auto-rollback. */
-                LOGGER.error("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} failed: ${wrapped.message}")
-                LOGGER.error(it.toString())
-                throw wrapped
+            /* Phase 2a: Build query response message. */
+            val m2 = TimeSource.Monotonic.markNow()
+            val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder()
+                .setMetadata(CottontailGrpc.ResponseMetadata.newBuilder()
+                    .setQueryId(context.queryId)
+                    .setTransactionId(context.txn.txId)
+                    .setQueryDuration(0L)
+                    .setPlanDuration(planDuration.toLong(DurationUnit.MILLISECONDS))
+                )
+            for (c in operator.columns) {
+                val builder = responseBuilder.addColumnsBuilder()
+                builder.name = c.name.proto()
+                builder.nullable = c.nullable
+                builder.primary = c.primary
+                builder.type = c.type.proto()
             }
 
-            /* Flush remaining results. */
-            if (results == 0 || responseBuilder.tuplesCount > 0) {
-                responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS)
-                emit(responseBuilder.build()) /* Emit final response. */
-            }
+            /* Contextual information used by Flow. */
+            val headerSize = responseBuilder.build().serializedSize
+            var accumulatedSize = headerSize
+            var results = 0
 
-            try {
-                if (context.txn.type.autoCommit) {
-                    context.txn.commit() /* Handle auto-commit. */
+            /* Phase 2b: Execute query and stream back results. */
+            context.txn.execute(operator).onCompletion {
+                if (it != null) {
+                    if (context.txn.type.autoRollback) context.txn.rollback() /* Handle auto-rollback. */
+                    context.handleError(it, true)
                 }
-                LOGGER.info("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} completed successfully in ${m2.elapsedNow()}.")
-            } catch (e: Throwable) {
-                val wrapped = context.toStatusException(e, true)
-                LOGGER.error("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} failed: ${wrapped.message}")
-                LOGGER.error(e.stackTraceToString())
-                throw wrapped
-            }
-        }.collect {
-            val tuple = it.toTuple()
-            results += 1
-            if (accumulatedSize + tuple.serializedSize >= Constants.MAX_PAGE_SIZE_BYTES) {
-                responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS) /* Query duration is, re-evaluated for every batch. */
-                emit(responseBuilder.build())
-                responseBuilder.clearTuples()
-                accumulatedSize = headerSize
-            }
 
-            /* Add entry to page and increment counter. */
-            responseBuilder.addTuples(tuple)
-            accumulatedSize += tuple.serializedSize
+                /* Flush remaining results. */
+                if (results == 0 || responseBuilder.tuplesCount > 0) {
+                    responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS)
+                    emit(responseBuilder.build()) /* Emit final response. */
+                }
+
+                try {
+                    if (context.txn.type.autoCommit) {
+                        context.txn.commit() /* Handle auto-commit. */
+                    }
+                    LOGGER.info("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} completed successfully in ${m2.elapsedNow()}.")
+                } catch (e: Throwable) {
+                    throw context.handleError(e, true)
+                }
+            }.collect {
+                val tuple = it.toTuple()
+                results += 1
+                if (accumulatedSize + tuple.serializedSize >= Constants.MAX_PAGE_SIZE_BYTES) {
+                    responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS) /* Query duration is, re-evaluated for every batch. */
+                    emit(responseBuilder.build())
+                    responseBuilder.clearTuples()
+                    accumulatedSize = headerSize
+                }
+
+                /* Add entry to page and increment counter. */
+                responseBuilder.addTuples(tuple)
+                accumulatedSize += tuple.serializedSize
+            }
+        }  catch (e: Throwable) {
+            context.handleError(e, false)
         }
     }
 
@@ -202,13 +200,18 @@ internal interface TransactionalGrpcService {
      *  @param e The [Throwable] to convert.
      *  @param execution Flag indicating whether error occurred during execution.
      */
-    fun DefaultQueryContext.toStatusException(e: Throwable, execution: Boolean): StatusException {
+    fun DefaultQueryContext.handleError(e: Throwable, execution: Boolean): StatusException {
         val text = if (execution) {
             "[${this.txn.txId}, ${this.queryId}] Execution of ${this.physical?.name} query failed: ${e.message}"
         } else {
             "[${this.txn.txId}, ${this.queryId}] Preparation of query failed: ${e.message}"
         }
-        return when (e) {
+
+        /* Log error. */
+        LOGGER.error(text)
+        LOGGER.error(e.stackTraceToString())
+
+        throw when (e) {
             is DatabaseException.SchemaDoesNotExistException,
             is DatabaseException.EntityDoesNotExistException,
             is DatabaseException.ColumnDoesNotExistException,
