@@ -43,6 +43,7 @@ import {DragDropModule} from "@angular/cdk/drag-drop";
 import {MatTabsModule} from "@angular/material/tabs";
 import {MatSortModule} from "@angular/material/sort";
 import {ConnectionViewModule} from "./views/connection-view/connection-view-module";
+import {EntityViewModule} from "./views/entity-view/entity-view.module";
 
 @NgModule({
   declarations: [
@@ -70,6 +71,7 @@ import {ConnectionViewModule} from "./views/connection-view/connection-view-modu
   imports: [
     /* Internal modules. */
     ConnectionViewModule,
+    EntityViewModule,
 
     /* External modules. */
     BrowserModule,
