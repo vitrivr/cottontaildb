@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.values.types.VectorValue
 
 /**
  * A [ComparisonOperator] is used as part of a [BooleanPredicate] to
@@ -142,7 +143,7 @@ sealed interface ComparisonOperator: NodeWithCost {
             get() = Cost.MEMORY_ACCESS * 2 * this.right.size
 
         /** Internal set to facilitate lookup. */
-        private val lookupSet: ObjectLinkedOpenHashSet<Value> = ObjectLinkedOpenHashSet(this.right.size)
+        private val lookupSet = ObjectLinkedOpenHashSet<Value>()
 
         init {
             /* Sanity check + initialization of values list. */
@@ -157,17 +158,42 @@ sealed interface ComparisonOperator: NodeWithCost {
         context(BindingContext,Record)
         override fun match(): Boolean {
             if (this.lookupSet.isEmpty()) {
-                for (r in this.right) {
-                    if (r is Binding.Subquery) {
-                        this.lookupSet.addAll(r.getValues())
-                    } else {
-                        this.lookupSet.add(r.getValue())
-                    }
-                }
+                this.initialize()
             }
-            return this.left.getValue() in this.lookupSet
+
+            val value = this.left.getValue()
+            return if (value is VectorValue<*>) {
+                matchVector(value)
+            } else {
+                value in this.lookupSet
+            }
         }
         override fun digest(): Digest = this.hashCode().toLong()
         override fun toString(): String = "$left IN [${this.right.joinToString(",")}]"
+
+        /**
+         * Performs the IN matching with vector values. Resorts to brute-force comparison.
+         *
+         * @param v1 The [VectorValue] to compare.
+         * TODO: Remove, once isEqual() / hashCode() can be overriden in value classes.
+         */
+        context(BindingContext,Record)
+        private fun matchVector(v1: VectorValue<*>): Boolean {
+            for (v2 in this.lookupSet) {
+                if (v1.isEqual(v2)) return true
+            }
+            return false
+        }
+
+        context(BindingContext,Record)
+        private fun initialize() {
+            for (r in this.right) {
+                if (r is Binding.Subquery) {
+                    this.lookupSet.addAll(r.getValues())
+                } else {
+                    this.lookupSet.add(r.getValue())
+                }
+            }
+        }
     }
 }
