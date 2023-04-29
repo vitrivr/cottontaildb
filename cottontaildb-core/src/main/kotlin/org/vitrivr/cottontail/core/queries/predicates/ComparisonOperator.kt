@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.core.queries.predicates
 
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
+import it.unimi.dsi.fastutil.objects.ObjectRBTreeSet
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
@@ -141,7 +141,8 @@ sealed interface ComparisonOperator: NodeWithCost {
         override val cost: Cost
             get() = Cost.MEMORY_ACCESS * 2 * this.right.size
 
-        private val lookupSet: ObjectOpenHashSet<Value> = ObjectOpenHashSet(this.right.size)
+        /** Internal set to facilitate lookup. */
+        private val lookupSet: ObjectRBTreeSet<Value> = ObjectRBTreeSet()
 
         init {
             /* Sanity check + initialization of values list. */

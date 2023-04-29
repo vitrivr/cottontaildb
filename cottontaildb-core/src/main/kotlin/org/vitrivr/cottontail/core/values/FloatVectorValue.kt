@@ -38,6 +38,17 @@ value class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
     override fun isEqual(other: Value): Boolean = (other is FloatVectorValue) && (this.data.contentEquals(other.data))
 
     /**
+     * Compares this [FloatVectorValue] to another [FloatVectorValue]. The comparison is done lexicographically.
+     *
+     * @param other [Value] to compare to.
+     * @return True if equal, false otherwise.
+     */
+    override fun compareTo(other: Value): Int {
+        require(other is FloatVectorValue) { "FloatVectorValue can only be compared to another FloatVectorValue. This is a programmer's error!"}
+        return Arrays.compare(this.data, other.data)
+    }
+
+    /**
      * Returns the indices of this [FloatVectorValue].
      *
      * @return The indices of this [FloatVectorValue]

@@ -37,6 +37,17 @@ value class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> {
     override fun isEqual(other: Value): Boolean = (other is DoubleVectorValue) && (this.data.contentEquals(other.data))
 
     /**
+     * Compares this [DoubleVectorValue] to another [DoubleVectorValue]. The comparison is done lexicographically.
+     *
+     * @param other [Value] to compare to.
+     * @return True if equal, false otherwise.
+     */
+    override fun compareTo(other: Value): Int {
+        require(other is DoubleVectorValue) { "DoubleVectorValue can only be compared to another DoubleVectorValue. This is a programmer's error!"}
+        return Arrays.compare(this.data, other.data)
+    }
+
+    /**
      * Returns the indices of this [DoubleVectorValue].
      *
      * @return The indices of this [DoubleVectorValue]

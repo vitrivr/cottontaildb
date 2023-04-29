@@ -36,6 +36,17 @@ value class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
     override fun isEqual(other: Value): Boolean = (other is IntVectorValue) && (this.data.contentEquals(other.data))
 
     /**
+     * Compares this [IntVectorValue] to another [IntVectorValue]. The comparison is done lexicographically.
+     *
+     * @param other [Value] to compare to.
+     * @return True if equal, false otherwise.
+     */
+    override fun compareTo(other: Value): Int {
+        require(other is IntVectorValue) { "IntVectorValue can only be compared to another IntVectorValue. This is a programmer's error!"}
+        return Arrays.compare(this.data, other.data)
+    }
+
+    /**
      * Returns the indices of this [IntVectorValue].
      *
      * @return The indices of this [IntVectorValue]

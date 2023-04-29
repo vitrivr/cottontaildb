@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.core.values
 
 import org.apache.commons.math3.util.FastMath
 import org.vitrivr.cottontail.core.values.types.*
+import java.util.*
 import kotlin.math.atan2
 import kotlin.math.pow
 
@@ -93,6 +94,17 @@ value class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Dou
      * @return True if equal, false otherwise.
      */
     override fun isEqual(other: Value): Boolean = (other is DoubleVectorValue) && (this.data.contentEquals(other.data))
+
+    /**
+     * Compares this [Complex64VectorValue] to another [Complex64VectorValue]. The comparison is done lexicographically.
+     *
+     * @param other [Value] to compare to.
+     * @return True if equal, false otherwise.
+     */
+    override fun compareTo(other: Value): Int {
+        require(other is Complex64VectorValue) { "Complex64VectorValue can only be compared to another Complex64VectorValue. This is a programmer's error!"}
+        return Arrays.compare(this.data, other.data)
+    }
 
     /**
      * Returns the indices of this [Complex64VectorValue].

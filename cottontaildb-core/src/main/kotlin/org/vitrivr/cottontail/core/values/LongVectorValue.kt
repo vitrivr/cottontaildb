@@ -37,6 +37,17 @@ value class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
     override fun isEqual(other: Value): Boolean = (other is LongVectorValue) && (this.data.contentEquals(other.data))
 
     /**
+     * Compares this [LongVectorValue] to another [LongVectorValue]. The comparison is done lexicographically.
+     *
+     * @param other [Value] to compare to.
+     * @return True if equal, false otherwise.
+     */
+    override fun compareTo(other: Value): Int {
+        require(other is LongVectorValue) { "LongVectorValue can only be compared to another LongVectorValue. This is a programmer's error!"}
+        return Arrays.compare(this.data, other.data)
+    }
+
+    /**
      * Returns the indices of this [LongVectorValue].
      *
      * @return The indices of this [LongVectorValue]
