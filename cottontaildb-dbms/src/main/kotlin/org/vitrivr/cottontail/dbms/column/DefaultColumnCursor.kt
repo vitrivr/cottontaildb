@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.column
 
+import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.bindings.LongBinding
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.TupleId
@@ -27,18 +28,23 @@ class DefaultColumnCursor<T: Value>(private val partition: LongRange, private va
     /** Internal [Cursor] used for iteration. */
     private val cursor: jetbrains.exodus.env.Cursor = this.tx.dataStore.openCursor(this.subTransaction)
 
-    /** The [TupleId] to start with. */
-    private val startKey = this.partition.first.toKey()
+    /** The [TupleId] to start at. */
+    private val startKey: ArrayByteIterable
 
     /** The [TupleId] to end at. */
-    private val endKey = this.partition.last.toKey()
+    private val endKey: ArrayByteIterable
 
     /** Flag indicating, that data must be read from store. */
     private val boc = AtomicBoolean(true)
 
     init {
-        if (this.cursor.getSearchKeyRange(this.startKey) == null) {
+        if (this.partition.first < 0 || this.cursor.getSearchKeyRange(this.partition.first.toKey()) == null) {
             this.boc.set(false)
+            this.startKey = LongBinding.longToEntry(-1L)
+            this.endKey = LongBinding.longToEntry(-1L)
+        } else {
+            this.startKey = this.partition.first.toKey()
+            this.endKey = this.partition.last.toKey()
         }
     }
 

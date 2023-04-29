@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.core.queries.predicates
 
-import it.unimi.dsi.fastutil.objects.ObjectRBTreeSet
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
@@ -142,11 +142,10 @@ sealed interface ComparisonOperator: NodeWithCost {
             get() = Cost.MEMORY_ACCESS * 2 * this.right.size
 
         /** Internal set to facilitate lookup. */
-        private val lookupSet: ObjectRBTreeSet<Value> = ObjectRBTreeSet()
+        private val lookupSet: ObjectLinkedOpenHashSet<Value> = ObjectLinkedOpenHashSet(this.right.size)
 
         init {
             /* Sanity check + initialization of values list. */
-            require(this.right.isNotEmpty()) { "Right-hand side of IN operator cannot be empty." }
             require(this.right.all { it !is Binding.Column }) { "Right-hand side of IN operator cannot be a column reference." }
         }
 
