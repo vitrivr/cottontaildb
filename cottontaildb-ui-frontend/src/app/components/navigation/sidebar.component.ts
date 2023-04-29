@@ -131,7 +131,7 @@ export class SidebarComponent implements OnInit {
         break;
     }
     this.selectedNode = node
-    this.router.navigate([], {relativeTo: this.activatedRoute, queryParams: queryParams, queryParamsHandling: 'merge'})
+    this.router.navigate([], {relativeTo: this.activatedRoute, queryParams: queryParams, queryParamsHandling: ''})
   }
 
   /**

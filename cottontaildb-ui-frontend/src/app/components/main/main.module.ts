@@ -40,6 +40,9 @@ import {MatCardModule} from "@angular/material/card";
 import {MatDividerModule} from "@angular/material/divider";
 import {MatPaginatorModule} from "@angular/material/paginator";
 import {DragDropModule} from "@angular/cdk/drag-drop";
+import {MatTabsModule} from "@angular/material/tabs";
+import {MatSortModule} from "@angular/material/sort";
+import {ConnectionViewModule} from "./views/connection-view/connection-view-module";
 
 @NgModule({
   declarations: [
@@ -65,6 +68,10 @@ import {DragDropModule} from "@angular/cdk/drag-drop";
     VectorDetailsComponent
   ],
   imports: [
+    /* Internal modules. */
+    ConnectionViewModule,
+
+    /* External modules. */
     BrowserModule,
     CommonModule,
     DragDropModule,
@@ -86,7 +93,9 @@ import {DragDropModule} from "@angular/cdk/drag-drop";
     MatProgressBarModule,
     MatProgressSpinnerModule,
     MatPaginatorModule,
-    ReactiveFormsModule
+    ReactiveFormsModule,
+    MatTabsModule,
+    MatSortModule
   ],
   providers: [MainComponent],
   exports: [MainComponent],

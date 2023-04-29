@@ -1,4 +1,11 @@
 <!--See app-routing.module.ts-->
-{{this.navigated?.connection}}
-{{this.navigated?.schema}}
-{{this.navigated?.entity}}
+<div *ngIf="this.navigated; else noSelection">
+  <div [ngSwitch]="this.navigated.type.valueOf()">
+    <connection-view *ngSwitchCase="0" [dbo]="this.navigated"></connection-view>
+  </div>
+</div>
+
+<ng-template #noSelection>
+  <h1>Welcome to Cottontail</h1>
+  <p>Make sure you've added a connection and selected a database object.</p>
+</ng-template>

@@ -17,7 +17,6 @@ import io.javalin.openapi.plugin.OpenApiPluginConfiguration
 import io.javalin.openapi.plugin.SecurityComponentConfiguration
 import io.javalin.openapi.plugin.swagger.SwaggerConfiguration
 import io.javalin.openapi.plugin.swagger.SwaggerPlugin
-import io.javalin.plugin.bundled.CorsPluginConfig
 import org.eclipse.jetty.server.session.DefaultSessionCache
 import org.eclipse.jetty.server.session.FileSessionDataStore
 import org.eclipse.jetty.server.session.SessionHandler
@@ -27,6 +26,9 @@ import org.vitrivr.cottontail.ui.api.query.QueryController
 import org.vitrivr.cottontail.ui.api.session.connect
 import org.vitrivr.cottontail.ui.api.session.connections
 import org.vitrivr.cottontail.ui.api.session.disconnect
+import org.vitrivr.cottontail.ui.api.system.killTransaction
+import org.vitrivr.cottontail.ui.api.system.listLocks
+import org.vitrivr.cottontail.ui.api.system.listTransactions
 import org.vitrivr.cottontail.ui.model.status.ErrorStatus
 import org.vitrivr.cottontail.ui.model.status.ErrorStatusException
 import java.io.File
@@ -156,6 +158,13 @@ fun main(args: Array<String>) {
                         delete("{truncate}") { truncateEntity(it) }
                     }
                 }
+
+
+                get("transactions") { listTransactions(it) }
+                path("transactions") {
+                    delete("{txId}") { killTransaction(it) }
+                }
+                get("locks") { listLocks(it) }
             }
         }
 
@@ -181,17 +190,7 @@ fun main(args: Array<String>) {
             post(EntityController::createIndex)
             delete(EntityController::dropIndex)
         }
-        path("api/system") {
-            path("transactions") {
-                get(SystemController::listTransactions)
-                path("{txId}") {
-                    delete(SystemController::killTransaction)
-                }
-            }
-            path("locks") {
-                get(SystemController::listLocks)
-            }
-        }*/
+        */
     }.exception(ErrorStatusException::class.java) { e, ctx ->
         ctx.status(e.code).json(e.toStatus())
     }.exception(Exception::class.java) { e, ctx ->

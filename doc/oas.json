@@ -210,6 +210,178 @@
         "security" : [ ]
       }
     },
+    "/api/{connection}/locks" : {
+      "get" : {
+        "tags" : [ "System" ],
+        "summary" : "Lists details about the entity specified by the connection string.",
+        "operationId" : "getListLocks",
+        "parameters" : [ {
+          "name" : "connection",
+          "in" : "path",
+          "description" : "Connection string in the for <host>:<port>.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Entity"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Server Error",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          }
+        },
+        "deprecated" : false,
+        "security" : [ ]
+      }
+    },
+    "/api/{connection}/transactions" : {
+      "get" : {
+        "tags" : [ "System", "Transaction" ],
+        "summary" : "Lists all ongoing transactions in the database specified by the connection string.",
+        "operationId" : "getListTransactions",
+        "parameters" : [ {
+          "name" : "connection",
+          "in" : "path",
+          "description" : "Connection string in the for <host>:<port>.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "pageSize",
+          "in" : "query",
+          "description" : "Size of a page to return.",
+          "required" : false,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "description" : "The current page.",
+          "required" : false,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/Transaction"
+                  }
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Server Error",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          }
+        },
+        "deprecated" : false,
+        "security" : [ ]
+      }
+    },
+    "/api/{connection}/transactions/{txId}" : {
+      "delete" : {
+        "tags" : [ "System", "Transaction" ],
+        "summary" : "Kills an ongoing transaction in the database specified by the connection string.",
+        "operationId" : "deleteKillTransaction",
+        "parameters" : [ {
+          "name" : "connection",
+          "in" : "path",
+          "description" : "Connection string in the for <host>:<port>.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "txId",
+          "in" : "path",
+          "description" : "The numeric transaction ID to kill.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/Transaction"
+                  }
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Server Error",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          }
+        },
+        "deprecated" : false,
+        "security" : [ ]
+      }
+    },
     "/api/{connection}/{schema}" : {
       "post" : {
         "tags" : [ "DDL", "Schema" ],
@@ -896,6 +1068,37 @@
           }
         },
         "required" : [ "description" ]
+      },
+      "Transaction" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "txId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "type" : {
+            "type" : "string"
+          },
+          "state" : {
+            "$ref" : "#/components/schemas/TransactionStatus"
+          },
+          "created" : {
+            "type" : "string"
+          },
+          "ended" : {
+            "type" : "string"
+          },
+          "duration" : {
+            "type" : "number",
+            "format" : "double"
+          }
+        },
+        "required" : [ "txId", "type", "state", "created", "ended", "duration" ]
+      },
+      "TransactionStatus" : {
+        "type" : "string",
+        "enum" : [ "IDLE", "RUNNING", "FINALIZING", "ERROR", "COMMIT", "ROLLBACK" ]
       }
     },
     "securitySchemes" : {
