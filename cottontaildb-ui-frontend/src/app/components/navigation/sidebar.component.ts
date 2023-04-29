@@ -6,12 +6,12 @@ import {MatDialog} from "@angular/material/dialog";
 import {MatTreeNestedDataSource} from "@angular/material/tree";
 import {DboNode} from "./tree/dbo-node";
 import {FlatTreeControl, NestedTreeControl} from "@angular/cdk/tree";
-import {DboNodeType} from "./tree/dbo-node-type";
 import {Connection, Dbo, EntityService, SchemaService} from "../../../../openapi";
 import {catchError} from "rxjs";
 import {MatSnackBar, MatSnackBarConfig} from "@angular/material/snack-bar";
 import {DboDatasource} from "./tree/dbo-datasource";
 import {ActivatedRoute, Params, Router} from "@angular/router";
+import {DboType} from "../../model/dbo/dbo-type";
 
 @Component({
   selector: 'app-sidebar',
@@ -67,7 +67,7 @@ export class SidebarComponent implements OnInit {
    * @param node The {@link DboNode} to check.
    */
   public isConnection(index: number, node: DboNode): boolean {
-    return node.type === DboNodeType.CONNECTION
+    return node.type === DboType.CONNECTION
   }
 
   /**
@@ -77,7 +77,7 @@ export class SidebarComponent implements OnInit {
    * @param node The {@link DboNode} to check.
    */
   public isSchema(index: number, node: DboNode): boolean {
-    return node.type === DboNodeType.SCHEMA
+    return node.type === DboType.SCHEMA
   }
 
   /**
@@ -87,7 +87,7 @@ export class SidebarComponent implements OnInit {
    * @param node The {@link DboNode} to check.
    */
   public isEntity(index: number, node: DboNode): boolean {
-    return node.type === DboNodeType.ENTITY
+    return node.type === DboType.ENTITY
   }
 
   /**
@@ -117,14 +117,14 @@ export class SidebarComponent implements OnInit {
   public nodeSelected(node: DboNode) {
     const queryParams: Params = { };
     switch (node.type) {
-      case DboNodeType.CONNECTION:
+      case DboType.CONNECTION:
         queryParams['connection'] = node.name
         break;
-      case DboNodeType.SCHEMA:
+      case DboType.SCHEMA:
         queryParams['connection'] = node.parent!!.name
         queryParams['schema'] = node.name
         break;
-      case DboNodeType.ENTITY:
+      case DboType.ENTITY:
         queryParams['connection'] = node.parent!!.parent!!.name
         queryParams['schema'] = node.parent!!.name
         queryParams['entity'] = node.name
@@ -138,7 +138,7 @@ export class SidebarComponent implements OnInit {
    * Opens the form to create a new schema and creates it upon completion.
    */
   public createSchema(node: DboNode) {
-    if (node.type !== DboNodeType.CONNECTION) throw new Error("Cannot create schema for non-connection node.");
+    if (node.type !== DboType.CONNECTION) throw new Error("Cannot create schema for non-connection node.");
     let ref = this.dialog.open<CreateSchemaFormComponent>(CreateSchemaFormComponent, {width: 'fit-content', height: 'fit-content'})
     ref.afterClosed().subscribe((result: string) => {
       if (result) {
@@ -158,7 +158,7 @@ export class SidebarComponent implements OnInit {
    * Opens the form to create a new schema and creates it upon completion.
    */
   public dropSchema(node: DboNode) {
-    if (node.type !== DboNodeType.SCHEMA) throw new Error("Cannot drop schema for non-schema node.");
+    if (node.type !== DboType.SCHEMA) throw new Error("Cannot drop schema for non-schema node.");
     this.schemas.deleteApiByConnectionBySchema(node.parent!!.name, (node.context!! as Dbo).name).pipe(
       catchError((err) => {
         this._snackBar.open(`Error occurred when trying to create schema '${node.name}': ${err.error.description}.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);

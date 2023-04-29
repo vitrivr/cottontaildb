@@ -1,12 +1,10 @@
-import {Component, OnInit} from '@angular/core';
+import {Component, Inject, OnInit} from '@angular/core';
 import {TreeDataService} from "../../../services/tree-data.service";
 import {FormControl, FormGroup, Validators} from "@angular/forms";
 import {EntityService} from "../../../services/entity.service";
-import {MAT_DIALOG_DATA} from '@angular/material/dialog';
-import { Inject } from '@angular/core';
-import {MatDialogRef} from "@angular/material/dialog";
+import {MAT_DIALOG_DATA, MatDialogRef} from '@angular/material/dialog';
 import {MatSnackBar} from "@angular/material/snack-bar";
-import {ColumnDefinition} from "../../../interfaces/ColumnDefinition";
+import {ColumnDefinition} from "../../../model/ColumnDefinition";
 import {BehaviorSubject} from "rxjs";
 import {Connection} from "../../../../../openapi";
 
