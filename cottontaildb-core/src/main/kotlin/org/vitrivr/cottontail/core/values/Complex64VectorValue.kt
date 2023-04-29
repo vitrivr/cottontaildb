@@ -12,8 +12,7 @@ import kotlin.math.pow
  * @version 1.6.0
  * @author Manuel Huerbin & Ralph Gasser
  */
-@JvmInline
-value class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Double> {
+class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Double> {
 
     /**
      * Constructor given an array of [Number]s
@@ -602,4 +601,18 @@ value class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Dou
      * @return L2 distance between this [Complex64VectorValue] and the other [VectorValue].
      */
     override fun l2(other: VectorValue<*>): DoubleValue = l2sq(other).sqrt()
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as Complex64VectorValue
+
+        if (!data.contentEquals(other.data)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return data.contentHashCode()
+    }
 }

@@ -11,8 +11,7 @@ import kotlin.math.pow
  * @author Ralph Gasser
  * @version 1.6.0
  */
-@JvmInline
-value class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
+class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
     constructor(input: List<Number>) : this(FloatArray(input.size) { input[it].toFloat() })
     constructor(input: Array<Number>) : this(FloatArray(input.size) { input[it].toFloat() })
     constructor(input: DoubleArray) : this(FloatArray(input.size) { input[it].toFloat() })
@@ -277,5 +276,20 @@ value class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
             FloatValue(sum)
         }
         else -> FloatValue(this.data.size)
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as FloatVectorValue
+
+        if (!data.contentEquals(other.data)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return data.contentHashCode()
     }
 }
