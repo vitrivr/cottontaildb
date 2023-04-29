@@ -267,26 +267,6 @@
           "schema" : {
             "type" : "string"
           }
-        }, {
-          "name" : "pageSize",
-          "in" : "query",
-          "description" : "Size of a page to return.",
-          "required" : false,
-          "deprecated" : false,
-          "allowEmptyValue" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "page",
-          "in" : "query",
-          "description" : "The current page.",
-          "required" : false,
-          "deprecated" : false,
-          "allowEmptyValue" : false,
-          "schema" : {
-            "type" : "string"
-          }
         } ],
         "responses" : {
           "200" : {
@@ -359,6 +339,16 @@
           },
           "400" : {
             "description" : "Bad Request",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Not Found",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -864,6 +854,130 @@
         "security" : [ ]
       }
     },
+    "/api/{connection}/{schema}/{entity}/preview" : {
+      "get" : {
+        "tags" : [ "DQL", "Entity" ],
+        "summary" : "Previews data for the entity specified by the connection string The preview can be customised through parameters.",
+        "operationId" : "getEntityPreview",
+        "parameters" : [ {
+          "name" : "connection",
+          "in" : "path",
+          "description" : "Connection string in the for <host>:<port>.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "schema",
+          "in" : "path",
+          "description" : "Name of the schema the entity belongs to.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "entity",
+          "in" : "path",
+          "description" : "Name of the entity to list details about.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "description" : "The maximum size of the result set. Used for pagination.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "skip",
+          "in" : "query",
+          "description" : "The number of items to skip in the result set. Used for pagination.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "sortColumn",
+          "in" : "query",
+          "description" : "The name of the column to sort by.",
+          "required" : false,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "sortDirection",
+          "in" : "query",
+          "description" : "The requested sort direct.",
+          "required" : false,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Resultset"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Not Found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Server Error",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          }
+        },
+        "deprecated" : false,
+        "security" : [ ]
+      }
+    },
     "/api/{connection}/{schema}/{entity}/truncate" : {
       "delete" : {
         "tags" : [ "DDL", "Entity" ],
@@ -962,19 +1076,9 @@
           },
           "type" : {
             "$ref" : "#/components/schemas/Type"
-          },
-          "length" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "nullable" : {
-            "type" : "boolean"
-          },
-          "autoIncrement" : {
-            "type" : "boolean"
           }
         },
-        "required" : [ "name", "type", "length", "nullable", "autoIncrement" ]
+        "required" : [ "name", "type" ]
       },
       "Dbo" : {
         "type" : "object",
@@ -1030,6 +1134,25 @@
           }
         },
         "required" : [ "name", "type" ]
+      },
+      "Resultset" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "columns" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Column"
+            }
+          },
+          "values" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "columns", "values" ]
       },
       "Connection" : {
         "type" : "object",
@@ -1094,7 +1217,7 @@
             "format" : "double"
           }
         },
-        "required" : [ "txId", "type", "state", "created", "ended", "duration" ]
+        "required" : [ "txId", "type", "state", "created", "duration" ]
       },
       "TransactionStatus" : {
         "type" : "string",

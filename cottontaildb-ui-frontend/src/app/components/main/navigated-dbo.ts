@@ -16,8 +16,8 @@ export class NavigatedDbo {
    */
   constructor(
      public readonly connection: string,
-     public readonly schema: String | null = null,
-     public readonly entity: String | null = null) {
+     public readonly schema: string | null = null,
+     public readonly entity: string | null = null) {
 
     if (this.schema == null && this.entity == null) {
       this.type = DboType.CONNECTION
