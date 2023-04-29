@@ -10,6 +10,15 @@ out
 *.ear
 *.iml
 
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+
+#Angular
+.angular
+openapi
+
 !gradle/wrapper/gradle-wrapper.jar
 
 *.db

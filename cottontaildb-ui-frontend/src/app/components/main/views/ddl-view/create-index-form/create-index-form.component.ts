@@ -4,8 +4,8 @@ import {EntityService} from "../../../../../services/entity.service";
 import {MAT_DIALOG_DATA, MatDialogRef} from "@angular/material/dialog";
 import {MatSnackBar} from "@angular/material/snack-bar";
 import {SelectionService} from "../../../../../services/selection.service";
-import {CreateEntityFormComponent} from "../../../../sidebar/overview/create-entity-form/create-entity-form.component";
-import {Connection} from "../../../../../services/connection.service";
+import {CreateEntityFormComponent} from "../../../../sidebar/create-entity-form/create-entity-form.component";
+import {Connection} from "../../../../../../../openapi";
 
 @Component({
   selector: 'app-create-index-form',

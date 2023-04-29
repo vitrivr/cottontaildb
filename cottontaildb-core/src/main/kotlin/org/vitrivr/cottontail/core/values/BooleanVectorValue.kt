@@ -36,6 +36,17 @@ value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
     override fun isEqual(other: Value): Boolean = (other is BooleanVectorValue) && (this.data.contentEquals(other.data))
 
     /**
+     * Compares this [BooleanVectorValue] to another [BooleanVectorValue]. The comparison is done lexicographically.
+     *
+     * @param other [Value] to compare to.
+     * @return True if equal, false otherwise.
+     */
+    override fun compareTo(other: Value): Int {
+        require(other is BooleanVectorValue) { "BooleanVectorValue can only be compared to another BooleanVectorValue. This is a programmer's error!"}
+        return Arrays.compare(this.data, other.data)
+    }
+
+    /**
      * Returns the indices of this [BooleanVectorValue].
      *
      * @return The indices of this [BooleanVectorValue]

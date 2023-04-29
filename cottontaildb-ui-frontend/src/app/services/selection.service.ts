@@ -1,7 +1,7 @@
 
 import { Injectable } from '@angular/core';
 import {BehaviorSubject} from 'rxjs';
-import {Connection} from "./connection.service";
+import {Connection} from "../../../openapi";
 
 export interface Selection {
   connection? : Connection;

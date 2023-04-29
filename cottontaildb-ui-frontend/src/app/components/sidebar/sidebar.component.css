@@ -1,9 +1,52 @@
-.content {
-  display: flex;
-  height: 100%;
-}
+
 .overview {
   background-color: white;
   flex: 1 1 auto;
 }
 
+.container{
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.connection-header{
+  display:flex;
+  justify-content: space-between;
+}
+button{
+  width: fit-content;
+  height: fit-content;
+}
+.arrow {
+  animation-name: warning;
+  animation-duration: 2s;
+  animation-iteration-count: infinite;
+}
+
+.tree-invisible {
+  display: none;
+}
+
+.example-tree ul,
+.example-tree li {
+  margin-top: 0;
+  margin-bottom: 0;
+  list-style-type: none;
+}
+
+/*
+ * This padding sets alignment of the nested nodes.
+ */
+.tree .mat-nested-tree-node div[role=group] {
+  padding-left: 40px;
+}
+
+/*
+ * Padding for leaf nodes.
+ * Leaf nodes need to have padding so as to align with other non-leaf nodes
+ * under the same parent.
+ */
+.tree div[role=group] > .mat-tree-node {
+  padding-left: 40px;
+}

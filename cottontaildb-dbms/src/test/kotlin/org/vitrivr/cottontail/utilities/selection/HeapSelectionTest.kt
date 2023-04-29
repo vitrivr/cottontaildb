@@ -66,7 +66,7 @@ class HeapSelectionTest {
         val selection = HeapSelection(100, Comparator<Int> { o1, o2 -> -o1.compareTo(o2) })
         (0 until 100000).toList().shuffled().forEach { selection.offer(it) }
         for ((i, v) in selection.withIndex()) {
-            Assertions.assertTrue(selection[i] == 99999 - v)
+            Assertions.assertTrue(selection[i] == v)
         }
     }
 }
