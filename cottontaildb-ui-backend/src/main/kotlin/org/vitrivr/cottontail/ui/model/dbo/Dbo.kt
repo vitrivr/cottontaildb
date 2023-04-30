@@ -11,5 +11,6 @@ data class Dbo(val name: String, val fqn: String, val type: DboType) {
         fun schema(fqn: String) = Dbo(fqn.split('.').last(), fqn, DboType.SCHEMA)
         fun entity(fqn: String) = Dbo(fqn.split('.').last(), fqn, DboType.ENTITY)
         fun column(fqn: String) = Dbo(fqn.split('.').last(), fqn, DboType.COLUMN)
+        fun index(fqn: String) = Dbo(fqn.split('.').last(), fqn, DboType.INDEX)
     }
 }

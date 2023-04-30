@@ -11,10 +11,10 @@ import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.ui.api.database.drainToList
 import org.vitrivr.cottontail.ui.api.database.obtainClientForContext
-import org.vitrivr.cottontail.ui.model.dbo.Column
 import org.vitrivr.cottontail.ui.model.dbo.Dbo
-import org.vitrivr.cottontail.ui.model.dbo.Entity
-import org.vitrivr.cottontail.ui.model.dbo.Index
+import org.vitrivr.cottontail.ui.model.dbo.details.ColumnDetails
+import org.vitrivr.cottontail.ui.model.dbo.details.EntityDetails
+import org.vitrivr.cottontail.ui.model.dbo.details.IndexDetails
 import org.vitrivr.cottontail.ui.model.status.ErrorStatus
 import org.vitrivr.cottontail.ui.model.status.ErrorStatusException
 import org.vitrivr.cottontail.ui.model.status.SuccessStatus
@@ -67,7 +67,7 @@ fun listEntities(context: Context){
     path = "/api/{connection}/{schema}/{entity}",
     methods = [HttpMethod.GET],
     summary = "Lists details about the entity specified by the connection string.",
-    operationId = OpenApiOperation.AUTO_GENERATE,
+    operationId = "getEntityAbout",
     tags = ["DDL", "Entity"],
     pathParams = [
         OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true),
@@ -75,7 +75,7 @@ fun listEntities(context: Context){
         OpenApiParam(name = "entity", description = "Name of the entity to list details about.", required = true)
     ],
     responses = [
-        OpenApiResponse("200", [OpenApiContent(Entity::class)]),
+        OpenApiResponse("200", [OpenApiContent(EntityDetails::class)]),
         OpenApiResponse("400", [OpenApiContent(ErrorStatus::class)]),
         OpenApiResponse("404", [OpenApiContent(ErrorStatus::class)]),
         OpenApiResponse("500", [OpenApiContent(ErrorStatus::class)]),
@@ -87,17 +87,20 @@ fun aboutEntity(context: Context) {
     val entityName = context.pathParam("entity")
 
     try {
-        val result = client.about(AboutEntity(context.pathParam("name")))
-        val columns = LinkedList<Column>()
-        val indexes = LinkedList<Index>()
+        val result = client.about(AboutEntity("${schemaName}.${entityName}"))
+        val columns = LinkedList<ColumnDetails>()
+        val indexes = LinkedList<IndexDetails>()
+        var size: Long = 0
         result.forEach {
             if (it.asString("class") == "COLUMN") {
-                columns.add(Column(it.asString("dbo")!!, Type.valueOf(it.asString("type")!!), it.asInt("lsize")!!, it.asBoolean("nullable")!!))
+                columns.add(ColumnDetails(it.asString("dbo")!!, Type.valueOf(it.asString("type")!!), it.asInt("l_size")!!, it.asBoolean("nullable")!!))
             } else if (it.asString("class") == "INDEX") {
-                indexes.add(Index(it.asString("dbo")!!, it.asString("type")!!))
+                indexes.add(IndexDetails(it.asString("dbo")!!, it.asString("type")!!))
+            } else if (it.asString("class") == "ENTITY") {
+                size = it.asLong("rows")!!
             }
         }
-        context.json(Entity(entityName, columns, indexes))
+        context.json(EntityDetails(entityName, columns, indexes))
     } catch (e: StatusException) {
         when (e.status) {
             Status.NOT_FOUND -> throw ErrorStatusException(404, "Failed to obtain information about entity $entityName.$schemaName, because it does not exist.")
@@ -112,7 +115,7 @@ fun aboutEntity(context: Context) {
     summary = "Creates the entity specified by the connection string.",
     operationId = OpenApiOperation.AUTO_GENERATE,
     tags = ["DDL", "Entity"],
-    requestBody = OpenApiRequestBody([OpenApiContent(Array<Column>::class)]),
+    requestBody = OpenApiRequestBody([OpenApiContent(Array<ColumnDetails>::class)]),
     pathParams = [
         OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true),
         OpenApiParam(name = "schema", description = "Name of the schema the entity belongs to.", required = true),
@@ -130,14 +133,14 @@ fun createEntity(context: Context) {
     val schemaName = context.pathParam("schema")
     val entityName = context.pathParam("entity")
     val columns = try {
-        context.bodyAsClass(Array<Column>::class.java)
+        context.bodyAsClass(Array<ColumnDetails>::class.java)
     } catch (e: BadRequestResponse) {
         throw ErrorStatusException(400, "Invalid column specifications. This is a programmers error!")
     }
 
     val request = CreateEntity("$schemaName.$entityName")
     for (c in columns) {
-        request.column(c.name, c.type, c.length, c.nullable, c.autoIncrement)
+        request.column(c.fqn, c.type, c.length, c.nullable, c.autoIncrement)
     }
     try {
         client.create(request).close()

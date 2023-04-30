@@ -12,10 +12,13 @@ import {EntityPreviewComponent} from "./entity-preview.component";
 import {MatInputModule} from "@angular/material/input";
 import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
 import {MatProgressBarModule} from "@angular/material/progress-bar";
+import {EntityAboutComponent} from "./entity-about.component";
+import {MatListModule} from "@angular/material/list";
 
 @NgModule({
   declarations: [
     EntityViewComponent,
+    EntityAboutComponent,
     EntityPreviewComponent
   ],
   imports: [
@@ -29,7 +32,8 @@ import {MatProgressBarModule} from "@angular/material/progress-bar";
     MatSortModule,
     MatInputModule,
     MatProgressSpinnerModule,
-    MatProgressBarModule
+    MatProgressBarModule,
+    MatListModule
   ],
   providers: [EntityViewComponent],
   exports: [EntityViewComponent],

@@ -1,0 +1,5 @@
+<div *ngIf="(data | async)">
+  <mat-list>
+    <mat-list-item *ngFor="let c of (data | async)?.columns">{{c.simple}}</mat-list-item>
+  </mat-list>
+</div>

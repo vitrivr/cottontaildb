@@ -66,11 +66,13 @@ export class EntityPreviewComponent implements OnDestroy, AfterViewInit {
         this.isLoading = true
 
         /* Start data loading. */
-        return this.dql.getEntityPreview(dbo.connection!!, dbo.schema!!, dbo.entity!!, limit, skip)
-      }),
-      catchError((err) => {
-        this._snackBar.open(`Error occurred when trying to load data for entity: ${err.error.description}.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
-        return []
+        return this.dql.getEntityPreview(dbo.connection!!, dbo.schema!!, dbo.entity!!, limit, skip).pipe(
+          catchError((err) => {
+            this._snackBar.open(`Error occurred when trying to load data for entity: ${err.error.description}.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
+            this.isLoading = false
+            return []
+          })
+        )
       })
     ).subscribe((r: Resultset) => {
       this.columns = r.columns.map(c => c.name)
