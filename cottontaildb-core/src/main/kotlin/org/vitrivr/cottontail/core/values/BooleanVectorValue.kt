@@ -12,7 +12,8 @@ import kotlin.math.pow
  * @author Ralph Gasser
  * @version 1.6.0
  */
-class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
+@JvmInline
+value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
     constructor(input: List<Number>) : this(BooleanArray(input.size) { input[it].toInt() == 1 })
     constructor(input: Array<Number>) : this(BooleanArray(input.size) { input[it].toInt() == 1 })
     constructor(input: Array<Boolean>) : this(BooleanArray(input.size) { input[it] })
@@ -245,20 +246,5 @@ class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
             IntValue(sum)
         }
         else -> super.hamming(other).asInt()
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as BooleanVectorValue
-
-        if (!data.contentEquals(other.data)) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return data.contentHashCode()
     }
 }

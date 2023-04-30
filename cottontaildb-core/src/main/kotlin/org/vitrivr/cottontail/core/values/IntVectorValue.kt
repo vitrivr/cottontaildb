@@ -10,7 +10,8 @@ import kotlin.math.pow
  * @author Ralph Gasser
  * @version 1.6.0
  */
-class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
+@JvmInline
+value class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
     constructor(input: List<Number>) : this(IntArray(input.size) { input[it].toInt() })
     constructor(input: Array<Number>) : this(IntArray(input.size) { input[it].toInt() })
     constructor(input: DoubleArray) : this(IntArray(input.size) { input[it].toInt() })
@@ -265,18 +266,4 @@ class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
      * @return The [IntVectorValue] representing the sub-vector.
      */
     override fun slice(start: Int, length: Int) = IntVectorValue(this.data.copyOfRange(start, start + length))
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as IntVectorValue
-
-        if (!data.contentEquals(other.data)) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return data.contentHashCode()
-    }
 }

@@ -11,7 +11,8 @@ import kotlin.math.pow
  * @author Ralph Gasser
  * @version 1.6.0
  */
- class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> {
+@JvmInline
+value class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> {
     constructor(input: List<Number>) : this(DoubleArray(input.size) { input[it].toDouble() })
     constructor(input: Array<Number>) : this(DoubleArray(input.size) { input[it].toDouble() })
     constructor(input: FloatArray) : this(DoubleArray(input.size) { input[it].toDouble() })
@@ -275,20 +276,5 @@ import kotlin.math.pow
             DoubleValue(sum)
         }
         else -> DoubleValue(this.data.size)
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as DoubleVectorValue
-
-        if (!data.contentEquals(other.data)) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return data.contentHashCode()
     }
 }

@@ -4,7 +4,8 @@ import org.vitrivr.cottontail.core.values.types.ScalarValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 
-class ByteStringValue(override val value: ByteArray) : ScalarValue<ByteArray> {
+@JvmInline
+value class ByteStringValue(override val value: ByteArray) : ScalarValue<ByteArray> {
 
     companion object {
         val EMPTY = ByteStringValue(ByteArray(0))
@@ -22,20 +23,5 @@ class ByteStringValue(override val value: ByteArray) : ScalarValue<ByteArray> {
         this.value.hashCode().compareTo(other.value.hashCode()) //stable but somewhat nonsensical
     } else {
         throw IllegalArgumentException("ByteStringValues can only be compared to other ByteStringValues.")
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as ByteStringValue
-
-        if (!value.contentEquals(other.value)) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return value.contentHashCode()
     }
 }
