@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.execution.operators.predicates
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.filter
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
@@ -29,17 +29,14 @@ class FilterOperator(parent: Operator, private val predicate: BooleanPredicate, 
      *
      * @return [Flow] representing this [FilterOperator]
      */
-    override fun toFlow(): Flow<Record> = flow {
-        val incoming = this@FilterOperator.parent.toFlow()
+    override fun toFlow(): Flow<Record> {
         with(this@FilterOperator.context.bindings) {
-            incoming.collect {record ->
+            this@FilterOperator.predicate.prepare()
+            return this@FilterOperator.parent.toFlow().filter { record ->
                 with(record) {
-                    if (this@FilterOperator.predicate.isMatch()) {
-                        emit(record)
-                    }
+                    this@FilterOperator.predicate.isMatch()
                 }
             }
         }
     }
-
 }

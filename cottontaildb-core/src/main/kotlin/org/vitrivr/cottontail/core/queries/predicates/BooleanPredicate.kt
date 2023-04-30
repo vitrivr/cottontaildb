@@ -6,6 +6,8 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.nodes.PreparableNode
+import org.vitrivr.cottontail.core.queries.nodes.StatefulNode
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.utilities.extensions.toDouble
 
@@ -18,9 +20,9 @@ import org.vitrivr.cottontail.utilities.extensions.toDouble
  * @see Record
  *
  * @author Ralph Gasser
- * @version 3.0.0
+ * @version 3.1.0
  */
-sealed interface BooleanPredicate : Predicate {
+sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
     /** The [Atomic]s that make up this [BooleanPredicate]. */
     val atomics: Set<Atomic>
 
@@ -35,6 +37,13 @@ sealed interface BooleanPredicate : Predicate {
      */
     context(BindingContext,Record)
     fun score(): Double
+
+    /**
+     * Creates a copy of this [BooleanPredicate]
+     *
+     * @return Copy of this [BooleanPredicate].
+     */
+    override fun copy(): BooleanPredicate
 
     /**
      * An atomic [BooleanPredicate] that compares the column of a [Record] to a provided value, a set of provided values or another column.
@@ -105,11 +114,26 @@ sealed interface BooleanPredicate : Predicate {
             (!this.not && this.operator.match()) || (this.not && !this.operator.match())
 
         /**
+         * Method that is being called directly before query execution starts.
+         *
+         * Propagated to [ComparisonOperator]
+         */
+        context(BindingContext)
+        override fun prepare() = this.operator.prepare()
+
+        /**
          * Calculates and returns the digest for this [BooleanPredicate.Atomic]
          *
          * @return [Digest]
          */
         override fun digest(): Digest = 33L * this.hashCode()
+
+        /**
+         * Creates a cop of this [Atomic] and returns it.
+         *
+         * @return Copy of this [Atomic].
+         */
+        override fun copy() = Atomic(this.operator.copy(), this.not)
 
         /**
          * Generates a [String] representation of this [BooleanPredicate].
@@ -191,6 +215,24 @@ sealed interface BooleanPredicate : Predicate {
             override fun score(): Double = (p1.isMatch() && p2.isMatch()).toDouble()
 
             /**
+             * Method that is being called directly before query execution starts.
+             *
+             * Propagated to child [BooleanPredicate]s
+             */
+            context(BindingContext)
+            override fun prepare() {
+                this.p1.prepare()
+                this.p2.prepare()
+            }
+
+            /**
+             * Creates a cop of this [And] and returns it.
+             *
+             * @return Copy of this [And].
+             */
+            override fun copy() = And(this.p1.copy(), this.p2.copy())
+
+            /**
              * Calculates and returns the digest for this [BooleanPredicate.Compound]
              *
              * @return Digest as [Long]
@@ -223,6 +265,24 @@ sealed interface BooleanPredicate : Predicate {
              */
             context(BindingContext,Record)
             override fun score(): Double = ((p1.isMatch() || p2.isMatch()).toDouble() / 2.0)
+
+            /**
+             * Method that is being called directly before query execution starts.
+             *
+             * Propagated to child [BooleanPredicate]s
+             */
+            context(BindingContext)
+            override fun prepare() {
+                this.p1.prepare()
+                this.p2.prepare()
+            }
+
+            /**
+             * Creates a cop of this [And] and returns it.
+             *
+             * @return Copy of this [And].
+             */
+            override fun copy() = Or(this.p1.copy(), this.p2.copy())
 
             /**
              * Calculates and returns the digest for this [BooleanPredicate.Compound]
