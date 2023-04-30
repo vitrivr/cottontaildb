@@ -36,7 +36,7 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
             StringValue(this@AboutEntityOperator.name.toString()),
             StringValue("ENTITY"),
             null,
-            IntValue(entityTxn.count()),
+            LongValue(entityTxn.count()),
             null,
             null,
             null
