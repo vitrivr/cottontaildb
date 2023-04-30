@@ -1,12 +1,20 @@
 <table mat-table [dataSource]="dataSource" [style.width]="'100%'" matSort>
-  <ng-container *ngFor="let disCol of columns; let colIndex = index" matColumnDef="{{disCol}}">
-    <mat-header-cell *matHeaderCellDef>{{disCol}}</mat-header-cell>
-    <mat-cell *matCellDef="let element "> {{element}}
-    </mat-cell>
+  <ng-container *ngFor="let column of columns; let colIndex = index" matColumnDef="{{column}}">
+    <th mat-header-cell *matHeaderCellDef matSort>{{column}}</th>
+    <td mat-cell *matCellDef="let element ">{{element[colIndex]}}</td>
   </ng-container>
 
   <tr mat-header-row *matHeaderRowDef="columns"></tr>
   <tr mat-row *matRowDef="let row; columns: columns;"></tr>
+
+  <tr class="mat-row" *matNoDataRow>
+    <td *ngIf="!isLoading" class="mat-cell" [attr.colspan]="columns.length">
+      No data matching the filter.
+    </td>
+    <td *ngIf="isLoading" [colSpan]="columns.length">
+      <mat-progress-bar color="primary" mode="indeterminate"></mat-progress-bar>
+    </td>
+  </tr>
 </table>
 
-<mat-paginator [pageSizeOptions]="[10, 25, 50]" aria-label="Select page of transactions."></mat-paginator>
+<mat-paginator [length]="total" [pageSizeOptions]="[20, 30, 40, 50]" showFirstLastButtons aria-label="Select page of transactions."></mat-paginator>

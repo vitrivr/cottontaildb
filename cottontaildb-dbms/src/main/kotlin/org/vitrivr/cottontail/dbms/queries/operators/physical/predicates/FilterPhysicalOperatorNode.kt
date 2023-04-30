@@ -55,7 +55,7 @@ class FilterPhysicalOperatorNode(input: Physical, val predicate: BooleanPredicat
      */
     override fun copyWithNewInput(vararg input: Physical): FilterPhysicalOperatorNode {
         require(input.size == 1) { "The input arity for FilterPhysicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
-        return FilterPhysicalOperatorNode(input = input[0], predicate = this.predicate)
+        return FilterPhysicalOperatorNode(input = input[0], predicate = this.predicate.copy())
     }
 
     /**

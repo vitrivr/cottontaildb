@@ -6,7 +6,7 @@ import io.javalin.http.Context
 import io.javalin.openapi.*
 import org.vitrivr.cottontail.ui.api.database.drainToList
 import org.vitrivr.cottontail.ui.api.database.obtainClientForContext
-import org.vitrivr.cottontail.ui.model.dbo.Entity
+import org.vitrivr.cottontail.ui.model.dbo.details.EntityDetails
 import org.vitrivr.cottontail.ui.model.status.ErrorStatus
 import org.vitrivr.cottontail.ui.model.status.ErrorStatusException
 import org.vitrivr.cottontail.ui.model.system.Lock
@@ -91,7 +91,7 @@ fun killTransaction(context: Context) {
         OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true)
     ],
     responses = [
-        OpenApiResponse("200", [OpenApiContent(Entity::class)]),
+        OpenApiResponse("200", [OpenApiContent(EntityDetails::class)]),
         OpenApiResponse("500", [OpenApiContent(ErrorStatus::class)]),
     ]
 )

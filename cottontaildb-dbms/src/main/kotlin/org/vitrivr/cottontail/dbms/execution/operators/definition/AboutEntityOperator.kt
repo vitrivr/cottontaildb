@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.BooleanValue
 import org.vitrivr.cottontail.core.values.IntValue
+import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -35,7 +36,7 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
             StringValue(this@AboutEntityOperator.name.toString()),
             StringValue("ENTITY"),
             null,
-            IntValue(entityTxn.count()),
+            LongValue(entityTxn.count()),
             null,
             null,
             null
@@ -50,7 +51,7 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
                 StringValue(it.name.toString()),
                 StringValue("COLUMN"),
                 StringValue(it.type.name),
-                IntValue(columnTx.count()),
+                LongValue(columnTx.count()),
                 IntValue(it.type.logicalSize),
                 BooleanValue(it.nullable),
                 if (it.primary) {
@@ -70,7 +71,7 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
                 StringValue(it.toString()),
                 StringValue("INDEX"),
                 StringValue(index.type.toString()),
-                IntValue(indexTx.count()),
+                LongValue(indexTx.count()),
                 null,
                 null,
                 StringValue(indexTx.state.toString())

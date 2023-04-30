@@ -49,9 +49,7 @@ export class SidebarComponent implements OnInit {
               private connections: ConnectionService,
               private schemas: SchemaService,
               private entities: EntityService
-  ) {
-
-  }
+  ) {}
 
   /**
    *

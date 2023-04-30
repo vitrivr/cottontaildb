@@ -60,13 +60,17 @@ fun previewEntity(context: Context) {
 
     try {
         /** Iterate through schemas and create list. */
+        var count = 0L
+        client.query(Query("${schemaName}.${entityName}").count()).forEach {
+            count = it.asLong(0)!!
+        }
         val iterator = client.query(query)
-        val columnsNames = iterator.columnNames
+        val columnsNames = iterator.simpleNames
         val columnsTypes = iterator.columnTypes
         val results =iterator.drainToList {
             format(columnsTypes, it)
         }
-        context.json(Resultset(columnsNames.zip(columnsTypes).map { Column(it.first, it.second) }, results))
+        context.json(Resultset(columnsNames.zip(columnsTypes).map { Column(it.first, it.second) }, results, count))
     } catch (e: StatusRuntimeException) {
         when (e.status.code) {
             Status.Code.NOT_FOUND -> throw ErrorStatusException(404, "The requested entity '${schemaName}.${entityName} could not be found.")

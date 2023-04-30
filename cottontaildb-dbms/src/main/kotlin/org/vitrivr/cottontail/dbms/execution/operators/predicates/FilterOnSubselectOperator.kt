@@ -76,6 +76,7 @@ class FilterOnSubselectOperator(val parent: Operator, val subquery: Operator, va
             }
 
             /* Stage 2: Make with materialis */
+            this@FilterOnSubselectOperator.predicate.prepare()
             query.collect { record ->
                 with(record) {
                     if (this@FilterOnSubselectOperator.predicate.isMatch()) {

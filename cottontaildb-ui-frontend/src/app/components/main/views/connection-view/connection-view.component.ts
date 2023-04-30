@@ -1,5 +1,6 @@
 import {Component, Input} from "@angular/core";
 import {NavigatedDbo} from "../../navigated-dbo";
+import {Observable} from "rxjs";
 
 @Component({
   selector: 'connection-view',
@@ -16,5 +17,5 @@ import {NavigatedDbo} from "../../navigated-dbo";
 })
 export class ConnectionViewComponent {
   /** The currently {@link NavigatedDbo}. This is provided by the parent component. */
-  @Input() dbo!: NavigatedDbo;
+  @Input() dbo!: Observable<NavigatedDbo>;
 }

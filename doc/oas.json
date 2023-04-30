@@ -232,7 +232,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Entity"
+                  "$ref" : "#/components/schemas/EntityDetails"
                 }
               }
             }
@@ -603,7 +603,7 @@
       "get" : {
         "tags" : [ "DDL", "Entity" ],
         "summary" : "Lists details about the entity specified by the connection string.",
-        "operationId" : "getApiByConnectionBySchemaByEntity",
+        "operationId" : "getEntityAbout",
         "parameters" : [ {
           "name" : "connection",
           "in" : "path",
@@ -641,7 +641,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Entity"
+                  "$ref" : "#/components/schemas/EntityDetails"
                 }
               }
             }
@@ -721,7 +721,7 @@
               "schema" : {
                 "type" : "array",
                 "items" : {
-                  "$ref" : "#/components/schemas/Column"
+                  "$ref" : "#/components/schemas/ColumnDetails"
                 }
               }
             }
@@ -1067,19 +1067,6 @@
         "type" : "string",
         "enum" : [ "BOOLEAN", "BYTE", "SHORT", "INTEGER", "LONG", "FLOAT", "DOUBLE", "DATE", "STRING", "COMPLEX32", "COMPLEX64", "DOUBLE_VECTOR", "FLOAT_VECTOR", "LONG_VECTOR", "INTEGER_VECTOR", "BOOLEAN_VECTOR", "COMPLEX32_VECTOR", "COMPLEX64_VECTOR", "BYTESTRING", "UNDEFINED" ]
       },
-      "Column" : {
-        "type" : "object",
-        "additionalProperties" : false,
-        "properties" : {
-          "name" : {
-            "type" : "string"
-          },
-          "type" : {
-            "$ref" : "#/components/schemas/Type"
-          }
-        },
-        "required" : [ "name", "type" ]
-      },
       "Dbo" : {
         "type" : "object",
         "additionalProperties" : false,
@@ -1100,29 +1087,74 @@
         "type" : "string",
         "enum" : [ "SCHEMA", "ENTITY", "COLUMN", "INDEX" ]
       },
-      "Entity" : {
+      "ColumnDetails" : {
         "type" : "object",
         "additionalProperties" : false,
         "properties" : {
-          "name" : {
+          "fqn" : {
+            "type" : "string"
+          },
+          "type" : {
+            "$ref" : "#/components/schemas/Type"
+          },
+          "length" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "nullable" : {
+            "type" : "boolean"
+          },
+          "autoIncrement" : {
+            "type" : "boolean"
+          },
+          "simple" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "fqn", "type", "length", "nullable", "autoIncrement", "simple" ]
+      },
+      "EntityDetails" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "fqn" : {
             "type" : "string"
           },
           "columns" : {
             "type" : "array",
             "items" : {
-              "$ref" : "#/components/schemas/Column"
+              "$ref" : "#/components/schemas/ColumnDetails"
             }
           },
           "indexes" : {
             "type" : "array",
             "items" : {
-              "$ref" : "#/components/schemas/Index"
+              "$ref" : "#/components/schemas/IndexDetails"
             }
+          },
+          "simple" : {
+            "type" : "string"
           }
         },
-        "required" : [ "name", "columns", "indexes" ]
+        "required" : [ "fqn", "columns", "indexes", "simple" ]
       },
-      "Index" : {
+      "IndexDetails" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "fqn" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          },
+          "simple" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "fqn", "type", "simple" ]
+      },
+      "Column" : {
         "type" : "object",
         "additionalProperties" : false,
         "properties" : {
@@ -1130,7 +1162,7 @@
             "type" : "string"
           },
           "type" : {
-            "type" : "string"
+            "$ref" : "#/components/schemas/Type"
           }
         },
         "required" : [ "name", "type" ]
@@ -1150,9 +1182,13 @@
             "items" : {
               "type" : "string"
             }
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int64"
           }
         },
-        "required" : [ "columns", "values" ]
+        "required" : [ "columns", "values", "size" ]
       },
       "Connection" : {
         "type" : "object",

@@ -1,6 +1,6 @@
 <!--See app-routing.module.ts-->
 <div *ngIf="this.navigated; else noSelection">
-  <div [ngSwitch]="this.navigated.type.valueOf()">
+  <div [ngSwitch]="(this.navigated | async)?.type?.valueOf()">
     <connection-view *ngSwitchCase="0" [dbo]="this.navigated"></connection-view>
     <entity-view *ngSwitchCase="2" [dbo]="this.navigated"></entity-view>
   </div>

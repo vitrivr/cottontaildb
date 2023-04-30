@@ -31,7 +31,7 @@ object ColumnSets {
         ColumnDef(Name.ColumnName("dbo"), Types.String, false),
         ColumnDef(Name.ColumnName("class"), Types.String, false),
         ColumnDef(Name.ColumnName("type"), Types.String, true),
-        ColumnDef(Name.ColumnName("rows"), Types.Int, true),
+        ColumnDef(Name.ColumnName("rows"), Types.Long, true),
         ColumnDef(Name.ColumnName("l_size"), Types.Int, true),
         ColumnDef(Name.ColumnName("nullable"), Types.Boolean, true),
         ColumnDef(Name.ColumnName("info"), Types.String, true)
