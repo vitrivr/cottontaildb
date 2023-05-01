@@ -13,9 +13,8 @@ configurations {
 node {
   version = '18.16.0'
   download = true
-  workDir = file("${project.projectDir}/.gradle/nodejs")
-  yarnWorkDir = file("${project.projectDir}/.gradle/yarn")
-  nodeProjectDir = file("${project.projectDir}")
+  workDir.set(file("${project.projectDir}/.gradle/nodejs"))
+  nodeProjectDir.set(file("${project.projectDir}"))
 }
 
 tasks.register('buildFrontend', NpxTask) {
@@ -33,10 +32,9 @@ tasks.register('packageFrontend', Zip) {
     return file("$buildDir/libs/cottontaildb-ui-frontend.jar").exists()
   }
   dependsOn buildFrontend
-  baseName 'cottontaildb-ui-frontend'
-  extension 'jar'
-  destinationDir file("$buildDir/libs")
-  from("$buildDir/dists") {
+  archiveFileName = "cottontaildb-ui-frontend.jar"
+  destinationDirectory = file("$buildDir/libs")
+  from("$buildDir/dist") {
     into 'html'
   }
 }

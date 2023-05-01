@@ -1,28 +1,13 @@
-<div class="container">
-
-  <form (ngSubmit)="submit()"
-        [formGroup]="schemaForm" class="form">
-
-    <div>
-      <mat-form-field appearance="outline">
-        <mat-label>new schema</mat-label>
-        <input matInput type="text"
-               formControlName="name"
-               name= "name"
-               class="form-control"
-               ngModel>
-      </mat-form-field>
-    </div>
-
-    <div mat-dialog-actions align="end">
-      <button mat-flat-button
-                 class="btn btn-primary"
-                 color="custom-green"
-                 type="submit"
-                 [disabled]="schemaForm.invalid">
-        Create
-      </button>
-    </div>
-
+<h1 mat-dialog-title>Create new schema</h1>
+<div mat-dialog-content>
+  <form [formGroup]="schemaForm" class="form">
+    <mat-form-field appearance="outline">
+      <mat-label>new schema</mat-label>
+      <input matInput type="text" formControlName="name" name= "name">
+    </mat-form-field>
   </form>
+</div>
+<div mat-dialog-actions>
+  <button mat-flat-button color="primary" [disabled]="schemaForm.invalid" (click)="save()">Create</button>
+  <button mat-flat-button color="warn" (click)="abort()">Abort</button>
 </div>

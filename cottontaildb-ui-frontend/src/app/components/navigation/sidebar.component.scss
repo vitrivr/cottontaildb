@@ -9,30 +9,10 @@ $primary-palette: map.get($color-config, 'primary');
   background-color: mat.get-color-from-palette($primary-palette, default);
 }
 
-.overview {
-  background-color: white;
-  flex: 1 1 auto;
-}
-
-.container{
-  padding: 20px;
+.sidebar-toolbar {
   display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.connection-header{
-  display:flex;
-  justify-content: space-between;
-}
-
-button{
-  width: fit-content;
-  height: fit-content;
-}
-
-.arrow {
-  animation-name: warning;
-  animation-duration: 2s;
-  animation-iteration-count: infinite;
+  position: sticky;
+  position: -webkit-sticky; /* For macOS/iOS Safari */
+  top: 0; /* Sets the sticky toolbar to be on top */
+  z-index: 1000
 }

@@ -2,11 +2,11 @@ import {Component, Inject, OnInit} from '@angular/core';
 import {TreeDataService} from "../../../services/tree-data.service";
 import {FormControl, FormGroup, Validators} from "@angular/forms";
 import {EntityService} from "../../../services/entity.service";
-import {MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA, MatLegacyDialogRef as MatDialogRef} from '@angular/material/legacy-dialog';
-import {MatLegacySnackBar as MatSnackBar} from "@angular/material/legacy-snack-bar";
 import {ColumnDefinition} from "../../../model/ColumnDefinition";
 import {BehaviorSubject} from "rxjs";
 import {Connection} from "../../../../../openapi";
+import {MAT_DIALOG_DATA, MatDialogRef} from "@angular/material/dialog";
+import {MatSnackBar} from "@angular/material/snack-bar";
 
 
 @Component({
@@ -91,8 +91,4 @@ export class CreateEntityFormComponent implements OnInit {
     });
 
   }
-
-
-
-
 }

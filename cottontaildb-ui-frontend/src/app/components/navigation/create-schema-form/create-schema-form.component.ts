@@ -1,11 +1,10 @@
 import {Component} from '@angular/core';
 import {FormControl, FormGroup, Validators} from "@angular/forms";
-import {MatLegacyDialogRef as MatDialogRef} from "@angular/material/legacy-dialog";
+import {MatDialogRef} from "@angular/material/dialog";
 
 @Component({
   selector: 'app-create-schema-form',
-  templateUrl: './create-schema-form.component.html',
-  styleUrls: ['./create-schema-form.component.css']
+  templateUrl: './create-schema-form.component.html'
 })
 export class CreateSchemaFormComponent {
 
@@ -20,14 +19,19 @@ export class CreateSchemaFormComponent {
    *
    * @param dialogRef
    */
-  constructor(private dialogRef : MatDialogRef<CreateSchemaFormComponent>) {
+  constructor(private dialogRef : MatDialogRef<CreateSchemaFormComponent>) {}
 
+  /**
+   * Saving of input (=> create schema)
+   */
+  public save() {
+    this.dialogRef.close(this.schemaForm.value.name)
   }
 
   /**
-   * Handles form submission.
+   * Handles closing of dialog.
    */
-  public submit() {
-    this.dialogRef.close(this.schemaForm.value.name)
+  public abort() {
+    this.dialogRef.close(null)
   }
 }

@@ -2,17 +2,9 @@ import {NgModule} from "@angular/core";
 import {CommonModule} from "@angular/common";
 import {BrowserModule} from "@angular/platform-browser";
 import {FormsModule, ReactiveFormsModule} from "@angular/forms";
-import {MatLegacyButtonModule as MatButtonModule} from "@angular/material/legacy-button";
-import {MatLegacyFormFieldModule as MatFormFieldModule} from "@angular/material/legacy-form-field";
-import {MatLegacyTableModule as MatTableModule} from "@angular/material/legacy-table";
 import {MatTreeModule} from "@angular/material/tree";
 import {MatIconModule} from "@angular/material/icon";
-import {MatLegacyInputModule as MatInputModule} from "@angular/material/legacy-input";
-import {MatLegacyMenuModule as MatMenuModule} from "@angular/material/legacy-menu";
-import {MatLegacyOptionModule as MatOptionModule} from "@angular/material/legacy-core";
 import {MatToolbarModule} from "@angular/material/toolbar";
-import {MatLegacyProgressBarModule as MatProgressBarModule} from "@angular/material/legacy-progress-bar";
-import {MatLegacyProgressSpinnerModule as MatProgressSpinnerModule} from "@angular/material/legacy-progress-spinner";
 import {MainComponent} from "./main.component";
 import {DmlViewComponent} from "./views/dml-view/dml-view.component";
 import {QueryViewComponent} from "./views/query-view/query-view.component";
@@ -33,17 +25,26 @@ import {DeleteFormComponent} from "./views/dml-view/delete-form/delete-form.comp
 import {InsertFormComponent} from "./views/dml-view/insert-form/insert-form.component";
 import {UpdateFormComponent} from "./views/dml-view/update-form/update-form.component";
 import {VectorDetailsComponent} from "./views/query-view/vector-details/vector-details.component";
-import {MatLegacyAutocompleteModule as MatAutocompleteModule} from "@angular/material/legacy-autocomplete";
 import {MatButtonToggleModule} from "@angular/material/button-toggle";
-import {MatLegacyTooltipModule as MatTooltipModule} from "@angular/material/legacy-tooltip";
-import {MatLegacyCardModule as MatCardModule} from "@angular/material/legacy-card";
 import {MatDividerModule} from "@angular/material/divider";
-import {MatLegacyPaginatorModule as MatPaginatorModule} from "@angular/material/legacy-paginator";
 import {DragDropModule} from "@angular/cdk/drag-drop";
-import {MatLegacyTabsModule as MatTabsModule} from "@angular/material/legacy-tabs";
 import {MatSortModule} from "@angular/material/sort";
 import {ConnectionViewModule} from "./views/connection-view/connection-view-module";
 import {EntityViewModule} from "./views/entity-view/entity-view.module";
+import {MatCardModule} from "@angular/material/card";
+import {MatAutocompleteModule} from "@angular/material/autocomplete";
+import {MatButtonModule} from "@angular/material/button";
+import {MatFormFieldModule} from "@angular/material/form-field";
+import {MatTableModule} from "@angular/material/table";
+import {MatInputModule} from "@angular/material/input";
+import {MatMenuModule} from "@angular/material/menu";
+import {MatOptionModule} from "@angular/material/core";
+import {MatTooltipModule} from "@angular/material/tooltip";
+import {MatProgressBarModule} from "@angular/material/progress-bar";
+import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
+import {MatPaginatorModule} from "@angular/material/paginator";
+import {MatTabsModule} from "@angular/material/tabs";
+import {MatSnackBarModule} from "@angular/material/snack-bar";
 
 @NgModule({
   declarations: [
@@ -95,6 +96,7 @@ import {EntityViewModule} from "./views/entity-view/entity-view.module";
     MatProgressBarModule,
     MatProgressSpinnerModule,
     MatPaginatorModule,
+    MatSnackBarModule,
     ReactiveFormsModule,
     MatTabsModule,
     MatSortModule

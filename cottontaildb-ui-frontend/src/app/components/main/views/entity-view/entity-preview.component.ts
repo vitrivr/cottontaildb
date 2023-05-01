@@ -1,12 +1,12 @@
 /** The currently {@link NavigatedDbo}. This is provided by the parent component. */
 import {AfterViewInit, Component, Input, OnDestroy, ViewChild} from "@angular/core";
 import {NavigatedDbo} from "../../navigated-dbo";
-import {MatLegacyTableDataSource as MatTableDataSource} from "@angular/material/legacy-table";
-import {MatLegacyPaginator as MatPaginator} from "@angular/material/legacy-paginator";
 import {MatSort} from "@angular/material/sort";
-import {MatLegacySnackBar as MatSnackBar, MatLegacySnackBarConfig as MatSnackBarConfig} from "@angular/material/legacy-snack-bar";
 import {BehaviorSubject, catchError, combineLatestWith, mergeMap, Observable, startWith, Subscription} from "rxjs";
 import {DQLService, Resultset} from "../../../../../../openapi";
+import {MatTableDataSource} from "@angular/material/table";
+import {MatPaginator} from "@angular/material/paginator";
+import {MatSnackBar, MatSnackBarConfig} from "@angular/material/snack-bar";
 
 @Component({
   selector: 'entity-preview',

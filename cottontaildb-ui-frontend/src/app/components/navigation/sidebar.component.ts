@@ -2,16 +2,16 @@ import {Component, OnInit} from '@angular/core';
 import {ConnectionService} from "../../services/connection.service";
 import {CreateSchemaFormComponent} from "./create-schema-form/create-schema-form.component";
 import {AddConnectionFormComponent} from "./add-connection-form/add-connection-form.component";
-import {MatLegacyDialog as MatDialog} from "@angular/material/legacy-dialog";
 import {MatTreeNestedDataSource} from "@angular/material/tree";
 import {DboNode} from "./tree/dbo-node";
 import {FlatTreeControl, NestedTreeControl} from "@angular/cdk/tree";
 import {Connection, Dbo, EntityService, SchemaService} from "../../../../openapi";
 import {catchError} from "rxjs";
-import {MatLegacySnackBar as MatSnackBar, MatLegacySnackBarConfig as MatSnackBarConfig} from "@angular/material/legacy-snack-bar";
 import {DboDatasource} from "./tree/dbo-datasource";
 import {ActivatedRoute, Params, Router} from "@angular/router";
 import {DboType} from "../../model/dbo/dbo-type";
+import {MatDialog} from "@angular/material/dialog";
+import {MatSnackBar, MatSnackBarConfig} from "@angular/material/snack-bar";
 
 @Component({
   selector: 'app-sidebar',
@@ -31,6 +31,7 @@ export class SidebarComponent implements OnInit {
 
   /** The {@link MatTreeNestedDataSource} used as data source for the sidebar tree. */
   public readonly dataSource = new DboDatasource(this.treeControl, this.connections, this.schemas, this.entities);
+  Connection: void;
 
   /**
    *
@@ -89,25 +90,6 @@ export class SidebarComponent implements OnInit {
   }
 
   /**
-   * Opens the form to create a new connection and establishes the connection upon completion.
-   */
-  public connect() {
-    let ref = this.dialog.open<AddConnectionFormComponent>(AddConnectionFormComponent, {
-      width: 'fit-content',
-      height: 'fit-content',
-    });
-    ref.afterClosed().subscribe((result: Connection) => this.connections.connect(result))
-  }
-
-  /**
-   *
-   * @param connection
-   */
-  public disconnect(connection: Connection) {
-    this.connections.disconnect(connection)
-  }
-
-  /**
    * Handles selection of a {@link DboNode} in the sidebar. Updates the navigation state accordingly.
    *
    * @param node The {@link DboNode} that was selected.
@@ -133,7 +115,19 @@ export class SidebarComponent implements OnInit {
   }
 
   /**
-   * Opens the form to create a new schema and creates it upon completion.
+   * Opens the form to create a new connection and establishes the connection upon completion.
+   */
+  public connect() {
+    let ref = this.dialog.open<AddConnectionFormComponent>(AddConnectionFormComponent, {width: 'fit-content', height: 'fit-content',});
+    ref.afterClosed().subscribe((result: Connection) => {
+      if (result)this.connections.connect(result);
+    })
+  }
+
+  /**
+   * Opens a form to create a new schema using the {@link Connection} represented by the provided {@link DboNode}.
+   *
+   * @param node {@link DboNode}
    */
   public createSchema(node: DboNode) {
     if (node.type !== DboType.CONNECTION) throw new Error("Cannot create schema for non-connection node.");
@@ -153,7 +147,9 @@ export class SidebarComponent implements OnInit {
   }
 
   /**
-   * Opens the form to create a new schema and creates it upon completion.
+   * Drops the schema represented by the provided {@link DboNode}
+   *
+   * @param node {@link DboNode}
    */
   public dropSchema(node: DboNode) {
     if (node.type !== DboType.SCHEMA) throw new Error("Cannot drop schema for non-schema node.");
@@ -165,5 +161,32 @@ export class SidebarComponent implements OnInit {
         this._snackBar.open(`Schema ${node.name} dropped successfully.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
         this.dataSource.refreshConnection(node.parent!!); /* Reload children. */
     })
+  }
+
+  /**
+   * Drops the schema represented by the provided {@link DboNode}
+   *
+   * @param node {@link DboNode}
+   */
+  public dropEntity(node: DboNode) {
+    if (node.type !== DboType.ENTITY) throw new Error("Cannot execute dropEntity() for for non-entity node.");
+    this.entities.deleteApiByConnectionBySchemaByEntity(node.parent!!.parent!!.name, node.parent!!.name, node.name).pipe(
+      catchError((err) => {
+        this._snackBar.open(`Error occurred when trying to drop entity '${node.name}': ${err.error.description}.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
+        return []
+      })).subscribe(r => {
+      this._snackBar.open(`Entity ${node.name} dropped successfully.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
+      this.dataSource.refreshSchema(node.parent!!); /* Reload children. */
+    })
+  }
+
+  /**
+   * Disconnects the {@link Connection} represented by the provided {@link DboNode}.
+   *
+   * @param node {@link DboNode}
+   */
+  public disconnect(node: DboNode) {
+    if (node.type !== DboType.CONNECTION) throw new Error("Cannot execute disconnect() for a non-connection node.");
+    this.connections.disconnect(node.context as Connection)
   }
 }
