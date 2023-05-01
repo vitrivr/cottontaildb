@@ -1,7 +1,10 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id 'idea'
     id "org.jetbrains.kotlin.jvm" version "$version_kotlin"
     id "org.jetbrains.kotlin.plugin.serialization" version "$version_kotlin"
+    id "org.jetbrains.kotlin.kapt" version "$version_kotlin"
     id "com.github.johnrengelman.shadow" version "7.1.2"
     id "org.openapi.generator" version "6.2.0"
     id "de.undercouch.download" version "5.4.0"
@@ -33,6 +36,8 @@ allprojects {
             url "https://oss.sonatype.org/content/repositories/snapshots/"
         }
     }
+
+
 }
 
 subprojects {
@@ -44,26 +49,25 @@ subprojects {
     apply plugin: 'java-test-fixtures'
 
     /* Compiler options for Kotlin. */
-    def kotlinCompilerOptions = ["-Xcontext-receivers"]
     compileKotlin {
-        kotlinOptions {
-            freeCompilerArgs = kotlinCompilerOptions
-            jvmTarget = "1.8"
+        compilerOptions {
+            freeCompilerArgs.add("-Xcontext-receivers")
+            jvmTarget = JvmTarget.JVM_17
         }
     }
 
     /* Compiler options for Kotlin when running tests. */
     compileTestKotlin {
-        kotlinOptions {
-            freeCompilerArgs = kotlinCompilerOptions
-            jvmTarget = "1.8"
+        compilerOptions {
+            freeCompilerArgs.add("-Xcontext-receivers")
+            jvmTarget = JvmTarget.JVM_17
         }
     }
 
     compileTestFixturesKotlin {
-        kotlinOptions {
-            freeCompilerArgs = kotlinCompilerOptions
-            jvmTarget = "1.8"
+        compilerOptions {
+            freeCompilerArgs.add("-Xcontext-receivers")
+            jvmTarget = JvmTarget.JVM_17
         }
     }
 
