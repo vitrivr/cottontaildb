@@ -1,6 +1,6 @@
 plugins {
   id 'base'
-  id 'com.github.node-gradle.node' version '3.5.0'
+  id 'com.github.node-gradle.node' version '4.0.0'
 }
 
 configurations {
@@ -11,31 +11,32 @@ configurations {
 }
 
 node {
-  version = '18.1.0'
+  version = '18.16.0'
   download = true
   workDir = file("${project.projectDir}/.gradle/nodejs")
   yarnWorkDir = file("${project.projectDir}/.gradle/yarn")
   nodeProjectDir = file("${project.projectDir}")
 }
 
-task buildFrontend(type: YarnTask) {
+tasks.register('buildFrontend', NpxTask) {
+  dependsOn npmInstall
   outputs.upToDateWhen {
     return file("$buildDir/dist").isDirectory()
   }
-  args = ['run','pbuild']
-  dependsOn yarn_install
+  command = "@angular/cli@latest"
+  args = ["build", "--configuration=production", "--output-path=build/dist"]
 }
 
 
-task packageFrontend(type: Zip) {
+tasks.register('packageFrontend', Zip) {
   outputs.upToDateWhen {
-    return file("$buildDir/lib/cottontaildb-ui-frontend.jar").exists()
+    return file("$buildDir/libs/cottontaildb-ui-frontend.jar").exists()
   }
   dependsOn buildFrontend
   baseName 'cottontaildb-ui-frontend'
   extension 'jar'
-  destinationDir file("$buildDir/lib")
-  from("$buildDir/dist") {
+  destinationDir file("$buildDir/libs")
+  from("$buildDir/dists") {
     into 'html'
   }
 }
