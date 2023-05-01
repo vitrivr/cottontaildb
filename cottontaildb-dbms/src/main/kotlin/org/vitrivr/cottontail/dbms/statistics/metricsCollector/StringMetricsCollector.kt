@@ -15,8 +15,8 @@ import java.lang.Integer.min
 class StringMetricsCollector(config: MetricsConfig) : AbstractScalarMetricsCollector<StringValue>(Types.String, config) {
 
     /** Local Metrics */
-    var minWidth : Int = 0
-    var maxWidth : Int = 0
+    var minWidth : Int = Int.MAX_VALUE
+    var maxWidth : Int = Int.MIN_VALUE
 
     /**
      * Receives the values for which to compute the statistics

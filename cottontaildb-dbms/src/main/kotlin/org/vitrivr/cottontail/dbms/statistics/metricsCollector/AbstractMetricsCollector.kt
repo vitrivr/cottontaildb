@@ -5,6 +5,7 @@ import org.vitrivr.cottontail.config.StatisticsConfig
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractValueMetrics
+import kotlin.math.max
 
 
 /**
@@ -20,7 +21,8 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.AbstractValueMetrics
 sealed class AbstractMetricsCollector<T : Value>(override val type: Types<T>, override val config: MetricsConfig) : MetricsCollector<T> {
 
     /** Init a BloomFilter*/
-    private var bloomFilter : BloomFilter<Value> =  BloomFilter.create<Value>(Value.ValueFunnel, config.expectedNumElements, config.statisticsConfig.falsePositiveProbability)
+    private val expectedElements = max(config.expectedNumElements, 10000) // If we know nothing about the num of elements or if it's very small, we just assume 10000 entries
+    private var bloomFilter : BloomFilter<Value> =  BloomFilter.create<Value>(Value.ValueFunnel, expectedElements, config.statisticsConfig.falsePositiveProbability)
 
     /** Global Metrics */
     override var numberOfDistinctEntries = 0L

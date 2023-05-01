@@ -50,9 +50,8 @@ class MetaDataStatisticsManager(private val environment: Environment, transactio
         val changes = this.changes[entity]
         if (changes != null) {
             return changes
-        } else {
-            return 0
         }
+        return 0
     }
 
     /**
@@ -61,19 +60,15 @@ class MetaDataStatisticsManager(private val environment: Environment, transactio
      * @param entity The [Name.EntityName] to update.
      * @param transaction The [Transaction] to perform the update with.
      */
-    fun increateEntityChanges(entity: Name.EntityName, transaction: Transaction) = this.lock.write {
-        // either way, increase count of changes by 1.
-        this.changes[entity]?.let {
-            // if not null
-            val changes = it + 1
-            this.changes[entity] = changes
-            this.store.put(transaction, NameBinding.Entity.objectToEntry(entity), IntegerBinding.intToEntry(changes)) // write to storage
-        } ?: {
-            // if null
-            val changes = 1
-            this.changes[entity] = changes
-            this.store.put(transaction, NameBinding.Entity.objectToEntry(entity), IntegerBinding.intToEntry(changes)) // write to storage
+    fun increaseEntityChanges(entity: Name.EntityName, transaction: Transaction) = this.lock.write {
+        var changes = this.changes[entity]
+        if (changes == null) {
+            changes = 0
         }
+
+        // increase count of changes by 1.
+        this.changes[entity] = changes + 1
+        this.store.put(transaction, NameBinding.Entity.objectToEntry(entity), IntegerBinding.intToEntry(changes)) // write to storage
     }
 
     /**
@@ -84,6 +79,7 @@ class MetaDataStatisticsManager(private val environment: Environment, transactio
      */
     fun resetEntityChanges(entity: Name.EntityName, transaction: Transaction) = this.lock.write {
         // set entity changes to 0
+        this.changes[entity] = 0
         this.store.put(transaction, NameBinding.Entity.objectToEntry(entity), IntegerBinding.intToEntry(0))
     }
 

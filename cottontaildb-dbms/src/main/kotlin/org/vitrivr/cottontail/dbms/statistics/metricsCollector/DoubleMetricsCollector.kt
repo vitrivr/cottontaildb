@@ -13,6 +13,7 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.DoubleValueMetrics
 class DoubleMetricsCollector(config: MetricsConfig) : RealMetricsCollector<DoubleValue>(Types.Double, config) {
 
     override fun calculate(probability: Float): DoubleValueMetrics {
+
         val sampleMetrics = DoubleValueMetrics(
             this.numberOfNullEntries,
             this.numberOfNonNullEntries,

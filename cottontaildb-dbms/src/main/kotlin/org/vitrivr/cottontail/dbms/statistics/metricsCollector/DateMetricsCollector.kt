@@ -15,8 +15,8 @@ import java.lang.Long.min
 class DateMetricsCollector(config: MetricsConfig) : AbstractScalarMetricsCollector<DateValue>(Types.Date, config) {
 
     /** Local Metrics */
-    var min : Long = 0
-    var max : Long = 0
+    var min : Long = Long.MAX_VALUE
+    var max : Long = Long.MIN_VALUE
 
     /**
      * Receives the values for which to compute the statistics

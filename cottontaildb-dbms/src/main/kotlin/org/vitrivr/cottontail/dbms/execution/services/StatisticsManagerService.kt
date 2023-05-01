@@ -217,21 +217,43 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
 
                 // get the collectors for all columns and give them the numberOfEntries to init the BloomFilter
                 // numberOfEntries is multiplied with probability since the Bloomfilter is only getting a sample of the whole set
-                val columnsCollector = columns.map { columnDef ->
-                    getCollector(columnDef, this@StatisticsManagerService.catalogue.config.statistics, (probability * numberOfEntries).toLong())
+                // init list of collectors
+                val columnsCollector = mutableListOf<MetricsCollector<*>>()
+                // Fill this list
+                columns.forEach { columnDef ->
+                    val collector = getCollector(columnDef, this@StatisticsManagerService.catalogue.config.statistics, (probability * numberOfEntries).toLong())
+                    columnsCollector.add(collector)
                 }
 
                 // create cursor for all columns of this entity and iterate over all of them
                 val entityCursor = entityTx.cursor(columns)
                 entityCursor.use { cursor ->
                     while (cursor.moveNext()) {
-                        if (randomNumberGenerator.nextDouble(0.0, 1.0) <= probability) { //  will be between 0 and 1 (inclusive of both endpoints)
+                        if (randomNumberGenerator.nextDouble(0.0, 1.0) <= probability || numberOfEntries < this@StatisticsManagerService.catalogue.config.statistics.minSampleSize) { //  will be between 0 and 1 (inclusive of both endpoints)
                             val record = cursor.value()
                             // iterate over columns and send value to corresponding collector
-                            columnsCollector.forEachIndexed { i, collector ->0
-                                val value = record[i]
-                                this@StatisticsManagerService.transmitValue(collector,  value)
-                                //collector.receive(value)
+                            columnsCollector.forEachIndexed { i, collector ->
+                                when (val value = record[i]) {
+                                    is BooleanValue -> (collector as BooleanMetricsCollector).receive(value)
+                                    is BooleanVectorValue -> (collector as BooleanVectorMetricsCollector).receive(value)
+                                    is ByteValue -> (collector as ByteMetricsCollector).receive(value)
+                                    is ByteStringValue -> (collector as ByteStringMetricsCollector).receive(value)
+                                    is Complex32Value -> (collector as Complex32MetricsCollector).receive(value)
+                                    is Complex32VectorValue -> (collector as Complex32VectorMetricsCollector).receive(value)
+                                    is Complex64Value -> (collector as Complex64MetricsCollector).receive(value)
+                                    is Complex64VectorValue -> (collector as Complex64VectorMetricsCollector).receive(value)
+                                    is DateValue -> (collector as DateMetricsCollector).receive(value)
+                                    is DoubleValue -> (collector as DoubleMetricsCollector).receive(value)
+                                    is DoubleVectorValue -> (collector as DoubleVectorMetricsCollector).receive(value)
+                                    is FloatValue -> (collector as FloatMetricsCollector).receive(value)
+                                    is FloatVectorValue -> (collector as FloatVectorMetricsCollector).receive(value)
+                                    is IntValue -> (collector as IntMetricsCollector).receive(value)
+                                    is IntVectorValue -> (collector as IntVectorMetricsCollector).receive(value)
+                                    is LongValue -> (collector as LongMetricsColelctor).receive(value)
+                                    is LongVectorValue -> (collector as LongVectorMetricsCollector).receive(value)
+                                    is StringValue -> (collector as StringMetricsCollector).receive(value)
+                                    else -> collector.receive(null) // Just give them null  value for unknown type
+                                }
                             }
                         }
                     }
@@ -298,36 +320,6 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
     }
 
     /**
-     * This functions transmits the received value to the collectors by casting them to the correct value type
-     * TODO check for nicer ways to write this
-     */
-    fun transmitValue(collector: MetricsCollector<*>, value: Value?): Unit {
-        when (value) {
-            is BooleanValue -> (collector as BooleanMetricsCollector).receive(value)
-            is BooleanVectorValue -> (collector as BooleanVectorMetricsCollector).receive(value)
-            is ByteValue -> (collector as ByteMetricsCollector).receive(value)
-            is ByteStringValue -> (collector as ByteStringMetricsCollector).receive(value)
-            is Complex32Value -> (collector as Complex32MetricsCollector).receive(value)
-            is Complex32VectorValue -> (collector as Complex32VectorMetricsCollector).receive(value)
-            is Complex64Value -> (collector as Complex64MetricsCollector).receive(value)
-            is Complex64VectorValue -> (collector as Complex64VectorMetricsCollector).receive(value)
-            is DateValue -> (collector as DateMetricsCollector).receive(value)
-            is DoubleValue -> (collector as DoubleMetricsCollector).receive(value)
-            is DoubleVectorValue -> (collector as DoubleVectorMetricsCollector).receive(value)
-            is FloatValue -> (collector as FloatMetricsCollector).receive(value)
-            is FloatVectorValue -> (collector as FloatVectorMetricsCollector).receive(value)
-            is IntValue -> (collector as IntMetricsCollector).receive(value)
-            is IntVectorValue -> (collector as IntVectorMetricsCollector).receive(value)
-            is LongValue -> (collector as LongMetricsColelctor).receive(value)
-            is LongVectorValue -> (collector as LongVectorMetricsCollector).receive(value)
-            is StringValue -> (collector as StringMetricsCollector).receive(value)
-            else -> collector.receive(null) // Just give them null  value for unknown type
-        }
-    }
-
-
-
-    /**
      * This function updates the statistics/metrics of every column of an entity.
      * But it does so only when a specific Threshold is reached. If you want to force an update the numberOfEntries parameter can just be omitted
      */
@@ -342,10 +334,10 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
         // Try transaction or rollback
         try {
             // Get number of changes
-            val changes  = this@StatisticsManagerService.catalogue.metaDataStatisticsStorage.get(entity)
+            val changes  = this@StatisticsManagerService.catalogue.metaDataStatisticsStorage[entity]
 
             if (changes + 1 >= threshold * numberOfEntries) {
-                LOGGER.info("A new task was schedules to recreate statistics for entity " + entity.schemaName + "." + entity.entityName)
+                LOGGER.info("A new task was scheduled to recreate statistics for entity " + entity.schemaName + "." + entity.entityName + ", because ${changes + 1} >= ${threshold * numberOfEntries}")
 
                 // schedule task for this column
                 this.schedule(entity, numberOfEntries)
@@ -354,9 +346,9 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
                 this@StatisticsManagerService.catalogue.metaDataStatisticsStorage.resetEntityChanges(entity, statisticsTransaction)
 
             } else {
-                LOGGER.info("Change does not trigger a new task for entity " + entity.schemaName + "." + entity.entityName)
+                LOGGER.info("Change does not trigger a new task for entity " + entity.schemaName + "." + entity.entityName + ", because ${changes + 1} < ${threshold * numberOfEntries}")
 
-                this@StatisticsManagerService.catalogue.metaDataStatisticsStorage.increateEntityChanges(entity, statisticsTransaction)
+                this@StatisticsManagerService.catalogue.metaDataStatisticsStorage.increaseEntityChanges(entity, statisticsTransaction)
             }
 
             // Commit MetaData transaction
