@@ -2,9 +2,9 @@ import {AfterViewInit, Component, Input, OnDestroy, OnInit, ViewChild} from "@an
 import {SystemService, Transaction} from "../../../../../../openapi";
 import {NavigatedDbo} from "../../navigated-dbo";
 import {BehaviorSubject, catchError, mergeMap, Observable, Subscription} from "rxjs";
-import {MatSnackBar, MatSnackBarConfig} from "@angular/material/snack-bar";
-import {MatPaginator} from "@angular/material/paginator";
-import {MatTableDataSource} from "@angular/material/table";
+import {MatLegacySnackBar as MatSnackBar, MatLegacySnackBarConfig as MatSnackBarConfig} from "@angular/material/legacy-snack-bar";
+import {MatLegacyPaginator as MatPaginator} from "@angular/material/legacy-paginator";
+import {MatLegacyTableDataSource as MatTableDataSource} from "@angular/material/legacy-table";
 import {MatSort} from "@angular/material/sort";
 
 @Component({

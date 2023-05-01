@@ -1,7 +1,7 @@
 import {Component, Input, OnInit} from "@angular/core";
 import {BehaviorSubject, catchError, combineLatestWith, mergeMap, Observable, Subscription} from "rxjs";
 import {NavigatedDbo} from "../../navigated-dbo";
-import {MatSnackBar, MatSnackBarConfig} from "@angular/material/snack-bar";
+import {MatLegacySnackBar as MatSnackBar, MatLegacySnackBarConfig as MatSnackBarConfig} from "@angular/material/legacy-snack-bar";
 import {EntityDetails, EntityService} from "../../../../../../openapi";
 
 @Component({

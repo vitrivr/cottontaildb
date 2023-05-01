@@ -5,18 +5,18 @@ import {CreateEntityFormComponent} from "./create-entity-form/create-entity-form
 import {AddConnectionFormComponent} from "./add-connection-form/add-connection-form.component";
 import {MatTreeModule} from "@angular/material/tree";
 import {MatIconModule} from "@angular/material/icon";
-import {MatMenuModule} from "@angular/material/menu";
-import {MatFormFieldModule} from "@angular/material/form-field";
+import {MatLegacyMenuModule as MatMenuModule} from "@angular/material/legacy-menu";
+import {MatLegacyFormFieldModule as MatFormFieldModule} from "@angular/material/legacy-form-field";
 import {FormsModule, ReactiveFormsModule} from "@angular/forms";
-import {MatTableModule} from "@angular/material/table";
-import {MatOptionModule} from "@angular/material/core";
-import {MatButtonModule} from "@angular/material/button";
-import {MatInputModule} from "@angular/material/input";
+import {MatLegacyTableModule as MatTableModule} from "@angular/material/legacy-table";
+import {MatLegacyOptionModule as MatOptionModule} from "@angular/material/legacy-core";
+import {MatLegacyButtonModule as MatButtonModule} from "@angular/material/legacy-button";
+import {MatLegacyInputModule as MatInputModule} from "@angular/material/legacy-input";
 import {CommonModule} from "@angular/common";
 import {BrowserModule} from "@angular/platform-browser";
 import {MatToolbarModule} from "@angular/material/toolbar";
-import {MatProgressBarModule} from "@angular/material/progress-bar";
-import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
+import {MatLegacyProgressBarModule as MatProgressBarModule} from "@angular/material/legacy-progress-bar";
+import {MatLegacyProgressSpinnerModule as MatProgressSpinnerModule} from "@angular/material/legacy-progress-spinner";
 import {HeaderComponent} from "./header.component";
 
 @NgModule({

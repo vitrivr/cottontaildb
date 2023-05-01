@@ -4,7 +4,7 @@ import {HttpClient} from "@angular/common/http";
 import {ColumnDefinition} from "../model/ColumnDefinition";
 import {IndexDefinition} from "../model/IndexDefinition";
 import {ConnectionService} from "./connection.service";
-import {MatSnackBar} from "@angular/material/snack-bar";
+import {MatLegacySnackBar as MatSnackBar} from "@angular/material/legacy-snack-bar";
 import {Connection} from "../../../openapi";
 
 export class ColumnEntry {

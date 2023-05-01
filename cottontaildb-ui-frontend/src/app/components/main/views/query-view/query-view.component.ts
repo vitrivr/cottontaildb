@@ -1,23 +1,13 @@
 import {Component, OnInit} from '@angular/core';
 import {FormArray, FormBuilder, FormControl, FormRecord} from "@angular/forms";
-import {
-  Count,
-  Distance,
-  From,
-  Limit,
-  Order,
-  QueryFunction,
-  QueryService,
-  Select,
-  Where
-} from "../../../../services/query.service";
+import {Count, Distance, From, Limit, Order, QueryFunction, QueryService, Select, Where} from "../../../../services/query.service";
 import {SelectionService} from "../../../../services/selection.service";
-import {PageEvent} from "@angular/material/paginator";
+import {LegacyPageEvent as PageEvent} from "@angular/material/legacy-paginator";
 import {CdkDragDrop} from "@angular/cdk/drag-drop";
 import {EntityService} from "../../../../services/entity.service";
-import {MatDialog} from "@angular/material/dialog";
+import {MatLegacyDialog as MatDialog} from "@angular/material/legacy-dialog";
 import {VectorDetailsComponent} from "./vector-details/vector-details.component";
-import {MatSnackBar} from "@angular/material/snack-bar";
+import {MatLegacySnackBar as MatSnackBar} from "@angular/material/legacy-snack-bar";
 
 
 @Component({
