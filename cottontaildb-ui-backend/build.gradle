@@ -1,9 +1,19 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KaptGenerateStubs
+
 apply plugin: 'application'
 apply plugin: 'kotlin-kapt'
 apply plugin: 'kotlinx-serialization'
 
 repositories {
     mavenCentral()
+}
+
+tasks.withType(KaptGenerateStubs).configureEach {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_17
+
+    }
 }
 
 /* Configuration for frontend classpath files (see dependencies). */
@@ -16,9 +26,9 @@ configurations {
 
 /* General application attributes. */
 application {
-    applicationName = 'cottontaildb-ui'
+    applicationName = 'thumper'
     applicationDefaultJvmArgs = ["-Xms256M", "-Xmx1G"]
-    mainClassName = 'MainKt'
+    mainClassName = 'ThumperKt'
 }
 
 dependencies {
