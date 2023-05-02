@@ -34,15 +34,15 @@ sealed class AbstractMetricsCollector<T : Value>(override val type: Types<T>, ov
      */
     override fun receive(value: T?) {
         if (value != null) {
-            numberOfNonNullEntries += 1
+            this.numberOfNonNullEntries += 1
 
             // BloomFilter check for distinct entries
             if (!bloomFilter.put(value)) {
-                numberOfDistinctEntries += 1
+                this.numberOfDistinctEntries += 1
             }
 
         } else {
-            numberOfNullEntries += 1 // handle null case
+            this.numberOfNullEntries += 1 // handle null case
         }
     }
 

@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.BooleanValueMetrics
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-class BooleanMetricsCollector (override val config: MetricsConfig): AbstractScalarMetricsCollector<BooleanValue>(Types.Boolean, config) {
+class BooleanMetricsCollector (config: MetricsConfig): AbstractScalarMetricsCollector<BooleanValue>(Types.Boolean, config) {
 
     /** Local Metrics */
     private var numberOfTrueEntries = 0L
@@ -24,8 +24,8 @@ class BooleanMetricsCollector (override val config: MetricsConfig): AbstractScal
         if (value != null) {
             when (value.value) {
                 // count true and false entries
-                true -> numberOfTrueEntries += 1
-                false -> numberOfFalseEntries += 1
+                true -> this.numberOfTrueEntries += 1
+                false -> this.numberOfFalseEntries += 1
             }
         }
     }
