@@ -27,20 +27,16 @@ data class StatisticsConfig(
     private var randomGeneratorName: String = "L32X64MixRandom",
 
     /** The seed with which to use the randomNumberGenerator */
-    private var randomSeed: Int? = null,
+    //private var randomSeed: Int? = null,
 
     /** The Random Number Generator we use. Set to default */
-    var randomGenerator: RandomGenerator = RandomGenerator.getDefault(),
-
-    /** The minimum number of entries for the statistics manager to start sampling instead of doing a full scan*/
-    var minSampleSize: Int = 10000
+    var randomGenerator: RandomGenerator = RandomGenerator.getDefault()
 )
 {
     init {
         require(this.threshold in 0.0f .. 1.0f) { "The threshold must lie between 0.0 and 1.0 but is ${this.threshold}."}
         require(this.probability in 0.0f .. 1.0f) { "The probability must lie between 0.0 and 1.0 but is ${this.probability}."}
         require(this.falsePositiveProbability in 0.0 .. 1.0) { "The falsePositiveProbability must lie between 0.0 and 1.0 but is ${this.falsePositiveProbability}."}
-        require(this.minSampleSize > 0) { "The minSampleSize must be greater than 1 but is ${this.minSampleSize}."}
         require(this.randomGeneratorName in setOf("Xoroshiro128PlusPlus", "Xoshiro256PlusPlus", "L128X1024MixRandom", "128X128MixRandom", "L128X256MixRandom", "L32X64MixRandom", "L64X1024MixRandom", "L64X128MixRandom", "L64X128StarStarRandom", "L64X256MixRandom")) { "randomGeneratorName must be one of: Xoroshiro128PlusPlus, Xoshiro256PlusPlus, L128X1024MixRandom, 128X128MixRandom, L128X256MixRandom, L32X64MixRandom, L64X1024MixRandom, L64X128MixRandom, L64X128StarStarRandom, L64X256MixRandom, but is ${this.randomGeneratorName}" }
         this.randomGenerator = RandomGenerator.of(this.randomGeneratorName) // Init the randomGenerator based on the name
     }

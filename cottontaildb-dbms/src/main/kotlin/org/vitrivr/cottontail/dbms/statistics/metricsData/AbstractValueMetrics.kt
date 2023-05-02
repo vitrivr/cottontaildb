@@ -22,6 +22,7 @@ sealed class AbstractValueMetrics<T : Value>(override val type: Types<T>) : Valu
     companion object {
         const val ENTRIES_KEY = "entries"
         const val NULL_ENTRIES_KEY = "null_entries"
+        const val NON_NULL_ENTRIES_KEY = "non_null_entries"
         const val DISTINCT_ENTRIES = "distinct_entries"
     }
 
@@ -57,6 +58,7 @@ sealed class AbstractValueMetrics<T : Value>(override val type: Types<T>) : Valu
      */
     override fun about(): Map<String, String> = mapOf(
         NULL_ENTRIES_KEY to this.numberOfNullEntries.toString(),
+        NON_NULL_ENTRIES_KEY to this.numberOfNonNullEntries.toString(),
         ENTRIES_KEY to (this.numberOfNullEntries + this.numberOfNonNullEntries).toString(),
         DISTINCT_ENTRIES to this.numberOfDistinctEntries.toString()
     )

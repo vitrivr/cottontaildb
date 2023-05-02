@@ -229,7 +229,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
                 val entityCursor = entityTx.cursor(columns)
                 entityCursor.use { cursor ->
                     while (cursor.moveNext()) {
-                        if (randomNumberGenerator.nextDouble(0.0, 1.0) <= probability || numberOfEntries < this@StatisticsManagerService.catalogue.config.statistics.minSampleSize) { //  will be between 0 and 1 (inclusive of both endpoints)
+                        if (randomNumberGenerator.nextDouble(0.0, 1.0) <= probability) { //  will be between 0 and 1 (inclusive of both endpoints)
                             val record = cursor.value()
                             // iterate over columns and send value to corresponding collector
                             columnsCollector.forEachIndexed { i, collector ->
