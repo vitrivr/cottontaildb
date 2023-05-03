@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterOn
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 
 /**
- * Decomposes a [FilterOnSubSelectLogicalOperatorNode] that contains a [BooleanPredicate.Compound.And] into a sequence
+ * Decomposes a [FilterOnSubSelectLogicalOperatorNode] that contains a [BooleanPredicate.And] into a sequence
  * of two [FilterOnSubSelectLogicalOperatorNode]s or a [FilterOnSubSelectLogicalOperatorNode] and a [FilterLogicalOperatorNode].
  *
  * Gives precedence to the left operand.
@@ -21,7 +21,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 object LeftConjunctionOnSubselectRewriteRule : RewriteRule {
 
     /**
-     * The [LeftConjunctionOnSubselectRewriteRule] can be applied to all [FilterOnSubSelectLogicalOperatorNode]s that contain a [BooleanPredicate.Compound.And].
+     * The [LeftConjunctionOnSubselectRewriteRule] can be applied to all [FilterOnSubSelectLogicalOperatorNode]s that contain a [BooleanPredicate.And].
      *
      * @param node The [OperatorNode] to check.
      * @param ctx The [QueryContext]

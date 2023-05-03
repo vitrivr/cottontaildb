@@ -7,7 +7,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLo
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 
 /**
- * Decomposes a [FilterLogicalOperatorNode] that contains a [BooleanPredicate.Compound.And] into a sequence of two [FilterLogicalOperatorNode]s.
+ * Decomposes a [FilterLogicalOperatorNode] that contains a [BooleanPredicate.And] into a sequence of two [FilterLogicalOperatorNode]s.
  *
  * @author Ralph Gasser
  * @version 1.2.1
