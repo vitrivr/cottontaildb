@@ -15,7 +15,7 @@
     </mat-list>
   </div>
   <div [style.width]="'50%'">
-    <mat-list >
+    <mat-list>
       <div mat-subheader>Indexes</div>
       <mat-list-item *ngFor="let i of (data | async)?.indexes">
         <mat-icon matListItemIcon>account_tree</mat-icon>
@@ -34,7 +34,9 @@
         <div matListItemLine>
           {{i.type}}
         </div>
-
+      </mat-list-item>
+      <mat-list-item *ngIf="(data | async)?.indexes!!.length == 0">
+          No index for this entity.
       </mat-list-item>
     </mat-list>
   </div>

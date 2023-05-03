@@ -1180,7 +1180,7 @@
           "values" : {
             "type" : "array",
             "items" : {
-              "type" : "string"
+              "type" : "object"
             }
           },
           "size" : {

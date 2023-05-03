@@ -3,10 +3,11 @@ import {AfterViewInit, Component, Input, OnDestroy, ViewChild} from "@angular/co
 import {NavigatedDbo} from "../../navigated-dbo";
 import {MatSort} from "@angular/material/sort";
 import {BehaviorSubject, catchError, combineLatestWith, mergeMap, Observable, startWith, Subscription} from "rxjs";
-import {DQLService, Resultset} from "../../../../../../openapi";
+import {DQLService, Resultset, Type} from "../../../../../../openapi";
 import {MatTableDataSource} from "@angular/material/table";
 import {MatPaginator} from "@angular/material/paginator";
 import {MatSnackBar, MatSnackBarConfig} from "@angular/material/snack-bar";
+import {EditableTableElement} from "../../../../model/table/editable-table-element";
 
 @Component({
   selector: 'entity-preview',
@@ -19,10 +20,13 @@ export class EntityPreviewComponent implements OnDestroy, AfterViewInit {
   private _subscription: Subscription | null = null
 
   /** The {@link MatTableDataSource} used by this {@link ConnectionViewComponent}. */
-  public readonly dataSource = new MatTableDataSource<string>()
+  public readonly dataSource = new MatTableDataSource<EditableTableElement<object>>()
 
   /** The columns displayed by the {@link dataSource}. */
   public columns: string[] = [];
+
+  /** The columns displayed by the {@link dataSource}. */
+  public columnTypes: Type[] = [];
 
   /** Number of results in the result set. */
   public total: number = 0
@@ -76,8 +80,10 @@ export class EntityPreviewComponent implements OnDestroy, AfterViewInit {
       })
     ).subscribe((r: Resultset) => {
       this.columns = r.columns.map(c => c.name)
-      this.dataSource.data = r.values
+      this.columnTypes = r.columns.map(c => c.type)
+      this.dataSource.data = r.values.map(o => new EditableTableElement(o, false))
       this.total = r.size
+      this.columns.push("___actions___")
       this.isLoading = false
     })
   }

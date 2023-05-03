@@ -15,6 +15,7 @@ import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
 import {MatProgressBarModule} from "@angular/material/progress-bar";
 import {MatListModule} from "@angular/material/list";
 import {MatTooltipModule} from "@angular/material/tooltip";
+import {PipesModule} from "../../../../pipes/pipes.module";
 
 @NgModule({
   declarations: [
@@ -22,21 +23,22 @@ import {MatTooltipModule} from "@angular/material/tooltip";
     EntityAboutComponent,
     EntityPreviewComponent
   ],
-    imports: [
-        BrowserModule,
-        CommonModule,
-        MatButtonModule,
-        MatTableModule,
-        MatIconModule,
-        MatPaginatorModule,
-        MatTabsModule,
-        MatSortModule,
-        MatInputModule,
-        MatProgressSpinnerModule,
-        MatProgressBarModule,
-        MatListModule,
-        MatTooltipModule
-    ],
+  imports: [
+    BrowserModule,
+    CommonModule,
+    MatButtonModule,
+    MatTableModule,
+    MatIconModule,
+    MatPaginatorModule,
+    MatTabsModule,
+    MatSortModule,
+    MatInputModule,
+    MatProgressSpinnerModule,
+    MatProgressBarModule,
+    MatListModule,
+    MatTooltipModule,
+    PipesModule
+  ],
   providers: [EntityViewComponent],
   exports: [EntityViewComponent],
   bootstrap: []
