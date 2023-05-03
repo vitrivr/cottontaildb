@@ -153,13 +153,13 @@ fun CottontailGrpc.Type.toType(size: Int = 0): Types<*> = when(this) {
     CottontailGrpc.Type.STRING -> Types.String
     CottontailGrpc.Type.COMPLEX32 -> Types.Complex32
     CottontailGrpc.Type.COMPLEX64 -> Types.Complex64
-    CottontailGrpc.Type.DOUBLE_VEC -> Types.DoubleVector(size)
-    CottontailGrpc.Type.FLOAT_VEC -> Types.FloatVector(size)
-    CottontailGrpc.Type.LONG_VEC -> Types.LongVector(size)
-    CottontailGrpc.Type.INT_VEC -> Types.IntVector(size)
-    CottontailGrpc.Type.BOOL_VEC -> Types.BooleanVector(size)
-    CottontailGrpc.Type.COMPLEX32_VEC -> Types.Complex32Vector(size)
-    CottontailGrpc.Type.COMPLEX64_VEC -> Types.Complex64Vector(size)
+    CottontailGrpc.Type.DOUBLE_VECTOR -> Types.DoubleVector(size)
+    CottontailGrpc.Type.FLOAT_VECTOR -> Types.FloatVector(size)
+    CottontailGrpc.Type.LONG_VECTOR -> Types.LongVector(size)
+    CottontailGrpc.Type.INT_VECTOR -> Types.IntVector(size)
+    CottontailGrpc.Type.BOOL_VECTOR -> Types.BooleanVector(size)
+    CottontailGrpc.Type.COMPLEX32_VECTOR -> Types.Complex32Vector(size)
+    CottontailGrpc.Type.COMPLEX64_VECTOR -> Types.Complex64Vector(size)
     else -> throw IllegalArgumentException("gRPC type $this is unsupported and cannot be converted to Cottontail DB equivalent.")
 }
 
@@ -180,13 +180,13 @@ fun Types<*>.proto(): CottontailGrpc.Type = when(this) {
     Types.Long -> CottontailGrpc.Type.LONG
     Types.Short -> CottontailGrpc.Type.SHORT
     Types.String -> CottontailGrpc.Type.STRING
-    is Types.BooleanVector -> CottontailGrpc.Type.BOOL_VEC
-    is Types.IntVector -> CottontailGrpc.Type.INT_VEC
-    is Types.LongVector -> CottontailGrpc.Type.LONG_VEC
-    is Types.FloatVector -> CottontailGrpc.Type.FLOAT_VEC
-    is Types.DoubleVector -> CottontailGrpc.Type.DOUBLE_VEC
-    is Types.Complex32Vector -> CottontailGrpc.Type.COMPLEX32_VEC
-    is Types.Complex64Vector -> CottontailGrpc.Type.COMPLEX64_VEC
+    is Types.BooleanVector -> CottontailGrpc.Type.BOOL_VECTOR
+    is Types.IntVector -> CottontailGrpc.Type.INT_VECTOR
+    is Types.LongVector -> CottontailGrpc.Type.LONG_VECTOR
+    is Types.FloatVector -> CottontailGrpc.Type.FLOAT_VECTOR
+    is Types.DoubleVector -> CottontailGrpc.Type.DOUBLE_VECTOR
+    is Types.Complex32Vector -> CottontailGrpc.Type.COMPLEX32_VECTOR
+    is Types.Complex64Vector -> CottontailGrpc.Type.COMPLEX64_VECTOR
     Types.ByteString -> CottontailGrpc.Type.BYTESTRING
 }
 
