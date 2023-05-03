@@ -35,7 +35,7 @@ class FilterPhysicalOperatorNode(input: Physical, val predicate: BooleanPredicat
 
     /** The [FilterPhysicalOperatorNode] can only be executed if it doesn't contain any [ComparisonOperator.Binary.Match]. */
     override val executable: Boolean
-        get() = super.executable && this.predicate.atomics.none { it.operator is ComparisonOperator.Binary.Match }
+        get() = super.executable && this.predicate.atomics.filterIsInstance<BooleanPredicate.Comparison>().none { it.operator is ComparisonOperator.Binary.Match }
 
     /** The estimated output size of this [FilterOnSubSelectPhysicalOperatorNode]. Calculated based on [Selectivity] estimates. */
     context(BindingContext,Record)

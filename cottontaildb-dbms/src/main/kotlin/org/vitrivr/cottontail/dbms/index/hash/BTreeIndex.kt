@@ -192,7 +192,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @return True if [Predicate] can be processed, false otherwise.
          */
         override fun canProcess(predicate: Predicate): Boolean {
-            if (predicate !is BooleanPredicate.Atomic) return false
+            if (predicate !is BooleanPredicate.Comparison) return false
             if (predicate.not) return false
             if (!predicate.columns.contains(this.columns[0])) return false
             return when (predicate.operator) {
@@ -231,7 +231,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @return Cost estimate for the [Predicate]
          */
         override fun costFor(predicate: Predicate): Cost = this.txLatch.withLock {
-            if (predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not) return Cost.INVALID
+            if (predicate !is BooleanPredicate.Comparison || predicate.columns.first() != this.columns[0] || predicate.not) return Cost.INVALID
             val entityTx = this.dbo.parent.newTx(this.context)
             val statistics = this.columns.associateWith { entityTx.columnForName(it.name).newTx(this.context).statistics() }
             val selectivity = with(this@Tx.context.bindings) {
@@ -293,7 +293,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
 
         /**
          * Performs a lookup through this [BTreeIndex.Tx] and returns a [Iterator] of all [Record]s that match the [Predicate].
-         * Only supports [BooleanPredicate.Atomic]s.
+         * Only supports [BooleanPredicate.Comparison]s.
          *
          * The [Cursor] is not thread safe!
          *
@@ -301,7 +301,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @return The resulting [Cursor]
          */
         override fun filter(predicate: Predicate) = this.txLatch.withLock {
-            require(predicate is BooleanPredicate.Atomic) { "BTreeIndex.filter() does only support BooleanPredicate.Atomic boolean predicates." }
+            require(predicate is BooleanPredicate.Comparison) { "BTreeIndex.filter() does only support BooleanPredicate.Atomic boolean predicates." }
             when(val op = predicate.operator) {
                 is ComparisonOperator.Binary.Equal -> BTreeIndexCursor.Equals(op, this)
                 is ComparisonOperator.Binary.Greater -> BTreeIndexCursor.Greater(op, this)

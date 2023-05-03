@@ -50,13 +50,13 @@ sealed class RealValueStatistics<T: RealValue<*>>(type: Types<T>): AbstractValue
     )
 
     /**
-     * Estimates [Selectivity] for a [BooleanPredicate.Atomic].
+     * Estimates [Selectivity] for a [BooleanPredicate.Comparison].
      *
-     * @param predicate [BooleanPredicate.Atomic] to estimate [Selectivity] for.
+     * @param predicate [BooleanPredicate.Comparison] to estimate [Selectivity] for.
      * @return [Selectivity]
      */
     context(BindingContext,Record)
-    override fun estimateSelectivity(predicate: BooleanPredicate.Atomic): Selectivity {
+    override fun estimateSelectivity(predicate: BooleanPredicate.Comparison): Selectivity {
         val op = predicate.operator
         if (op.left is org.vitrivr.cottontail.core.queries.binding.Binding.Column && op.left.type == this.type) {
             when (op) {

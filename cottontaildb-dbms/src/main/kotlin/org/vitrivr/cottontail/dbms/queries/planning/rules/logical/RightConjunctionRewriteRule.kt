@@ -22,7 +22,7 @@ object RightConjunctionRewriteRule : RewriteRule {
      * @return True if [RewriteRule] can be applied, false otherwise.
      */
     override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean =
-        node is FilterLogicalOperatorNode && node.predicate is BooleanPredicate.Compound.And
+        node is FilterLogicalOperatorNode && node.predicate is BooleanPredicate.And
 
     /**
      * Decomposes the provided [FilterLogicalOperatorNode] with a conjunction (AND) into two
@@ -37,7 +37,7 @@ object RightConjunctionRewriteRule : RewriteRule {
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode {
         /* Make sure, that node is a LeftConjunctionRewriteRule. */
         require(node is FilterLogicalOperatorNode) { "Called RightConjunctionRewriteRule.apply() with node of type ${node.javaClass.simpleName} that is not a FilterLogicalOperatorNode. This is a programmer's error!"}
-        require(node.predicate is BooleanPredicate.Compound.And) { "Called RightConjunctionRewriteRule.apply() with node a predicate that is not a conjunction. This is a programmer's error!" }
+        require(node.predicate is BooleanPredicate.And) { "Called RightConjunctionRewriteRule.apply() with node a predicate that is not a conjunction. This is a programmer's error!" }
 
         val parent = node.input.copyWithExistingInput()
         val ret = FilterLogicalOperatorNode(FilterLogicalOperatorNode(parent, node.predicate.p2), node.predicate.p1)

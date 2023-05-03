@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 /**
  * This is a very naive calculator for [Selectivity] values.
  *
- * It simply delegates [Selectivity] calculation for [BooleanPredicate.Atomic]to the [ValueStatistics] object of
+ * It simply delegates [Selectivity] calculation for [BooleanPredicate.Comparison]to the [ValueStatistics] object of
  * the column and then combines these [Selectivity] values as if they were uncorrelated.
  *
  * @author Ralph Gasser
@@ -24,44 +24,32 @@ object NaiveSelectivityCalculator {
      * @param statistics The map of [ValueStatistics] to use in the calculation.
      */
     context(BindingContext,Record)
-    fun estimate(predicate: BooleanPredicate, statistics: Map<ColumnDef<*>, ValueStatistics<*>>) = when (predicate) {
-        is BooleanPredicate.Atomic -> estimateAtomicReference(predicate, statistics)
-        is BooleanPredicate.Compound -> estimateCompoundSelectivity(predicate, statistics)
+    fun estimate(predicate: BooleanPredicate, statistics: Map<ColumnDef<*>, ValueStatistics<*>>): Selectivity = when (predicate) {
+        is BooleanPredicate.Literal -> if (predicate.boolean) Selectivity.ALL else Selectivity.NOTHING
+        is BooleanPredicate.Comparison -> this.estimateAtomicReference(predicate, statistics)
+        is BooleanPredicate.Not -> this.estimate(predicate.p, statistics)
+        is BooleanPredicate.And -> this.estimate(predicate.p1, statistics) * this.estimate(predicate.p2, statistics)
+        is BooleanPredicate.Or -> {
+            val pp1 = this.estimate(predicate.p1, statistics)
+            val pp2 = this.estimate(predicate.p2, statistics)
+            pp1 + pp2 - pp1 * pp2
+        }
     }
 
     /**
-     * Estimates the selectivity of a [BooleanPredicate.Atomic] given the [ValueStatistics].
+     * Estimates the selectivity of a [BooleanPredicate.Comparison] given the [ValueStatistics].
      *
-     * @param predicate The [BooleanPredicate.Atomic] to evaluate.
+     * @param predicate The [BooleanPredicate.Comparison] to evaluate.
      * @param statistics The map of [ValueStatistics] to use in the calculation.
      */
     context(BindingContext,Record)
-    private fun estimateAtomicReference(predicate: BooleanPredicate.Atomic, statistics: Map<ColumnDef<*>, ValueStatistics<*>>): Selectivity {
+    private fun estimateAtomicReference(predicate: BooleanPredicate.Comparison, statistics: Map<ColumnDef<*>, ValueStatistics<*>>): Selectivity {
         val left = predicate.operator.left
         return if (left is Binding.Column) {
             val stat = statistics[left.column] ?: return Selectivity.DEFAULT
             stat.estimateSelectivity(predicate)
         } else {
             Selectivity.DEFAULT /* TODO: Selectivity estimation based on literals and functions. */
-        }
-    }
-
-    /**
-     * Estimates the selectivity for a [BooleanPredicate.Compound].
-     *
-     * This is a very naive approach, which assumes that the [BooleanPredicate]s that make up
-     * a [BooleanPredicate.Compound] are independent (i.e. there is no correlation between them).
-     *
-     * @param predicate The [BooleanPredicate.Compound] to evaluate.
-     * @param statistics The map of [ValueStatistics] to use in the calculation.
-     */
-    context(BindingContext, Record)
-    private fun estimateCompoundSelectivity(predicate: BooleanPredicate.Compound, statistics: Map<ColumnDef<*>, ValueStatistics<*>>): Selectivity {
-        val pp1 = estimate(predicate.p1, statistics)
-        val pp2 = estimate(predicate.p2, statistics)
-        return when (predicate) {
-            is BooleanPredicate.Compound.And ->  pp1 * pp2
-            is BooleanPredicate.Compound.Or -> pp1 + pp2 - pp1 * pp2
         }
     }
 }

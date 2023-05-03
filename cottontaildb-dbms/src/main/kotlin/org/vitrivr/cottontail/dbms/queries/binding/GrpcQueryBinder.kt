@@ -351,10 +351,10 @@ object GrpcQueryBinder {
      *
      * @param input The [OperatorNode.Logical] which to filter
      * @param compound The [CottontailGrpc.CompoundBooleanPredicate] object.
-     * @return The resulting [BooleanPredicate.Compound].
+     * @return The resulting [BooleanPredicate].
      */
     context(QueryContext)
-    private fun parseAndBindCompoundBooleanPredicate(input: OperatorNode.Logical, compound: CottontailGrpc.CompoundBooleanPredicate, subqueries: MutableList<OperatorNode.Logical>): BooleanPredicate.Compound {
+    private fun parseAndBindCompoundBooleanPredicate(input: OperatorNode.Logical, compound: CottontailGrpc.CompoundBooleanPredicate, subqueries: MutableList<OperatorNode.Logical>): BooleanPredicate {
         val left = when (compound.leftCase) {
             CottontailGrpc.CompoundBooleanPredicate.LeftCase.ALEFT -> parseAndBindAtomicBooleanPredicate(input, compound.aleft, subqueries)
             CottontailGrpc.CompoundBooleanPredicate.LeftCase.CLEFT -> parseAndBindCompoundBooleanPredicate(input, compound.cleft, subqueries)
@@ -368,8 +368,8 @@ object GrpcQueryBinder {
         }
 
         return when(compound.op) {
-            CottontailGrpc.ConnectionOperator.AND -> BooleanPredicate.Compound.And(left, right)
-            CottontailGrpc.ConnectionOperator.OR -> BooleanPredicate.Compound.Or(left, right)
+            CottontailGrpc.ConnectionOperator.AND -> BooleanPredicate.And(left, right)
+            CottontailGrpc.ConnectionOperator.OR -> BooleanPredicate.Or(left, right)
             else -> throw QueryException.QuerySyntaxException("'${compound.op.name}' is not a valid connection operator for a boolean predicate!")
         }
     }
@@ -380,10 +380,10 @@ object GrpcQueryBinder {
      * @param input The [OperatorNode.Logical] which to filter
      * @param atomic The [CottontailGrpc.AtomicBooleanPredicate] object.
      *
-     * @return The resulting [BooleanPredicate.Atomic].
+     * @return The resulting [BooleanPredicate.Comparison].
      */
     context(QueryContext)
-    private fun parseAndBindAtomicBooleanPredicate(input: OperatorNode.Logical, atomic: CottontailGrpc.AtomicBooleanPredicate, subqueries: MutableList<OperatorNode.Logical>): BooleanPredicate.Atomic {
+    private fun parseAndBindAtomicBooleanPredicate(input: OperatorNode.Logical, atomic: CottontailGrpc.AtomicBooleanPredicate, subqueries: MutableList<OperatorNode.Logical>): BooleanPredicate.Comparison {
         /* Parse and bind column name to input */
         val left = this@QueryContext.bindings.bind(input.findUniqueColumnForName(atomic.left.fqn()))
         val right: List<Binding> = when (atomic.right.operandCase) {
@@ -402,7 +402,7 @@ object GrpcQueryBinder {
             }
             else -> throw QueryException.QuerySyntaxException("Failed to parse operand for atomic boolean predicate.")
         }
-        return BooleanPredicate.Atomic(bindOperator(atomic.op, left, right), atomic.not)
+        return BooleanPredicate.Comparison(bindOperator(atomic.op, left, right), atomic.not)
     }
 
     /**

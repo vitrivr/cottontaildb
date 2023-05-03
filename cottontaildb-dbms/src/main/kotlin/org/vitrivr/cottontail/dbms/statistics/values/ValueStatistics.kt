@@ -82,12 +82,12 @@ sealed interface ValueStatistics<T : Value> {
     fun copy(): ValueStatistics<T>
 
     /**
-     * Estimates [Selectivity] of the given [BooleanPredicate.Atomic], i.e., the percentage of [org.vitrivr.cottontail.core.basics.Record]s that match it.
+     * Estimates [Selectivity] of the given [BooleanPredicate.Comparison], i.e., the percentage of [org.vitrivr.cottontail.core.basics.Record]s that match it.
      * Defaults to [Selectivity.DEFAULT] but can be overridden by concrete implementations.
      *
-     * @param predicate [BooleanPredicate.Atomic] To estimate [Selectivity] for.
+     * @param predicate [BooleanPredicate.Comparison] To estimate [Selectivity] for.
      * @return [Selectivity] estimate.
      */
     context(BindingContext,Record)
-    fun estimateSelectivity(predicate: BooleanPredicate.Atomic): Selectivity
+    fun estimateSelectivity(predicate: BooleanPredicate.Comparison): Selectivity
 }

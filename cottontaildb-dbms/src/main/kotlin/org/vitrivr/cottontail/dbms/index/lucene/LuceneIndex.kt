@@ -181,20 +181,76 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
         private val store = LuceneIndexDataStore(XodusDirectory(this@LuceneIndex.catalogue.vfs, this@LuceneIndex.name.toString(), this.context.txn.xodusTx), this.columns[0].name)
 
         /**
-         * Converts a [BooleanPredicate.Compound] to a [Query] supported by Apache Lucene.
+         * Converts a [BooleanPredicate] to a [Query] supported by Apache Lucene.
          *
          * @return [Query]
          */
-        private fun BooleanPredicate.Compound.toLuceneQuery(): Query {
-            val clause = when (this) {
-                is BooleanPredicate.Compound.And -> BooleanClause.Occur.MUST
-                is BooleanPredicate.Compound.Or -> BooleanClause.Occur.SHOULD
+        private fun BooleanPredicate.toLuceneQuery(): Query = when (this) {
+            is BooleanPredicate.Comparison -> {
+                val op = this.operator
+                if (op !is ComparisonOperator.Binary) {
+                    throw QueryException("Conversion to Lucene query failed: Only binary operators are supported.")
+                }
+
+                /* Left and right-hand side of boolean predicate */
+                with (MissingRecord) {
+                    with (this@Tx.context.bindings) {
+                        val left = op.left
+                        val right = op.right
+                        val column = if (right is Binding.Column && right.column == this@Tx.columns[0]) {
+                            right.column
+                        } else if (left is Binding.Column && left.column ==  this@Tx.columns[0]) {
+                            left.column
+                        } else {
+                            throw QueryException("Conversion to Lucene query failed: One side of the comparison operator must be a column value!")
+                        }
+                        val literal: Value = if (right is Binding.Literal) {
+                            right.getValue() ?: throw QueryException("Conversion to Lucene query failed: Literal value cannot be null!")
+                        } else if (left is Binding.Literal) {
+                            right.getValue() ?: throw QueryException("Conversion to Lucene query failed: Literal value cannot be null!")
+                        } else {
+                            throw QueryException("Conversion to Lucene query failed: One side of the comparison operator must be a literal value!")
+                        }
+
+                        return when (op) {
+                            is ComparisonOperator.Binary.Equal -> {
+                                if (literal is StringValue) {
+                                    TermQuery(Term("${column.name}_str", literal.value))
+                                } else {
+                                    throw QueryException("Conversion to Lucene query failed: EQUAL queries strictly require a StringValue as second operand!")
+                                }
+                            }
+                            is ComparisonOperator.Binary.Like -> {
+                                when (literal) {
+                                    is StringValue -> QueryParserUtil.parse(
+                                        arrayOf(literal.value),
+                                        arrayOf("${column.name}_txt"),
+                                        StandardAnalyzer()
+                                    )
+                                    is LikePatternValue -> QueryParserUtil.parse(
+                                        arrayOf(literal.toLucene().value),
+                                        arrayOf("${column.name}_txt"),
+                                        StandardAnalyzer()
+                                    )
+                                    else -> throw throw QueryException("Conversion to Lucene query failed: LIKE queries require a StringValue OR LikePatternValue as second operand!")
+                                }
+                            }
+                            is ComparisonOperator.Binary.Match -> {
+                                if (literal is StringValue) {
+                                    QueryParserUtil.parse(arrayOf(literal.value), arrayOf("${column.name}_txt"), StandardAnalyzer())
+                                } else {
+                                    throw throw QueryException("Conversion to Lucene query failed: MATCH queries strictly require a StringValue as second operand!")
+                                }
+                            }
+                            else -> throw QueryException("Lucene Query Conversion failed: Only EQUAL, MATCH and LIKE queries can be mapped to a Apache Lucene!")
+                        }
+                    }
+                }
             }
-            val builder = BooleanQuery.Builder()
-            builder.add(this.p1.toLuceneQuery(), clause)
-            builder.add(this.p2.toLuceneQuery(), clause)
-            return builder.build()
-        }
+            is BooleanPredicate.And -> BooleanQuery.Builder().add(this.p1.toLuceneQuery(), BooleanClause.Occur.MUST).add(this.p2.toLuceneQuery(), BooleanClause.Occur.MUST)
+            is BooleanPredicate.Or -> BooleanQuery.Builder().add(this.p1.toLuceneQuery(), BooleanClause.Occur.SHOULD).add(this.p2.toLuceneQuery(), BooleanClause.Occur.SHOULD)
+            else -> throw IllegalArgumentException("LuceneIndex can only process AND and OR predicates.")
+        }.build()
 
         /**
          * Checks if this [LuceneIndex] can process the given [Predicate].
@@ -204,7 +260,10 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          */
         override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate &&
             predicate.columns.all { it in this.columns } &&
-            predicate.atomics.all { it.operator is ComparisonOperator.Binary.Like || it.operator is ComparisonOperator.Binary.Equal || it.operator is ComparisonOperator.Binary.Match }
+            predicate.atomics.all {
+                it is BooleanPredicate.Comparison &&
+                (it.operator is ComparisonOperator.Binary.Like || it.operator is ComparisonOperator.Binary.Equal || it.operator is ComparisonOperator.Binary.Match)
+            }
 
         /**
          * Returns a [List] of the [ColumnDef] produced by this [LuceneIndex].
@@ -371,84 +430,6 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          */
         override fun beforeRollback() {
             this.store.close()
-        }
-
-        /**
-         * Converts a [BooleanPredicate] to a [Query] supported by Apache Lucene.
-         *
-         * @return [Query]
-         */
-        private fun BooleanPredicate.toLuceneQuery(): Query = when (this) {
-            is BooleanPredicate.Atomic -> this.toLuceneQuery()
-            is BooleanPredicate.Compound -> this.toLuceneQuery()
-        }
-
-        /**
-         * Converts an [BooleanPredicate.Atomic] to a [Query] supported by Apache Lucene.
-         * Conversion differs slightly depending on the [ComparisonOperator].
-         *
-         * @return [Query]
-         */
-        private fun BooleanPredicate.Atomic.toLuceneQuery(): Query {
-            val op = this.operator
-            if (op !is ComparisonOperator.Binary) {
-                throw QueryException("Conversion to Lucene query failed: Only binary operators are supported.")
-            }
-
-            /* Left and right-hand side of boolean predicate */
-            with (MissingRecord) {
-                with (this@Tx.context.bindings) {
-                    val left = op.left
-                    val right = op.right
-                    val column = if (right is Binding.Column && right.column == this@Tx.columns[0]) {
-                        right.column
-                    } else if (left is Binding.Column && left.column ==  this@Tx.columns[0]) {
-                        left.column
-                    } else {
-                        throw QueryException("Conversion to Lucene query failed: One side of the comparison operator must be a column value!")
-                    }
-                    val literal: Value = if (right is Binding.Literal) {
-                        right.getValue() ?: throw QueryException("Conversion to Lucene query failed: Literal value cannot be null!")
-                    } else if (left is Binding.Literal) {
-                        right.getValue() ?: throw QueryException("Conversion to Lucene query failed: Literal value cannot be null!")
-                    } else {
-                        throw QueryException("Conversion to Lucene query failed: One side of the comparison operator must be a literal value!")
-                    }
-
-                    return when (op) {
-                        is ComparisonOperator.Binary.Equal -> {
-                            if (literal is StringValue) {
-                                TermQuery(Term("${column.name}_str", literal.value))
-                            } else {
-                                throw QueryException("Conversion to Lucene query failed: EQUAL queries strictly require a StringValue as second operand!")
-                            }
-                        }
-                        is ComparisonOperator.Binary.Like -> {
-                            when (literal) {
-                                is StringValue -> QueryParserUtil.parse(
-                                    arrayOf(literal.value),
-                                    arrayOf("${column.name}_txt"),
-                                    StandardAnalyzer()
-                                )
-                                is LikePatternValue -> QueryParserUtil.parse(
-                                    arrayOf(literal.toLucene().value),
-                                    arrayOf("${column.name}_txt"),
-                                    StandardAnalyzer()
-                                )
-                                else -> throw throw QueryException("Conversion to Lucene query failed: LIKE queries require a StringValue OR LikePatternValue as second operand!")
-                            }
-                        }
-                        is ComparisonOperator.Binary.Match -> {
-                            if (literal is StringValue) {
-                                QueryParserUtil.parse(arrayOf(literal.value), arrayOf("${column.name}_txt"), StandardAnalyzer())
-                            } else {
-                                throw throw QueryException("Conversion to Lucene query failed: MATCH queries strictly require a StringValue as second operand!")
-                            }
-                        }
-                        else -> throw QueryException("Lucene Query Conversion failed: Only EQUAL, MATCH and LIKE queries can be mapped to a Apache Lucene!")
-                    }
-                }
-            }
         }
     }
 }

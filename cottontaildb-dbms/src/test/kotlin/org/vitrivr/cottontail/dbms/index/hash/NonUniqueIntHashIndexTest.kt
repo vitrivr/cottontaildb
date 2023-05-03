@@ -62,7 +62,7 @@ class NonUniqueIntHashIndexTest : AbstractIndexTest() {
         /* Prepare binding context and predicate. */
         val columnBinding = ctx.bindings.bind(this.columns[0])
         val valueBinding = ctx.bindings.bindNull(Types.Int)
-        val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(columnBinding, valueBinding), false)
+        val predicate = BooleanPredicate.Comparison(ComparisonOperator.Binary.Equal(columnBinding, valueBinding), false)
 
         /* Check all entries. */
         with(ctx.bindings) {
@@ -104,7 +104,7 @@ class NonUniqueIntHashIndexTest : AbstractIndexTest() {
         val indexTx = index.newTx(ctx)
 
         var count = 0
-        val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(ctx.bindings.bind(this.columns[0]), ctx.bindings.bind(IntValue(this.random.nextInt(100, Int.MAX_VALUE)))), false)
+        val predicate = BooleanPredicate.Comparison(ComparisonOperator.Binary.Equal(ctx.bindings.bind(this.columns[0]), ctx.bindings.bind(IntValue(this.random.nextInt(100, Int.MAX_VALUE)))), false)
         indexTx.filter(predicate).use {
             it.forEach { count += 1 }
         }

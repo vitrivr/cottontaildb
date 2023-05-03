@@ -65,7 +65,7 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
             /* Prepare binding context and predicate. */
             val columnBinding = ctx.bindings.bind(this.columns[0])
             val valueBinding = ctx.bindings.bindNull(Types.String)
-            val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(columnBinding, valueBinding), false)
+            val predicate = BooleanPredicate.Comparison(ComparisonOperator.Binary.Equal(columnBinding, valueBinding), false)
 
             /* Check all entries. */
             with(ctx.bindings) {
@@ -109,7 +109,7 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
         val indexTx = index.newTx(ctx)
 
         var count = 0
-        val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(ctx.bindings.bind(this.columns[0]), ctx.bindings.bind(StringValue(UUID.randomUUID().toString()))), false)
+        val predicate = BooleanPredicate.Comparison(ComparisonOperator.Binary.Equal(ctx.bindings.bind(this.columns[0]), ctx.bindings.bind(StringValue(UUID.randomUUID().toString()))), false)
         indexTx.filter(predicate).use {
             it.forEach { count += 1 }
         }

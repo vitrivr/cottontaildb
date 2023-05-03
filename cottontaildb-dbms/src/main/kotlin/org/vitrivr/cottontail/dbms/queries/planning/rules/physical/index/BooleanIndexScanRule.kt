@@ -67,7 +67,7 @@ object BooleanIndexScanRule : RewriteRule {
      * @param fetch [Map] of [ColumnDef] and alias [Name.ColumnName].
      */
     private fun normalize(predicate: BooleanPredicate, fetch: Map<Binding.Column, ColumnDef<*>>): BooleanPredicate = when (predicate) {
-        is BooleanPredicate.Atomic -> {
+        is BooleanPredicate.Comparison -> {
             /* Map left and right operands. */
             val op = predicate.operator
             val left = op.left
@@ -92,9 +92,11 @@ object BooleanIndexScanRule : RewriteRule {
                 is ComparisonOperator.In -> op /* IN operators only support literal bindings. */
                 is ComparisonOperator.IsNull -> ComparisonOperator.IsNull(left)
             }
-            BooleanPredicate.Atomic(newOp, predicate.not)
+            BooleanPredicate.Comparison(newOp, predicate.not)
         }
-        is BooleanPredicate.Compound.And -> BooleanPredicate.Compound.And(normalize(predicate.p1, fetch), normalize(predicate.p2, fetch))
-        is BooleanPredicate.Compound.Or -> BooleanPredicate.Compound.Or(normalize(predicate.p1, fetch), normalize(predicate.p2, fetch))
+        is BooleanPredicate.And -> BooleanPredicate.And(normalize(predicate.p1, fetch), normalize(predicate.p2, fetch))
+        is BooleanPredicate.Or -> BooleanPredicate.Or(normalize(predicate.p1, fetch), normalize(predicate.p2, fetch))
+        is BooleanPredicate.Not -> BooleanPredicate.Not(normalize(predicate.p, fetch))
+        is BooleanPredicate.Literal -> predicate
     }
 }

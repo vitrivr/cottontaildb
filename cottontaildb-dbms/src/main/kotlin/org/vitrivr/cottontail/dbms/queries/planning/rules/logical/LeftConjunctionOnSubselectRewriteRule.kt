@@ -28,7 +28,7 @@ object LeftConjunctionOnSubselectRewriteRule : RewriteRule {
      * @return True if [FilterOnSubSelectLogicalOperatorNode] can be applied to [node], false otherwise.
      */
     override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean =
-        node is FilterOnSubSelectLogicalOperatorNode && node.predicate is BooleanPredicate.Compound.And
+        node is FilterOnSubSelectLogicalOperatorNode && node.predicate is BooleanPredicate.And
 
     /**
      * Decomposes the provided [FilterOnSubSelectLogicalOperatorNode] with a conjunction into two consecutive
@@ -43,14 +43,14 @@ object LeftConjunctionOnSubselectRewriteRule : RewriteRule {
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode {
         /* Make sure, that node is a FilterOnSubSelectLogicalOperatorNode. */
         require(node is FilterOnSubSelectLogicalOperatorNode) { "Called LeftConjunctionOnSubselectRewriteRule.apply() with node of type ${node.javaClass.simpleName}. This is a programmer's error!"}
-        require(node.predicate is BooleanPredicate.Compound.And) { "Called LeftConjunctionOnSubselectRewriteRule.apply() with node a predicate that is not a conjunction. This is a programmer's error!" }
+        require(node.predicate is BooleanPredicate.And) { "Called LeftConjunctionOnSubselectRewriteRule.apply() with node a predicate that is not a conjunction. This is a programmer's error!" }
 
         val parent = node.left.copyWithExistingInput()
-        val p1HasSubselect = node.predicate.p1.atomics.any { a ->
+        val p1HasSubselect = node.predicate.p1.atomics.filterIsInstance<BooleanPredicate.Comparison>().any { a ->
             val op = a.operator
             op is ComparisonOperator.In && op.right.any { !it.static }
         }
-        val p2HasSubselect = node.predicate.p2.atomics.any { a ->
+        val p2HasSubselect = node.predicate.p2.atomics.filterIsInstance<BooleanPredicate.Comparison>().any { a ->
             val op = a.operator
             op is ComparisonOperator.In && op.right.any { !it.static }
         }

@@ -106,7 +106,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
 
                 /* Prepare simple scan with projection. */
                 val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
-                val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Atomic(op, false))
+                val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op, false))
                 val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
                 /* Execute query planing. */
@@ -146,7 +146,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
 
             /* Prepare simple scan with projection. */
             val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
-            val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Atomic(op, false))
+            val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op, false))
             val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
             /* Execute query planing. */
@@ -182,7 +182,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
 
                 /* Prepare simple scan with projection. */
                 val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
-                val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Atomic(op, false))
+                val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op, false))
                 val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
                 /* Execute query planing. */
@@ -223,7 +223,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
 
                 /* Prepare simple scan with projection. */
                 val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
-                val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Compound.And(BooleanPredicate.Atomic(op1, false), BooleanPredicate.Atomic(op2, false)))
+                val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Compound.And(BooleanPredicate.Comparison(op1, false), BooleanPredicate.Comparison(op2, false)))
                 val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
                 /* Execute query planing. */
@@ -262,7 +262,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
 
             /* Prepare simple scan with projection. */
             val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
-            val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Atomic(op, false))
+            val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op, false))
             val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
             /* Execute query planing. */

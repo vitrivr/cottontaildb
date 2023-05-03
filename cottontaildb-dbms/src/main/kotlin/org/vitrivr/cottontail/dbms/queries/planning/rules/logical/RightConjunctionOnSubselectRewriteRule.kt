@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterOn
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 
 /**
- * Decomposes a [FilterOnSubSelectLogicalOperatorNode] that contains a [BooleanPredicate.Compound.And] into a sequence
+ * Decomposes a [FilterOnSubSelectLogicalOperatorNode] that contains a [BooleanPredicate.And] into a sequence
  * of two [FilterOnSubSelectLogicalOperatorNode]s or a [FilterOnSubSelectLogicalOperatorNode] and a [FilterLogicalOperatorNode].
  *
  * Gives precedence to the right operand.
@@ -21,14 +21,14 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 object RightConjunctionOnSubselectRewriteRule : RewriteRule {
 
     /**
-     * The [RightConjunctionOnSubselectRewriteRule] can be applied to all [FilterOnSubSelectLogicalOperatorNode]s that contain a [BooleanPredicate.Compound.And].
+     * The [RightConjunctionOnSubselectRewriteRule] can be applied to all [FilterOnSubSelectLogicalOperatorNode]s that contain a [BooleanPredicate.And].
      *
      * @param node The [OperatorNode] to check.
      * @param ctx The [QueryContext]
      * @return True if [FilterOnSubSelectLogicalOperatorNode] can be applied to [node], false otherwise.
      */
     override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean =
-        node is FilterOnSubSelectLogicalOperatorNode && node.predicate is BooleanPredicate.Compound.And
+        node is FilterOnSubSelectLogicalOperatorNode && node.predicate is BooleanPredicate.And
 
     /**
      * Decomposes the provided [FilterOnSubSelectLogicalOperatorNode] with a conjunction into two consecutive
@@ -44,14 +44,14 @@ object RightConjunctionOnSubselectRewriteRule : RewriteRule {
 
         /* Make sure, that node is a FilterOnSubSelectLogicalOperatorNode. */
         require(node is FilterOnSubSelectLogicalOperatorNode) { "Called RightConjunctionOnSubselectRewriteRule.apply() with node of type ${node.javaClass.simpleName}. This is a programmer's error!"}
-        require(node.predicate is BooleanPredicate.Compound.And) { "Called RightConjunctionOnSubselectRewriteRule.apply() with node a predicate that is not a conjunction. This is a programmer's error!" }
+        require(node.predicate is BooleanPredicate.And) { "Called RightConjunctionOnSubselectRewriteRule.apply() with node a predicate that is not a conjunction. This is a programmer's error!" }
 
         val parent = node.right.copyWithExistingInput()
-        val p1HasSubselect = node.predicate.p1.atomics.any { a ->
+        val p1HasSubselect = node.predicate.p1.atomics.filterIsInstance<BooleanPredicate.Comparison>().any { a ->
             val op = a.operator
             op is ComparisonOperator.In && op.right.any { !it.static }
         }
-        val p2HasSubselect = node.predicate.p2.atomics.any { a ->
+        val p2HasSubselect = node.predicate.p2.atomics.filterIsInstance<BooleanPredicate.Comparison>().any { a ->
             val op = a.operator
             op is ComparisonOperator.In && op.right.any { !it.static }
         }

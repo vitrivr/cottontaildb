@@ -42,32 +42,34 @@ class FilterOnSubselectOperator(val parent: Operator, val subquery: Operator, va
         with(this@FilterOnSubselectOperator.context.bindings) {
             with(MissingRecord) {
                 for (a in this@FilterOnSubselectOperator.predicate.atomics) {
-                    /* Case 1: Binary operator that depends on sub-query. */
-                    val op = a.operator
-                    if (op is ComparisonOperator.Binary) {
-                        /* Case 1a: Left-hand side depends on sub-query. */
-                        val subquery = if (op.left is Binding.Subquery) {
-                            op.left as Binding.Subquery
-                        } else if (op.right is Binding.Subquery) {
-                            op.right as Binding.Subquery
-                        } else {
-                            throw IllegalStateException("Encountered FilterOnSubSelectOperator without Sub-Select query. This is a programmer's error!")
-                        }
-                        subqueryFlow.take(1L).collect {
-                            val value = it[subquery.column]
-                            if (value != null) {
-                                (op.left as Binding.Subquery).append(value)
+                    if (a is BooleanPredicate.Comparison) {
+                        /* Case 1: Binary operator that depends on sub-query. */
+                        val op = a.operator
+                        if (op is ComparisonOperator.Binary) {
+                            /* Case 1a: Left-hand side depends on sub-query. */
+                            val subquery = if (op.left is Binding.Subquery) {
+                                op.left as Binding.Subquery
+                            } else if (op.right is Binding.Subquery) {
+                                op.right as Binding.Subquery
+                            } else {
+                                throw IllegalStateException("Encountered FilterOnSubSelectOperator without Sub-Select query. This is a programmer's error!")
+                            }
+                            subqueryFlow.take(1L).collect {
+                                val value = it[subquery.column]
+                                if (value != null) {
+                                    (op.left as Binding.Subquery).append(value)
+                                }
                             }
                         }
-                    }
 
-                    /* Case 2: IN operator that depends on sub-query. */
-                    if (op is ComparisonOperator.In) {
-                        for (b in op.right) {
-                            if (b is Binding.Subquery) {
-                                subqueryFlow.collect {
-                                    val value = it[0]
-                                    if (value != null) b.append(value)
+                        /* Case 2: IN operator that depends on sub-query. */
+                        if (op is ComparisonOperator.In) {
+                            for (b in op.right) {
+                                if (b is Binding.Subquery) {
+                                    subqueryFlow.collect {
+                                        val value = it[0]
+                                        if (value != null) b.append(value)
+                                    }
                                 }
                             }
                         }

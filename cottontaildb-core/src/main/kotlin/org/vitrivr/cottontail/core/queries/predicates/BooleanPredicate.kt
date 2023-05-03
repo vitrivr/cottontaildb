@@ -23,8 +23,8 @@ import org.vitrivr.cottontail.utilities.extensions.toDouble
  * @version 3.1.0
  */
 sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
-    /** The [Atomic]s that make up this [BooleanPredicate]. */
-    val atomics: Set<Atomic>
+    /** The [BooleanPredicate]s that make up this [BooleanPredicate]. */
+    val atomics: Set<BooleanPredicate>
 
     /**
      * Returns true, if this [BooleanPredicate] returns true in its current configuration, and false otherwise.
@@ -46,14 +46,31 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
     override fun copy(): BooleanPredicate
 
     /**
+     *
+     */
+    data class Literal(val boolean: Boolean): BooleanPredicate {
+        override val cost: Cost = Cost.ZERO
+        context(BindingContext)
+        override fun prepare() { /* No op */ }
+
+        override val columns: Set<ColumnDef<*>> = emptySet()
+
+        override val atomics: Set<Comparison> = emptySet()
+        override fun isMatch(): Boolean = this.boolean
+        override fun score(): Double = this.boolean.toDouble()
+        override fun copy(): BooleanPredicate = Literal(this.boolean)
+        override fun digest(): Digest = 7L * this.boolean.hashCode()
+    }
+
+    /**
      * An atomic [BooleanPredicate] that compares the column of a [Record] to a provided value, a set of provided values or another column.
      *
      * @author Ralph Gasser
      * @version 1.3.0
      */
-    data class Atomic(val operator: ComparisonOperator, val not: Boolean) : BooleanPredicate {
+    data class Comparison(val operator: ComparisonOperator, val not: Boolean) : BooleanPredicate {
 
-        /** The [Cost] of evaluating this [Atomic]. */
+        /** The [Cost] of evaluating this [Comparison]. */
         override val cost: Cost
             get() = this.operator.cost
 
@@ -92,12 +109,12 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
             }
 
 
-        /** The [Atomic]s that make up this [BooleanPredicate]. */
-        override val atomics: Set<Atomic>
+        /** The [Comparison]s that make up this [BooleanPredicate]. */
+        override val atomics: Set<Comparison>
             get() = setOf(this)
 
         /**
-         * Checks if the provided [Record] matches this [Atomic] and assigns a score if so.
+         * Checks if the provided [Record] matches this [Comparison] and assigns a score if so.
          *
          * @return Matching score.
          */
@@ -105,9 +122,9 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
         override fun score(): Double = this.isMatch().toDouble()
 
         /**
-         * Checks if the provided [Record] matches this [Atomic] and returns true or false respectively.
+         * Checks if the provided [Record] matches this [Comparison] and returns true or false respectively.
          *
-         * @return true if [Record] matches this [Atomic], false otherwise.
+         * @return true if [Record] matches this [Comparison], false otherwise.
          */
         context(BindingContext,Record)
         override fun isMatch(): Boolean =
@@ -122,18 +139,18 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
         override fun prepare() = this.operator.prepare()
 
         /**
-         * Calculates and returns the digest for this [BooleanPredicate.Atomic]
+         * Calculates and returns the digest for this [BooleanPredicate.Comparison]
          *
          * @return [Digest]
          */
         override fun digest(): Digest = 33L * this.hashCode()
 
         /**
-         * Creates a cop of this [Atomic] and returns it.
+         * Creates a cop of this [Comparison] and returns it.
          *
-         * @return Copy of this [Atomic].
+         * @return Copy of this [Comparison].
          */
-        override fun copy() = Atomic(this.operator.copy(), this.not)
+        override fun copy() = Comparison(this.operator.copy(), this.not)
 
         /**
          * Generates a [String] representation of this [BooleanPredicate].
@@ -150,7 +167,7 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
-            if (other !is Atomic) return false
+            if (other !is Comparison) return false
             if (this.operator != other.operator) return false
             if (this.not != other.not) return false
 
@@ -164,133 +181,180 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
         }
     }
 
+
     /**
-     * A compound [BooleanPredicate] that connects two other [BooleanPredicate]s through a logical AND or OR connection.
+     *
+     */
+    data class Not(val p: BooleanPredicate): BooleanPredicate {
+        override val atomics: Set<BooleanPredicate>
+            get() = this.p.atomics
+        override val columns: Set<ColumnDef<*>>
+            get() = this.p.columns
+        override val cost: Cost
+            get() = this.p.cost
+
+
+        /**
+         * Checks if the provided [Record] matches this [Not] and returns true or false respectively.
+         *
+         * @return true if [Record] matches this [Not], false otherwise.
+         */
+        context(BindingContext, Record)
+        override fun isMatch(): Boolean = !this.p.isMatch()
+
+        /**
+         * Checks if the provided [Record] matches this [Not] and returns a score.
+         *
+         * @return true if [Record] matches this [Not], false otherwise.
+         */
+        context(BindingContext, Record)
+        override fun score(): Double = (!this.p.isMatch()).toDouble()
+
+        /**
+         * Method that is being called directly before query execution starts.
+         *
+         * Propagated to child [BooleanPredicate]s
+         */
+        context(BindingContext)
+        override fun prepare() {
+            this.p.prepare()
+        }
+
+        /**
+         * Creates a copy of this [Not] and returns it.
+         *
+         * @return Copy of this [Not].
+         */
+        override fun copy() = Not(this.p.copy())
+
+        override fun digest(): Digest  = 27L * this.hashCode()
+
+        override fun toString(): String = "NOT $p"
+    }
+
+    /**
+     * A compound [BooleanPredicate] that connects two other [BooleanPredicate]s through a logical OR connection.
      *
      * @author Ralph Gasser
      * @version 1.3.0
      */
-    sealed interface Compound: BooleanPredicate {
-
-        /** The left operand of this [Compound] boolean predicate. */
-        val p1: BooleanPredicate
-
-        /** The right operand of this [Compound] boolean predicate. */
-        val p2: BooleanPredicate
+    data class And(val p1: BooleanPredicate, val p2: BooleanPredicate) : BooleanPredicate {
 
         /** The [Cost] of evaluating this [BooleanPredicate]. */
         override val cost: Cost
             get() = this.p1.cost + this.p2.cost
 
-        /** The [Atomic]s that make up this [Compound]. */
-        override val atomics
+        /** The [Comparison]s that make up this [And]. */
+        override val atomics: Set<BooleanPredicate>
             get() = this.p1.atomics + this.p2.atomics
 
-        /** Set of [ColumnDef] that are affected by this [Compound]. */
+        /** Set of [ColumnDef] that are affected by this [And]. */
         override val columns: Set<ColumnDef<*>>
             get() = this.p1.columns + this.p2.columns
 
         /**
-         * A compound [BooleanPredicate] that connects two other [BooleanPredicate]s through a logical AND or OR connection.
+         * Checks if the provided [Record] matches this [And] and returns true or false respectively.
          *
-         * @author Ralph Gasser
-         * @version 1.3.0
+         * @return true if [Record] matches this [And], false otherwise.
          */
-        data class And(override val p1: BooleanPredicate, override val p2: BooleanPredicate) : Compound {
+        context(BindingContext,Record)
+        override fun isMatch(): Boolean = this.p1.isMatch() && this.p2.isMatch()
 
-            /**
-             * Checks if the provided [Record] matches this [Compound] and returns true or false respectively.
-             *
-             * @return true if [Record] matches this [Compound], false otherwise.
-             */
-            context(BindingContext,Record)
-            override fun isMatch(): Boolean = this.p1.isMatch() && this.p2.isMatch()
+        /**
+         * Checks if the provided [Record] matches this [And] and returns a score.
+         *
+         * @return true if [Record] matches this [Comparison], false otherwise.
+         */
+        context(BindingContext,Record)
+        override fun score(): Double = (p1.isMatch() && p2.isMatch()).toDouble()
 
-            /**
-             * Checks if the provided [Record] matches this [Compound] and returns a score.
-             *
-             * @return true if [Record] matches this [Atomic], false otherwise.
-             */
-            context(BindingContext,Record)
-            override fun score(): Double = (p1.isMatch() && p2.isMatch()).toDouble()
-
-            /**
-             * Method that is being called directly before query execution starts.
-             *
-             * Propagated to child [BooleanPredicate]s
-             */
-            context(BindingContext)
-            override fun prepare() {
-                this.p1.prepare()
-                this.p2.prepare()
-            }
-
-            /**
-             * Creates a cop of this [And] and returns it.
-             *
-             * @return Copy of this [And].
-             */
-            override fun copy() = And(this.p1.copy(), this.p2.copy())
-
-            /**
-             * Calculates and returns the digest for this [BooleanPredicate.Compound]
-             *
-             * @return Digest as [Long]
-             */
-            override fun digest(): Long = 27L * this.hashCode()
-
-
-            override fun toString(): String = "$p1 AND $p2"
+        /**
+         * Method that is being called directly before query execution starts.
+         *
+         * Propagated to child [BooleanPredicate]s
+         */
+        context(BindingContext)
+        override fun prepare() {
+            this.p1.prepare()
+            this.p2.prepare()
         }
 
         /**
-         * A compound [BooleanPredicate] that connects two other [BooleanPredicate]s through a logical AND or OR connection.
+         * Creates a copy of this [And] and returns it.
          *
-         * @author Ralph Gasser
-         * @version 1.3.0
+         * @return Copy of this [And].
          */
-        data class Or(override val p1: BooleanPredicate, override val p2: BooleanPredicate) : Compound {
+        override fun copy() = And(this.p1.copy(), this.p2.copy())
 
-            /**
-             * Checks if the provided [Record] matches this [Compound] and returns true or false respectively.
-             *
-             * @return true if [Record] matches this [Compound], false otherwise.
-             */
-            context(BindingContext,Record)
-            override fun isMatch(): Boolean = this.p1.isMatch() || this.p2.isMatch()
-            /**
-             * Checks if the provided [Record] matches this [Compound] and returns a score.
-             *
-             * @return true if [Record] matches this [Atomic], false otherwise.
-             */
-            context(BindingContext,Record)
-            override fun score(): Double = ((p1.isMatch() || p2.isMatch()).toDouble() / 2.0)
+        /**
+         * Calculates and returns the digest for this [And]
+         *
+         * @return Digest as [Long]
+         */
+        override fun digest(): Long = 27L * this.hashCode()
 
-            /**
-             * Method that is being called directly before query execution starts.
-             *
-             * Propagated to child [BooleanPredicate]s
-             */
-            context(BindingContext)
-            override fun prepare() {
-                this.p1.prepare()
-                this.p2.prepare()
-            }
 
-            /**
-             * Creates a cop of this [And] and returns it.
-             *
-             * @return Copy of this [And].
-             */
-            override fun copy() = Or(this.p1.copy(), this.p2.copy())
+        override fun toString(): String = "$p1 AND $p2"
+    }
 
-            /**
-             * Calculates and returns the digest for this [BooleanPredicate.Compound]
-             *
-             * @return Digest as [Long]
-             */
-            override fun digest(): Long = 31L * this.hashCode()
-            override fun toString(): String = "$p1 OR $p2"
+    /**
+     * A compound [BooleanPredicate] that connects two other [BooleanPredicate]s through a logical AND connection.
+     *
+     * @author Ralph Gasser
+     * @version 1.3.0
+     */
+    data class Or(val p1: BooleanPredicate, val p2: BooleanPredicate): BooleanPredicate {
+        /** The [Cost] of evaluating this [BooleanPredicate]. */
+        override val cost: Cost
+            get() = this.p1.cost + this.p2.cost
+
+        /** The [BooleanPredicate]s that make up this [And]. */
+        override val atomics: Set<BooleanPredicate>
+            get() = this.p1.atomics + this.p2.atomics
+
+        /** Set of [ColumnDef] that are affected by this [And]. */
+        override val columns: Set<ColumnDef<*>>
+            get() = this.p1.columns + this.p2.columns
+
+        /**
+         * Checks if the provided [Record] matches this [Or] and returns true or false respectively.
+         *
+         * @return true if [Record] matches this [Or], false otherwise.
+         */
+        context(BindingContext,Record)
+        override fun isMatch(): Boolean = this.p1.isMatch() || this.p2.isMatch()
+        /**
+         * Checks if the provided [Record] matches this [Or] and returns a score.
+         *
+         * @return true if [Record] matches this [Comparison], false otherwise.
+         */
+        context(BindingContext,Record)
+        override fun score(): Double = ((p1.isMatch() || p2.isMatch()).toDouble() / 2.0)
+
+        /**
+         * Method that is being called directly before query execution starts.
+         *
+         * Propagated to child [BooleanPredicate]s
+         */
+        context(BindingContext)
+        override fun prepare() {
+            this.p1.prepare()
+            this.p2.prepare()
         }
+
+        /**
+         * Creates a cop of this [And] and returns it.
+         *
+         * @return Copy of this [And].
+         */
+        override fun copy() = Or(this.p1.copy(), this.p2.copy())
+
+        /**
+         * Calculates and returns the digest for this [Or]
+         *
+         * @return Digest as [Long]
+         */
+        override fun digest(): Long = 31L * this.hashCode()
+        override fun toString(): String = "$p1 OR $p2"
     }
 }
