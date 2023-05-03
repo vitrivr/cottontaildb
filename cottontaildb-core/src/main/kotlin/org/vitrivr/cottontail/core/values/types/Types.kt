@@ -37,13 +37,13 @@ sealed interface Types<T : Value> {
             "STRING" -> String
             "COMPLEX32" -> Complex32
             "COMPLEX64" -> Complex64
-            "INT_VEC" -> IntVector(logicalSize)
-            "LONG_VEC" -> LongVector(logicalSize)
-            "FLOAT_VEC" -> FloatVector(logicalSize)
-            "DOUBLE_VEC" -> DoubleVector(logicalSize)
-            "BOOL_VEC" -> BooleanVector(logicalSize)
-            "COMPLEX32_VEC" -> Complex32Vector(logicalSize)
-            "COMPLEX64_VEC" -> Complex64Vector(logicalSize)
+            "INTEGER_VECTOR" -> IntVector(logicalSize)
+            "LONG_VECTOR" -> LongVector(logicalSize)
+            "FLOAT_VECTOR" -> FloatVector(logicalSize)
+            "DOUBLE_VECTOR" -> DoubleVector(logicalSize)
+            "BOOL_VECTOR" -> BooleanVector(logicalSize)
+            "COMPLEX32_VECTOR" -> Complex32Vector(logicalSize)
+            "COMPLEX64_VECTOR" -> Complex64Vector(logicalSize)
             "BYTESTRING" -> ByteString
             else -> throw java.lang.IllegalArgumentException("The column type $name does not exists!")
         }
@@ -219,7 +219,7 @@ sealed interface Types<T : Value> {
     }
 
     class IntVector(override val logicalSize: kotlin.Int): Vector<IntVectorValue, IntValue>() {
-        override val name = "INT_VEC"
+        override val name = "INTEGER_VEC"
         override val ordinal: kotlin.Int = 11
         override val physicalSize = this.logicalSize * kotlin.Int.SIZE_BYTES
         override val elementType = Int
@@ -235,7 +235,7 @@ sealed interface Types<T : Value> {
     }
 
     class FloatVector(override val logicalSize: kotlin.Int): Vector<FloatVectorValue, FloatValue>() {
-        override val name = "FLOAT_VEC"
+        override val name = "FLOAT_VECTOR"
         override val ordinal: kotlin.Int = 13
         override val physicalSize = this.logicalSize * kotlin.Int.SIZE_BYTES
         override val elementType = Float
@@ -243,7 +243,7 @@ sealed interface Types<T : Value> {
     }
 
     class DoubleVector(override val logicalSize: kotlin.Int): Vector<DoubleVectorValue, DoubleValue>() {
-        override val name = "DOUBLE_VEC"
+        override val name = "DOUBLE_VECTOR"
         override val ordinal: kotlin.Int = 14
         override val physicalSize = this.logicalSize * kotlin.Long.SIZE_BYTES
         override val elementType = Double
@@ -251,7 +251,7 @@ sealed interface Types<T : Value> {
     }
 
     class BooleanVector(override val logicalSize: kotlin.Int): Vector<BooleanVectorValue, BooleanValue>() {
-        override val name = "BOOL_VEC"
+        override val name = "BOOLEAN_VECTOR"
         override val ordinal: kotlin.Int = 15
         override val physicalSize = this.logicalSize * kotlin.Byte.SIZE_BYTES
         override val elementType = Boolean
@@ -259,7 +259,7 @@ sealed interface Types<T : Value> {
     }
 
     class Complex32Vector(override val logicalSize: kotlin.Int): Vector<Complex32VectorValue, Complex32Value>() {
-        override val name = "COMPLEX32_VEC"
+        override val name = "COMPLEX32_VECTOR"
         override val ordinal: kotlin.Int = 16
         override val physicalSize = this.logicalSize * 2 * kotlin.Int.SIZE_BYTES
         override val elementType = Complex32
@@ -267,7 +267,7 @@ sealed interface Types<T : Value> {
     }
 
     class Complex64Vector(override val logicalSize: kotlin.Int): Vector<Complex64VectorValue, Complex32Value>() {
-        override val name = "COMPLEX64_VEC"
+        override val name = "COMPLEX64_VECTOR"
         override val ordinal: kotlin.Int = 17
         override val elementType = Complex32
         override val physicalSize = this.logicalSize * 2 * kotlin.Long.SIZE_BYTES
