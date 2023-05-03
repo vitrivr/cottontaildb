@@ -313,7 +313,11 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return [Cursor]
          */
         override fun cursor(columns: Array<ColumnDef<*>>, partition: LongRange) = this.txLatch.withLock {
-            DefaultEntityCursor(columns, partition, this, this.context)
+            if (this.count() == 0L) {
+                EmptyEntityCursor
+            } else {
+                DefaultEntityCursor(columns, partition, this, this.context)
+            }
         }
 
         /**

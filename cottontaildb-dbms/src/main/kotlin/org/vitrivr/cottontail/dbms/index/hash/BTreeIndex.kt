@@ -255,7 +255,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @param event [DataEvent.Insert] to apply.
          */
         override fun tryApply(event: DataEvent.Insert): Boolean {
-            val value = event.data[this.columns[0]] ?: return true
+            val value = combineValues(this.columns, event.data) ?: return true
             return this.addMapping(value, event.tupleId)
         }
 
@@ -265,8 +265,8 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @param event [DataEvent.Update] to apply.
          */
         override fun tryApply(event: DataEvent.Update): Boolean {
-            val old = event.data[this.columns[0]]?.first
-            val new = event.data[this.columns[0]]?.second
+            val old = combineValues(this.columns, event.data.mapValues { it.value.first })
+            val new = combineValues(this.columns, event.data.mapValues { it.value.second })
             val removed = (old == null || this.removeMapping(old, event.tupleId))
             val added = (new == null || this.addMapping(new, event.tupleId))
             return removed && added
@@ -278,7 +278,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @param event [DataEvent.Delete] to apply.
          */
         override fun tryApply(event: DataEvent.Delete): Boolean {
-            val old = event.data[this.columns[0]] ?: return true
+            val old = combineValues(this.columns, event.data) ?: return true
             return this.removeMapping(old, event.tupleId)
         }
 

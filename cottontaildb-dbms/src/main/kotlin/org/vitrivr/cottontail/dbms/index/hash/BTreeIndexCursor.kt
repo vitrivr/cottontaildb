@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.types.Value
 import java.util.*
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A [Cursor] for the [BTreeIndex]. Different variants are implemented optimised for the respective [ComparisonOperator].
@@ -20,32 +19,42 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index: BTreeIndex.Tx) : Cursor<Record> {
     /** Internal cursor used for navigation. */
-    protected val subTransaction = this.index.context.txn.xodusTx.readonlySnapshot
+    private val subTransaction = this.index.context.txn.xodusTx.readonlySnapshot
 
     /** Internal cursor used for navigation. */
-    protected val cursor: jetbrains.exodus.env.Cursor
+    protected val cursor: jetbrains.exodus.env.Cursor = this.index.dataStore.openCursor(this.subTransaction)
 
     /** A beginning of cursor (BoC) flag. */
-    protected val boc = AtomicBoolean(false)
+    private var boc: Boolean
 
     /** Flag indicating, that this [BTreeIndexCursor] is empty. */
-    protected val empty: Boolean
+    private val empty: Boolean
+
+    /** Internal list of query values for IN predicate. */
+    protected val queryValueQueue = LinkedList<Value>()
 
     /* Perform initial sanity checks. */
     init {
-        this.cursor = this.index.dataStore.openCursor(this.subTransaction)
         with(this@BTreeIndexCursor.index.context.bindings) {
             with(MissingRecord) {
-                this@BTreeIndexCursor.boc.compareAndExchange(false, this@BTreeIndexCursor.initialize())
-                this@BTreeIndexCursor.empty = !this@BTreeIndexCursor.boc.get()
+                this@BTreeIndexCursor.boc = this@BTreeIndexCursor.initialize()
+                this@BTreeIndexCursor.empty = !this@BTreeIndexCursor.boc
             }
         }
     }
 
-    override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.value)
-    override fun value(): Record = StandaloneRecord(this.key(), this.index.columns, arrayOf(this.index.binding.entryToValue(this.cursor.key)))
+    final override fun moveNext(): Boolean = when {
+        this.empty -> false
+        this.boc -> {
+            this.boc = false
+            true
+        }
+        else -> this.moveNextInternal()
+    }
+    final override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.value)
+    final override fun value(): Record = StandaloneRecord(this.key(), this.index.columns, arrayOf(this.index.binding.entryToValue(this.cursor.key)))
 
-    override fun close() {
+    final override fun close() {
         this.cursor.close()
         this.subTransaction.abort()
     }
@@ -53,22 +62,21 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
     context(BindingContext,Record)
     protected abstract fun initialize(): Boolean
 
+    protected abstract fun moveNextInternal(): Boolean
+
     /**
      * A [BTreeIndexCursor] variant to evaluate  [ComparisonOperator.Binary.Equal] operators.
      */
     class Equals(operator: ComparisonOperator.Binary.Equal, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.Binary.Equal>(operator, index) {
         context(BindingContext,Record)
         override fun initialize(): Boolean = this@Equals.cursor.getSearchKey(this@Equals.index.binding.valueToEntry(this.operator.right.getValue())) != null
-        override fun moveNext(): Boolean = !this.empty && (this.boc.compareAndExchange(true, false) || (this.cursor.nextDup))
+        override fun moveNextInternal(): Boolean = this.cursor.nextDup
     }
 
     /**
      * A [BTreeIndexCursor] variant to evaluate  [ComparisonOperator.In] operators.
      */
     class In(operator: ComparisonOperator.In, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.In>(operator, index) {
-
-        /** Internal list of query values for IN predicate. */
-        private val queryValueQueue = LinkedList<Value>()
 
         context(BindingContext,Record)
         override fun initialize(): Boolean {
@@ -80,9 +88,8 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
             }
             return false
         }
-
-        override fun moveNext(): Boolean {
-            if ((this.boc.compareAndExchange(true, false) || (this.cursor.nextDup))) return true
+        override fun moveNextInternal(): Boolean {
+            if (this.cursor.nextDup) return true
             while (this.queryValueQueue.size > 0) {
                 if (this.cursor.getSearchKey(this.index.binding.valueToEntry(this.queryValueQueue.poll())) != null) {
                     return true
@@ -98,7 +105,7 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
     class GreaterEqual(operator: ComparisonOperator.Binary.GreaterEqual, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.Binary.GreaterEqual>(operator, index) {
         context(BindingContext,Record)
         override fun initialize(): Boolean = this.cursor.getSearchKeyRange(this.index.binding.valueToEntry(this.operator.right.getValue())) != null
-        override fun moveNext(): Boolean = !this.empty && (this.boc.compareAndExchange(true, false) || (this.cursor.next))
+        override fun moveNextInternal(): Boolean = this.cursor.next
     }
 
     /**
@@ -119,7 +126,7 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
             return false
         }
 
-        override fun moveNext(): Boolean = !this.empty && (this.boc.compareAndExchange(true, false) || (this.cursor.next))
+        override fun moveNextInternal(): Boolean = this.cursor.next
     }
 
     /**
@@ -128,8 +135,7 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
     class LessEqual(operator: ComparisonOperator.Binary.LessEqual, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.Binary.LessEqual>(operator, index) {
         context(BindingContext,Record)
         override fun initialize(): Boolean = this.cursor.getSearchKeyRange(this.index.binding.valueToEntry(this.operator.right.getValue())) != null
-
-        override fun moveNext(): Boolean = !this.empty && (this.boc.compareAndExchange(true, false) || (this.cursor.prev))
+        override fun moveNextInternal(): Boolean = this.cursor.prev
     }
 
     /**
@@ -149,7 +155,6 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
             }
             return false
         }
-
-        override fun moveNext(): Boolean = !this.empty && (this.boc.compareAndExchange(true, false) || (this.cursor.prev))
+        override fun moveNextInternal(): Boolean = this.cursor.prev
     }
 }

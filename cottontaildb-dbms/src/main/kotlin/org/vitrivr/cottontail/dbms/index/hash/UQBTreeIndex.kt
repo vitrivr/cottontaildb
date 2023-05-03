@@ -49,7 +49,7 @@ import kotlin.math.log10
  */
 class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
-    companion object: IndexDescriptor<UQBTreeIndex> {
+    companion object : IndexDescriptor<UQBTreeIndex> {
         /** [Logger] instance used by [BTreeIndex]. */
         private val LOGGER: Logger = LoggerFactory.getLogger(UQBTreeIndex::class.java)
 
@@ -69,7 +69,8 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @param entity The [Entity] that holds the [UQBTreeIndex].
          * @return The opened [LuceneIndex]
          */
-        override fun open(name: Name.IndexName, entity: Entity): UQBTreeIndex = UQBTreeIndex(name, entity as DefaultEntity)
+        override fun open(name: Name.IndexName, entity: Entity): UQBTreeIndex =
+            UQBTreeIndex(name, entity as DefaultEntity)
 
         /**
          * Initializes the [Store] for a [UQBTreeIndex].
@@ -79,13 +80,19 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @param context The [TransactionContext] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            val store = (catalogue as DefaultCatalogue).environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
-            store != null
-        } catch (e:Throwable) {
-            LOGGER.error("Failed to initialize BTREE index $name due to an exception: ${e.message}.")
-            false
-        }
+        override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean =
+            try {
+                val store = (catalogue as DefaultCatalogue).environment.openStore(
+                    name.storeName(),
+                    StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING,
+                    context.xodusTx,
+                    true
+                )
+                store != null
+            } catch (e: Throwable) {
+                LOGGER.error("Failed to initialize BTREE index $name due to an exception: ${e.message}.")
+                false
+            }
 
         /**
          * De-initializes the [Store] for associated with a [UQBTreeIndex].
@@ -95,13 +102,14 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @param context The [TransactionContext] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            (catalogue as DefaultCatalogue).environment.removeStore(name.storeName(), context.xodusTx)
-            true
-        } catch (e:Throwable) {
-            LOGGER.error("Failed to de-initialize BTREE index $name due to an exception: ${e.message}.")
-            false
-        }
+        override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean =
+            try {
+                (catalogue as DefaultCatalogue).environment.removeStore(name.storeName(), context.xodusTx)
+                true
+            } catch (e: Throwable) {
+                LOGGER.error("Failed to de-initialize BTREE index $name due to an exception: ${e.message}.")
+                false
+            }
 
         /**
          * Generates and returns an empty [IndexConfig].
@@ -123,8 +131,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
      * @param context [QueryContext] to open the [Tx] for.
      * @return [Tx]
      */
-    override fun newTx(context: QueryContext): IndexTx
-        = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
+    override fun newTx(context: QueryContext): IndexTx = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
 
     /**
      * Opens and returns a new [UQBTreeIndexRebuilder] object that can be used to rebuild with this [UQBTreeIndex].
@@ -137,8 +144,8 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
     /**
      * Since [UQBTreeIndex] does not support asynchronous re-indexing, this method will throw an error.
      */
-    override fun newAsyncRebuilder(context: QueryContext): AsyncIndexRebuilder<UQBTreeIndex>
-        = throw UnsupportedOperationException("BTreeIndex does not support asynchronous index rebuilding.")
+    override fun newAsyncRebuilder(context: QueryContext): AsyncIndexRebuilder<UQBTreeIndex> =
+        throw UnsupportedOperationException("BTreeIndex does not support asynchronous index rebuilding.")
 
     /**
      * An [IndexTx] that affects this [UQBTreeIndex].
@@ -147,10 +154,16 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
 
         /** The internal [XodusBinding] reference used for de-/serialization. */
         @Suppress("UNCHECKED_CAST")
-        private val binding: XodusBinding<Value> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable) as XodusBinding<Value>
+        private val binding: XodusBinding<Value> =
+            ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable) as XodusBinding<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
-        private var dataStore: Store = this@UQBTreeIndex.catalogue.environment.openStore(this@UQBTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
+        private var dataStore: Store = this@UQBTreeIndex.catalogue.environment.openStore(
+            this@UQBTreeIndex.name.storeName(),
+            StoreConfig.USE_EXISTING,
+            this.context.txn.xodusTx,
+            false
+        )
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@UQBTreeIndex.name} is missing.")
 
         /**
@@ -223,18 +236,21 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
         override fun costFor(predicate: Predicate): Cost = this.txLatch.withLock {
             if (predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not) return Cost.INVALID
             val entityTx = this.dbo.parent.newTx(this.context)
-            val statistics = this.columns.associateWith { entityTx.columnForName(it.name).newTx(this.context).statistics() }
+            val statistics =
+                this.columns.associateWith { entityTx.columnForName(it.name).newTx(this.context).statistics() }
             val selectivity = with(this@Tx.context.bindings) {
                 with(MissingRecord) {
                     NaiveSelectivityCalculator.estimate(predicate, statistics)
                 }
             }
             val count = this.count()                /* Number of entries. */
-            val countOut = selectivity(count)       /* Number of entries actually selected (comparison still required). */
+            val countOut =
+                selectivity(count)       /* Number of entries actually selected (comparison still required). */
             val search = log10(count.toFloat())     /* Overhead for search into the index. */
             return when (predicate.operator) {
                 is ComparisonOperator.Binary,
                 is ComparisonOperator.In -> Cost.DISK_ACCESS_READ * (search + countOut) + predicate.cost * countOut
+
                 else -> Cost.INVALID
             }
         }
@@ -245,7 +261,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @param event [DataEvent.Insert]s to process.
          */
         override fun tryApply(event: DataEvent.Insert): Boolean {
-            val value = event.data[this.columns[0]] ?: return true
+            val value = combineValues(this.columns, event.data) ?: return true
             this.addMapping(value, event.tupleId)
             return true
         }
@@ -256,8 +272,8 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @param event [DataEvent.Update]s to process.
          */
         override fun tryApply(event: DataEvent.Update): Boolean {
-            val oldValue = event.data[this.columns[0]]?.first
-            val newValue = event.data[this.columns[0]]?.second
+            val oldValue = combineValues(this.columns, event.data.mapValues { it.value.first })
+            val newValue = combineValues(this.columns, event.data.mapValues { it.value.second })
             val removed = (oldValue == null || this.removeMapping(oldValue))
             if (newValue != null) this.addMapping(newValue, event.tupleId)
             return removed
@@ -268,8 +284,8 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          *
          * @param event [DataEvent.Delete]s to apply.
          */
-        override fun tryApply(event: DataEvent.Delete) : Boolean  {
-            val oldValue = event.data[this.columns[0]]
+        override fun tryApply(event: DataEvent.Delete): Boolean {
+            val oldValue = combineValues(this.columns, event.data) ?: return true
             return (oldValue == null) || this.removeMapping(oldValue)
         }
 
@@ -278,7 +294,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          *
          * @return Number of entries in this [UQBTreeIndex]
          */
-        override fun count(): Long  = this.txLatch.withLock {
+        override fun count(): Long = this.txLatch.withLock {
             this.dataStore.count(this.context.txn.xodusTx)
         }
 
@@ -291,7 +307,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [Cursor]
          */
-        override fun filter(predicate: Predicate)  = this.txLatch.withLock {
+        override fun filter(predicate: Predicate) = this.txLatch.withLock {
             object : Cursor<Record> {
 
                 /** A [Queue] with values that should be queried. */
@@ -305,20 +321,85 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
 
                 /* Perform initial sanity checks. */
                 init {
-                    require(predicate is BooleanPredicate.Atomic) { "UQBTreeIndex.filter() does only support Atomic.Literal boolean predicates." }
-                    require(!predicate.not) { "UniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
                     with(this@Tx.context.bindings) {
                         with(MissingRecord) {
-                            when (predicate.operator) {
-                                is ComparisonOperator.In -> queryValueQueue.addAll((predicate.operator as ComparisonOperator.In).right.mapNotNull { it.getValue() })
-                                is ComparisonOperator.Binary.Equal -> queryValueQueue.add((predicate.operator as ComparisonOperator.Binary.Equal).right.getValue() ?: throw IllegalArgumentException("UQBTreeIndex.filter() does not support NULL operands."))
-                                else -> throw IllegalArgumentException("UQBTreeIndex.filter() does only support EQUAL, IN or LIKE operators.")
+                            require(predicate is BooleanPredicate) { "UQBTreeIndex.filter() does only support boolean predicates." }
+                            if (predicate is BooleanPredicate.Atomic) {
+                                require(!predicate.not) { "UniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
+
+                                when (predicate.operator) {
+                                    is ComparisonOperator.In -> queryValueQueue.addAll((predicate.operator as ComparisonOperator.In).right.mapNotNull { it.getValue() })
+                                    is ComparisonOperator.Binary.Equal -> queryValueQueue.add(
+                                        (predicate.operator as ComparisonOperator.Binary.Equal).right.getValue()
+                                            ?: throw IllegalArgumentException("UQBTreeIndex.filter() does not support NULL operands.")
+                                    )
+
+                                    else -> throw IllegalArgumentException("UQBTreeIndex.filter() does only support EQUAL, or IN operators.")
+                                }
+                            } else {
+
+                                val map = columns.associateWith { mutableSetOf<Value?>() }.toMutableMap()
+
+                                //resolving combined predicates recursively
+                                fun fillMap(predicate: BooleanPredicate) {
+                                    when (predicate) {
+                                        is BooleanPredicate.Atomic -> {
+                                            require(!predicate.not) { "UniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
+                                            when (predicate.operator) {
+                                                is ComparisonOperator.Binary.Equal -> {
+                                                    predicate.operator as ComparisonOperator.Binary.Equal
+                                                    predicate.columns.forEach {
+                                                        map[it]?.add((predicate.operator as ComparisonOperator.Binary.Equal).right.getValue())
+                                                    }
+                                                }
+
+                                                is ComparisonOperator.In -> {
+                                                    predicate.operator as ComparisonOperator.In
+                                                    predicate.columns.forEach {
+                                                        map[it]?.addAll((predicate.operator as ComparisonOperator.In).right.mapNotNull { b -> b.getValue() })
+                                                    }
+                                                }
+
+                                                else -> throw IllegalArgumentException("UQBTreeIndex.filter() does only support EQUAL, or IN operators.")
+                                            }
+                                        }
+
+                                        is BooleanPredicate.Compound.And -> {
+                                            fillMap(predicate.p1)
+                                            fillMap(predicate.p2)
+                                        }
+
+                                        is BooleanPredicate.Compound.Or -> throw IllegalArgumentException("UQBTreeIndex.filter() does not support OR compound predicates.")
+                                    }
+                                }
+
+                                fillMap(predicate)
+
+                                require(!map.values.any { it.isEmpty() }) { "Not received values for all columns" }
+
+
+                                //recursively generate all value combinations
+                                val valueMap = mutableMapOf<ColumnDef<*>, Value?>()
+
+                                fun generateCombinations(idx: Int) {
+                                    if (idx == columns.size) {
+                                        queryValueQueue.add(combineValues(columns, valueMap))
+                                    } else {
+                                        val col = columns[idx]
+                                        for (value in map[col]!!) {
+                                            valueMap[col] = value
+                                            generateCombinations(idx + 1)
+                                        }
+                                    }
+                                }
+
+                                generateCombinations(0)
+
                             }
+
+                            cursor = this@Tx.dataStore.openCursor(subTransaction)
                         }
                     }
-
-                    /** Initialize cursor. */
-                    this.cursor = this@Tx.dataStore.openCursor(this.subTransaction)
                 }
 
                 override fun moveNext(): Boolean {
@@ -334,7 +415,11 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
 
                 override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.value)
 
-                override fun value(): Record = StandaloneRecord(this.key(), this@Tx.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.key)))
+                override fun value(): Record = StandaloneRecord(
+                    this.key(),
+                    this@Tx.columns,
+                    arrayOf(this@Tx.binding.entryToValue(this.cursor.key))
+                )
 
                 override fun close() {
                     this.cursor.close()
