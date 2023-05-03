@@ -100,7 +100,7 @@ fun aboutEntity(context: Context) {
                 size = it.asLong("rows")!!
             }
         }
-        context.json(EntityDetails(entityName, columns, indexes))
+        context.json(EntityDetails(entityName, size, columns, indexes))
     } catch (e: StatusException) {
         when (e.status) {
             Status.NOT_FOUND -> throw ErrorStatusException(404, "Failed to obtain information about entity $entityName.$schemaName, because it does not exist.")
