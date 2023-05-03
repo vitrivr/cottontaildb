@@ -6,4 +6,4 @@ package org.vitrivr.cottontail.ui.model.results
  * @author Ralph Gasser
  * @version 1.0.0
  */
-data class Resultset(val columns: List<Column>, val values: List<Array<String?>>, val size: Long)
+data class Resultset(val columns: List<Column>, val values: List<Array<Any?>>, val size: Long)

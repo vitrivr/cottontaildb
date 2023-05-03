@@ -68,7 +68,7 @@ fun previewEntity(context: Context) {
         val columnsNames = iterator.simpleNames
         val columnsTypes = iterator.columnTypes
         val results =iterator.drainToList {
-            format(columnsTypes, it)
+            convert(columnsTypes, it)
         }
         context.json(Resultset(columnsNames.zip(columnsTypes).map { Column(it.first, it.second) }, results, count))
     } catch (e: StatusRuntimeException) {
@@ -80,30 +80,32 @@ fun previewEntity(context: Context) {
     }
 }
 
-
 /**
+ * Converts a [Tuple] to an [Array] of [Any] objects.
  *
+ * @param columns List of column types.
+ * @param tuple [Tuple] to convert.
  */
-private fun format(columns: List<Type>, tuple: Tuple): Array<String?> = Array(columns.size) {
+private fun convert(columns: List<Type>, tuple: Tuple): Array<Any?> = Array(columns.size) {
     when(columns[it]) {
-        Type.BOOLEAN -> tuple.asBoolean(it)?.toString()
+        Type.BOOLEAN -> tuple.asBoolean(it)
         Type.BYTE,
         Type.SHORT,
-        Type.INTEGER -> tuple.asInt(it)?.toString()
-        Type.LONG -> tuple.asLong(it)?.toString()
-        Type.FLOAT -> tuple.asFloat(it)?.toString()
-        Type.DOUBLE -> tuple.asDouble(it)?.toString()
-        Type.DATE -> tuple.asDate(it)?.toString()
+        Type.INTEGER -> tuple.asInt(it)
+        Type.LONG -> tuple.asLong(it)
+        Type.FLOAT -> tuple.asFloat(it)
+        Type.DOUBLE -> tuple.asDouble(it)
+        Type.DATE -> tuple.asDate(it)
         Type.STRING -> tuple.asString(it)
-        Type.DOUBLE_VECTOR -> tuple.asDoubleVector(it)?.joinToString(",", "[", "]")
-        Type.FLOAT_VECTOR ->  tuple.asFloatVector(it)?.joinToString(",", "[", "]")
-        Type.LONG_VECTOR -> tuple.asLongVector(it)?.joinToString(",", "[", "]")
-        Type.INTEGER_VECTOR -> tuple.asIntVector(it)?.joinToString(",", "[", "]")
-        Type.BOOLEAN_VECTOR -> tuple.asBooleanVector(it)?.joinToString(",", "[", "]")
-        Type.COMPLEX32 -> TODO()
-        Type.COMPLEX64 -> TODO()
-        Type.COMPLEX32_VECTOR -> TODO()
-        Type.COMPLEX64_VECTOR -> TODO()
+        Type.DOUBLE_VECTOR -> tuple.asDoubleVector(it)
+        Type.FLOAT_VECTOR ->  tuple.asFloatVector(it)
+        Type.LONG_VECTOR -> tuple.asLongVector(it)
+        Type.INTEGER_VECTOR -> tuple.asIntVector(it)
+        Type.BOOLEAN_VECTOR -> tuple.asBooleanVector(it)
+        Type.COMPLEX32 ->  tuple.asComplex32(it)
+        Type.COMPLEX64 -> tuple.asComplex64(it)
+        Type.COMPLEX32_VECTOR -> tuple.asComplex32Vector(it)
+        Type.COMPLEX64_VECTOR -> tuple.asComplex64Vector(it)
         Type.BYTESTRING -> "<BLOB>"
         Type.UNDEFINED -> "<UNDEFINED>"
     }
