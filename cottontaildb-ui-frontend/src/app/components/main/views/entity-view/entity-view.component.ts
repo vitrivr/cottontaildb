@@ -5,6 +5,7 @@ import {Observable} from "rxjs";
 @Component({
   selector: 'entity-view',
   templateUrl: './entity-view.component.html',
+  styleUrls: ['./entity-view.component.scss']
 })
 export class EntityViewComponent {
 

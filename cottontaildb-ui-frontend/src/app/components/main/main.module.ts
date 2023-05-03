@@ -9,7 +9,6 @@ import {MainComponent} from "./main.component";
 import {DmlViewComponent} from "./views/dml-view/dml-view.component";
 import {QueryViewComponent} from "./views/query-view/query-view.component";
 import {SystemViewComponent} from "./views/system-view/system-view.component";
-import {DdlViewComponent} from "./views/ddl-view/ddl-view.component";
 import {CreateIndexFormComponent} from "./views/ddl-view/create-index-form/create-index-form.component";
 import {SelectFormComponent} from "./views/query-view/select-form/select-form.component";
 import {WhereFormComponent} from "./views/query-view/where-form/where-form.component";
@@ -52,7 +51,6 @@ import {MatSnackBarModule} from "@angular/material/snack-bar";
     DmlViewComponent,
     QueryViewComponent,
     SystemViewComponent,
-    DdlViewComponent,
     CreateIndexFormComponent,
     SelectFormComponent,
     WhereFormComponent,

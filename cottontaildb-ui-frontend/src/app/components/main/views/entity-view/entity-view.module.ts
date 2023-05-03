@@ -14,6 +14,7 @@ import {MatInputModule} from "@angular/material/input";
 import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
 import {MatProgressBarModule} from "@angular/material/progress-bar";
 import {MatListModule} from "@angular/material/list";
+import {MatTooltipModule} from "@angular/material/tooltip";
 
 @NgModule({
   declarations: [
@@ -21,20 +22,21 @@ import {MatListModule} from "@angular/material/list";
     EntityAboutComponent,
     EntityPreviewComponent
   ],
-  imports: [
-    BrowserModule,
-    CommonModule,
-    MatButtonModule,
-    MatTableModule,
-    MatIconModule,
-    MatPaginatorModule,
-    MatTabsModule,
-    MatSortModule,
-    MatInputModule,
-    MatProgressSpinnerModule,
-    MatProgressBarModule,
-    MatListModule
-  ],
+    imports: [
+        BrowserModule,
+        CommonModule,
+        MatButtonModule,
+        MatTableModule,
+        MatIconModule,
+        MatPaginatorModule,
+        MatTabsModule,
+        MatSortModule,
+        MatInputModule,
+        MatProgressSpinnerModule,
+        MatProgressBarModule,
+        MatListModule,
+        MatTooltipModule
+    ],
   providers: [EntityViewComponent],
   exports: [EntityViewComponent],
   bootstrap: []
