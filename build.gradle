@@ -101,7 +101,8 @@ subprojects {
         implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-json-jvm', version: version_kotlinx_json_jvm
 
         ///// Cottontail DB Driver + gRPC dependencies
-        implementation group: 'org.vitrivr', name: 'cottontaildb-proto', version: version_cottontaildb_driver
+        ///// implementation group: 'org.vitrivr', name: 'cottontaildb-proto', version: version_cottontaildb_driver
+        implementation files('/libs/cottontaildb-proto-0.15.0-SNAPSHOT.zip')
         implementation group: 'io.grpc', name: 'grpc-all', version: version_grpc
         implementation group: 'io.grpc', name: 'grpc-kotlin-stub', version: version_grpc_kotlin
         implementation group: 'com.google.protobuf', name: 'protobuf-java', version: version_protobuf

@@ -3,6 +3,7 @@
 .gradle
 build
 out
+libs
 
 # Java Dependencies
 *.jar

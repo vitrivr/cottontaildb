@@ -1,6 +1,7 @@
 dependencies {
     ///// Cottontail DB Driver + gRPC dependencies
-    api group: 'org.vitrivr', name: 'cottontaildb-proto', version: version_cottontaildb_driver
+    // api group: 'org.vitrivr', name: 'cottontaildb-proto', version: version_cottontaildb_driver
+    api files("../libs/cottontaildb-proto-0.15.0-SNAPSHOT.zip")
 
     ///// FastUtil
     api group: 'it.unimi.dsi', name: 'fastutil', version: version_fastutil
