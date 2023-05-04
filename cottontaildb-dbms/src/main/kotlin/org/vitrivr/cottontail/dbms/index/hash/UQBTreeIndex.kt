@@ -189,7 +189,6 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @return True if [Predicate] can be processed, false otherwise.
          */
         override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate.Comparison
-                && !predicate.not
                 && predicate.columns.contains(this.columns[0])
                 && (predicate.operator is ComparisonOperator.In || predicate.operator is ComparisonOperator.Binary.Equal)
 
@@ -221,7 +220,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @return Cost estimate for the [Predicate]
          */
         override fun costFor(predicate: Predicate): Cost = this.txLatch.withLock {
-            if (predicate !is BooleanPredicate.Comparison || predicate.columns.first() != this.columns[0] || predicate.not) return Cost.INVALID
+            if (predicate !is BooleanPredicate.Comparison || predicate.columns.first() != this.columns[0]) return Cost.INVALID
             val entityTx = this.dbo.parent.newTx(this.context)
             val statistics = this.columns.associateWith { entityTx.columnForName(it.name).newTx(this.context).statistics() }
             val selectivity = with(this@Tx.context.bindings) {
@@ -306,11 +305,10 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
                 /* Perform initial sanity checks. */
                 init {
                     require(predicate is BooleanPredicate.Comparison) { "UQBTreeIndex.filter() does only support Atomic.Literal boolean predicates." }
-                    require(!predicate.not) { "UniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
                     with(this@Tx.context.bindings) {
                         with(MissingRecord) {
                             when (predicate.operator) {
-                                is ComparisonOperator.In -> queryValueQueue.addAll((predicate.operator as ComparisonOperator.In).right.mapNotNull { it.getValue() })
+                                is ComparisonOperator.In -> queryValueQueue.addAll((predicate.operator as ComparisonOperator.In).right.getValues().filterNotNull())
                                 is ComparisonOperator.Binary.Equal -> queryValueQueue.add((predicate.operator as ComparisonOperator.Binary.Equal).right.getValue() ?: throw IllegalArgumentException("UQBTreeIndex.filter() does not support NULL operands."))
                                 else -> throw IllegalArgumentException("UQBTreeIndex.filter() does only support EQUAL, IN or LIKE operators.")
                             }

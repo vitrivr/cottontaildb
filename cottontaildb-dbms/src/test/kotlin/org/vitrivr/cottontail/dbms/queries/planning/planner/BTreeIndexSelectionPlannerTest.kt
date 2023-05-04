@@ -69,9 +69,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
     private val planner = CottontailQueryPlanner(
         logicalRules = listOf(
             LeftConjunctionRewriteRule,
-            RightConjunctionRewriteRule,
-            LeftConjunctionOnSubselectRewriteRule,
-            RightConjunctionOnSubselectRewriteRule
+            RightConjunctionRewriteRule
         ),
         physicalRules = listOf(
             BooleanIndexScanRule,
@@ -106,17 +104,17 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
 
                 /* Prepare simple scan with projection. */
                 val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
-                val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op, false))
+                val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op))
                 val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
                 /* Execute query planing. */
-                ctx.assign(projection0)
+                ctx.register(projection0)
                 ctx.plan(this.planner)
 
                 /* Check if index scan was selected. */
-                Assertions.assertTrue(ctx.physical?.base?.firstOrNull() is IndexScanPhysicalOperatorNode)
-                Assertions.assertEquals(this.indexName, (ctx.physical!!.base.first() as IndexScanPhysicalOperatorNode).index.dbo.name)
-                Assertions.assertEquals(this.indexType, (ctx.physical!!.base.first() as IndexScanPhysicalOperatorNode).index.dbo.type)
+                Assertions.assertTrue(ctx.physical.firstOrNull()?.base?.firstOrNull() is IndexScanPhysicalOperatorNode)
+                Assertions.assertEquals(this.indexName, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.name)
+                Assertions.assertEquals(this.indexType, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.type)
             } finally {
                 txn.rollback()
             }
@@ -146,15 +144,15 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
 
             /* Prepare simple scan with projection. */
             val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
-            val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op, false))
+            val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op))
             val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
             /* Execute query planing. */
-            ctx.assign(projection0)
+            ctx.register(projection0)
             ctx.plan(this.planner)
 
             /* Check if index scan was selected. */
-            Assertions.assertTrue(ctx.physical?.base?.firstOrNull() is EntityScanPhysicalOperatorNode)
+            Assertions.assertTrue(ctx.physical.firstOrNull()?.base?.firstOrNull() is EntityScanPhysicalOperatorNode)
         } finally {
             txn.rollback()
         }
@@ -178,21 +176,21 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
                 val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
                 /* Bind IN operator. */
-                val op = ComparisonOperator.In(bindings[0].first, this.inList.map { ctx.bindings.bind(it) })
+                val op = ComparisonOperator.In(bindings[0].first, ctx.bindings.bind(this.inList))
 
                 /* Prepare simple scan with projection. */
                 val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
-                val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op, false))
+                val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op))
                 val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
                 /* Execute query planing. */
-                ctx.assign(projection0)
+                ctx.register(projection0)
                 ctx.plan(this.planner)
 
                 /* Check if index scan was selected. */
-                Assertions.assertTrue(ctx.physical?.base?.firstOrNull() is IndexScanPhysicalOperatorNode)
-                Assertions.assertEquals(this.indexName, (ctx.physical!!.base.first() as IndexScanPhysicalOperatorNode).index.dbo.name)
-                Assertions.assertEquals(this.indexType, (ctx.physical!!.base.first() as IndexScanPhysicalOperatorNode).index.dbo.type)
+                Assertions.assertTrue(ctx.physical.firstOrNull()?.base?.firstOrNull() is IndexScanPhysicalOperatorNode)
+                Assertions.assertEquals(this.indexName, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.name)
+                Assertions.assertEquals(this.indexType, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.type)
             } finally {
                 txn.rollback()
             }
@@ -218,22 +216,22 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
                 val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
                 /* Bind IN operator. */
-                val op1 = ComparisonOperator.In(bindings[0].first, this.inList.map { ctx.bindings.bind(it) })
+                val op1 = ComparisonOperator.In(bindings[0].first, ctx.bindings.bind(this.inList))
                 val op2 = ComparisonOperator.Binary.Less(bindings[1].first, ctx.bindings.bind(LongValue.ZERO))
 
                 /* Prepare simple scan with projection. */
                 val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
-                val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Compound.And(BooleanPredicate.Comparison(op1, false), BooleanPredicate.Comparison(op2, false)))
+                val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.And(BooleanPredicate.Comparison(op1), BooleanPredicate.Comparison(op2)))
                 val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
                 /* Execute query planing. */
-                ctx.assign(projection0)
+                ctx.register(projection0)
                 ctx.plan(this.planner)
 
                 /* Check if index scan was selected. */
-                Assertions.assertTrue(ctx.physical?.base?.firstOrNull() is IndexScanPhysicalOperatorNode)
-                Assertions.assertEquals(this.indexName, (ctx.physical!!.base.first() as IndexScanPhysicalOperatorNode).index.dbo.name)
-                Assertions.assertEquals(this.indexType, (ctx.physical!!.base.first() as IndexScanPhysicalOperatorNode).index.dbo.type)
+                Assertions.assertTrue(ctx.physical.firstOrNull()?.base?.firstOrNull() is IndexScanPhysicalOperatorNode)
+                Assertions.assertEquals(this.indexName, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.name)
+                Assertions.assertEquals(this.indexType, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.type)
             } finally {
                 txn.rollback()
             }
@@ -258,19 +256,19 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
             /* Bind IN operator. */
-            val op = ComparisonOperator.In(bindings[0].first, this.inList.map { ctx.bindings.bind(it) })
+            val op = ComparisonOperator.In(bindings[0].first, ctx.bindings.bind(this.inList))
 
             /* Prepare simple scan with projection. */
             val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
-            val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op, false))
+            val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op))
             val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
             /* Execute query planing. */
-            ctx.assign(projection0)
+            ctx.register(projection0)
             ctx.plan(this.planner)
 
             /* Check if index scan was selected. */
-            Assertions.assertTrue(ctx.physical?.base?.firstOrNull() is EntityScanPhysicalOperatorNode)
+            Assertions.assertTrue(ctx.physical.firstOrNull()?.base?.firstOrNull() is EntityScanPhysicalOperatorNode)
         } finally {
             txn.rollback()
         }

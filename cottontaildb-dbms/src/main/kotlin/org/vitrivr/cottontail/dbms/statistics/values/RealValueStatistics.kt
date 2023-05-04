@@ -56,6 +56,7 @@ sealed class RealValueStatistics<T: RealValue<*>>(type: Types<T>): AbstractValue
      * @return [Selectivity]
      */
     context(BindingContext,Record)
+    @Suppress("UNCHECKED_CAST")
     override fun estimateSelectivity(predicate: BooleanPredicate.Comparison): Selectivity {
         val op = predicate.operator
         if (op.left is org.vitrivr.cottontail.core.queries.binding.Binding.Column && op.left.type == this.type) {
@@ -69,11 +70,7 @@ sealed class RealValueStatistics<T: RealValue<*>>(type: Types<T>): AbstractValue
                         return this.estimateBinarySelectivity(op, left.getValue() as T)
                     }
                 }
-                is ComparisonOperator.Between -> {
-                    val lower = op.rightLower
-                    val upper = op.rightUpper
-                    return this.estimateBetweenSelectivity(lower.getValue() as T, upper.getValue() as T)
-                }
+                is ComparisonOperator.Between -> this.estimateBetweenSelectivity(op.right.getValues()[0] as T, op.right.getValues()[1] as T)
                 else -> { /* No op. */ }
             }
         }

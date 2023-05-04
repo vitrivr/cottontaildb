@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.core.values.types.Value
  * the [BindingContext] should be created and used.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
 interface BindingContext {
 
@@ -26,6 +26,15 @@ interface BindingContext {
      * @return The bound [Value].
      */
     operator fun get(binding: Binding.Literal): Value?
+
+    /**
+     * Returns the [Value] for the given [Binding.LiteralList].
+     *
+     * @param binding The [Binding.LiteralList] to lookup.
+     * @return [List] of bound [Value]s.
+     */
+    operator fun get(binding: Binding.LiteralList): List<Value?>
+
 
     /**
      * Returns the [Value] for the given [Binding.Function].
@@ -40,18 +49,26 @@ interface BindingContext {
      * Returns the [Value]s for the given [Binding.Subquery].
      *
      * @param binding The [Binding.Subquery] to lookup.
-     * @return A [Collection] of the bound [Value]s.
+     * @return A [List] of the bound [Value]s.
      */
-    operator fun get(binding: Binding.Subquery): Collection<Value?>
+    operator fun get(binding: Binding.Subquery): List<Value?>
 
     /**
      * Creates and returns a [Binding.Literal] for the given [Value].
      *
      * @param value The [Value] to bind.
      * @param static True for [Binding.Literal] that cannot be updated.
-     * @return A value [Binding]
+     * @return A value [Binding.Literal]
      */
     fun bind(value: Value, static: Boolean = true): Binding.Literal
+
+    /**
+     * Creates and returns a [Binding.LiteralList] for the given [List] of [Value]s.
+     *
+     * @param values The [List] of [Value]s to bind.
+     * @return A value [Binding.LiteralList]
+     */
+    fun bind(values: List<Value>): Binding.LiteralList
 
     /**
      * Creates and returns a [Binding] for the given [Value].

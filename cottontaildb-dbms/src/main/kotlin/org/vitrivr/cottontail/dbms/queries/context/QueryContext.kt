@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
  * and [BindingContext]
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
 interface QueryContext {
 
@@ -41,11 +41,11 @@ interface QueryContext {
     /** The [CostPolicy] that should be applied within this [QueryContext] */
     val costPolicy: CostPolicy
 
-    /** The [OperatorNode.Logical] representing the query and the sub-queries held by this [QueryContext]. */
-    val logical: OperatorNode.Logical?
+    /** The [OperatorNode.Logical] representing (sub-)queries held by this [QueryContext]. */
+    val logical: List<OperatorNode.Logical>
 
-    /** The [OperatorNode.Physical] representing the query and the sub-queries held by this [QueryContext]. */
-    val physical: OperatorNode.Physical?
+    /** The [OperatorNode.Physical] representing the (sub-)queries held by this [QueryContext]. */
+    val physical: List<OperatorNode.Physical>
 
     /** Output [ColumnDef] for the query held by this [QueryContext] (as per canonical plan). */
     val output: List<ColumnDef<*>>?
@@ -61,22 +61,18 @@ interface QueryContext {
     fun nextGroupId(): GroupId
 
     /**
-     * Assigns a new [OperatorNode.Logical] to this [QueryContext] overwriting the existing [OperatorNode.Logical].
-     *
-     * Invalidates all existing [OperatorNode.Logical] and [OperatorNode.Physical] held by this [QueryContext].
+     * Registers a new [OperatorNode.Logical] to this [QueryContext]
      *
      * @param plan The [OperatorNode.Logical] to assign.
      */
-    fun assign(plan: OperatorNode.Logical)
+    fun register(plan: OperatorNode.Logical)
 
     /**
-     * Assigns a new [OperatorNode.Physical] to this [QueryContext] overwriting the existing [OperatorNode.Physical].
-     *
-     * Invalidates all existing [OperatorNode.Logical] and [OperatorNode.Physical] held by this [QueryContext].
+     * Registers a new [OperatorNode.Physical] with this [QueryContext].
      *
      * @param plan The [OperatorNode.Physical] to assign.
      */
-    fun assign(plan: OperatorNode.Physical)
+    fun register(plan: OperatorNode.Physical)
 
     /**
      * Starts the query planning processing using the given [CottontailQueryPlanner]. The query planning

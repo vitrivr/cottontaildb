@@ -8,9 +8,7 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
-import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.LeftConjunctionOnSubselectRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.LeftConjunctionRewriteRule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.RightConjunctionOnSubselectRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.RightConjunctionRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.BooleanIndexScanRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.FulltextIndexRule
@@ -42,9 +40,7 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
     init {
         val logical = listOf(
             LeftConjunctionRewriteRule,
-            RightConjunctionRewriteRule,
-            LeftConjunctionOnSubselectRewriteRule,
-            RightConjunctionOnSubselectRewriteRule
+            RightConjunctionRewriteRule
         )
         val physical =  mutableListOf(
             BooleanIndexScanRule,
@@ -70,7 +66,7 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
         /* Bind query and create logical plan. */
         with(ctx) {
             val canonical = GrpcQueryBinder.bind(request.query)
-            ctx.assign(canonical)
+            ctx.register(canonical)
 
             /* Plan and/or implement query to create execution plan. */
             if (ctx.hints.contains(QueryHint.NoOptimisation)) {
@@ -91,10 +87,12 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
         /* Bind query and create canonical, logical plan. */
         with(ctx) {
             val canonical = GrpcQueryBinder.bind(request.query)
-            ctx.assign(canonical)
+            ctx.register(canonical)
 
             /* Plan query and create execution plan. */
-            val candidates = this@DQLService.planner.plan(ctx, limit = 5)
+            val candidates = with(ctx) {
+               this@DQLService.planner.plan(ctx.logical.first(), limit = 5)
+            }
 
             /* Generate operator tree. */
             ExplainQueryOperator(candidates, ctx)

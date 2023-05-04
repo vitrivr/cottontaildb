@@ -72,7 +72,7 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
 
         context(BindingContext,Record)
         override fun initialize(): Boolean {
-            this.queryValueQueue.addAll(this.operator.right.mapNotNull { it.getValue() })
+            this.queryValueQueue.addAll(this.operator.right.getValues().filterNotNull())
             while (this.queryValueQueue.size > 0) {
                 if (this@In.cursor.getSearchKey(this@In.index.binding.valueToEntry(this@In.queryValueQueue.poll())) != null) {
                     return true

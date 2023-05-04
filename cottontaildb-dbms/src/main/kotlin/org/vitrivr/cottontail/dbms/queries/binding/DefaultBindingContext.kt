@@ -19,7 +19,7 @@ import java.util.*
  * the [BindingContext] should be created and used.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 3.0.0
  */
 class DefaultBindingContext: BindingContext {
 
@@ -42,6 +42,15 @@ class DefaultBindingContext: BindingContext {
         = this.boundLiterals[binding.bindingIndex]
 
     /**
+     * Returns the [List] of [Value]s for the given [Binding.LiteralList].
+     *
+     * @param binding The [Binding.LiteralList] to lookup.
+     * @return The bound [Value].
+     */
+    override fun get(binding: Binding.LiteralList): List<Value?>
+        = (binding.bindingIndexStart until binding.bindingIndexEnd).map { this.boundLiterals[it] }
+
+    /**
      * Returns the [Value] for the given [Binding.Function].
      *
      * @param binding The [Binding] to lookup.
@@ -62,7 +71,7 @@ class DefaultBindingContext: BindingContext {
      * @param binding The [Binding.Subquery] to lookup.
      * @return A [Collection] of the bound [Value]s.
      */
-    override fun get(binding: Binding.Subquery): Collection<Value?> {
+    override fun get(binding: Binding.Subquery): List<Value?> {
         return this.boundSubqueries[binding.dependsOn]
             ?: throw IllegalStateException("Could not find data collection for sub-query ${binding.dependsOn}. This is a programmer's error!")
     }
@@ -71,7 +80,7 @@ class DefaultBindingContext: BindingContext {
      * Creates and returns a [Binding] for the given [Value].
      *
      * @param value The [Value] to bind.
-     * @return A value [Binding]
+     * @return A [Binding.Literal]
      */
     override fun bind(value: Value, static: Boolean): Binding.Literal {
         val bindingIndex = this.boundLiterals.size
@@ -83,12 +92,27 @@ class DefaultBindingContext: BindingContext {
      * Creates and returns a [Binding] for the given [Value].
      *
      * @param type The [Types] to bind.
-     * @return A value [Binding]
+     * @return A [Binding.Literal]
      */
     override fun bindNull(type: Types<*>, static: Boolean): Binding.Literal {
         val bindingIndex = this.boundLiterals.size
         check(this.boundLiterals.add(null)) { "Failed to add null to list of bound values for index $bindingIndex." }
         return Binding.Literal(bindingIndex, static, true, type)
+    }
+
+    /**
+     * Creates and returns a [Binding] for the given [List] of [Value]s.
+     *
+     * @param values The [List] of [Value] to bind.
+     * @return A [Binding.LiteralList]
+     */
+    override fun bind(values: List<Value>): Binding.LiteralList {
+        require(values.isNotEmpty()) { "Failed to bind empty values list." }
+        val bindingIndexStart = this.boundLiterals.size
+        for ((i, v) in values.withIndex()) {
+            check(this.boundLiterals.add(v)) { "Failed to add $v to list of bound values for index ${bindingIndexStart + i}." }
+        }
+        return Binding.LiteralList(bindingIndexStart, bindingIndexStart + values.size - 1, false, values.first().type)
     }
 
     /**

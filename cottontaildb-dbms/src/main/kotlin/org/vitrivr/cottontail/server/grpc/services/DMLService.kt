@@ -42,7 +42,7 @@ class DMLService(override val catalogue: Catalogue, override val manager: Transa
         /* Bind query and create logical plan. */
         with(ctx) {
             val canonical = GrpcQueryBinder.bind(request)
-            ctx.assign(canonical)
+            ctx.register(canonical)
 
             /* Plan query and create execution plan. */
             ctx.plan(this@DMLService.planner)
@@ -60,7 +60,7 @@ class DMLService(override val catalogue: Catalogue, override val manager: Transa
         with(ctx) {
             /* Bind query and create logical plan. */
             val canonical = GrpcQueryBinder.bind(request)
-            ctx.assign(canonical)
+            ctx.register(canonical)
 
             /* Plan query and create execution plan. */
             ctx.plan(this@DMLService.planner)
@@ -77,7 +77,7 @@ class DMLService(override val catalogue: Catalogue, override val manager: Transa
         /* Bind query and create logical plan. */
         with(ctx) {
             val canonical = GrpcQueryBinder.bind(request)
-            ctx.assign(canonical)
+            ctx.register(canonical)
 
             /* Implement physical plan. */
             ctx.implement()
@@ -94,7 +94,7 @@ class DMLService(override val catalogue: Catalogue, override val manager: Transa
         /* Bind query and create logical plan. */
         with(ctx) {
             val canonical = GrpcQueryBinder.bind(request)
-            ctx.assign(canonical)
+            ctx.register(canonical)
 
             /* Implement physical plan. */
             ctx.implement()

@@ -281,7 +281,6 @@ sealed interface Name: Comparable<Name> {
      * A [Name] object used to identify an column in Cottontail DB
      */
     data class ColumnName(val schemaName: String, val entityName: String, val columnName: String): Name {
-
         init {
             require(!this.schemaName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
             require(!this.entityName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}

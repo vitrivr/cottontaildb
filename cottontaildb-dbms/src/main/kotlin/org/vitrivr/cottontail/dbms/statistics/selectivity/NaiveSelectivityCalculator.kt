@@ -26,6 +26,7 @@ object NaiveSelectivityCalculator {
     context(BindingContext,Record)
     fun estimate(predicate: BooleanPredicate, statistics: Map<ColumnDef<*>, ValueStatistics<*>>): Selectivity = when (predicate) {
         is BooleanPredicate.Literal -> if (predicate.boolean) Selectivity.ALL else Selectivity.NOTHING
+        is BooleanPredicate.IsNull -> TODO()
         is BooleanPredicate.Comparison -> this.estimateAtomicReference(predicate, statistics)
         is BooleanPredicate.Not -> this.estimate(predicate.p, statistics)
         is BooleanPredicate.And -> this.estimate(predicate.p1, statistics) * this.estimate(predicate.p2, statistics)

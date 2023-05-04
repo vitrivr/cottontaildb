@@ -193,7 +193,6 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          */
         override fun canProcess(predicate: Predicate): Boolean {
             if (predicate !is BooleanPredicate.Comparison) return false
-            if (predicate.not) return false
             if (!predicate.columns.contains(this.columns[0])) return false
             return when (predicate.operator) {
                 is ComparisonOperator.Binary.Equal,
@@ -231,7 +230,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @return Cost estimate for the [Predicate]
          */
         override fun costFor(predicate: Predicate): Cost = this.txLatch.withLock {
-            if (predicate !is BooleanPredicate.Comparison || predicate.columns.first() != this.columns[0] || predicate.not) return Cost.INVALID
+            if (predicate !is BooleanPredicate.Comparison || predicate.columns.first() != this.columns[0]) return Cost.INVALID
             val entityTx = this.dbo.parent.newTx(this.context)
             val statistics = this.columns.associateWith { entityTx.columnForName(it.name).newTx(this.context).statistics() }
             val selectivity = with(this@Tx.context.bindings) {

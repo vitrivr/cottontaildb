@@ -131,7 +131,7 @@ internal interface TransactionalGrpcService {
         val (operator, planDuration) = try {
             val p = prepare(context)
             val d = m1.elapsedNow()
-            LOGGER.debug("[${context.txn.txId}, ${context.queryId}] Preparation of ${context.physical?.name} completed successfully in $d.")
+            LOGGER.debug("[${context.txn.txId}, ${context.queryId}] Preparation of ${context.physical.firstOrNull()?.name} completed successfully in $d.")
             p to d
         }  catch (e: Throwable) {
             throw context.handleError(e, false)
@@ -210,7 +210,7 @@ internal interface TransactionalGrpcService {
      */
     fun DefaultQueryContext.handleError(e: Throwable, execution: Boolean): StatusException {
         val text = if (execution) {
-            "[${this.txn.txId}, ${this.queryId}] Execution of ${this.physical?.name} query failed: ${e.message}"
+            "[${this.txn.txId}, ${this.queryId}] Execution of ${this.physical.firstOrNull()?.name} query failed: ${e.message}"
         } else {
             "[${this.txn.txId}, ${this.queryId}] Preparation of query failed: ${e.message}"
         }

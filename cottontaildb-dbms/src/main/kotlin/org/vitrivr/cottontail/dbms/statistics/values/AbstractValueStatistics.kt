@@ -125,20 +125,8 @@ sealed class AbstractValueStatistics<T : Value>(override val type: Types<T>): Va
      */
     context(BindingContext,Record)
     override fun estimateSelectivity(predicate: BooleanPredicate.Comparison): Selectivity = when(val operator = predicate.operator){
-        /* This can actually be calculated exactly. */
-        is ComparisonOperator.IsNull -> if (predicate.not) {
-            Selectivity(this.numberOfNonNullEntries.toFloat() / this.numberOfEntries.toFloat())
-        } else {
-            Selectivity(this.numberOfNullEntries.toFloat() / this.numberOfEntries.toFloat())
-        }
-
         /* Assumption: All elements in IN are matches. */
-        is ComparisonOperator.In -> if (predicate.not) {
-            Selectivity((this.numberOfEntries - operator.right.size).toFloat() / this.numberOfEntries.toFloat())
-        } else {
-            Selectivity(operator.right.size / this.numberOfEntries.toFloat())
-        }
-
+        is ComparisonOperator.In -> Selectivity(operator.right.size() / this.numberOfEntries.toFloat())
         else -> Selectivity.DEFAULT
     }
 }

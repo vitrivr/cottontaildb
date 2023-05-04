@@ -21,7 +21,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * Finally, the best plan in terms of [Cost] is selected.
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 2.4.0
  */
 class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, private val physicalRules: Collection<RewriteRule>, planCacheSize: Int = 100) {
 
@@ -31,14 +31,16 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
     /**
      * Executes query planning for a given [QueryContext] and generates a [OperatorNode.Physical] for it.
      *
-     * @param context The [QueryContext] to plan for.
-     * @param bypassCache If the plan cache should be bypassed (forces new planning).
+     * @param logical The [OperatorNode.Logical] to plan.
+     * @param bypassCache Flag indicating, if the plan cache should be bypassed (forces new planning).
+     * @param cache Flag indicating, if the resulting plan should be cached.
      *
      * @throws QueryException.QueryPlannerException If planner fails to generate a valid execution plan.
      */
-    fun planAndSelect(context: QueryContext, bypassCache: Boolean = false, cache: Boolean = false): OperatorNode.Physical {
+    context(QueryContext)
+    fun planAndSelect(logical: OperatorNode.Logical, bypassCache: Boolean = false, cache: Boolean = false): OperatorNode.Physical {
         /* Plan the query. */
-        val candidates = this.plan(context, bypassCache, cache).map { (groupId, plans) ->
+        val candidates = this.plan(logical).map { (groupId, plans) ->
             groupId to plans.first().first
         }.toMap()
 
@@ -56,37 +58,32 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
      * Generates a list of equivalent [OperatorNode.Physical]s by recursively applying [RewriteRule]s
      * on the seed [OperatorNode.Logical] and derived [OperatorNode]s.
      *
-     * @param context The [QueryContext] to plan for.
+     * @param logical The [OperatorNode.Logical] to plan.
      * @param limit The number of plan variant to return. Defaults to 1.
      *
      * @return Map of [GroupId] to list of candidate plans with associated score.
      */
-    fun plan(context: QueryContext, bypassCache: Boolean = false, cache: Boolean = false, limit: Int = 1): Map<GroupId,List<Pair<OperatorNode.Physical,Float>>> {
-        val logical = context.logical
-        require(logical != null) { QueryException.QueryPlannerException("Cannot perform query planning for a QueryContext that doesn't have a logical query plan.") }
-
+    context(QueryContext)
+    fun plan(logical: OperatorNode.Logical, limit: Int = 1): Map<GroupId,List<Pair<OperatorNode.Physical,Float>>> {
         /* Decomposes the tree into subtrees based on group. */
         val decomposition = this.decompose(logical)
 
         /* Stage 1: Logical query planning for each group. */
-        val stage1 = decomposition.map { (groupId, plan) -> groupId to this.optimizeLogical(plan, context) }.toMap()
+        val stage1 = decomposition.map { (groupId, plan) -> groupId to this.optimizeLogical(plan) }.toMap()
 
         /* Stage 2: Physical query planning for each group. */
         val stage2 = stage1.map { (groupId, plans) ->
             groupId to plans.flatMap {
-                this.optimizePhysical(
-                    it.implement(),
-                    context
-                )
+                this.optimizePhysical(it.implement())
             }
         }.toMap()
 
         /* Generate candidate plans. */
-        return with(context.bindings) {
+        return with(this@QueryContext.bindings) {
             with(MissingRecord) {
                 stage2.map { (groupId, plans) ->
                     val normalized = NormalizedCost.normalize(plans.map { it.totalCost })
-                    val candidates = plans.zip(normalized).map { (p, cost) -> p to context.costPolicy.toScore(cost) }.sortedBy { it.second }.take(limit)
+                    val candidates = plans.zip(normalized).map { (p, cost) -> p to this@QueryContext.costPolicy.toScore(cost) }.sortedBy { it.second }.take(limit)
                     groupId to candidates
                 }.toMap()
             }
@@ -146,9 +143,9 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
      * Performs logical optimization, i.e., by replacing parts in the logical execution plan.
      *
      * @param operator The [OperatorNode.Logical] that should be optimized. Optimization starts from the given node, regardless of whether it is root or not.
-     * @param ctx The [QueryContext] used for optimization.
      */
-    private fun optimizeLogical(operator: OperatorNode.Logical, ctx: QueryContext): List<OperatorNode.Logical> {
+    context(QueryContext)
+    private fun optimizeLogical(operator: OperatorNode.Logical): List<OperatorNode.Logical> {
         /* List of candidates, objects to explore and digests */
         val candidates = MemoizingOperatorList(operator)
         val explore = MemoizingOperatorList(operator)
@@ -158,8 +155,8 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         while (pointer != null) {
             /* Apply rules to node and add results to list for exploration. */
             for (rule in this.logicalRules) {
-                if (rule.canBeApplied(pointer, ctx)) {
-                    val result = rule.apply(pointer, ctx)
+                if (rule.canBeApplied(pointer, this@QueryContext)) {
+                    val result = rule.apply(pointer, this@QueryContext)
                     if (result is OperatorNode.Logical) {
                         explore.enqueue(result.root)
                         candidates.enqueue(result.root)
@@ -187,9 +184,9 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
      * Performs physical optimization, i.e., by replacing parts in the physical execution plan.
      *
      * @param operator The [OperatorNode.Physical] that should be optimized. Optimization starts from the given node, regardless of whether it is root or not.
-     * @param ctx The [QueryContext] used for optimization.
      */
-    private fun optimizePhysical(operator: OperatorNode.Physical, ctx: QueryContext): List<OperatorNode.Physical> {
+    context(QueryContext)
+    private fun optimizePhysical(operator: OperatorNode.Physical): List<OperatorNode.Physical> {
         /* List of candidates, objects to explore and digests */
         val candidates = MemoizingOperatorList(operator.root)
         val explore = MemoizingOperatorList(operator.root)
@@ -199,8 +196,8 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         while (pointer != null) {
             /* Apply rules to node and add results to list for exploration. */
             for (rule in this.physicalRules) {
-                if (rule.canBeApplied(pointer, ctx)) {
-                    val result = rule.apply(pointer, ctx)
+                if (rule.canBeApplied(pointer, this@QueryContext)) {
+                    val result = rule.apply(pointer, this@QueryContext)
                     if (result is OperatorNode.Physical) {
                         explore.enqueue(result.root)
                         if (result.executable) {
