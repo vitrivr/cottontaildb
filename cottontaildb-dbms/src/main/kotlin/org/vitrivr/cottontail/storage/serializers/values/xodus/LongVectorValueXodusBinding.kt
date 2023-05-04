@@ -3,8 +3,8 @@ package org.vitrivr.cottontail.storage.serializers.values.xodus
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.LongBinding
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.LongVectorValue
-import org.vitrivr.cottontail.core.values.types.Types
 import org.xerial.snappy.Snappy
 
 /**

@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.operators
 import org.vitrivr.cottontail.client.language.basics.Constants
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.types.Types
 
 
 /**

@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.utilities
 
 import org.apache.commons.math3.random.JDKRandomGenerator
+import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.core.values.generators.*
-import org.vitrivr.cottontail.core.values.types.VectorValue
 
 /**
  * Utility class used to generate a stream of [VectorValue]s.

@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.utilities.math
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.types.Types
 
 /**
  * Utilities and constants used for nearest neighbor search.

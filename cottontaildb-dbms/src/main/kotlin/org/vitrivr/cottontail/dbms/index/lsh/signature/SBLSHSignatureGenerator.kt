@@ -1,11 +1,11 @@
 package org.vitrivr.cottontail.dbms.index.lsh.signature
 
+import org.vitrivr.cottontail.core.types.ComplexVectorValue
+import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.Complex32VectorValue
 import org.vitrivr.cottontail.core.values.Complex64VectorValue
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
-import org.vitrivr.cottontail.core.values.types.ComplexVectorValue
-import org.vitrivr.cottontail.core.values.types.VectorValue
 import java.util.*
 
 /**

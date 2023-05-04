@@ -3,8 +3,8 @@ package org.vitrivr.cottontail.utilities.hashing
 import com.google.common.hash.Funnel
 import com.google.common.hash.PrimitiveSink
 import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.*
-import org.vitrivr.cottontail.core.values.types.Value
 import java.nio.charset.Charset
 
 /**

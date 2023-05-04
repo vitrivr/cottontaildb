@@ -12,9 +12,10 @@ import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotFoundE
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
+import org.vitrivr.cottontail.core.toValue
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
@@ -35,7 +36,6 @@ import org.vitrivr.cottontail.dbms.queries.operators.logical.transform.SkipLogic
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.utilities.extensions.fqn
-import org.vitrivr.cottontail.utilities.extensions.toValue
 
 /**
  * This helper class parses and binds queries issued through the gRPC endpoint.

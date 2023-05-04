@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.storage.serializers.values
 
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.storage.serializers.values.mapdb.*
 import org.vitrivr.cottontail.storage.serializers.values.xodus.*
 

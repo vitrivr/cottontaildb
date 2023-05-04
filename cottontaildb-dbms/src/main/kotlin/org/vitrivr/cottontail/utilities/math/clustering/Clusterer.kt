@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.utilities.math.clustering
 
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
-import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.core.types.VectorValue
 
 /**
  * A class that can be used to cluster a list of [VectorValue]s into a defined number of [Cluster]s

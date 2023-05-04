@@ -3,8 +3,8 @@ package org.vitrivr.cottontail.storage.serializers.values.xodus
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.ByteBinding
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.BooleanValue
-import org.vitrivr.cottontail.core.values.types.Types
 
 /**
  * A [XodusBinding] for [BooleanValue] serialization and deserialization.

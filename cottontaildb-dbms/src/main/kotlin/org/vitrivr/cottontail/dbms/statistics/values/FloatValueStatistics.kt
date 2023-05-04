@@ -5,9 +5,9 @@ import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.SignedDoubleBinding
 import jetbrains.exodus.bindings.SignedFloatBinding
 import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.FloatValue
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
 import java.io.ByteArrayInputStream
 import java.lang.Float.max

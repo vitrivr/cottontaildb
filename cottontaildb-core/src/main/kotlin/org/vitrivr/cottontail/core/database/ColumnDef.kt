@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.core.database
 
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.Value
 
 /**
  * A definition class for a Cottontail DB column be it in a persistent or in-memory context. Specifies all the properties
@@ -11,12 +11,6 @@ import org.vitrivr.cottontail.core.values.types.Value
  * @version 1.7.0
  */
 data class ColumnDef<T : Value>(val name: Name.ColumnName, val type: Types<T>, val nullable: Boolean = true, val primary: Boolean = false, val autoIncrement: Boolean = false) {
-
-    init {
-        if (this.autoIncrement) {
-            require(this.type == Types.Int || this.type == Types.Long) { "The option 'serial' can only be applied to types of Integer and Long. "}
-        }
-    }
 
     /**
      * Validates a value with regard to this [ColumnDef] return a flag indicating whether validation was passed.

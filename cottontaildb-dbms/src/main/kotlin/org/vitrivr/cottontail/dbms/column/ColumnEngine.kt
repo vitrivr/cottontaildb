@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.dbms.column
 
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.legacy.v2.column.ColumnV2
 import java.nio.file.Path

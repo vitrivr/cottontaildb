@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.legacy.v1.column
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 /**
  * The header data structure of any [ColumnV1]

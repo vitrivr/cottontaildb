@@ -2,9 +2,9 @@ package org.vitrivr.cottontail.dbms.entity.serialization
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.*
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 
 /**
  * Test case that tests for correctness of [LongVectorValue] serialization and deserialization.

@@ -6,7 +6,7 @@ import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.core.values.generators.*
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 
 /**

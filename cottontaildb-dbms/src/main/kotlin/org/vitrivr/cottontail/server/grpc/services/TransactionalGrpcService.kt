@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.onCompletion
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.client.language.basics.Constants
 import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.proto
+import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
@@ -23,7 +25,6 @@ import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.utilities.extensions.proto
-import org.vitrivr.cottontail.utilities.extensions.toLiteral
 import java.util.*
 import kotlin.time.DurationUnit
 import kotlin.time.ExperimentalTime
@@ -245,7 +246,7 @@ internal interface TransactionalGrpcService {
     private fun Record.toTuple(): CottontailGrpc.QueryResponseMessage.Tuple {
         val tuple = CottontailGrpc.QueryResponseMessage.Tuple.newBuilder()
         for (i in 0 until this.size) {
-            tuple.addData(this[i]?.toLiteral() ?: CottontailGrpc.Literal.newBuilder().build())
+            tuple.addData((this[i] as? PublicValue?)?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().build())
         }
         return tuple.build()
     }

@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.core.basics
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.types.Value
 
 /**
  * A [Record] as returned and processed by Cottontail DB. A [Record] corresponds to a single row and it can hold

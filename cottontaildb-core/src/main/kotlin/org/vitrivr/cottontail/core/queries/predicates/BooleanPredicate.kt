@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.PreparableNode
 import org.vitrivr.cottontail.core.queries.nodes.StatefulNode
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.utilities.extensions.toDouble
+import org.vitrivr.cottontail.core.toDouble
 
 /**
  * A [Predicate] that can be used to match a [Record]s using boolean algebra.

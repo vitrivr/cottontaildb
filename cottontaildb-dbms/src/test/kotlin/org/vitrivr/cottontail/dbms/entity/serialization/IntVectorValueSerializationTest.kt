@@ -2,10 +2,10 @@ package org.vitrivr.cottontail.dbms.entity.serialization
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.IntVectorValue
 import org.vitrivr.cottontail.core.values.generators.IntVectorValueGenerator
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.test.TestConstants
 import java.util.*
 

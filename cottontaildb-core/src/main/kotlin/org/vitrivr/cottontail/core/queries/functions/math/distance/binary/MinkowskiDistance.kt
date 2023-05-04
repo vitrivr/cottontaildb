@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.core.queries.functions.math.distance.binary
 
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.VectorValue
 
 /**
  * A special type of [VectorDistance] is the [MinkowskiDistance], e.g., the L1, L2 or Lp distance.

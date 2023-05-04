@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.index.pq.rebuilder
 
 import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import java.util.*
 
