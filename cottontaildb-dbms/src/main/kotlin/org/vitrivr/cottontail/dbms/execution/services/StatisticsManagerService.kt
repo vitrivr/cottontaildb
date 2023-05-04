@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.events.*
@@ -23,7 +22,6 @@ import org.vitrivr.cottontail.dbms.statistics.storage.ColumnMetrics
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.min
-import kotlin.reflect.typeOf
 
 /**
  * A [TransactionObserver] that keeps track of different Columns and triggers an analysis for the columns that have reached a specific threshold.
@@ -249,7 +247,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
                                     is FloatVectorValue -> (collector as FloatVectorMetricsCollector).receive(value)
                                     is IntValue -> (collector as IntMetricsCollector).receive(value)
                                     is IntVectorValue -> (collector as IntVectorMetricsCollector).receive(value)
-                                    is LongValue -> (collector as LongMetricsColelctor).receive(value)
+                                    is LongValue -> (collector as LongMetricsCollector).receive(value)
                                     is LongVectorValue -> (collector as LongVectorMetricsCollector).receive(value)
                                     is StringValue -> (collector as StringMetricsCollector).receive(value)
                                     else -> collector.receive(null) // Just give them null  value for unknown type
@@ -302,7 +300,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
             Types.Double -> DoubleMetricsCollector(config)
             Types.Float -> FloatMetricsCollector(config)
             Types.Int -> IntMetricsCollector(config)
-            Types.Long -> LongMetricsColelctor(config)
+            Types.Long -> LongMetricsCollector(config)
             Types.String -> StringMetricsCollector(config)
             Types.ByteString -> ByteStringMetricsCollector(config)
             Types.Complex32 -> Complex32MetricsCollector(config)

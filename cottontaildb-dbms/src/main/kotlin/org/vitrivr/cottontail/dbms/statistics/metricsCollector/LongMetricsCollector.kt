@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.dbms.statistics.metricsData.LongValueMetrics
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.3.0
  */
-class LongMetricsColelctor(config: MetricsConfig) : RealMetricsCollector<LongValue>(Types.Long, config) {
+class LongMetricsCollector(config: MetricsConfig) : RealMetricsCollector<LongValue>(Types.Long, config) {
 
     override fun calculate(probability: Float): LongValueMetrics {
         val sampleMetrics = LongValueMetrics(
