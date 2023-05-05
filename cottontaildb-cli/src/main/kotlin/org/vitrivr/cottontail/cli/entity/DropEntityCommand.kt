@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.cli.entity
 
-import com.github.ajalt.clikt.output.TermUi
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import io.grpc.StatusException
@@ -15,7 +14,7 @@ import kotlin.time.measureTimedValue
  * Command to drop, i.e., remove a [org.vitrivr.cottontail.dbms.entity.DefaultEntity] by its name.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.1
  */
 @ExperimentalTime
 class DropEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "drop", help = "Drops the given entity from the database. Usage: entity drop <schema>.<entity>") {
@@ -28,7 +27,7 @@ class DropEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, na
     ).flag()
 
     override fun exec() {
-        if (this.confirm || TermUi.confirm("Do you really want to drop the entity ${this.entityName} [y/N]?", default = false, showDefault = false) == true) {
+        if (this.confirm || this.confirm("Do you really want to drop the entity ${this.entityName} [y/N]?", default = false, showDefault = false) == true) {
             try {
                 val timedTable = measureTimedValue {
                     TabulationUtilities.tabulate(this.client.drop(DropEntity(this.entityName.toString())))
