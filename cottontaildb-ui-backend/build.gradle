@@ -10,10 +10,7 @@ repositories {
 }
 
 tasks.withType(KaptGenerateStubs).configureEach {
-    compilerOptions {
-        jvmTarget = JvmTarget.JVM_17
-
-    }
+    compilerOptions.jvmTarget = JvmTarget.JVM_11
 }
 
 /* Configuration for frontend classpath files (see dependencies). */
@@ -35,9 +32,6 @@ dependencies {
     /* Frontend artifact (HTML, JavaScript, CSS). */
     implementation frontendClasspath(project(path: ":cottontaildb-ui-frontend", configuration: 'frontendFiles'))
 
-    /* Cottontail DB core project artifact. */
-    api project(':cottontaildb-core')
-
     /* Javalin 5 */
     implementation group: 'io.javalin', name: 'javalin', version: version_javalin
     implementation group: 'io.javalin.community.openapi', name: 'javalin-openapi-plugin', version: version_javalin
@@ -45,13 +39,8 @@ dependencies {
     implementation group: 'io.javalin.community.ssl', name: 'ssl-plugin', version: version_javalin
     kapt("io.javalin.community.openapi:openapi-annotation-processor:$version_javalin")
 
-    /* Jackson databind. */
-    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: version_jackson
-    implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: version_jackson
-
     /* Caffeine 3 */
     implementation group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: version_caffeine
-
 }
 
 test {
