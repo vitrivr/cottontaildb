@@ -4,9 +4,7 @@ import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import io.javalin.http.Context
 import io.javalin.openapi.*
-import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.client.language.basics.Direction
-import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.ui.api.database.drainToList
 import org.vitrivr.cottontail.ui.api.database.obtainClientForContext
@@ -67,8 +65,8 @@ fun previewEntity(context: Context) {
         val iterator = client.query(query)
         val columnsNames = iterator.simpleNames
         val columnsTypes = iterator.columnTypes
-        val results =iterator.drainToList {
-            convert(columnsTypes, it)
+        val results = iterator.drainToList { t ->
+            (0..t.size()).map { t[it] }.toTypedArray()
         }
         context.json(Resultset(columnsNames.zip(columnsTypes).map { Column(it.first, it.second) }, results, count))
     } catch (e: StatusRuntimeException) {
@@ -77,36 +75,5 @@ fun previewEntity(context: Context) {
             Status.Code.UNAVAILABLE -> throw ErrorStatusException(503, "Connection is currently not available.")
             else -> throw ErrorStatusException(500, "Failed to list schemas for connection: ${e.message}")
         }
-    }
-}
-
-/**
- * Converts a [Tuple] to an [Array] of [Any] objects.
- *
- * @param columns List of column types.
- * @param tuple [Tuple] to convert.
- */
-private fun convert(columns: List<Type>, tuple: Tuple): Array<Any?> = Array(columns.size) {
-    when(columns[it]) {
-        Type.BOOLEAN -> tuple.asBoolean(it)
-        Type.BYTE,
-        Type.SHORT,
-        Type.INTEGER -> tuple.asInt(it)
-        Type.LONG -> tuple.asLong(it)
-        Type.FLOAT -> tuple.asFloat(it)
-        Type.DOUBLE -> tuple.asDouble(it)
-        Type.DATE -> tuple.asDate(it)
-        Type.STRING -> tuple.asString(it)
-        Type.DOUBLE_VECTOR -> tuple.asDoubleVector(it)
-        Type.FLOAT_VECTOR ->  tuple.asFloatVector(it)
-        Type.LONG_VECTOR -> tuple.asLongVector(it)
-        Type.INTEGER_VECTOR -> tuple.asIntVector(it)
-        Type.BOOLEAN_VECTOR -> tuple.asBooleanVector(it)
-        Type.COMPLEX32 ->  tuple.asComplex32(it)
-        Type.COMPLEX64 -> tuple.asComplex64(it)
-        Type.COMPLEX32_VECTOR -> tuple.asComplex32Vector(it)
-        Type.COMPLEX64_VECTOR -> tuple.asComplex64Vector(it)
-        Type.BYTESTRING -> "<BLOB>"
-        Type.UNDEFINED -> "<UNDEFINED>"
     }
 }

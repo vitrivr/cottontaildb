@@ -4,8 +4,9 @@ import io.grpc.Status
 import io.grpc.StatusException
 import io.javalin.http.Context
 import io.javalin.openapi.*
-import org.vitrivr.cottontail.client.language.basics.predicate.Expression
-import org.vitrivr.cottontail.client.language.ddl.DropEntity
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import org.vitrivr.cottontail.client.language.basics.predicate.Predicate
 import org.vitrivr.cottontail.client.language.dml.Delete
 import org.vitrivr.cottontail.ui.api.database.obtainClientForContext
 import org.vitrivr.cottontail.ui.model.status.ErrorStatus
@@ -14,7 +15,7 @@ import org.vitrivr.cottontail.ui.model.status.SuccessStatus
 
 
 @OpenApi(
-    path = "/api/{connection}/{schema}/{entity}/delete/{column}/{value}",
+    path = "/api/{connection}/{schema}/{entity}/delete",
     methods = [HttpMethod.DELETE],
     summary = "Deletes an entry specified by the connection string and the provided key and value.",
     operationId = OpenApiOperation.AUTO_GENERATE,
@@ -22,9 +23,7 @@ import org.vitrivr.cottontail.ui.model.status.SuccessStatus
     pathParams = [
         OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true),
         OpenApiParam(name = "schema", description = "Name of the schema the entity belongs to.", required = true),
-        OpenApiParam(name = "entity", description = "Name of the entity to drop.", required = true),
-        OpenApiParam(name = "column", description = "Name of the column to determine the entry to delete.", required = true),
-        OpenApiParam(name = "value", description = "Value of the column to determine which entry to delete.", required = true)
+        OpenApiParam(name = "entity", description = "Name of the entity to drop.", required = true)
     ],
     responses = [
         OpenApiResponse("200", [OpenApiContent(SuccessStatus::class)]),
@@ -33,20 +32,31 @@ import org.vitrivr.cottontail.ui.model.status.SuccessStatus
         OpenApiResponse("500", [OpenApiContent(ErrorStatus::class)]),
     ]
 )
-fun simpleDelete(context: Context) {
+fun deleteFromEntity(context: Context) {
     val client = context.obtainClientForContext()
     val schemaName = context.pathParam("schema")
     val entityName = context.pathParam("entity")
-    val columnName = context.pathParam("column")
-    val value = context.pathParam("value")
+    val predicate = if (context.body().isNotEmpty()) {
+        /* We use kotlinx.serialization, because these classes come with the ability to de-/serialize. */
+        Json.decodeFromString<Predicate>(context.body())
+    } else {
+        null
+    }
 
     try {
-        client.delete(Delete("$schemaName.$entityName").where(Expression(columnName, "=", value))).close()
-        context.json(SuccessStatus("Entity $entityName.$schemaName dropped successfully."))
+        val query = Delete("$schemaName.$entityName")
+        var deleted = 0L
+        if (predicate != null) {
+            query.where(predicate)
+        }
+        client.delete(query).forEach {
+            deleted = it.asLong("deleted") ?: 0L
+        }
+        context.json(SuccessStatus("Successfully deleted $deleted entries from $entityName.$schemaName."))
     } catch (e: StatusException){
         when (e.status) {
-            Status.NOT_FOUND -> throw ErrorStatusException(404, "Failed to drop entity $entityName.$schemaName, because it does not exist.")
-            else -> throw ErrorStatusException(500, "Failed to drop entity $entityName.$schemaName.")
+            Status.NOT_FOUND -> throw ErrorStatusException(404, "Failed to delete entries from $entityName.$schemaName, because entity does not exist.")
+            else -> throw ErrorStatusException(500, "Failed to delete entries from $entityName.$schemaName.")
         }
     }
 }

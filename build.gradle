@@ -4,7 +4,6 @@ plugins {
     id 'idea'
     id "org.jetbrains.kotlin.jvm" version "$version_kotlin"
     id "org.jetbrains.kotlin.plugin.serialization" version "$version_kotlin"
-    id "org.jetbrains.kotlin.kapt" version "$version_kotlin"
     id "com.github.johnrengelman.shadow" version "7.1.2"
     id "org.openapi.generator" version "6.2.0"
     id "de.undercouch.download" version "5.4.0"
@@ -36,8 +35,6 @@ allprojects {
             url "https://oss.sonatype.org/content/repositories/snapshots/"
         }
     }
-
-
 }
 
 subprojects {
@@ -48,30 +45,33 @@ subprojects {
     apply plugin: 'java-library'
     apply plugin: 'java-test-fixtures'
 
+    /* Source requires Java 17, to run Cottontail DB we require Java 11. */
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_11
+
     /* Compiler options for Kotlin. */
     compileKotlin {
-        compilerOptions {
-            freeCompilerArgs.add("-Xcontext-receivers")
-            jvmTarget = JvmTarget.JVM_17
-        }
+        compilerOptions.freeCompilerArgs.add("-Xcontext-receivers")
+        compilerOptions.jvmTarget = JvmTarget.JVM_11
     }
 
     /* Compiler options for Kotlin when running tests. */
     compileTestKotlin {
-        compilerOptions {
-            freeCompilerArgs.add("-Xcontext-receivers")
-            jvmTarget = JvmTarget.JVM_17
-        }
+        compilerOptions.freeCompilerArgs.add("-Xcontext-receivers")
+        compilerOptions.jvmTarget = JvmTarget.JVM_11
     }
 
     compileTestFixturesKotlin {
-        compilerOptions {
-            freeCompilerArgs.add("-Xcontext-receivers")
-            jvmTarget = JvmTarget.JVM_17
-        }
+        compilerOptions.freeCompilerArgs.add("-Xcontext-receivers")
+        compilerOptions.jvmTarget = JvmTarget.JVM_11
+    }
+
+    kotlin {
+        jvmToolchain(17)
     }
 
     java {
+        toolchain.languageVersion.set(JavaLanguageVersion.of(17))
         withJavadocJar()
         withSourcesJar()
     }

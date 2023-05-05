@@ -1,10 +1,13 @@
 package org.vitrivr.cottontail.ui.model.results
 
-import org.vitrivr.cottontail.client.language.basics.Type
+import kotlinx.serialization.Serializable
+import org.vitrivr.cottontail.core.types.Types
 
 /**
+ * Representation of a [Column] as exposed by the Thumper API.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.0
  */
-data class Column(val name: String, val type: Type)
+@Serializable
+data class Column(val name: String, val type: Types<*>)

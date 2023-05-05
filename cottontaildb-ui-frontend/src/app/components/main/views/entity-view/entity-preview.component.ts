@@ -3,7 +3,7 @@ import {AfterViewInit, Component, Input, OnDestroy, ViewChild} from "@angular/co
 import {NavigatedDbo} from "../../navigated-dbo";
 import {MatSort} from "@angular/material/sort";
 import {BehaviorSubject, catchError, combineLatestWith, mergeMap, Observable, startWith, Subscription} from "rxjs";
-import {DQLService, Resultset, Type} from "../../../../../../openapi";
+import {DeleteService, DQLService, Resultset, Type} from "../../../../../../openapi";
 import {MatTableDataSource} from "@angular/material/table";
 import {MatPaginator} from "@angular/material/paginator";
 import {MatSnackBar, MatSnackBarConfig} from "@angular/material/snack-bar";
@@ -46,10 +46,11 @@ export class EntityPreviewComponent implements OnDestroy, AfterViewInit {
   /**
    *
    * @param _snackBar
+   * @param d
    * @param dql
    */
-  constructor(private _snackBar: MatSnackBar, private dql: DQLService) {
-  }
+  constructor(private _snackBar: MatSnackBar, private dml: DeleteService, private dql: DQLService) {}
+
 
   /**
    * Initializes the data loading logic for {@link EntityPreviewComponent}.
@@ -95,6 +96,37 @@ export class EntityPreviewComponent implements OnDestroy, AfterViewInit {
     this._subscription?.unsubscribe()
     this._subscription = null
   }
+
+  /**
+   *
+   */
+  public delete(element: Array<object>) {
+    const request = {
+      type: "Compare",
+      lexp: {
+        type: "Column",
+        name: this.columns[0]
+      },
+      operator: "EQUAL",
+      rexp: {
+        type: "Literal",
+        value: element[0]
+      }
+    }
+
+    this.dbo.pipe(
+      mergeMap( dbo =>
+        this.dml.deleteApiByConnectionBySchemaByEntityDelete(dbo.connection!!, dbo.schema!!, dbo.entity!!, request).pipe(
+          catchError((err) => {
+            this._snackBar.open(`Error occurred when trying to delete entry from entity: ${err.error.description}.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
+            this.isLoading = false
+            return []
+          })
+        )
+      )
+    ).subscribe()
+  }
+
 
   /**
    *

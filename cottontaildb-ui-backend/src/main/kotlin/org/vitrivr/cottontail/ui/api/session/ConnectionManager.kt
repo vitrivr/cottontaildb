@@ -4,10 +4,11 @@ import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import org.vitrivr.cottontail.ui.model.session.Connection
 import org.vitrivr.cottontail.ui.model.session.Session
-import org.vitrivr.cottontail.utilities.extensions.read
-import org.vitrivr.cottontail.utilities.extensions.write
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.concurrent.locks.StampedLock
+import kotlin.concurrent.read
+import kotlin.concurrent.write
 
 
 /**
@@ -22,7 +23,7 @@ object ConnectionManager {
     private val connections: HashMap<String, LinkedHashMap<Connection,ManagedChannel>> = HashMap()
 
     /** A [StampedLock] to mediate access to [ConnectionManager].  */
-    private val lock = StampedLock()
+    private val lock = ReentrantReadWriteLock()
 
     /**
      * Creates a new [ManagedChannel] for the provided [Connection] .

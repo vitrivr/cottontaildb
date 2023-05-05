@@ -854,6 +854,98 @@
         "security" : [ ]
       }
     },
+    "/api/{connection}/{schema}/{entity}/delete" : {
+      "delete" : {
+        "tags" : [ "DML", "Delete" ],
+        "summary" : "Deletes an entry specified by the connection string and the provided key and value.",
+        "operationId" : "deleteApiByConnectionBySchemaByEntityDelete",
+        "parameters" : [ {
+          "name" : "connection",
+          "in" : "path",
+          "description" : "Connection string in the for <host>:<port>.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "schema",
+          "in" : "path",
+          "description" : "Name of the schema the entity belongs to.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "entity",
+          "in" : "path",
+          "description" : "Name of the entity to drop.",
+          "required" : true,
+          "deprecated" : false,
+          "allowEmptyValue" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Predicate"
+              }
+            }
+          },
+          "required" : false
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SuccessStatus"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Not Found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Server Error",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorStatus"
+                }
+              }
+            }
+          }
+        },
+        "deprecated" : false,
+        "security" : [ ]
+      }
+    },
     "/api/{connection}/{schema}/{entity}/preview" : {
       "get" : {
         "tags" : [ "DQL", "Entity" ],
@@ -1067,6 +1159,11 @@
         "type" : "string",
         "enum" : [ "BOOLEAN", "BYTE", "SHORT", "INTEGER", "LONG", "FLOAT", "DOUBLE", "DATE", "STRING", "COMPLEX32", "COMPLEX64", "DOUBLE_VECTOR", "FLOAT_VECTOR", "LONG_VECTOR", "INTEGER_VECTOR", "BOOLEAN_VECTOR", "COMPLEX32_VECTOR", "COMPLEX64_VECTOR", "BYTESTRING", "UNDEFINED" ]
       },
+      "Predicate" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : { }
+      },
       "Dbo" : {
         "type" : "object",
         "additionalProperties" : false,
@@ -1120,6 +1217,10 @@
           "fqn" : {
             "type" : "string"
           },
+          "size" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
           "columns" : {
             "type" : "array",
             "items" : {
@@ -1136,7 +1237,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "fqn", "columns", "indexes", "simple" ]
+        "required" : [ "fqn", "size", "columns", "indexes", "simple" ]
       },
       "IndexDetails" : {
         "type" : "object",

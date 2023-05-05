@@ -21,7 +21,7 @@
         <button mat-icon-button *ngIf="element.isEditing" (click)="element.isEditing = false">
           <mat-icon>abort</mat-icon>
         </button>
-        <button mat-icon-button *ngIf="!element.isEditing" color="warn">
+        <button mat-icon-button *ngIf="!element.isEditing" color="warn" (click)="delete(element.value)">
           <mat-icon>delete_permanently</mat-icon>
         </button>
       </ng-container>

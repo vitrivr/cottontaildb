@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.ui.model.session.Connection
 import org.vitrivr.cottontail.ui.model.session.Session
 import org.vitrivr.cottontail.ui.model.status.ErrorStatus
 import org.vitrivr.cottontail.ui.model.status.ErrorStatusException
-import org.vitrivr.cottontail.ui.model.status.SuccessStatus
 
 @OpenApi(
     summary = "Creates and connects a new Cottontail DB connection.",
