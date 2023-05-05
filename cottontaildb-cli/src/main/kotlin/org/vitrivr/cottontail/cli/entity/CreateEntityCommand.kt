@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.cli.entity
 
-import com.github.ajalt.clikt.output.TermUi
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.option
 import com.google.gson.Gson
@@ -22,7 +21,7 @@ import kotlin.time.measureTimedValue
  * Command to create a new a [org.vitrivr.cottontail.dbms.entity.DefaultEntity].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.1
  */
 @ExperimentalTime
 class CreateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "create", help = "Creates a new entity in the database. Usage: entity create <schema>.<entity>") {
@@ -80,8 +79,8 @@ class CreateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, 
                     colDef.addColumns(ret)
                 }
 
-                /* Ask if anther column should be added. */
-                if (colDef.columnsCount > 0 && TermUi.confirm("Do you want to add another column (size = ${colDef.columnsCount})?") == false) {
+                /* Ask if another column should be added. */
+                if (colDef.columnsCount > 0 && this.confirm("Do you want to add another column (size = ${colDef.columnsCount})?") == false) {
                     break
                 }
             } while (true)
@@ -115,7 +114,7 @@ class CreateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, 
             }
 
             /* As for final confirmation and create entity. */
-            if (TermUi.confirm(text = "Please confirm that you want to create the entity:\n$tbl", default = true) == true) {
+            if (this.confirm(text = "Please confirm that you want to create the entity:\n$tbl", default = true) == true) {
                 val time = measureTimedValue {
                     TabulationUtilities.tabulate(this.client.create(CottontailGrpc.CreateEntityMessage.newBuilder().setDefinition(colDef).build()))
                 }
@@ -158,21 +157,21 @@ class CreateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, 
      */
     private fun promptForColumn(): CottontailGrpc.ColumnDefinition? {
         val def = CottontailGrpc.ColumnDefinition.newBuilder()
-        def.nameBuilder.name = TermUi.prompt("Column name (must consist of letters and numbers)")
-        def.type = TermUi.prompt("Column type (${CottontailGrpc.Type.values().joinToString(", ")})") {
+        def.nameBuilder.name = this.prompt("Column name (must consist of letters and numbers)")
+        def.type = this.prompt("Column type (${CottontailGrpc.Type.values().joinToString(", ")})") {
             CottontailGrpc.Type.valueOf(it.uppercase())
         }
         def.length = when (def.type) {
-            CottontailGrpc.Type.DOUBLE_VEC,
-            CottontailGrpc.Type.FLOAT_VEC,
-            CottontailGrpc.Type.LONG_VEC,
-            CottontailGrpc.Type.INT_VEC,
-            CottontailGrpc.Type.BOOL_VEC,
-            CottontailGrpc.Type.COMPLEX32_VEC,
-            CottontailGrpc.Type.COMPLEX64_VEC -> TermUi.prompt("\rColumn lengths (i.e. number of entries for vectors)") { it.toInt() } ?: 1
+            CottontailGrpc.Type.DOUBLE_VECTOR,
+            CottontailGrpc.Type.FLOAT_VECTOR,
+            CottontailGrpc.Type.LONG_VECTOR,
+            CottontailGrpc.Type.INT_VECTOR,
+            CottontailGrpc.Type.BOOL_VECTOR    ,
+            CottontailGrpc.Type.COMPLEX32_VECTOR,
+            CottontailGrpc.Type.COMPLEX64_VECTOR -> this.prompt("\rColumn lengths (i.e. number of entries for vectors)") { it.toInt() } ?: 1
             else -> -1
         }
-        def.nullable = TermUi.confirm(text = "Should column be nullable?", default = false) ?: false
+        def.nullable = this.confirm(text = "Should column be nullable?", default = false) ?: false
 
         val tbl = table {
             cellStyle {
@@ -192,7 +191,7 @@ class CreateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, 
             }
         }
 
-        return if (TermUi.confirm("Please confirm column:\n$tbl") == true) {
+        return if (this.confirm("Please confirm column:\n$tbl") == true) {
             def.build()
         } else {
             null

@@ -7,8 +7,8 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.*
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.data.Format
 import java.nio.file.Files
 import java.nio.file.Path
@@ -54,7 +54,7 @@ class JsonDataImporter(override val path: Path, override val schema: List<Column
             val parsed = this.reader.nextName().split('.')
             val name = Name.ColumnName(parsed[0], parsed[1], parsed[2])
             check(name == column.name) { "$name does not match the expected column name ${column.name}." }
-            value[column] = when (column.type) {
+            value[column] = when (val type = column.type) {
                 is Types.Boolean ->this.reader.nextBoolean()
                 is Types.Byte -> this.reader.nextInt()
                 is Types.Short -> this.reader.nextInt()
@@ -73,7 +73,7 @@ class JsonDataImporter(override val path: Path, override val schema: List<Column
                 is Types.BooleanVector -> this.readBooleanVector(column.type.logicalSize)
                 is Types.Complex32Vector -> this.readComplex32Vector(column.type.logicalSize)
                 is Types.Complex64Vector -> this.readComplex64Vector(column.type.logicalSize)
-                is Types.ByteString -> TODO()
+                else -> throw IllegalStateException("Unhandled column type $type.")
             }
         }
         this.reader.endObject()

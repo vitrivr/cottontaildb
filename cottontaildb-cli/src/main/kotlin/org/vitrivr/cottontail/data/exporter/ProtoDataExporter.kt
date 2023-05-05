@@ -15,7 +15,7 @@ import java.nio.file.StandardOpenOption
  * Data produced by the [ProtoDataExporter] can be used as input for the [ProtoDataImporter].
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 class ProtoDataExporter(override val path: Path) : DataExporter {
     /** The [Format] handled by this [DataExporter]. */
@@ -36,12 +36,19 @@ class ProtoDataExporter(override val path: Path) : DataExporter {
      */
     override fun offer(tuple: Tuple) {
         val insert = CottontailGrpc.InsertMessage.newBuilder()
-        for ((i, l) in tuple.raw.dataList.withIndex()) {
+        for (i in (0..tuple.size())) {
             val name = tuple.nameForIndex(i)
+            val value = tuple[i]?.toGrpc()
+            val builder = insert.addElementsBuilder()
             if (name.contains('.')) {
-                insert.addElementsBuilder().setValue(l).setColumn(CottontailGrpc.ColumnName.newBuilder().setName(name.split('.').last()))
+                builder.setColumn(CottontailGrpc.ColumnName.newBuilder().setName(name.split('.').last()))
             } else {
-                insert.addElementsBuilder().setValue(l).setColumn(CottontailGrpc.ColumnName.newBuilder().setName(name))
+                builder.setColumn(CottontailGrpc.ColumnName.newBuilder().setName(name))
+            }
+            if (value != null) {
+                builder.value = value
+            } else {
+                builder.value = CottontailGrpc.Literal.getDefaultInstance()
             }
         }
         insert.build().writeDelimitedTo(this.output)

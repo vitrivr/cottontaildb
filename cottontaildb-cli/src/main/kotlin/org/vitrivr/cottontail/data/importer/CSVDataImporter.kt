@@ -3,9 +3,8 @@ package org.vitrivr.cottontail.data.importer
 import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.*
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.data.Format
 import java.nio.file.Path
 
@@ -23,17 +22,16 @@ class CSVDataImporter(override val path: Path, override val schema: List<ColumnD
 
     override fun hasNext(): Boolean = this.rowIndex < rows.size
 
-    override fun next(): Map<ColumnDef<*>, Value?> {
-        val value = Object2ObjectArrayMap<ColumnDef<*>, Value?>(this.schema.size)
+    override fun next(): Map<ColumnDef<*>, PublicValue?> {
+        val value = Object2ObjectArrayMap<ColumnDef<*>, PublicValue?>(this.schema.size)
         val row = rows[rowIndex++]
 
         for (column in this.schema) {
-
             val csvValue = row[column.name.columnName]
-            if (csvValue == null || csvValue.isEmpty()) {
+            if (csvValue.isNullOrEmpty()) {
                 value[column] = null
             } else {
-                value[column] = when (column.type) {
+                value[column] = when (val type = column.type) {
                     Types.Boolean -> BooleanValue(csvValue.toBoolean())
                     Types.Date -> DateValue(csvValue.toLong())
                     Types.Byte -> ByteValue(csvValue.toByte())
@@ -52,7 +50,7 @@ class CSVDataImporter(override val path: Path, override val schema: List<ColumnD
                     is Types.FloatVector -> FloatVectorValue(parseVector(csvValue){it.toFloat()})
                     is Types.IntVector -> IntVectorValue(parseVector(csvValue){it.toInt()})
                     is Types.LongVector -> LongVectorValue(parseVector(csvValue){it.toLong()})
-                    is Types.ByteString -> TODO()
+                    else -> throw IllegalStateException("Unhandled column type $type.")
                 }
             }
         }

@@ -6,13 +6,13 @@ import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.AboutEntity
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.types.Types
 
 /**
  * Base class for none entity specific commands (for potential future generalisation)
 
  * @author Ralph Gasser & Loris Sauter
- * @version 3.0.0
+ * @version 3.0.1
  */
 abstract class AbstractCottontailCommand(name: String, help: String, val expand: Boolean) : CliktCommand(name = name, help = help) {
 

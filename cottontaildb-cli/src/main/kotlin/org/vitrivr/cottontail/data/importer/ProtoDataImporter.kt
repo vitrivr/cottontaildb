@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.data.importer
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.data.Format
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.utilities.extensions.fqn
@@ -44,7 +44,7 @@ class ProtoDataImporter(override val path: Path, override val schema: List<Colum
             val element = this.next?.elementsList?.singleOrNull {
                 it.column.fqn().matches(column.name)
             } ?: throw IllegalStateException("Could not find column ${column.name} in input.")
-            value[column] = when (column.type) {
+            value[column] = when (val type = column.type) {
                 is Types.Boolean -> element.value.booleanData
                 is Types.Byte -> element.value.intData.toByte()
                 is Types.Short -> element.value.intData.toByte()
@@ -52,7 +52,7 @@ class ProtoDataImporter(override val path: Path, override val schema: List<Colum
                 is Types.Long -> element.value.longData
                 is Types.Float -> element.value.floatData
                 is Types.Double -> element.value.doubleData
-                is Types.Date -> Date(element.value.dateData.utcTimestamp)
+                is Types.Date -> Date(element.value.dateData)
                 is Types.String ->  element.value.stringData
                 is Types.Complex32 -> element.value.complex32Data.real to element.value.complex32Data.imaginary
                 is Types.Complex64 -> element.value.complex64Data.real to element.value.complex64Data.imaginary
@@ -63,7 +63,7 @@ class ProtoDataImporter(override val path: Path, override val schema: List<Colum
                 is Types.BooleanVector -> element.value.vectorData.boolVector.vectorList.toBooleanArray()
                 is Types.Complex32Vector -> element.value.vectorData.complex32Vector.vectorList.map { it.real to it.imaginary }.toTypedArray()
                 is Types.Complex64Vector -> element.value.vectorData.complex64Vector.vectorList.map { it.real to it.imaginary }.toTypedArray()
-                is Types.ByteString -> TODO()
+                else -> throw java.lang.IllegalStateException("Unhandled column type $type.")
             }
         }
         return value

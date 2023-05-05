@@ -57,13 +57,13 @@ class ImportDataCommand(client: SimpleClient) : AbstractEntityCommand(client, na
                 val duration = measureTime {
                     iterator.forEach { next ->
                         val data = schema.map { next[it] }.toTypedArray()
-                        if (!batchedInsert.append(*data)) {
+                        if (!batchedInsert.any(*data)) {
                             /* Execute insert... */
                             client.insert(batchedInsert)
 
                             /* ... now clear and append. */
                             batchedInsert.clear()
-                            if (!batchedInsert.append(*data)) {
+                            if (!batchedInsert.any(*data)) {
                                 throw IllegalArgumentException("The appended data is too large for a single message.")
                             }
                         }

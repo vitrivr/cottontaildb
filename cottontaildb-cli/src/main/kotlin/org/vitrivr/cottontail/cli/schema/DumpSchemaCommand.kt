@@ -66,7 +66,7 @@ class DumpSchemaCommand(client: SimpleClient) : AbstractSchemaCommand(
         }
 
         for (entity in this.client.list(CottontailGrpc.ListEntityMessage.newBuilder().setSchema(schemaName.proto()).build())) {
-            val entityName = entity.asString(0)
+            val entityName = entity.asString(0)!!
             val qm = Query(entityName)
             val file = root.resolve("$entityName.${this.format.suffix}")
             val dataExporter = this.format.newExporter(file)
