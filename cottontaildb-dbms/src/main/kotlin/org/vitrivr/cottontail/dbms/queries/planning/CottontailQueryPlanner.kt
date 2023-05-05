@@ -85,8 +85,9 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         return with(context.bindings) {
             with(MissingRecord) {
                 stage2.map { (groupId, plans) ->
-                    val normalized = NormalizedCost.normalize(plans.map { it.totalCost })
-                    val candidates = plans.zip(normalized).map { (p, cost) -> p to context.costPolicy.toScore(cost) }.sortedBy { it.second }.take(limit)
+                    val executable = plans.filter { it.executable }
+                    val normalized = NormalizedCost.normalize(executable.map { it.totalCost })
+                    val candidates = executable.zip(normalized).map { (p, cost) -> p to context.costPolicy.toScore(cost) }.sortedBy { it.second }.take(limit)
                     groupId to candidates
                 }.toMap()
             }
