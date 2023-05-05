@@ -134,7 +134,7 @@ export class SidebarComponent implements OnInit {
     let ref = this.dialog.open<CreateSchemaFormComponent>(CreateSchemaFormComponent, {width: 'fit-content', height: 'fit-content'})
     ref.afterClosed().subscribe((result: string) => {
       if (result) {
-        this.schemas.postApiByConnectionBySchema(node.name, result).pipe(
+        this.schemas.postCreateSchema(node.name, result).pipe(
           catchError((err) => {
             this._snackBar.open(`Error occurred when trying to create schema '${result}': ${err.error.description}.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
             return []
@@ -153,7 +153,7 @@ export class SidebarComponent implements OnInit {
    */
   public dropSchema(node: DboNode) {
     if (node.type !== DboType.SCHEMA) throw new Error("Cannot drop schema for non-schema node.");
-    this.schemas.deleteApiByConnectionBySchema(node.parent!!.name, (node.context!! as Dbo).name).pipe(
+    this.schemas.deleteDropSchema(node.parent!!.name, (node.context!! as Dbo).name).pipe(
       catchError((err) => {
         this._snackBar.open(`Error occurred when trying to create schema '${node.name}': ${err.error.description}.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
         return []
@@ -170,7 +170,7 @@ export class SidebarComponent implements OnInit {
    */
   public dropEntity(node: DboNode) {
     if (node.type !== DboType.ENTITY) throw new Error("Cannot execute dropEntity() for for non-entity node.");
-    this.entities.deleteApiByConnectionBySchemaByEntity(node.parent!!.parent!!.name, node.parent!!.name, node.name).pipe(
+    this.entities.deleteDropEntity(node.parent!!.parent!!.name, node.parent!!.name, node.name).pipe(
       catchError((err) => {
         this._snackBar.open(`Error occurred when trying to drop entity '${node.name}': ${err.error.description}.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
         return []

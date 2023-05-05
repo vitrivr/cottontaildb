@@ -2,10 +2,9 @@ package org.vitrivr.cottontail.ui.api.dml
 
 import io.grpc.Status
 import io.grpc.StatusException
+import io.javalin.http.BadRequestResponse
 import io.javalin.http.Context
 import io.javalin.openapi.*
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.client.language.basics.predicate.Predicate
 import org.vitrivr.cottontail.client.language.dml.Delete
 import org.vitrivr.cottontail.ui.api.database.obtainClientForContext
@@ -18,8 +17,9 @@ import org.vitrivr.cottontail.ui.model.status.SuccessStatus
     path = "/api/{connection}/{schema}/{entity}/delete",
     methods = [HttpMethod.DELETE],
     summary = "Deletes an entry specified by the connection string and the provided key and value.",
-    operationId = OpenApiOperation.AUTO_GENERATE,
+    operationId = "deleteRecord",
     tags = ["DML", "Delete"],
+    requestBody = OpenApiRequestBody([OpenApiContent(Predicate::class)], required = false),
     pathParams = [
         OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true),
         OpenApiParam(name = "schema", description = "Name of the schema the entity belongs to.", required = true),
@@ -36,10 +36,9 @@ fun deleteFromEntity(context: Context) {
     val client = context.obtainClientForContext()
     val schemaName = context.pathParam("schema")
     val entityName = context.pathParam("entity")
-    val predicate = if (context.body().isNotEmpty()) {
-        /* We use kotlinx.serialization, because these classes come with the ability to de-/serialize. */
-        Json.decodeFromString<Predicate>(context.body())
-    } else {
+    val predicate = try {
+        context.bodyAsClass(Predicate::class.java)
+    } catch (e: BadRequestResponse) {
         null
     }
 

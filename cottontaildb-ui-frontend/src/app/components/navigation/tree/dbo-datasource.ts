@@ -125,7 +125,7 @@ export class DboDatasource implements DataSource<DboNode> {
   public refreshConnection(node: DboNode) {
     if (node.type !== DboType.CONNECTION) throw new Error("Cannot refresh connection for non-connection node.");
     node.isLoading = true
-    this.schemas.getApiByConnectionList(node.name).pipe(
+    this.schemas.getListSchema(node.name).pipe(
       catchError((err) => {
         console.error(err)
         node.children.splice(0, node.children.length)
@@ -149,7 +149,7 @@ export class DboDatasource implements DataSource<DboNode> {
   public refreshSchema(node: DboNode) {
     if (node.type !== DboType.SCHEMA) throw new Error("Cannot refresh schema for non-schema node.");
     node.isLoading = true
-    this.entities.getApiByConnectionBySchemaList(node.parent!!.name, node.name).pipe(
+    this.entities.getListEntities(node.parent!!.name, node.name).pipe(
       catchError((err) => {
         console.error(err)
         node.children.splice(0, node.children.length)

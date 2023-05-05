@@ -9,7 +9,7 @@ import io.javalin.openapi.*
 import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.ui.api.database.drainToList
+import org.vitrivr.cottontail.ui.api.database.drainToArray
 import org.vitrivr.cottontail.ui.api.database.obtainClientForContext
 import org.vitrivr.cottontail.ui.model.dbo.Dbo
 import org.vitrivr.cottontail.ui.model.dbo.details.ColumnDetails
@@ -27,10 +27,10 @@ class DeleteDetails(details: Tuple){
 }
 
 @OpenApi(
-    path = "/api/{connection}/{schema}/list",
+    path = "/api/{connection}/{schema}",
     methods = [HttpMethod.GET],
     summary = "Lists all entities in the database and schema specified by the connection string.",
-    operationId = OpenApiOperation.AUTO_GENERATE,
+    operationId = "getListEntities",
     tags = ["DDL", "Entity"],
     pathParams = [
         OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true),
@@ -50,7 +50,7 @@ fun listEntities(context: Context){
 
     /* Prepare query and empty list all entities. */
     try {
-        val result = client.list(ListEntities(schemaName)).drainToList {
+        val result = client.list(ListEntities(schemaName)).drainToArray {
             Dbo.entity(it.asString(0)!!)
         }
         context.json(result)
@@ -113,7 +113,7 @@ fun aboutEntity(context: Context) {
     path = "/api/{connection}/{schema}/{entity}",
     methods = [HttpMethod.POST],
     summary = "Creates the entity specified by the connection string.",
-    operationId = OpenApiOperation.AUTO_GENERATE,
+    operationId = "postCreateEntity",
     tags = ["DDL", "Entity"],
     requestBody = OpenApiRequestBody([OpenApiContent(Array<ColumnDetails>::class)]),
     pathParams = [
@@ -158,7 +158,7 @@ fun createEntity(context: Context) {
     path = "/api/{connection}/{schema}/{entity}",
     methods = [HttpMethod.DELETE],
     summary = "Drops the entity specified by the connection string.",
-    operationId = OpenApiOperation.AUTO_GENERATE,
+    operationId = "deleteDropEntity",
     tags = ["DDL", "Entity"],
     pathParams = [
         OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true),
@@ -192,7 +192,7 @@ fun dropEntity(context: Context){
     path = "/api/{connection}/{schema}/{entity}/truncate",
     methods = [HttpMethod.DELETE],
     summary = "Truncates the entity specified by the connection string.",
-    operationId = OpenApiOperation.AUTO_GENERATE,
+    operationId = "deleteTruncateEntity",
     tags = ["DDL", "Entity"],
     pathParams = [
         OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true),

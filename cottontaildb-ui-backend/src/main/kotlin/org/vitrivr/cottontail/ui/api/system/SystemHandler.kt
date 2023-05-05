@@ -4,7 +4,7 @@ import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import io.javalin.http.Context
 import io.javalin.openapi.*
-import org.vitrivr.cottontail.ui.api.database.drainToList
+import org.vitrivr.cottontail.ui.api.database.drainToArray
 import org.vitrivr.cottontail.ui.api.database.obtainClientForContext
 import org.vitrivr.cottontail.ui.model.dbo.details.EntityDetails
 import org.vitrivr.cottontail.ui.model.status.ErrorStatus
@@ -30,7 +30,7 @@ import org.vitrivr.cottontail.ui.model.system.TransactionStatus
 fun listTransactions(context: Context) {
     val client = context.obtainClientForContext()
     try {
-        val results = client.transactions().drainToList {
+        val results = client.transactions().drainToArray {
             Transaction(
                 it.asLong(0)!!,
                 it.asString(1)!!,
@@ -69,7 +69,7 @@ fun listTransactions(context: Context) {
 )
 fun killTransaction(context: Context) {
     val client = context.obtainClientForContext()
-    val txId = context.pathParam("txId")?.toLongOrNull() ?: throw ErrorStatusException(400, "Must specify a valid transaction ID.")
+    val txId = context.pathParam("txId").toLongOrNull() ?: throw ErrorStatusException(400, "Must specify a valid transaction ID.")
     try {
         client.kill(txId)
     } catch (e: StatusRuntimeException) {
@@ -98,7 +98,7 @@ fun killTransaction(context: Context) {
 fun listLocks(context: Context) {
     val client = context.obtainClientForContext()
     try {
-        val result = client.locks().drainToList {
+        val result = client.locks().drainToArray {
             Lock(it.asString(0)!!, it.asString(1)!!,it.asInt(2)!!, it.asString(3)!!)
         }
         context.json(result)

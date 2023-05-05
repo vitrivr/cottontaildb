@@ -1,16 +1,15 @@
 import {Pipe, PipeTransform} from "@angular/core";
-import {Type} from "../../../openapi";
+import {Types} from "../../../openapi";
 
 /**
  * A {@link PipeTransform} that is used to format values for display.
  */
 @Pipe({name: 'formatValue'})
 export class ValueFormattingPipe implements PipeTransform {
-  transform(value: [Type, object], exponent = 1): (string | null) {
+  transform(value: [Types, object], exponent = 1): (string | null) {
     if (value == null) return "<NULL>";
-    switch (value[0] as Type){
+    switch (value[0].name){
       case "BOOLEAN":
-
       case "BYTE":
       case "SHORT":
       case "INTEGER":
@@ -50,6 +49,8 @@ export class ValueFormattingPipe implements PipeTransform {
         return "<BLOB>";
       case "UNDEFINED":
         return  "<NULL>";
+      default:
+        return null
     }
   }
 }

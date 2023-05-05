@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.ui.api.session.ConnectionManager
 import org.vitrivr.cottontail.ui.model.session.Connection
 import org.vitrivr.cottontail.ui.model.session.Session
 import org.vitrivr.cottontail.ui.model.status.ErrorStatusException
-import java.util.LinkedList
+import java.util.*
 
 /**
  * Obtains a [SimpleClient] given the current [Session] and the connection details encoded in the URL.
@@ -31,10 +31,19 @@ fun Context.obtainClientForContext(): SimpleClient {
  * @param mapping The mapping function to build the list with.
  * @return [List] of mapped elements.
  */
-fun <R> TupleIterator.drainToList(mapping: (Tuple) -> R): List<R> {
+inline fun <reified R> TupleIterator.drainToList(mapping: (Tuple) -> R): List<R> {
     val result = LinkedList<R>()
     while (this.hasNext()) {
         result.add(mapping(this.next()))
     }
     return result
 }
+
+/**
+ * Drains a [TupleIterator] to an [Array] using a user-defined mapping function.
+ *
+ * @param mapping The mapping function to build the list with.
+ * @return [Array] of mapped elements.
+ */
+inline fun <reified R> TupleIterator.drainToArray(mapping: (Tuple) -> R): Array<R>
+    = this.drainToList(mapping).toTypedArray()

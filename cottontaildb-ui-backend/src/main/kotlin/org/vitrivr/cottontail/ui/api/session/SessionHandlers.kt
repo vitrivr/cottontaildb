@@ -29,7 +29,7 @@ fun connect(ctx: Context) {
         throw ErrorStatusException(400, "Invalid parameters. This is a programmers error!")
     }
     if (ConnectionManager.connect(session, connection)) {
-        ctx.json(ConnectionManager.list(session))
+        ctx.json(ConnectionManager.list(session).toTypedArray())
     } else {
         throw ErrorStatusException(400, "Failed to establish connection because connection already exists.")
     }
@@ -56,7 +56,7 @@ fun disconnect(ctx: Context) {
         throw ErrorStatusException(400, "Invalid parameters. This is a programmers error!")
     }
     if (ConnectionManager.disconnect(session, connection)) {
-        ctx.json(ConnectionManager.list(session))
+        ctx.json(ConnectionManager.list(session).toTypedArray())
     } else {
         throw ErrorStatusException(400, "Failed to disconnect connection because connection does not exist.")
     }
@@ -74,8 +74,7 @@ fun disconnect(ctx: Context) {
 )
 fun connections(ctx: Context) {
     val session = ctx.session()
-    val list = ConnectionManager.list(session)
-    ctx.json(list)
+    ctx.json(ConnectionManager.list(session).toTypedArray())
 }
 
 /**

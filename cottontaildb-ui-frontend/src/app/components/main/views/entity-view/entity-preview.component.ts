@@ -3,7 +3,7 @@ import {AfterViewInit, Component, Input, OnDestroy, ViewChild} from "@angular/co
 import {NavigatedDbo} from "../../navigated-dbo";
 import {MatSort} from "@angular/material/sort";
 import {BehaviorSubject, catchError, combineLatestWith, mergeMap, Observable, startWith, Subscription} from "rxjs";
-import {DeleteService, DQLService, Resultset, Type} from "../../../../../../openapi";
+import {DeleteService, DQLService, Resultset, Types} from "../../../../../../openapi";
 import {MatTableDataSource} from "@angular/material/table";
 import {MatPaginator} from "@angular/material/paginator";
 import {MatSnackBar, MatSnackBarConfig} from "@angular/material/snack-bar";
@@ -26,7 +26,7 @@ export class EntityPreviewComponent implements OnDestroy, AfterViewInit {
   public columns: string[] = [];
 
   /** The columns displayed by the {@link dataSource}. */
-  public columnTypes: Type[] = [];
+  public columnTypes: Types[] = [];
 
   /** Number of results in the result set. */
   public total: number = 0
@@ -116,7 +116,7 @@ export class EntityPreviewComponent implements OnDestroy, AfterViewInit {
 
     this.dbo.pipe(
       mergeMap( dbo =>
-        this.dml.deleteApiByConnectionBySchemaByEntityDelete(dbo.connection!!, dbo.schema!!, dbo.entity!!, request).pipe(
+        this.dml.deleteRecord(dbo.connection!!, dbo.schema!!, dbo.entity!!, request).pipe(
           catchError((err) => {
             this._snackBar.open(`Error occurred when trying to delete entry from entity: ${err.error.description}.`, "Dismiss", { duration: 2000 } as MatSnackBarConfig);
             this.isLoading = false

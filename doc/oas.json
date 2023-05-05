@@ -145,11 +145,11 @@
         "security" : [ ]
       }
     },
-    "/api/{connection}/list" : {
+    "/api/{connection}" : {
       "get" : {
         "tags" : [ "DDL", "Schema" ],
         "summary" : "Lists all schemas in the database specified by the connection string.",
-        "operationId" : "getApiByConnectionList",
+        "operationId" : "getListSchema",
         "parameters" : [ {
           "name" : "connection",
           "in" : "path",
@@ -376,7 +376,7 @@
       "post" : {
         "tags" : [ "DDL", "Schema" ],
         "summary" : "Creates a new schema in the database specified by the connection string.",
-        "operationId" : "postApiByConnectionBySchema",
+        "operationId" : "postCreateSchema",
         "parameters" : [ {
           "name" : "connection",
           "in" : "path",
@@ -445,8 +445,8 @@
       },
       "delete" : {
         "tags" : [ "DDL", "Schema" ],
-        "summary" : "Creates a new schema in the database specified by the connection string.",
-        "operationId" : "deleteApiByConnectionBySchema",
+        "summary" : "Drops an existing schema in the database specified by the connection string.",
+        "operationId" : "deleteDropSchema",
         "parameters" : [ {
           "name" : "connection",
           "in" : "path",
@@ -512,13 +512,11 @@
         },
         "deprecated" : false,
         "security" : [ ]
-      }
-    },
-    "/api/{connection}/{schema}/list" : {
+      },
       "get" : {
         "tags" : [ "DDL", "Entity" ],
         "summary" : "Lists all entities in the database and schema specified by the connection string.",
-        "operationId" : "getApiByConnectionBySchemaList",
+        "operationId" : "getListEntities",
         "parameters" : [ {
           "name" : "connection",
           "in" : "path",
@@ -683,7 +681,7 @@
       "post" : {
         "tags" : [ "DDL", "Entity" ],
         "summary" : "Creates the entity specified by the connection string.",
-        "operationId" : "postApiByConnectionBySchemaByEntity",
+        "operationId" : "postCreateEntity",
         "parameters" : [ {
           "name" : "connection",
           "in" : "path",
@@ -776,7 +774,7 @@
       "delete" : {
         "tags" : [ "DDL", "Entity" ],
         "summary" : "Drops the entity specified by the connection string.",
-        "operationId" : "deleteApiByConnectionBySchemaByEntity",
+        "operationId" : "deleteDropEntity",
         "parameters" : [ {
           "name" : "connection",
           "in" : "path",
@@ -858,7 +856,7 @@
       "delete" : {
         "tags" : [ "DML", "Delete" ],
         "summary" : "Deletes an entry specified by the connection string and the provided key and value.",
-        "operationId" : "deleteApiByConnectionBySchemaByEntityDelete",
+        "operationId" : "deleteRecord",
         "parameters" : [ {
           "name" : "connection",
           "in" : "path",
@@ -1074,7 +1072,7 @@
       "delete" : {
         "tags" : [ "DDL", "Entity" ],
         "summary" : "Truncates the entity specified by the connection string.",
-        "operationId" : "deleteApiByConnectionBySchemaByEntityTruncate",
+        "operationId" : "deleteTruncateEntity",
         "parameters" : [ {
           "name" : "connection",
           "in" : "path",
@@ -1155,14 +1153,49 @@
   },
   "components" : {
     "schemas" : {
-      "Type" : {
-        "type" : "string",
-        "enum" : [ "BOOLEAN", "BYTE", "SHORT", "INTEGER", "LONG", "FLOAT", "DOUBLE", "DATE", "STRING", "COMPLEX32", "COMPLEX64", "DOUBLE_VECTOR", "FLOAT_VECTOR", "LONG_VECTOR", "INTEGER_VECTOR", "BOOLEAN_VECTOR", "COMPLEX32_VECTOR", "COMPLEX64_VECTOR", "BYTESTRING", "UNDEFINED" ]
-      },
       "Predicate" : {
         "type" : "object",
         "additionalProperties" : false,
         "properties" : { }
+      },
+      "Types" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "logicalSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "physicalSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "ordinal" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "name", "logicalSize", "physicalSize", "ordinal" ]
+      },
+      "PublicValue" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "logicalSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "type" : {
+            "$ref" : "#/components/schemas/Types"
+          },
+          "equal" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "logicalSize", "type", "equal" ]
       },
       "Dbo" : {
         "type" : "object",
@@ -1192,11 +1225,7 @@
             "type" : "string"
           },
           "type" : {
-            "$ref" : "#/components/schemas/Type"
-          },
-          "length" : {
-            "type" : "integer",
-            "format" : "int32"
+            "$ref" : "#/components/schemas/Types"
           },
           "nullable" : {
             "type" : "boolean"
@@ -1208,7 +1237,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "fqn", "type", "length", "nullable", "autoIncrement", "simple" ]
+        "required" : [ "fqn", "type", "nullable", "autoIncrement", "simple" ]
       },
       "EntityDetails" : {
         "type" : "object",
@@ -1263,7 +1292,7 @@
             "type" : "string"
           },
           "type" : {
-            "$ref" : "#/components/schemas/Type"
+            "$ref" : "#/components/schemas/Types"
           }
         },
         "required" : [ "name", "type" ]
@@ -1281,7 +1310,7 @@
           "values" : {
             "type" : "array",
             "items" : {
-              "type" : "object"
+              "$ref" : "#/components/schemas/PublicValue"
             }
           },
           "size" : {

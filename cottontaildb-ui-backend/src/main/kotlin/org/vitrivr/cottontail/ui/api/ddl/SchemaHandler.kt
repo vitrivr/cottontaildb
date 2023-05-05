@@ -7,7 +7,7 @@ import io.javalin.openapi.*
 import org.vitrivr.cottontail.client.language.ddl.CreateSchema
 import org.vitrivr.cottontail.client.language.ddl.DropSchema
 import org.vitrivr.cottontail.client.language.ddl.ListSchemas
-import org.vitrivr.cottontail.ui.api.database.drainToList
+import org.vitrivr.cottontail.ui.api.database.drainToArray
 import org.vitrivr.cottontail.ui.api.database.obtainClientForContext
 import org.vitrivr.cottontail.ui.model.dbo.Dbo
 import org.vitrivr.cottontail.ui.model.status.ErrorStatus
@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.ui.model.status.SuccessStatus
     path = "/api/{connection}/{schema}",
     methods = [HttpMethod.POST],
     summary = "Creates a new schema in the database specified by the connection string.",
-    operationId = OpenApiOperation.AUTO_GENERATE,
+    operationId = "postCreateSchema",
     tags = ["DDL", "Schema"],
     pathParams = [
         OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true),
@@ -49,8 +49,8 @@ fun createSchema(context: Context){
 @OpenApi(
     path = "/api/{connection}/{schema}",
     methods = [HttpMethod.DELETE],
-    summary = "Creates a new schema in the database specified by the connection string.",
-    operationId = OpenApiOperation.AUTO_GENERATE,
+    summary = "Drops an existing schema in the database specified by the connection string.",
+    operationId = "deleteDropSchema",
     tags = ["DDL", "Schema"],
     pathParams = [
         OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true),
@@ -79,10 +79,10 @@ fun dropSchema(context: Context){
 }
 
 @OpenApi(
-    path = "/api/{connection}/list",
+    path = "/api/{connection}",
     methods = [HttpMethod.GET],
     summary = "Lists all schemas in the database specified by the connection string.",
-    operationId = OpenApiOperation.AUTO_GENERATE,
+    operationId = "getListSchema",
     tags = ["DDL", "Schema"],
     pathParams = [
         OpenApiParam(name = "connection", description = "Connection string in the for <host>:<port>.", required = true)
@@ -100,7 +100,7 @@ fun listSchemas(context: Context) {
     /** using ClientConfig's client, sending ListSchemas message to Cottontail DB. */
     try {
         /** Iterate through schemas and create list. */
-        val schemas = client.list(ListSchemas()).drainToList {
+        val schemas = client.list(ListSchemas()).drainToArray {
             Dbo.schema(it.asString(0)!!)
         }
         context.json(schemas)

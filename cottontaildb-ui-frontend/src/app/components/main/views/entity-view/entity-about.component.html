@@ -6,8 +6,8 @@
         <mat-icon matListItemIcon>view_column_2</mat-icon>
         <div matListItemTitle>{{c.simple}}</div>
         <div matListItemLine>
-          {{c.type}}
-          {{c.length > 1 ? '(' + c.length + ')' : ''}}
+          {{c.type.name}}
+          {{c.type.logicalSize > 1 ? '(' + c.type.logicalSize + ')' : ''}}
           {{c.nullable ? ', NULLABLE' : ', NOT NULLABLE'}}
           {{c.autoIncrement ? ', AUTO INCREMENT' : ''}}
         </div>

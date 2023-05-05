@@ -65,9 +65,7 @@ fun previewEntity(context: Context) {
         val iterator = client.query(query)
         val columnsNames = iterator.simpleNames
         val columnsTypes = iterator.columnTypes
-        val results = iterator.drainToList { t ->
-            (0..t.size()).map { t[it] }.toTypedArray()
-        }
+        val results = iterator.drainToList { t -> t.values() }
         context.json(Resultset(columnsNames.zip(columnsTypes).map { Column(it.first, it.second) }, results, count))
     } catch (e: StatusRuntimeException) {
         when (e.status.code) {
