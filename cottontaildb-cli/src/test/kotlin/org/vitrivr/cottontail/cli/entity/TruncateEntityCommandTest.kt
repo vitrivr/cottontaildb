@@ -35,7 +35,7 @@ class TruncateEntityCommandTest : AbstractClientTest() {
     @Test
     fun truncateEntity() {
         TestConstants.ALL_ENTITY_NAMES.forEach { en ->
-            TruncateEntityCommand.truncate(en, this.client, true)
+            TruncateEntityCommand.truncate(en, this.client)
             Assertions.assertEquals(0L, countElements(this.client, en))
         }
     }
@@ -46,7 +46,7 @@ class TruncateEntityCommandTest : AbstractClientTest() {
     @Test
     fun truncateEntityWithLucene() {
         GrpcTestUtils.createLuceneIndexOnTestEntity(this.client)
-        TruncateEntityCommand.truncate(TestConstants.TEST_ENTITY_NAME, this.client, true)
+        TruncateEntityCommand.truncate(TestConstants.TEST_ENTITY_NAME, this.client)
         Assertions.assertEquals(0, countElements(this.client, TestConstants.TEST_ENTITY_NAME))
     }
 }

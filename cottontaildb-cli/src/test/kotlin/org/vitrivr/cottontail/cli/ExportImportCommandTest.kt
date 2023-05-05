@@ -57,7 +57,7 @@ class ExportImportCommandTest : AbstractClientTest() {
             TestConstants.ALL_ENTITY_NAMES.forEach { entityName ->
                 val exportFile = exportFile(format, entityName)
                 val count = countElements(this.client, entityName)
-                TruncateEntityCommand.truncate(entityName, this.client, true)
+                TruncateEntityCommand.truncate(entityName, this.client)
                 ImportDataCommand.importData(entityName, exportFile, format, this.client, true)
                 assert(count == countElements(this.client, entityName))
             }
@@ -72,7 +72,7 @@ class ExportImportCommandTest : AbstractClientTest() {
             exportEntity(format, TEST_ENTITY_NAME)
             val exportFile = exportFile(format, TEST_ENTITY_NAME)
             val count = countElements(this.client, TEST_ENTITY_NAME)
-            TruncateEntityCommand.truncate(TEST_ENTITY_NAME, this.client, true)
+            TruncateEntityCommand.truncate(TEST_ENTITY_NAME, this.client)
             ImportDataCommand.importData(TEST_ENTITY_NAME, exportFile, format, this.client, true)
             assert(count == countElements(this.client, TEST_ENTITY_NAME))
         }
