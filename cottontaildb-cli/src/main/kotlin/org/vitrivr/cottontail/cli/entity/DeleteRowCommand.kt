@@ -5,7 +5,7 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import io.grpc.StatusException
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.basics.predicate.Expression
 import org.vitrivr.cottontail.client.language.dml.Delete
@@ -20,7 +20,7 @@ import kotlin.time.measureTimedValue
  * @version 1.0.0
  */
 @ExperimentalTime
-class DeleteRowCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "delete-row", help = "Deletes all rows where a given column matches a given value from the database. Usage: entity delete-row -c <col> -v <value> <schema>.<entity>") {
+class DeleteRowCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "delete-row", help = "Deletes all rows where a given column matches a given value from the database. Usage: entity delete-row -c <col> -v <value> <schema>.<entity>") {
 
     /** Flag that can be used to directly provide confirmation. */
     private val confirm: Boolean by option(
