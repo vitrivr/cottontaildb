@@ -19,21 +19,11 @@ import kotlin.system.measureTimeMillis
  */
 class AnalyseEntityOperator(private val tx: CatalogueTx, private val name: Name.EntityName, private val service: StatisticsManagerService? = null, override val context: QueryContext) : AbstractDataDefinitionOperator(name, "ANALYSE ENTITY") {
     override fun toFlow(): Flow<Record> = flow {
-        //val schemaTxn = this@AnalyseEntityOperator.tx.schemaForName(this@AnalyseEntityOperator.name.schema()).newTx(this@AnalyseEntityOperator.context)
-        //val entityTxn = schemaTxn.entityForName(this@AnalyseEntityOperator.name).newTx(this@AnalyseEntityOperator.context)
         val time = measureTimeMillis {
             if (this@AnalyseEntityOperator.service != null) {
-                this@AnalyseEntityOperator.service.updateStatisticsOfEntity(this@AnalyseEntityOperator.name)
-                /*for (column in entityTxn.listColumns().map { entityTxn.columnForName(it.name) }) {
-                    this@AnalyseEntityOperator.service.increaseChangeCount(column.name)
-                }*/
+                this@AnalyseEntityOperator.service.manuallyUpdateStatisticsOfEntity(this@AnalyseEntityOperator.name)
+
             }
-            /*else {
-                for (column in entityTxn.listColumns().map { entityTxn.columnForName(it.name) }) {
-                    val columnTx = column.newTx(this@AnalyseEntityOperator.context)
-                    columnTx.analyse()
-                }
-            }*/
         }
         emit(this@AnalyseEntityOperator.statusRecord(time))
     }

@@ -7,7 +7,7 @@
   },
   "statistics" : {
     "threshold" : 1.0,
-    "probability" : 0.2,
+    "probability" : 0.5,
     "randomGeneratorName": "L32X64MixRandom"
   }
 }

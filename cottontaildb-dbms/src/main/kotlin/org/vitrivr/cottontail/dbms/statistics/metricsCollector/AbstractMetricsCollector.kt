@@ -21,7 +21,7 @@ import kotlin.math.max
 sealed class AbstractMetricsCollector<T : Value>(override val type: Types<T>, override val config: MetricsConfig) : MetricsCollector<T> {
 
     /** Init a BloomFilter*/
-    private val expectedElements = max(config.expectedNumElements, 10000) // If we know nothing about the num of elements or if it's very small, we just assume 10000 entries
+    private val expectedElements = max(config.expectedNumElements, 50000) // If we know nothing about the num of elements or if it's very small, we just assume 10000 entries
     private var bloomFilter : BloomFilter<Value> =  BloomFilter.create<Value>(Value.ValueFunnel, expectedElements, config.statisticsConfig.falsePositiveProbability)
 
     /** Global Metrics */

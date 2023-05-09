@@ -210,16 +210,40 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
                 val columns = entityTx.listColumns().toTypedArray()
 
                 // Define random properties for skipping some rows of the entity -> only take a sample of the database
-                val probability = this@StatisticsManagerService.catalogue.config.statistics.probability
+                var probability = this@StatisticsManagerService.catalogue.config.statistics.probability
                 val randomNumberGenerator = this@StatisticsManagerService.catalogue.config.statistics.randomGenerator
+
+                // Define a minimum number of entries that have to exist before we start to sample
+                val minSamplingNumber = 100000
+                var expectedEntries = (numberOfEntries * probability).toLong()
+                if (numberOfEntries == 0L) {
+                    LOGGER.info("Number of entries $numberOfEntries is 0!")
+                }
+                if (numberOfEntries < minSamplingNumber) {
+                    // If the number of entries is smaller than the minimum sampling number, we have to sample the whole set
+                    probability = 1f
+                    expectedEntries = numberOfEntries
+                    LOGGER.info("Probability was set to $probability because the number of entries $numberOfEntries is smaller than the minimum sampling number $minSamplingNumber.")
+                } else if (numberOfEntries >= minSamplingNumber && expectedEntries < minSamplingNumber) {
+                    // If the number of entries is bigger than the minimum sampling number, but the expected number of entries is smaller than the minimum sampling number, we calculate the new probability such that exactly the minSamplingNumber of entries are sampled
+                    val prevProbability = probability // store for logging
+                    probability = minSamplingNumber / numberOfEntries.toFloat()
+                    LOGGER.info("Probability was set to $probability because the number of entries $numberOfEntries * $prevProbability = $expectedEntries is smaller than the minimum sampling number $minSamplingNumber.")
+                    expectedEntries = minSamplingNumber.toLong()
+                } else {
+                    // Sample size big enough, do nothing
+                }
+
 
                 // get the collectors for all columns and give them the numberOfEntries to init the BloomFilter
                 // numberOfEntries is multiplied with probability since the Bloomfilter is only getting a sample of the whole set
                 // init list of collectors
                 val columnsCollector = mutableListOf<MetricsCollector<*>>()
+
+
                 // Fill this list
                 columns.forEach { columnDef ->
-                    val collector = getCollector(columnDef, this@StatisticsManagerService.catalogue.config.statistics, (probability * numberOfEntries).toLong())
+                    val collector = getCollector(columnDef, this@StatisticsManagerService.catalogue.config.statistics, expectedEntries)
                     columnsCollector.add(collector)
                 }
 
@@ -266,6 +290,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
                 columns.forEachIndexed { i, colDef ->
                     val metrics = metricsList[i]
                     val columnMetrics = ColumnMetrics(colDef.name, metrics.type, metrics)
+                    this@StatisticsManagerService.entityMap[entityName] = columnMetrics.statistics.numberOfEntries // store number of entries in in-memory buffer for fast access
                     this@StatisticsManagerService.catalogue.statisticsStorageManager.updatePersistently(columnMetrics, statisticsTransaction)
                 }
 
@@ -317,11 +342,9 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
         return collector
     }
 
-    /**
-     * This function updates the statistics/metrics of every column of an entity.
-     * But it does so only when a specific Threshold is reached. If you want to force an update the numberOfEntries parameter can just be omitted
-     */
-    fun updateStatisticsOfEntity(entity: Name.EntityName, numberOfEntries : Long = 0L) {
+    private fun updateStatisticsOfEntity(entity: Name.EntityName, numberOfEntries : Long = 0L, forceUpdate : Boolean = false) {
+
+        entity.schema()
 
         // Get Threshold from config
         val threshold = catalogue.config.statistics.threshold
@@ -334,8 +357,12 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
             // Get number of changes
             val changes  = this@StatisticsManagerService.catalogue.metaDataStatisticsStorage[entity]
 
-            if (changes + 1 >= threshold * numberOfEntries) {
-                LOGGER.info("A new task was scheduled to recreate statistics for entity " + entity.schemaName + "." + entity.entityName + ", because ${changes + 1} >= ${threshold * numberOfEntries}")
+            if (changes + 1 >= threshold * numberOfEntries || forceUpdate) {
+                if (forceUpdate) {
+                    LOGGER.info("A new task was scheduled to recreate statistics for entity " + entity.schemaName + "." + entity.entityName + ", because forceUpdate was set to true")
+                } else {
+                    LOGGER.info("A new task was scheduled to recreate statistics for entity " + entity.schemaName + "." + entity.entityName + ", because the number of changes ${changes + 1} >= the threshold ${threshold * numberOfEntries}")
+                }
 
                 // schedule task for this column
                 this.schedule(entity, numberOfEntries)
@@ -344,7 +371,7 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
                 this@StatisticsManagerService.catalogue.metaDataStatisticsStorage.resetEntityChanges(entity, statisticsTransaction)
 
             } else {
-                LOGGER.info("Change does not trigger a new task for entity " + entity.schemaName + "." + entity.entityName + ", because ${changes + 1} < ${threshold * numberOfEntries}")
+                //LOGGER.info("Change does not trigger a new task for entity " + entity.schemaName + "." + entity.entityName + ", because ${changes + 1} < ${threshold * numberOfEntries}")
 
                 this@StatisticsManagerService.catalogue.metaDataStatisticsStorage.increaseEntityChanges(entity, statisticsTransaction)
             }
@@ -356,21 +383,73 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
         }
     }
 
+    /** This map acts as an in-memory buffer that stores the numberOfEntries per Entity for fast access*/
+    private val entityMap = mutableMapOf<Name.EntityName, Long>()
+
+    /**
+     * This function updates the statistics/metrics of every column of an entity.
+     * But it does so only when a specific Threshold is reached. If you want to force an update the numberOfEntries parameter can just be omitted
+     */
+
+
+    fun manuallyUpdateStatisticsOfEntity(entityName: Name.EntityName) {
+
+        val numOfEntries = this.entityMap[entityName]
+        if (numOfEntries != null) {
+            // get numberOfEntries directly from memory
+            this.updateStatisticsOfEntity(entityName, numOfEntries, forceUpdate = true)
+        } else {
+            // get numberOfEntries via columns
+            val transaction = this@StatisticsManagerService.manager.startTransaction(TransactionType.SYSTEM_READONLY)
+            val context = DefaultQueryContext(
+                "statistics-manager-${this@StatisticsManagerService.counter.incrementAndGet()}",
+                this@StatisticsManagerService.catalogue,
+                transaction
+            )
+            try {
+                val catalogueTx = this@StatisticsManagerService.catalogue.newTx(context)
+                val schema = catalogueTx.schemaForName(entityName.schema() ?: return)
+                val schemaTx = schema.newTx(context)
+                val entity = schemaTx.entityForName(entityName ?: return)
+                val entityTx = entity.newTx(context)
+                val columns = entityTx.listColumns().toTypedArray()
+                transaction.commit()
+
+                val numOfEntriesFromDisk = this.getNumberOfEntriesByColumnDef(columns)
+
+                this.updateStatisticsOfEntity(entityName, numOfEntriesFromDisk, forceUpdate = true)
+
+            } catch (e: Throwable) {
+                StatisticsManagerService.LOGGER.error("Statistics Manager getting columns of entity $entityName failed due to exception: ${e.message}.")
+                transaction.rollback()
+            }
+        }
+
+
+    }
+
     /**
      * This function gets the number of entries for an entity and returns them
      */
     private fun numberOfEntriesOfDataEvent(dataEvent: DataEvent) : Long {
-
-        // get
         val columnDefs = dataEvent.data
         var minNumberOfEntries = Long.MAX_VALUE
         for (key in columnDefs.keys) {
             val columnMetrics = this@StatisticsManagerService.catalogue.statisticsStorageManager[key.name]
             minNumberOfEntries = min(minNumberOfEntries, columnMetrics?.statistics?.numberOfEntries ?: 0L)
         }
-
         return if (minNumberOfEntries != Long.MAX_VALUE) minNumberOfEntries else 0L
-
     }
+
+    private fun getNumberOfEntriesByColumnDef(columnDefs: Array<ColumnDef<*>>): Long {
+        var minNumberOfEntries = Long.MAX_VALUE
+        for (columnDef in columnDefs) {
+            val columnName = columnDef.name
+            val columnMetrics = this@StatisticsManagerService.catalogue.statisticsStorageManager[columnName]
+            minNumberOfEntries = min(minNumberOfEntries, columnMetrics?.statistics?.numberOfEntries ?: 0L)
+        }
+        return if (minNumberOfEntries != Long.MAX_VALUE) minNumberOfEntries else 0L
+    }
+
 
 }
