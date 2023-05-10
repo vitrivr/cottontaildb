@@ -36,7 +36,7 @@ class ProtoDataExporter(override val path: Path) : DataExporter {
      */
     override fun offer(tuple: Tuple) {
         val insert = CottontailGrpc.InsertMessage.newBuilder()
-        for (i in (0..tuple.size())) {
+        for (i in (0 until tuple.size())) {
             val name = tuple.nameForIndex(i)
             val value = tuple[i]?.toGrpc()
             val builder = insert.addElementsBuilder()
