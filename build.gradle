@@ -106,12 +106,6 @@ subprojects {
         implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: version_kotlinx_coroutines
         implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-json-jvm', version: version_kotlinx_json_jvm
 
-        ///// Cottontail DB Driver + gRPC dependencies
-        implementation group: 'org.vitrivr', name: 'cottontaildb-proto', version: version_cottontaildb_driver
-        implementation group: 'io.grpc', name: 'grpc-all', version: version_grpc
-        implementation group: 'io.grpc', name: 'grpc-kotlin-stub', version: version_grpc_kotlin
-        implementation group: 'com.google.protobuf', name: 'protobuf-java', version: version_protobuf
-
         ////// Log4j2 & SLF4j
         implementation group: 'org.slf4j', name: 'slf4j-api', version: version_slf4j
         implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: version_log4j2
@@ -133,15 +127,18 @@ distributions {
             into('bin') {
                 from { project(':cottontaildb-dbms').startScripts.outputs.files }
                 from { project(':cottontaildb-cli').startScripts.outputs.files }
+                from { project(':cottontaildb-ui-backend').startScripts.outputs.files }
                 fileMode = 0755
             }
             into('lib') {
                 def libs = []
                 libs << project(':cottontaildb-dbms').configurations.runtimeClasspath
                 libs << project(':cottontaildb-cli').configurations.runtimeClasspath
+                libs << project(':cottontaildb-ui-backend').configurations.runtimeClasspath
                 from libs
                 from project(':cottontaildb-dbms').jar
                 from project(':cottontaildb-cli').jar
+                from project(':cottontaildb-ui-backend').jar
             }
         }
     }

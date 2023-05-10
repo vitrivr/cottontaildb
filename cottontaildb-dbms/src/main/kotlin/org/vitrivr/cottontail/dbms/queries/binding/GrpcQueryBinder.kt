@@ -8,10 +8,10 @@ import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Signature
-import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotFoundException
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
+import org.vitrivr.cottontail.core.toType
 import org.vitrivr.cottontail.core.toValue
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.StringValue
@@ -130,11 +130,11 @@ object GrpcQueryBinder {
             entityTx.columnForName(columnName).columnDef
         }
         val values = Array(insert.elementsCount) {
-            val literal = insert.elementsList[it].value
-            if (literal.dataCase == CottontailGrpc.Literal.DataCase.DATA_NOT_SET) {
+            val literal = insert.elementsList[it].value.toValue()
+            if (literal == null) {
                 this@QueryContext.bindings.bindNull(columns[it].type)
             } else {
-                this@QueryContext.bindings.bind(literal.toValue(columns[it].type))
+                this@QueryContext.bindings.bind(literal)
             }
         }
 
@@ -165,11 +165,11 @@ object GrpcQueryBinder {
         /* Parse records to BATCH INSERT. */
         val records: MutableList<Record> = insert.insertsList.map { ins ->
             RecordBinding(-1L, columns, Array(ins.valuesCount) { i ->
-                val literal = ins.valuesList[i]
-                if (literal.dataCase == CottontailGrpc.Literal.DataCase.DATA_NOT_SET) {
+                val literal = ins.valuesList[i].toValue()
+                if (literal == null) {
                     this@QueryContext.bindings.bindNull(columns[i].type)
                 } else {
-                    this@QueryContext.bindings.bind(literal.toValue(columns[i].type))
+                    this@QueryContext.bindings.bind(literal)
                 }
             }, this@QueryContext.bindings)
         }.toMutableList()
@@ -197,10 +197,11 @@ object GrpcQueryBinder {
             val column = root.findUniqueColumnForName(it.column.fqn())
             val value = when (it.value.expCase) {
                 CottontailGrpc.Expression.ExpCase.LITERAL -> {
-                    if (it.value.literal.dataCase == CottontailGrpc.Literal.DataCase.DATA_NOT_SET) {
-                        this@QueryContext.bindings.bindNull(column.type)
+                    val v = it.value.literal.toValue()
+                    if (v == null) {
+                        this@QueryContext.bindings.bindNull(it.value.literal.toType())
                     } else {
-                        this@QueryContext.bindings.bind(it.value.literal.toValue(column.type))
+                        this@QueryContext.bindings.bind(v)
                     }
                 }
                 CottontailGrpc.Expression.ExpCase.COLUMN -> this@QueryContext.bindings.bind(root.findUniqueColumnForName(it.value.column.fqn()))
@@ -413,8 +414,15 @@ object GrpcQueryBinder {
      */
     context(QueryContext)
     private fun parseAndBindExpression(input: OperatorNode.Logical, expression: CottontailGrpc.Expression): Binding = when(expression.expCase) {
-        CottontailGrpc.Expression.ExpCase.LITERAL ->  this@QueryContext.bindings.bind(expression.literal.toValue())
-        CottontailGrpc.Expression.ExpCase.LITERALLIST -> this@QueryContext.bindings.bind(expression.literalList.literalList.map { it.toValue() })
+        CottontailGrpc.Expression.ExpCase.LITERAL -> {
+            val v = expression.literal.toValue()
+            if (v == null) {
+                this@QueryContext.bindings.bindNull(expression.literal.toType())
+            } else {
+                this@QueryContext.bindings.bind(v)
+            }
+        }
+        CottontailGrpc.Expression.ExpCase.LITERALLIST -> this@QueryContext.bindings.bind(expression.literalList.literalList.mapNotNull { it.toValue() })
         CottontailGrpc.Expression.ExpCase.COLUMN -> this@QueryContext.bindings.bind(input.findUniqueColumnForName(expression.column.fqn()))
         CottontailGrpc.Expression.ExpCase.FUNCTION -> parseAndBindFunction(input, expression.function)
         CottontailGrpc.Expression.ExpCase.QUERY -> {
@@ -437,7 +445,14 @@ object GrpcQueryBinder {
     private fun parseAndBindFunction(input: OperatorNode.Logical, function: CottontailGrpc.Function): Binding.Function {
         val arguments = function.argumentsList.mapIndexed { i, a ->
             when (a.expCase) {
-                CottontailGrpc.Expression.ExpCase.LITERAL -> this@QueryContext.bindings.bind(a.literal.toValue())
+                CottontailGrpc.Expression.ExpCase.LITERAL -> {
+                    val v = a.literal.toValue()
+                    if (v == null) {
+                        this@QueryContext.bindings.bindNull(a.literal.toType())
+                    } else {
+                        this@QueryContext.bindings.bind(v)
+                    }
+                }
                 CottontailGrpc.Expression.ExpCase.COLUMN -> this@QueryContext.bindings.bind(input.findUniqueColumnForName(a.column.fqn()))
                 CottontailGrpc.Expression.ExpCase.FUNCTION ->  parseAndBindFunction(input, a.function)
                 else -> throw QueryException.QuerySyntaxException("Function argument at position $i is malformed.")

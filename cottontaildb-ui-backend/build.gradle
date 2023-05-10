@@ -32,6 +32,9 @@ dependencies {
     /* Frontend artifact (HTML, JavaScript, CSS). */
     implementation frontendClasspath(project(path: ":cottontaildb-ui-frontend", configuration: 'frontendFiles'))
 
+    /* The Cottontail DB client library. */
+    implementation project(':cottontaildb-client')
+
     /* Javalin 5 */
     implementation group: 'io.javalin', name: 'javalin', version: version_javalin
     implementation group: 'io.javalin.community.openapi', name: 'javalin-openapi-plugin', version: version_javalin

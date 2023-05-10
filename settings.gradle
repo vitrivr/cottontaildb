@@ -1,5 +1,9 @@
 rootProject.name = 'cottontaildb'
-include 'cottontaildb-core', 'cottontaildb-dbms', 'cottontaildb-cli'
+
+include 'cottontaildb-client'
+include 'cottontaildb-core'
+include 'cottontaildb-cli'
+include 'cottontaildb-dbms'
 include 'cottontaildb-ui-backend'
 include 'cottontaildb-ui-frontend'
 

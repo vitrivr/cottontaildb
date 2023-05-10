@@ -1,0 +1,660 @@
+syntax = "proto3";
+
+package org.vitrivr.cottontail.grpc;
+
+import "google/protobuf/empty.proto";
+
+option java_package = "org.vitrivr.cottontail.grpc";
+option java_outer_classname = "CottontailGrpc";
+
+service DDL {
+    /* Lists all schemas. */
+    rpc ListSchemas (ListSchemaMessage) returns (stream QueryResponseMessage);
+
+    /* Creates a new schema. */
+    rpc CreateSchema (CreateSchemaMessage) returns (QueryResponseMessage);
+
+    /* Drops an existing schema. */
+    rpc DropSchema (DropSchemaMessage) returns (QueryResponseMessage);
+
+    /* Lists all available entities for the given schema. */
+    rpc ListEntities (ListEntityMessage) returns (stream QueryResponseMessage);
+
+    /* Returns details about the given entity. */
+    rpc EntityDetails (EntityDetailsMessage) returns (QueryResponseMessage);
+
+    /* Returns details about the given column. */
+    rpc EntityStatistics (EntityDetailsMessage) returns (QueryResponseMessage);
+
+    /* Returns details about the given index. */
+    rpc IndexDetails (IndexDetailsMessage) returns (QueryResponseMessage);
+
+    /** Creates a new entity. */
+    rpc CreateEntity (CreateEntityMessage) returns (QueryResponseMessage);
+
+    /** Drops an existing entity. */
+    rpc DropEntity (DropEntityMessage) returns (QueryResponseMessage);
+
+    /** Truncates an existing entity. */
+    rpc TruncateEntity (TruncateEntityMessage) returns (QueryResponseMessage);
+
+    /* Optimizing and truncating entities. */
+    rpc AnalyzeEntity (AnalyzeEntityMessage) returns (QueryResponseMessage);
+
+    /** Creates a new index. */
+    rpc CreateIndex (CreateIndexMessage) returns (QueryResponseMessage);
+
+    /** Drops an existing index. */
+    rpc DropIndex (DropIndexMessage) returns (QueryResponseMessage);
+
+    /** Rebuilds an existing index. */
+    rpc RebuildIndex (RebuildIndexMessage) returns (QueryResponseMessage);
+}
+
+/**
+ * Endpoint for data management (INSERT, UPDATE and DELETE).
+ */
+service DML {
+    /** Inserts data into an entity. Each INSERT returns a record with a status. */
+    rpc Insert (InsertMessage) returns (QueryResponseMessage);
+
+    /** Inserts data into an entity in batches! InsertMessages are collected until Cottontail DBs cache is saturated and then persisted in one go. */
+    rpc InsertBatch (BatchInsertMessage) returns (QueryResponseMessage);
+
+    /** Updates data in an entity. Each UPDATE returns a record with a status. */
+    rpc Update (UpdateMessage) returns (QueryResponseMessage);
+
+    /** Deletes data from an entity. Each DELETE returns a record with a status. */
+    rpc Delete (DeleteMessage) returns (QueryResponseMessage);
+}
+
+/**
+ * Endpoint for data management (SELECT).
+ */
+service DQL {
+    /** Evaluates and returns the execution plan for a query. */
+    rpc Explain (QueryMessage) returns (stream QueryResponseMessage);
+
+    /** Executes a query through Cottontail DB. */
+    rpc Query (QueryMessage) returns (stream QueryResponseMessage);
+
+    /** Pings the endpoint */
+    rpc Ping (google.protobuf.Empty) returns (google.protobuf.Empty);
+}
+
+/**
+ * Endpoint for transaction management.
+ */
+service TXN {
+    /** Starts a new transaction. */
+    rpc Begin (BeginTransaction) returns (ResponseMetadata);
+
+    /** Performs a commit on a transaction. This method blocks if a query is currently executed. */
+    rpc Commit (RequestMetadata) returns (google.protobuf.Empty);
+
+    /** Performs a rollback on a transaction and aborts it. This method blocks if a query is currently executed. */
+    rpc Rollback (RequestMetadata) returns (google.protobuf.Empty);
+
+    /** Kills and performs a rollback on an ongoing transaction. This method can even be used when a query is being executed.*/
+    rpc Kill (RequestMetadata) returns (google.protobuf.Empty);
+
+    /** Lists all active transactions. */
+    rpc ListTransactions (google.protobuf.Empty) returns (stream QueryResponseMessage);
+
+    /** Lists all active locks on database objects. */
+    rpc ListLocks (google.protobuf.Empty) returns (stream QueryResponseMessage);
+}
+
+/** Identifier for a schema.  */
+message SchemaName {
+    string name = 1;
+}
+
+/** Identifier for a function. */
+message FunctionName {
+    string name = 1;
+}
+
+/** Identifier for an entity. */
+message EntityName {
+    SchemaName schema = 1;
+    string name = 2;
+}
+
+/** Identifier for an index. */
+message IndexName {
+    EntityName entity = 1;
+    string name = 2;
+}
+
+/** Identifier for a column. */
+message ColumnName {
+    EntityName entity = 1;
+    string name = 2;
+}
+
+/** Type of index. */
+enum IndexType {
+    BTREE = 0;
+    BTREE_UQ = 1;
+    LUCENE = 2;
+    VAF = 3;
+    PQ = 4;
+    IVFPQ = 5;
+    LSH = 6;
+}
+
+/** The mode of the transaction. */
+enum TransactionMode {
+    READ_WRITE = 0;
+    READONLY = 1;
+}
+
+/** Message to begin a transaction with. */
+message BeginTransaction {
+    TransactionMode mode = 1;
+}
+
+/** Query metadata used in Cottontail DB. */
+message RequestMetadata {
+    int64 transactionId = 1;
+    string queryId = 2;
+
+    /** Hints to the query planner. */
+    ParallelismHint parallelHint = 10;
+    IndexHint indexHint = 11;
+    PolicyHint policyHint = 12;
+    bool noOptimiseHint = 13;
+
+    /** A query hint regarding parallelism. */
+    message ParallelismHint {
+        int32 limit = 1;
+    }
+
+    /** A query hint regarding the index that should be employed. */
+    message IndexHint {
+        oneof setting {
+            string name = 1;
+            IndexType type = 2;
+            bool disallow = 3;
+        }
+    }
+
+    /** A query hint regarding the cost policy that should be employed. */
+    message PolicyHint {
+        float weightIo = 1;
+        float weightCpu = 2;
+        float weightMemory = 3;
+        float weightAccuracy = 4;
+    }
+}
+
+/** Metadata associated with a query response. */
+message ResponseMetadata {
+    /* Transaction information. */
+    int64 transactionId = 1;
+    TransactionMode transactionMode = 2;
+
+    /* Query information. */
+    string queryId = 3;
+    int64 planDuration = 4;  /* Time it took to plan the query. */
+    float planScore = 5;     /* Score assigned to selected query plan. */
+    int64 queryDuration = 6; /* Time it took to execute the query. */
+}
+
+/* The basic data types supported by Cottontail DB columns. */
+enum Type {
+    /* Scalar types. */
+    BOOLEAN = 0;
+    BYTE = 1;
+    SHORT = 2;
+    INTEGER = 3;
+    LONG = 4;
+    FLOAT = 5;
+    DOUBLE = 6;
+    DATE = 7;
+    STRING = 8;
+
+    /* Complex types. */
+    COMPLEX32 = 9;
+    COMPLEX64 = 10;
+
+    /* Vector types. */
+    DOUBLE_VECTOR = 11;
+    FLOAT_VECTOR = 12;
+    LONG_VECTOR = 13;
+    INT_VECTOR = 14;
+    BOOL_VECTOR = 15;
+    COMPLEX32_VECTOR = 16;
+    COMPLEX64_VECTOR = 17;
+
+    /* Binary */
+    BYTESTRING = 18;
+}
+
+/** Literal data, i.e., field that actually contains information. */
+message Literal {
+    oneof data {
+        bool booleanData = 1;
+        int32 intData = 2;
+        int64 longData = 3;
+        float floatData = 4;
+        double doubleData = 5;
+        string stringData = 6;
+        int64 dateData = 7;
+        Complex32 complex32Data = 8;
+        Complex64 complex64Data = 9;
+        Vector vectorData = 10;
+        bytes byteStringData = 11;
+        Null nullData = 12;
+    }
+}
+
+/** A list of literal data. */
+message LiteralList {
+    repeated Literal literal = 1;
+}
+
+/** An expression can either be a literal, a column reference, a function invocation or a new query. */
+message Expression {
+    oneof exp {
+        Literal literal = 1;
+        LiteralList literalList = 2;
+        ColumnName column = 3;
+        Function function = 4;
+        Query query = 5;
+    }
+}
+
+/** A function; special type of logic usually executed on expressions used for nearest neighbor search (NNS) and other.*/
+message Function {
+    FunctionName name = 1;
+    repeated Expression arguments = 2;
+}
+
+/** A list of expressions. */
+message Expressions {
+    repeated Expression expression = 1;
+}
+
+/** Vector data (as opposed to scalar data). */
+message Vector {
+    oneof vectorData {
+        FloatVector floatVector = 1;
+        DoubleVector doubleVector = 2;
+        IntVector intVector = 3;
+        LongVector longVector = 4;
+        BoolVector boolVector = 5;
+        Complex32Vector complex32Vector = 6;
+        Complex64Vector complex64Vector = 7;
+    }
+}
+
+/** A null entry.*/
+message Null {
+    Type type = 1;
+    int32 size = 2;
+}
+
+/** A complex number entry using floats.*/
+message Complex32 {
+    float real = 1;
+    float imaginary = 2;
+}
+
+/** A complex number entry using doubles.*/
+message Complex64 {
+    double real = 1;
+    double imaginary = 2;
+}
+
+/** A float vector. */
+message FloatVector {
+    repeated float vector = 1;
+}
+
+/** A double vector. */
+message DoubleVector {
+    repeated double vector = 1;
+}
+
+/** A int vector. */
+message IntVector {
+    repeated int32 vector = 1;
+}
+
+/** A long vector. */
+message LongVector {
+    repeated int64 vector = 1;
+}
+
+/** A boolean vector. */
+message BoolVector {
+    repeated bool vector = 1;
+}
+
+/** A complex vector using 32bit floating point numbers. */
+message Complex32Vector {
+    repeated Complex32 vector = 1;
+}
+
+/** A complex vector using 64bit floating point numbers. */
+message Complex64Vector {
+    repeated Complex64 vector = 1;
+}
+
+/*
+ * Data Definition Language (DDL) messages
+ */
+
+/** Message to create a new schema. */
+message CreateSchemaMessage {
+    RequestMetadata metadata = 1;
+    SchemaName schema = 2;
+}
+
+/** Message to drop schema. */
+message DropSchemaMessage {
+    RequestMetadata metadata = 1;
+    SchemaName schema = 2;
+}
+
+/** Message to list schemata. */
+message ListSchemaMessage {
+    RequestMetadata metadata = 1;
+}
+
+/** Message to create an entity. */
+message CreateEntityMessage {
+    RequestMetadata metadata = 1;
+    EntityDefinition definition = 2;
+}
+
+/** Message to drop an entity. */
+message DropEntityMessage {
+    RequestMetadata metadata = 1;
+    EntityName entity = 2;
+}
+
+/** Message to drop an entity. */
+message TruncateEntityMessage {
+    RequestMetadata metadata = 1;
+    EntityName entity = 2;
+}
+
+/** Message to drop an entity. */
+message AnalyzeEntityMessage {
+    RequestMetadata metadata = 1;
+    EntityName entity = 2;
+    bool async = 3;
+}
+
+/** Message to query entity details. */
+message EntityDetailsMessage {
+    RequestMetadata metadata = 1;
+    EntityName entity = 2;
+}
+
+/** Message to query index details. */
+message IndexDetailsMessage {
+    RequestMetadata metadata = 1;
+    IndexName index = 2;
+}
+
+
+/** Message to list entities. */
+message ListEntityMessage {
+    RequestMetadata metadata = 1;
+    SchemaName schema = 2;
+}
+
+/** Message to create an index. */
+message CreateIndexMessage {
+    RequestMetadata metadata = 1;
+    EntityName entity = 2;
+    IndexType type = 3;
+    string indexName = 4;
+    repeated string columns = 5;
+    map<string,string> params = 6;
+}
+
+/** Message to drop an index. */
+message DropIndexMessage {
+    RequestMetadata metadata = 1;
+    IndexName index = 2;
+}
+
+/** Message to rebuild an index. */
+message RebuildIndexMessage {
+    RequestMetadata metadata = 1;
+    IndexName index = 2;
+    bool async = 3;
+}
+
+/** Definition of a column in Cottontail DB. */
+message ColumnDefinition {
+    ColumnName name = 1;
+    Type type = 2;
+    uint32 length = 3;
+    bool primary = 4;
+    bool nullable = 5;
+    bool autoIncrement = 6;
+}
+
+/** Definition of an entity in Cottontail DB. */
+message EntityDefinition {
+    EntityName entity = 1;
+    repeated ColumnDefinition columns = 2;
+}
+
+/** Message for inserting data into an entity. */
+message InsertMessage {
+    RequestMetadata metadata = 1;
+    From from = 2;
+    repeated InsertElement elements = 3;
+    message InsertElement {
+        ColumnName column = 1;
+        Literal value = 2;
+    }
+}
+
+
+/** Message for batch-inserting data into an entity. */
+message BatchInsertMessage {
+    RequestMetadata metadata = 1;
+    From from = 2;
+    repeated ColumnName columns = 3;
+    repeated Insert inserts = 4;
+    message Insert {
+        repeated Literal values = 1;
+    }
+}
+
+/** Message for updating data in an entity. */
+message UpdateMessage {
+    RequestMetadata metadata = 1;
+    From from = 2;
+    Where where = 3;
+    repeated UpdateElement updates = 4;
+    message UpdateElement {
+        ColumnName column = 1;
+        Expression value = 2;
+    }
+}
+
+/** Message for deleting data from an entity. */
+message DeleteMessage {
+    RequestMetadata metadata = 1;
+    From from = 2;
+    Where where = 3;
+}
+
+/*
+ * Data Query Language (DQL)
+ */
+
+/* A single query that should be executed. */
+message QueryMessage {
+    RequestMetadata metadata = 1;
+    Query query = 2;
+}
+
+/* A simple query. */
+message Query {
+    From from = 1;
+    Projection projection = 2;
+    Where where = 3;
+    Order order = 4;
+    uint64 limit = 5;        /* Size of the result-set (default: unlimited). */
+    uint64 skip = 6;         /* Number of records to skip. */
+}
+
+/* A query response message. */
+message QueryResponseMessage {
+    ResponseMetadata metadata = 1;                      /* Metadata associated with this QueryResponseMessage. */
+    repeated ColumnDefinition columns = 2;      /* Columns returned by this QueryResponseMessage. */
+    repeated Tuple tuples = 3;                  /* List of tuples returned (data in order of columns). */
+    message Tuple {
+        repeated Literal data = 1;
+    }
+}
+
+/* The from part for a query. */
+message From {
+    oneof from {
+        Scan scan = 1;          /* Entity SCAN. */
+        Sample sample = 2;      /* Entity SAMPLE. */
+        Query query = 3;        /* A SUB-SELECT clause, i.e., another query. */
+    }
+}
+
+/* Describes a SCAN of an Entity. Can be used to specify the "FROM" part of a query. */
+message Scan {
+    EntityName entity = 1;
+    int64 start = 2;
+    int64 end = 3;
+}
+
+/* Describes a random SAMPLE of an Entity. Can be used to specify the "FROM" part of a query. */
+message Sample {
+    EntityName entity = 1;
+    int64 seed = 2;
+    float probability = 3;
+}
+
+/* The projection part of a query (select + attributes / count / exists). */
+message Projection {
+    ProjectionOperation op = 1;
+    repeated ProjectionElement elements = 2;
+    enum ProjectionOperation {
+        SELECT = 0;
+        SELECT_DISTINCT = 1;
+        COUNT = 2;
+        COUNT_DISTINCT = 3;
+        EXISTS = 4;
+        SUM = 5;
+        MAX = 6;
+        MIN = 7;
+        MEAN = 8;
+    }
+    message ProjectionElement {
+        ColumnName alias = 1;
+        Expression expression = 2;
+    }
+}
+
+
+/** The boolean predicate ('WHERE') part of a QueryMessage. */
+message Where {
+    Predicate predicate = 1;
+}
+
+
+/** A boolean expression that evaluates to true or false. */
+message Predicate {
+    oneof predicate {
+        Literal literal = 1;
+        Comparison comparison = 2;
+        IsNull isnull = 3;
+        And and = 4;
+        Or or = 5;
+        Not not = 6;
+    }
+
+    /**
+     * A literal Boolean predicate (i.e., true or false)
+     */
+    message Literal {
+        bool value = 1;
+    }
+
+    /**
+    * An unary IsNull predicate, which evaluates to true if the expression is null.
+    */
+    message IsNull {
+        Expression exp = 1;
+    }
+
+    /**
+     * A binary comparison predicate that compares two expressions using an operator.
+     */
+    message Comparison {
+        Expression lexp = 1;
+        Operator operator = 2;
+        Expression rexp = 3;
+
+        /**
+         * An operator to compare a series of values.
+         */
+        enum Operator {
+            EQUAL = 0;
+            NOTEQUAL = 1;
+            GREATER = 2;
+            LESS = 3;
+            GEQUAL = 4;
+            LEQUAL = 5;
+            IN = 6;
+            BETWEEN = 7;
+            LIKE = 8;
+            MATCH = 9;
+        }
+    }
+
+    /**
+     * A binary AND combination for predicates.
+     */
+    message And {
+        Predicate p1 = 1;
+        Predicate p2 = 2;
+    }
+
+    /**
+     * A binary OR combinator for predicates.
+     */
+    message Or {
+        Predicate p1 = 1;
+        Predicate p2 = 2;
+    }
+
+    /**
+     * A unary NOT combinator for Boolean expressions.
+     */
+    message Not {
+        Predicate p = 1;
+    }
+}
+
+/**
+ * The ORDER BY clause of a query.
+ */
+message Order {
+    repeated Component components = 1;
+    message Component {
+        ColumnName column = 1;
+        Direction direction = 2;
+    }
+    enum Direction {
+        ASCENDING = 0;
+        DESCENDING = 1;
+    }
+}

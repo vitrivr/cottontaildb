@@ -1,0 +1,162 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+plugins {
+    id "com.google.protobuf" version "0.9.2"
+    id "org.jetbrains.kotlin.jvm" version "$version_kotlin"
+    id "org.jetbrains.kotlin.plugin.serialization" version "$version_kotlin"
+}
+
+group 'org.vitrivr'
+version '0.16.0-SNAPSHOT'
+
+apply plugin: 'com.google.protobuf'
+apply plugin: 'idea'
+apply plugin: 'java'
+apply plugin: 'kotlin'
+apply plugin: 'java-library'
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
+
+repositories {
+    mavenCentral()
+    maven { url "https://kotlin.bintray.com/kotlinx" }
+}
+
+/** Source & target compatibility is Java 11. */
+sourceCompatibility = 11
+targetCompatibility = 11
+
+compileKotlin {
+    compilerOptions.jvmTarget = JvmTarget.JVM_11
+}
+
+compileTestKotlin {
+    compilerOptions.jvmTarget = JvmTarget.JVM_11
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
+configurations {
+    clientLibrary {
+        canBeConsumed = true
+        canBeResolved = false
+    }
+}
+
+publishing {
+    publications {
+
+        mavenJava(MavenPublication) {
+            groupId = 'org.vitrivr'
+            artifactId = 'cottontaildb-client'
+            version = System.getenv().getOrDefault("MAVEN_PUBLICATION_VERSION", version.toString())
+            pom {
+                name = 'Cottontail DB Cliebt'
+                description = 'The gRPC and ProtoBuf definitions and the client library for Cottontail DB.'
+                url = 'https://github.com/vitrivr/cottontaildb/'
+                licenses {
+                    license {
+                        name = 'MIT License'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'ppanopticon'
+                        name = 'Ralph Gasser'
+                        email = 'ralph.gasser@unibas.ch'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:https://github.com/vitrivr/cottontaildb.git'
+                    url = 'https://github.com/vitrivr/cottontaildb'
+                }
+            }
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            def releasesRepoUrl = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+            def snapshotsRepoUrl = 'https://oss.sonatype.org/content/repositories/snapshots/'
+            name = "OSSRH"
+            url = (publishing.publications.mavenJava.version.endsWith('SNAPSHOT')) ? snapshotsRepoUrl : releasesRepoUrl
+            credentials {
+                username = System.getenv("MAVEN_USERNAME")
+                password = System.getenv("MAVEN_PASSWORD")
+            }
+        }
+    }
+}
+
+signing {
+    def signingKey = findProperty("signingKey")
+    def signingPassword = findProperty("signingPassword")
+    useInMemoryPgpKeys(signingKey, signingPassword)
+    sign publishing.publications.mavenJava
+}
+
+sourceSets {
+    main {
+        proto {
+            srcDir  "$projectDir/src/main/protobuf"
+        }
+        java {
+            srcDir "$projectDir/build/generated/source/proto/main/java"
+        }
+        kotlin {
+            srcDirs "$projectDir/build/generated/source/proto/main/kotlin"
+        }
+    }
+}
+
+
+protobuf {
+    plugins {
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:$version_grpc"
+        }
+        grpckt {
+            artifact = "io.grpc:protoc-gen-grpc-kotlin:$version_grpc_kotlin:jdk8@jar"
+        }
+    }
+    protoc {
+        artifact = "com.google.protobuf:protoc:$version_protobuf"
+    }
+    generateProtoTasks {
+        all()*.plugins {
+            grpc {
+                outputSubDir = 'java'
+            }
+            grpckt {
+                outputSubDir = 'kotlin'
+            }
+        }
+    }
+}
+
+sourcesJar {
+    dependsOn 'generateProto'
+    duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+}
+
+dependencies {
+    /////// gRPC & Protobuf
+    api group: 'com.google.protobuf', name: 'protobuf-java', version: version_protobuf
+    api group: 'io.grpc', name: 'grpc-netty', version: version_grpc
+    api group: 'io.grpc', name: 'grpc-protobuf', version: version_grpc
+    api group: 'io.grpc', name: 'grpc-stub', version: version_grpc
+    api group: 'io.grpc', name: 'grpc-kotlin-stub', version: version_grpc_kotlin
+    compileOnly group: 'org.apache.tomcat', name: 'tomcat-annotations-api', version: version_annotations
+
+    /////// Kotlin references
+    api group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
+    api group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-json-jvm', version: version_kotlinx_json_jvm
+    api group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: version_kotlinx_coroutines
+}
+
+artifacts {
+    archives sourcesJar
+}
