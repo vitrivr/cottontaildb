@@ -120,31 +120,27 @@ object GrpcQueryBinder {
      */
     context(QueryContext)
     fun bind(insert: CottontailGrpc.InsertMessage): InsertLogicalOperatorNode {
-        try {
-            /* Parse entity for INSERT. */
-            val entity = parseAndBindEntity(insert.from.scan.entity)
-            val entityTx = entity.newTx(this@QueryContext)
+        /* Parse entity for INSERT. */
+        val entity = parseAndBindEntity(insert.from.scan.entity)
+        val entityTx = entity.newTx(this@QueryContext)
 
-            /* Parse columns to INSERT. */
-            val columns = Array<ColumnDef<*>>(insert.elementsCount) {
-                val columnName = insert.elementsList[it].column.fqn()
-                entityTx.columnForName(columnName).columnDef
-            }
-            val values = Array(insert.elementsCount) {
-                val literal = insert.elementsList[it].value
-                if (literal.dataCase == CottontailGrpc.Literal.DataCase.DATA_NOT_SET) {
-                    this@QueryContext.bindings.bindNull(columns[it].type)
-                } else {
-                    this@QueryContext.bindings.bind(literal.toValue(columns[it].type))
-                }
-            }
-
-            /* Create and return INSERT-clause. */
-            val record = RecordBinding(-1L, columns, values, this@QueryContext.bindings)
-            return InsertLogicalOperatorNode(this@QueryContext.nextGroupId(), entityTx, mutableListOf(record))
-        } catch (e: DatabaseException.ColumnDoesNotExistException) {
-            throw QueryException.QueryBindException("Failed to bind '${e.column}'. Column does not exist!")
+        /* Parse columns to INSERT. */
+        val columns = Array<ColumnDef<*>>(insert.elementsCount) {
+            val columnName = insert.elementsList[it].column.fqn()
+            entityTx.columnForName(columnName).columnDef
         }
+        val values = Array(insert.elementsCount) {
+            val literal = insert.elementsList[it].value
+            if (literal.dataCase == CottontailGrpc.Literal.DataCase.DATA_NOT_SET) {
+                this@QueryContext.bindings.bindNull(columns[it].type)
+            } else {
+                this@QueryContext.bindings.bind(literal.toValue(columns[it].type))
+            }
+        }
+
+        /* Create and return INSERT-clause. */
+        val record = RecordBinding(-1L, columns, values, this@QueryContext.bindings)
+        return InsertLogicalOperatorNode(this@QueryContext.nextGroupId(), entityTx, mutableListOf(record))
     }
 
     /**
@@ -156,32 +152,28 @@ object GrpcQueryBinder {
      */
     context(QueryContext)
     fun bind(insert: CottontailGrpc.BatchInsertMessage): InsertLogicalOperatorNode {
-        try {
-            /* Parse entity for BATCH INSERT. */
-            val entity = parseAndBindEntity(insert.from.scan.entity)
-            val entityTx = entity.newTx(this@QueryContext)
+        /* Parse entity for BATCH INSERT. */
+        val entity = parseAndBindEntity(insert.from.scan.entity)
+        val entityTx = entity.newTx(this@QueryContext)
 
-            /* Parse columns to BATCH INSERT. */
-            val columns = Array<ColumnDef<*>>(insert.columnsCount) {
-                val columnName = insert.columnsList[it].fqn()
-                entityTx.columnForName(columnName).columnDef
-            }
-
-            /* Parse records to BATCH INSERT. */
-            val records: MutableList<Record> = insert.insertsList.map { ins ->
-                RecordBinding(-1L, columns, Array(ins.valuesCount) { i ->
-                    val literal = ins.valuesList[i]
-                    if (literal.dataCase == CottontailGrpc.Literal.DataCase.DATA_NOT_SET) {
-                        this@QueryContext.bindings.bindNull(columns[i].type)
-                    } else {
-                        this@QueryContext.bindings.bind(literal.toValue(columns[i].type))
-                    }
-                }, this@QueryContext.bindings)
-            }.toMutableList()
-            return InsertLogicalOperatorNode(this@QueryContext.nextGroupId(), entityTx, records)
-        } catch (e: DatabaseException.ColumnDoesNotExistException) {
-            throw QueryException.QueryBindException("Failed to bind '${e.column}'. Column does not exist!")
+        /* Parse columns to BATCH INSERT. */
+        val columns = Array<ColumnDef<*>>(insert.columnsCount) {
+            val columnName = insert.columnsList[it].fqn()
+            entityTx.columnForName(columnName).columnDef
         }
+
+        /* Parse records to BATCH INSERT. */
+        val records: MutableList<Record> = insert.insertsList.map { ins ->
+            RecordBinding(-1L, columns, Array(ins.valuesCount) { i ->
+                val literal = ins.valuesList[i]
+                if (literal.dataCase == CottontailGrpc.Literal.DataCase.DATA_NOT_SET) {
+                    this@QueryContext.bindings.bindNull(columns[i].type)
+                } else {
+                    this@QueryContext.bindings.bind(literal.toValue(columns[i].type))
+                }
+            }, this@QueryContext.bindings)
+        }.toMutableList()
+        return InsertLogicalOperatorNode(this@QueryContext.nextGroupId(), entityTx, records)
     }
 
     /**
@@ -193,45 +185,41 @@ object GrpcQueryBinder {
      */
     context(QueryContext)
     fun bind(update: CottontailGrpc.UpdateMessage): UpdateLogicalOperatorNode {
-        try {
-            /* Parse FROM-clause. */
-            var root = parseAndBindFrom(update.from, parseProjectionColumns(DEFAULT_PROJECTION))
-            if (root !is EntityScanLogicalOperatorNode) {
-                throw QueryException.QueryBindException("Failed to bind query. UPDATES only support entity sources as FROM-clause.")
-            }
-            val entity: EntityTx = root.entity
-
-            /* Parse values to update. */
-            val values = update.updatesList.map {
-                val column = root.findUniqueColumnForName(it.column.fqn())
-                val value = when (it.value.expCase) {
-                    CottontailGrpc.Expression.ExpCase.LITERAL -> {
-                        if (it.value.literal.dataCase == CottontailGrpc.Literal.DataCase.DATA_NOT_SET) {
-                            this@QueryContext.bindings.bindNull(column.type)
-                        } else {
-                            this@QueryContext.bindings.bind(it.value.literal.toValue(column.type))
-                        }
-                    }
-                    CottontailGrpc.Expression.ExpCase.COLUMN -> this@QueryContext.bindings.bind(root.findUniqueColumnForName(it.value.column.fqn()))
-                    CottontailGrpc.Expression.ExpCase.EXP_NOT_SET ->  this@QueryContext.bindings.bindNull(column.type)
-                    CottontailGrpc.Expression.ExpCase.FUNCTION -> throw QueryException.QuerySyntaxException("Function expressions are not yet not supported as values in update statements.") /* TODO. */
-                    else -> throw QueryException.QuerySyntaxException("Failed to bind value for column '${column}': Unsupported expression!")
-                }
-                column to value
-            }
-
-            /* Create WHERE-clause. */
-            root = if (update.hasWhere()) {
-                parseAndBindWhere(root, update.where)
-            } else {
-                root
-            }
-
-            /* Create and return UPDATE-clause. */
-            return UpdateLogicalOperatorNode(root, entity, values)
-        } catch (e: DatabaseException.ColumnDoesNotExistException) {
-            throw QueryException.QueryBindException("Failed to bind '${e.column}'. Column does not exist!")
+        /* Parse FROM-clause. */
+        var root = parseAndBindFrom(update.from, parseProjectionColumns(DEFAULT_PROJECTION))
+        if (root !is EntityScanLogicalOperatorNode) {
+            throw QueryException.QueryBindException("Failed to bind query. UPDATES only support entity sources as FROM-clause.")
         }
+        val entity: EntityTx = root.entity
+
+        /* Parse values to update. */
+        val values = update.updatesList.map {
+            val column = root.findUniqueColumnForName(it.column.fqn())
+            val value = when (it.value.expCase) {
+                CottontailGrpc.Expression.ExpCase.LITERAL -> {
+                    if (it.value.literal.dataCase == CottontailGrpc.Literal.DataCase.DATA_NOT_SET) {
+                        this@QueryContext.bindings.bindNull(column.type)
+                    } else {
+                        this@QueryContext.bindings.bind(it.value.literal.toValue(column.type))
+                    }
+                }
+                CottontailGrpc.Expression.ExpCase.COLUMN -> this@QueryContext.bindings.bind(root.findUniqueColumnForName(it.value.column.fqn()))
+                CottontailGrpc.Expression.ExpCase.EXP_NOT_SET ->  this@QueryContext.bindings.bindNull(column.type)
+                CottontailGrpc.Expression.ExpCase.FUNCTION -> throw QueryException.QuerySyntaxException("Function expressions are not yet not supported as values in update statements.") /* TODO. */
+                else -> throw QueryException.QuerySyntaxException("Failed to bind value for column '${column}': Unsupported expression!")
+            }
+            column to value
+        }
+
+        /* Create WHERE-clause. */
+        root = if (update.hasWhere()) {
+            parseAndBindWhere(root, update.where)
+        } else {
+            root
+        }
+
+        /* Create and return UPDATE-clause. */
+        return UpdateLogicalOperatorNode(root, entity, values)
     }
 
     /**
@@ -313,19 +301,12 @@ object GrpcQueryBinder {
      * @return [Entity] that matches [CottontailGrpc.EntityName]
      */
     context(QueryContext)
-    private fun parseAndBindEntity(entity: CottontailGrpc.EntityName): Entity = try {
+    private fun parseAndBindEntity(entity: CottontailGrpc.EntityName): Entity {
         val name = entity.fqn()
         val catalogueTx = this@QueryContext.catalogue.newTx(this@QueryContext)
         val schemaTx = catalogueTx.schemaForName(name.schema()).newTx(this@QueryContext)
-        schemaTx.entityForName(name)
-    } catch (e: DatabaseException.SchemaDoesNotExistException) {
-        throw QueryException.QueryBindException("Failed to bind '${e.schema}'. Schema does not exist!")
-    } catch (e: DatabaseException.EntityDoesNotExistException) {
-        throw QueryException.QueryBindException("Failed to bind '${e.entity}'. Entity does not exist!")
+        return schemaTx.entityForName(name)
     }
-
-
-
 
     /**
      * Parses and binds a [CottontailGrpc.Where] clause.
@@ -465,11 +446,7 @@ object GrpcQueryBinder {
 
         /* Try tp resolve signature and obtain function object. */
         val signature = Signature.SemiClosed(function.name.fqn(), arguments.map { Argument.Typed(it.type) }.toTypedArray())
-        val functionInstance = try {
-            this@QueryContext.catalogue.functions.obtain(signature)
-        } catch (e: FunctionNotFoundException) {
-            throw QueryException.QueryBindException("Desired function $signature could not be found.")
-        }
+        val functionInstance = this@QueryContext.catalogue.functions.obtain(signature)
         return this@QueryContext.bindings.bind(functionInstance, arguments)
     }
 
