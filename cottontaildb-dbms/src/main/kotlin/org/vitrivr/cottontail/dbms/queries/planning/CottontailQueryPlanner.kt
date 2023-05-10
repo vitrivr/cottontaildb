@@ -190,6 +190,9 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         /* List of candidates, objects to explore and digests */
         val candidates = MemoizingOperatorList<OperatorNode.Physical>()
         val explore = MemoizingOperatorList(operator.root)
+        if (operator.executable) {
+            candidates.enqueue(operator)
+        }
 
         /* Now start exploring... */
         var pointer = explore.dequeue()
