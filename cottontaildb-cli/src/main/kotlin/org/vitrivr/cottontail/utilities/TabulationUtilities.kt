@@ -75,6 +75,6 @@ object TabulationUtilities {
      * @param tuple The [CottontailGrpc.Literal] to transform.
      */
     private fun tupleToRow(table: TableSectionDsl, tuple: Tuple) = table.row {
-        (0..tuple.size()).forEach {  cell(tuple[it]?.toDescription()) }
+        (0 until tuple.size()).forEach {  cell(tuple[it]?.toDescription()) }
     }
 }
