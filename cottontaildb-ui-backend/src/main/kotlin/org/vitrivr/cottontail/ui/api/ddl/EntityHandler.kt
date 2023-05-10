@@ -8,6 +8,7 @@ import io.javalin.http.Context
 import io.javalin.openapi.*
 import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.client.language.ddl.*
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.ui.api.database.drainToArray
 import org.vitrivr.cottontail.ui.api.database.obtainClientForContext
@@ -93,7 +94,7 @@ fun aboutEntity(context: Context) {
         var size: Long = 0
         result.forEach {
             if (it.asString("class") == "COLUMN") {
-                columns.add(ColumnDetails(it.asString("dbo")!!, Types.forName(it.asString("type")!!, it.asInt("l_size")!!), it.asBoolean("nullable")!!))
+                columns.add(ColumnDetails(Name.ColumnName.parse(it.asString("dbo")!!), Types.forName(it.asString("type")!!, it.asInt("l_size")!!), it.asBoolean("nullable")!!))
             } else if (it.asString("class") == "INDEX") {
                 indexes.add(IndexDetails(it.asString("dbo")!!, it.asString("type")!!))
             } else if (it.asString("class") == "ENTITY") {
@@ -140,7 +141,7 @@ fun createEntity(context: Context) {
 
     val request = CreateEntity("$schemaName.$entityName")
     for (c in columns) {
-        request.column(c.fqn, c.type, c.nullable, c.autoIncrement)
+        request.column(c.name, c.type, c.nullable, c.autoIncrement)
     }
     try {
         client.create(request).close()
