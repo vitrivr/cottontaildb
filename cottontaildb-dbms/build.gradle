@@ -8,7 +8,7 @@ apply plugin: 'com.github.johnrengelman.shadow'
 /* Cottontail DB dependencies. */
 dependencies {
     /* The Cottontail DB core, which includes the client library. */
-    implementation project(':cottontaildb-core')
+    api project(':cottontaildb-core')
 
     /* MapDB dependency. */
     implementation group: 'org.mapdb', name: 'mapdb', version: version_mapdb

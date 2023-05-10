@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.data.exporter
 
-import com.google.gson.stream.JsonWriter
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.client.iterators.Tuple
