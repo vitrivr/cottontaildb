@@ -3,8 +3,8 @@ package org.vitrivr.cottontail.client.language.dml
 import org.vitrivr.cottontail.client.language.basics.LanguageFeature
 import org.vitrivr.cottontail.client.language.basics.predicate.*
 import org.vitrivr.cottontail.client.language.extensions.*
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tryConvertToValue
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
@@ -14,14 +14,15 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class Update(entity: String? = null): LanguageFeature() {
+class Update(entity: Name.EntityName): LanguageFeature() {
+
+    constructor(entity: String): this(Name.EntityName.parse(entity))
+
     /** Internal [CottontailGrpc.DeleteMessage.Builder]. */
     internal val builder = CottontailGrpc.UpdateMessage.newBuilder()
 
     init {
-        if (entity != null) {
-            this.builder.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(entity.parseEntity())))
-        }
+        this.builder.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(entity.proto())))
     }
 
     /**
@@ -52,19 +53,6 @@ class Update(entity: String? = null): LanguageFeature() {
     override fun serializedSize() = this.builder.build().serializedSize
 
     /**
-     * Adds a FROM-clause to this [Update].
-     *
-     * @param entity The name of the entity to  [Update].
-     * @return This [Update]
-     */
-    fun from(entity: String): Update {
-        this.builder.clearFrom()
-        this.builder.setFrom(
-            CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(entity.parseEntity())))
-        return this
-    }
-
-    /**
      * Adds a WHERE-clause to this [Update].
      *
      * @param predicate The [Predicate] that specifies the conditions that need to be met for an [Update].
@@ -86,8 +74,8 @@ class Update(entity: String? = null): LanguageFeature() {
         for (assignment in assignments) {
             this.builder.addUpdates(
                 CottontailGrpc.UpdateMessage.UpdateElement.newBuilder()
-                    .setColumn(assignment.first.parseColumn())
-                    .setValue(CottontailGrpc.Expression.newBuilder().setLiteral(assignment.second?.tryConvertToValue()?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().build()))
+                    .setColumn(Name.ColumnName.parse(assignment.first).proto())
+                    .setValue(CottontailGrpc.Expression.newBuilder().setLiteral(assignment.second?.tryConvertToValue()?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder()).build()))
             )
         }
         return this
@@ -103,8 +91,8 @@ class Update(entity: String? = null): LanguageFeature() {
         for (assignment in assignments) {
             this.builder.addUpdates(
                 CottontailGrpc.UpdateMessage.UpdateElement.newBuilder()
-                .setColumn(assignment.first.parseColumn())
-                .setValue(CottontailGrpc.Expression.newBuilder().setLiteral(assignment.second?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().build()))
+                    .setColumn(Name.ColumnName.parse(assignment.first).proto())
+                .setValue(CottontailGrpc.Expression.newBuilder().setLiteral(assignment.second?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder()).build()))
             )
         }
         return this

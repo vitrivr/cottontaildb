@@ -1,23 +1,24 @@
 package org.vitrivr.cottontail.client.language.ddl
 
 import org.vitrivr.cottontail.client.language.basics.LanguageFeature
-import org.vitrivr.cottontail.client.language.extensions.parseEntity
+import org.vitrivr.cottontail.client.language.extensions.proto
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
  * A CREATE INDEX query in the Cottontail DB query language.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 2.0.0
  */
-class CreateIndex(entity: String, column: String, type: CottontailGrpc.IndexType): LanguageFeature() {
+class CreateIndex(name: Name.EntityName, type: CottontailGrpc.IndexType): LanguageFeature() {
+
+    constructor (entity: String, type: CottontailGrpc.IndexType): this(Name.EntityName.parse(entity), type)
 
     internal val builder = CottontailGrpc.CreateIndexMessage.newBuilder()
 
     init {
-        require(!column.contains('.')) { "Column name must not contain any dots." }
-        this.builder.entity = entity.parseEntity()
-        this.builder.addColumns(column)
+        this.builder.entity = name.proto()
         this.builder.type = type
     }
 
@@ -54,8 +55,18 @@ class CreateIndex(entity: String, column: String, type: CottontailGrpc.IndexType
      * @param column The name of the column
      * @return this [CreateIndex]
      */
+    fun column(column: Name.ColumnName): CreateIndex {
+        this.builder.addColumns(column.columnName)
+        return this
+    }
+
+    /**
+     * Adds a column to this [CreateIndex].
+     *
+     * @param column The name of the column
+     * @return this [CreateIndex]
+     */
     fun column(column: String): CreateIndex {
-        require(!column.contains('.')) { "Column name must not contain any dots." }
         this.builder.addColumns(column)
         return this
     }

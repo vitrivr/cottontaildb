@@ -1,7 +1,8 @@
 package org.vitrivr.cottontail.client.language.ddl
 
 import org.vitrivr.cottontail.client.language.basics.LanguageFeature
-import org.vitrivr.cottontail.client.language.extensions.parseEntity
+import org.vitrivr.cottontail.client.language.extensions.proto
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -10,12 +11,15 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  * @author Ralph Gasser
  * @version 2.1.0
  */
-class AnalyzeEntity(name: String): LanguageFeature() {
+class AnalyzeEntity(name: Name.EntityName): LanguageFeature() {
+
+    constructor(name: String): this(Name.EntityName.parse(name))
+
     /** Internal [CottontailGrpc.AnalyzeEntityMessage.Builder]. */
     internal val builder = CottontailGrpc.AnalyzeEntityMessage.newBuilder()
 
     init {
-        builder.entity = name.parseEntity()
+        builder.entity = name.proto()
     }
 
     /**

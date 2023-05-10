@@ -1,7 +1,8 @@
 package org.vitrivr.cottontail.client.language.ddl
 
 import org.vitrivr.cottontail.client.language.basics.LanguageFeature
-import org.vitrivr.cottontail.client.language.extensions.parseIndex
+import org.vitrivr.cottontail.client.language.extensions.proto
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -10,12 +11,11 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class DropIndex(name: String): LanguageFeature() {
-    internal val builder = CottontailGrpc.DropIndexMessage.newBuilder()
+class DropIndex(name: Name.IndexName): LanguageFeature() {
 
-    init {
-        this.builder.index = name.parseIndex()
-    }
+    constructor(name: String): this(Name.IndexName.parse(name))
+
+    internal val builder = CottontailGrpc.DropIndexMessage.newBuilder().setIndex(name.proto())
 
     /**
      * Sets the transaction ID for this [DropIndex].

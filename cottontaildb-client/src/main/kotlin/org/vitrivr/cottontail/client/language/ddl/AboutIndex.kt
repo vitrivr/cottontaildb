@@ -1,22 +1,22 @@
 package org.vitrivr.cottontail.client.language.ddl
 
 import org.vitrivr.cottontail.client.language.basics.LanguageFeature
-import org.vitrivr.cottontail.client.language.extensions.parseIndex
+import org.vitrivr.cottontail.client.language.extensions.proto
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
  * A message to query information about an index.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
-class AboutIndex(name: String): LanguageFeature() {
-    /** Internal [CottontailGrpc.ListEntityMessage.Builder]. */
-    internal val builder = CottontailGrpc.IndexDetailsMessage.newBuilder()
+class AboutIndex(name: Name.IndexName): LanguageFeature() {
 
-    init {
-        this.builder.index = name.parseIndex()
-    }
+    constructor(name: String): this(Name.IndexName.parse(name))
+
+    /** Internal [CottontailGrpc.ListEntityMessage.Builder]. */
+    internal val builder = CottontailGrpc.IndexDetailsMessage.newBuilder().setIndex(name.proto())
 
     /**
      * Sets the transaction ID for this [AboutIndex].

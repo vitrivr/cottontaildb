@@ -1,7 +1,8 @@
 package org.vitrivr.cottontail.client.language.ddl
 
 import org.vitrivr.cottontail.client.language.basics.LanguageFeature
-import org.vitrivr.cottontail.client.language.extensions.parseIndex
+import org.vitrivr.cottontail.client.language.extensions.proto
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -10,13 +11,12 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  * @author Ralph Gasser
  * @version 2.1.0
  */
-class RebuildIndex(name: String): LanguageFeature() {
-    /** Internal [CottontailGrpc.RebuildIndexMessage.Builder]. */
-    internal val builder = CottontailGrpc.RebuildIndexMessage.newBuilder()
+class RebuildIndex(name: Name.IndexName): LanguageFeature() {
 
-    init {
-        this.builder.index = name.parseIndex()
-    }
+    constructor(name: String): this(Name.IndexName.parse(name))
+
+    /** Internal [CottontailGrpc.RebuildIndexMessage.Builder]. */
+    internal val builder = CottontailGrpc.RebuildIndexMessage.newBuilder().setIndex(name.proto())
 
     /**
      * Sets the transaction ID for this [RebuildIndex].

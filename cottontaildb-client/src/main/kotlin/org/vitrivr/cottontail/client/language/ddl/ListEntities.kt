@@ -1,23 +1,26 @@
 package org.vitrivr.cottontail.client.language.ddl
 
 import org.vitrivr.cottontail.client.language.basics.LanguageFeature
-import org.vitrivr.cottontail.client.language.extensions.parseSchema
+import org.vitrivr.cottontail.client.language.extensions.proto
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
  * A message to list all entities in a schema.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
-class ListEntities(schemaName: String? = null): LanguageFeature() {
+class ListEntities(name: Name.SchemaName? = null): LanguageFeature() {
+
+    constructor(name: String): this(Name.SchemaName.parse(name))
 
     /** Internal [CottontailGrpc.ListEntityMessage.Builder]. */
     internal val builder = CottontailGrpc.ListEntityMessage.newBuilder()
 
     init {
-        if (schemaName != null) {
-            this.builder.schema = schemaName.parseSchema()
+        if (name != null) {
+            this.builder.setSchema(name.proto())
         }
     }
 

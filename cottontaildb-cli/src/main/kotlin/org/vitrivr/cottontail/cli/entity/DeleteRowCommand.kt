@@ -34,7 +34,7 @@ class DeleteRowCommand(client: SimpleClient) : AbstractEntityCommand(client, nam
         if (this.confirm || this.confirm("Do you really want to delete the rows from ${this.entityName} where where $col = $value [y/N]?", default = false, showDefault = false) == true) {
             try {
                 val timedTable = measureTimedValue {
-                    TabulationUtilities.tabulate(this.client.delete(Delete().from(entityName.fqn).where(Compare(this.col, "=", this.value))))
+                    TabulationUtilities.tabulate(this.client.delete(Delete(this.entityName).where(Compare(this.col, "=", this.value))))
                 }
                 println("Successfully deleted rows where $col = $value from entity ${this.entityName} (took ${timedTable.duration}).")
                 print(timedTable.value)

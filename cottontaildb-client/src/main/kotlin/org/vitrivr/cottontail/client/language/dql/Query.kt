@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.client.language.basics.expression.Column
 import org.vitrivr.cottontail.client.language.basics.expression.Expression
 import org.vitrivr.cottontail.client.language.basics.predicate.Predicate
 import org.vitrivr.cottontail.client.language.extensions.*
-import org.vitrivr.cottontail.core.types.VectorValue
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc.IndexType
@@ -16,15 +16,15 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc.IndexType
  * @author Ralph Gasser
  * @version 2.0.0
  */
-@Suppress("UNCHECKED_CAST")
-class Query(entity: String? = null): LanguageFeature() {
+class Query(entity: Name.EntityName): LanguageFeature() {
+
+    constructor(entity: String): this(Name.EntityName.parse(entity))
+
     /** Internal [CottontailGrpc.Query.Builder]. */
     val builder: CottontailGrpc.QueryMessage.Builder = CottontailGrpc.QueryMessage.newBuilder()
 
     init {
-        if (entity != null) {
-            this.builder.queryBuilder.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(entity.parseEntity())))
-        }
+        this.builder.queryBuilder.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(entity.proto())))
     }
 
     /**
@@ -81,7 +81,7 @@ class Query(entity: String? = null): LanguageFeature() {
         val element = builder.addElementsBuilder()
         element.expression = expression.toGrpc()
         if (alias != null) {
-            element.alias = alias.parseColumn()
+            element.alias = Name.ColumnName.parse(alias).proto()
         }
         return this
     }
@@ -115,7 +115,7 @@ class Query(entity: String? = null): LanguageFeature() {
         val element = builder.addElementsBuilder()
         element.expression = expression.toGrpc()
         if (alias != null) {
-            element.alias = alias.parseColumn()
+            element.alias = Name.ColumnName.parse(alias).proto()
         }
         return this
     }
@@ -133,7 +133,7 @@ class Query(entity: String? = null): LanguageFeature() {
             builder.clearElements()
             builder.op = CottontailGrpc.Projection.ProjectionOperation.COUNT
         }
-        builder.addElements(CottontailGrpc.Projection.ProjectionElement.newBuilder().setExpression(CottontailGrpc.Expression.newBuilder().setColumn("*".parseColumn())))
+        builder.addElements(CottontailGrpc.Projection.ProjectionElement.newBuilder().setExpression(CottontailGrpc.Expression.newBuilder().setColumn(Name.ColumnName.ALL_COLUMNS.proto())))
         return this
     }
 
@@ -189,7 +189,7 @@ class Query(entity: String? = null): LanguageFeature() {
             builder.clearElements()
             builder.op = CottontailGrpc.Projection.ProjectionOperation.EXISTS
         }
-        builder.addElements(CottontailGrpc.Projection.ProjectionElement.newBuilder().setExpression(CottontailGrpc.Expression.newBuilder().setColumn("*".parseColumn())))
+        builder.addElements(CottontailGrpc.Projection.ProjectionElement.newBuilder().setExpression(CottontailGrpc.Expression.newBuilder().setColumn(Name.ColumnName.ALL_COLUMNS.proto())))
         return this
     }
 
@@ -202,7 +202,7 @@ class Query(entity: String? = null): LanguageFeature() {
      * @return This [Query]
      */
     fun from(entity: String): Query {
-        this.builder.queryBuilder.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(entity.parseEntity())))
+        this.builder.queryBuilder.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(Name.EntityName.parse(entity).proto())))
         return this
     }
 
@@ -218,7 +218,7 @@ class Query(entity: String? = null): LanguageFeature() {
      */
     fun sample(entity: String, probability: Float, seed: Long = System.currentTimeMillis()): Query {
         require(probability in 0.0f..1.0f) { "Probability value must be between 0.0 and 1.0f but is $probability." }
-        this.builder.queryBuilder.setFrom(CottontailGrpc.From.newBuilder().setSample(CottontailGrpc.Sample.newBuilder().setEntity(entity.parseEntity()).setSeed(seed).setProbability(probability)))
+        this.builder.queryBuilder.setFrom(CottontailGrpc.From.newBuilder().setSample(CottontailGrpc.Sample.newBuilder().setEntity(Name.EntityName.parse(entity).proto()).setSeed(seed).setProbability(probability)))
         return this
     }
 
@@ -293,15 +293,14 @@ class Query(entity: String? = null): LanguageFeature() {
      */
     fun distance(probingColumn: String, query: PublicValue, distance: Distances, name: String): Query {
         /* Parse necessary functions. */
-        val distanceColumn = name.parseColumn()
         val distanceFunction = CottontailGrpc.Function.newBuilder()
             .setName(distance.toGrpc())
-            .addArguments(CottontailGrpc.Expression.newBuilder().setColumn(probingColumn.parseColumn()))
+            .addArguments(CottontailGrpc.Expression.newBuilder().setColumn(Name.ColumnName.parse(probingColumn).proto()))
             .addArguments(CottontailGrpc.Expression.newBuilder().setLiteral(query.toGrpc()))
 
         /* Update projection: Add distance column + alias. */
         this.builder.queryBuilder.projectionBuilder.addElements(CottontailGrpc.Projection.ProjectionElement.newBuilder()
-            .setAlias(distanceColumn)
+            .setAlias(Name.ColumnName.parse(name).proto())
             .setExpression(CottontailGrpc.Expression.newBuilder().setFunction(distanceFunction)))
 
         /* Update LIMIT clause. */
@@ -321,15 +320,14 @@ class Query(entity: String? = null): LanguageFeature() {
      * @return This [Query]
      */
     fun fulltext(probingColumn: String, query: String, name: String): Query {
-        val scoreColumn = name.parseColumn()
         val fulltextFunction = CottontailGrpc.Function.newBuilder()
             .setName(CottontailGrpc.FunctionName.newBuilder().setName("fulltext"))
-            .addArguments(CottontailGrpc.Expression.newBuilder().setColumn(probingColumn.parseColumn()))
+            .addArguments(CottontailGrpc.Expression.newBuilder().setColumn(Name.ColumnName.parse(probingColumn).proto()))
             .addArguments(CottontailGrpc.Expression.newBuilder().setLiteral(CottontailGrpc.Literal.newBuilder().setStringData(query)))
 
         /* Update projection: Add distance column + alias. */
         this.builder.queryBuilder.projectionBuilder.addElements(CottontailGrpc.Projection.ProjectionElement.newBuilder()
-            .setAlias(scoreColumn)
+            .setAlias(Name.ColumnName.parse(name).proto())
             .setExpression(CottontailGrpc.Expression.newBuilder().setFunction(fulltextFunction)))
 
         return this
@@ -345,7 +343,7 @@ class Query(entity: String? = null): LanguageFeature() {
     fun order(column: String, direction: Direction): Query {
         val builder = this.builder.queryBuilder.orderBuilder
         val cBuilder = builder.addComponentsBuilder()
-        cBuilder.column = column.parseColumn()
+        cBuilder.column = Name.ColumnName.parse(column).proto()
         cBuilder.direction = direction.toGrpc()
         return this
     }
@@ -399,7 +397,7 @@ class Query(entity: String? = null): LanguageFeature() {
      * @return This [Query]
      */
     fun useIndex(index: String): Query {
-        val parsed = index.parseIndex() /* Sanity check. */
+        val parsed = Name.IndexName.parse(index).proto() /* Sanity check. */
         this.builder.metadataBuilder.indexHintBuilder.name = parsed.name
         return this
     }

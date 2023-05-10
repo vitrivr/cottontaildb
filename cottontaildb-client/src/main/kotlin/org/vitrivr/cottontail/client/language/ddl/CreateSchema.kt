@@ -1,22 +1,22 @@
 package org.vitrivr.cottontail.client.language.ddl
 
 import org.vitrivr.cottontail.client.language.basics.LanguageFeature
-import org.vitrivr.cottontail.client.language.extensions.parseSchema
+import org.vitrivr.cottontail.client.language.extensions.proto
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
  * A CREATE SCHEMA query in the Cottontail DB query language.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
-class CreateSchema(name: String): LanguageFeature() {
-    /** Internal [CottontailGrpc.CreateSchemaMessage.Builder]. */
-    internal val builder = CottontailGrpc.CreateSchemaMessage.newBuilder()
+class CreateSchema(name: Name.SchemaName): LanguageFeature() {
 
-    init {
-        this.builder.schema = name.parseSchema()
-    }
+    constructor(name: String): this(Name.SchemaName.parse(name))
+
+    /** Internal [CottontailGrpc.CreateSchemaMessage.Builder]. */
+    internal val builder = CottontailGrpc.CreateSchemaMessage.newBuilder().setSchema(name.proto())
 
     /**
      * Sets the transaction ID for this [CreateSchema].

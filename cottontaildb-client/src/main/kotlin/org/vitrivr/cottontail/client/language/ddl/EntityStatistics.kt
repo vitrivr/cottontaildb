@@ -1,23 +1,22 @@
 package org.vitrivr.cottontail.client.language.ddl
 
 import org.vitrivr.cottontail.client.language.basics.LanguageFeature
-import org.vitrivr.cottontail.client.language.extensions.parseColumn
-import org.vitrivr.cottontail.client.language.extensions.parseEntity
+import org.vitrivr.cottontail.client.language.extensions.proto
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
  * A message to query information about a column.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
-class EntityStatistics(name: String): LanguageFeature() {
-    /** Internal [CottontailGrpc.ColumnDetailsMessage.Builder]. */
-    internal val builder = CottontailGrpc.EntityDetailsMessage.newBuilder()
+class EntityStatistics(name: Name.EntityName): LanguageFeature() {
 
-    init {
-        this.builder.entity = name.parseEntity()
-    }
+    constructor(name: String): this(Name.EntityName.parse(name))
+
+    /** Internal [CottontailGrpc.EntityDetailsMessage.Builder]. */
+    internal val builder = CottontailGrpc.EntityDetailsMessage.newBuilder().setEntity(name.proto())
 
     /**
      * Sets the transaction ID for this [EntityStatistics].

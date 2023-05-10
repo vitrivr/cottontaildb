@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.core.database
 
+import kotlinx.serialization.Serializable
+
 /**
  * A [Name] that identifies a DBO used within Cottontail DB.
  *
@@ -54,7 +56,28 @@ sealed interface Name: Comparable<Name> {
     /**
      * A [Name] object used to identify a function in Cottontail DB.
      */
+    @Serializable
     data class FunctionName(val functionName: String): Name {
+
+        companion object {
+            /**
+             * Parses a [String] to a [FunctionName].
+             *
+             * @return [FunctionName]
+             */
+            fun parse(string: String): FunctionName {
+                val split = string.split(DELIMITER)
+                return when(split.size) {
+                    1 -> FunctionName(split[0])
+                    2 -> {
+                        require(split[0].lowercase() == ROOT) { "Invalid column name: $string" }
+                        FunctionName(split[1])
+                    }
+                    else -> throw IllegalArgumentException("Invalid column name: $string")
+                }
+            }
+        }
+
         /** The fully qualified name of this [Name.FunctionName]. */
         override val fqn: String
             get() = "${ROOT}${DELIMITER}${this.functionName}"
@@ -77,7 +100,28 @@ sealed interface Name: Comparable<Name> {
     /**
      * A [Name] object used to identify a schema in Cottontail DB.
      */
+    @Serializable
     data class SchemaName(val schemaName: String): Name {
+
+
+        companion object {
+            /**
+             * Parses a [String] to a [SchemaName].
+             *
+             * @return [SchemaName]
+             */
+            fun parse(string: String): SchemaName {
+                val split = string.split(DELIMITER)
+                return when(split.size) {
+                    1 -> SchemaName(split[0])
+                    2 -> {
+                        require(split[0].lowercase() == ROOT) { "Invalid column name: $string" }
+                        SchemaName(split[1])
+                    }
+                    else -> throw IllegalArgumentException("Invalid column name: $string")
+                }
+            }
+        }
 
         init {
             require(!this.schemaName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
@@ -114,7 +158,28 @@ sealed interface Name: Comparable<Name> {
     /**
      * A [Name] object used to identify an entity in Cottontail DB.
      */
+    @Serializable
     data class EntityName(val schemaName: String, val entityName: String): Name {
+
+        companion object {
+            /**
+             * Parses a [String] to a [EntityName].
+             *
+             * @return [EntityName]
+             */
+            fun parse(string: String): EntityName {
+                val split = string.split(DELIMITER)
+                return when(split.size) {
+                    2 -> EntityName(split[0], split[1])
+                    3 -> {
+                        require(split[0].lowercase() == ROOT) { "Invalid column name: $string" }
+                        EntityName(split[1], split[2])
+                    }
+                    else -> throw IllegalArgumentException("Invalid column name: $string")
+                }
+            }
+        }
+
 
         init {
             require(!this.schemaName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
@@ -186,6 +251,7 @@ sealed interface Name: Comparable<Name> {
     /**
      * A [Name] object used to identify a sequence.
      */
+    @Serializable
     data class SequenceName(val schemaName: String, val entityName: String, val sequenceName: String) : Name {
 
         init {
@@ -233,7 +299,27 @@ sealed interface Name: Comparable<Name> {
     /**
      * A [Name] object used to identify an index in Cottontail DB
      */
+    @Serializable
     data class IndexName(val schemaName: String, val entityName: String, val indexName: String) : Name {
+
+        companion object {
+            /**
+             * Parses a string to a [IndexName].
+             *
+             * @return [IndexName]
+             */
+            fun parse(string: String): IndexName {
+                val split = string.split(DELIMITER)
+                return when(split.size) {
+                    3 -> IndexName(split[0], split[1], split[2])
+                    4 -> {
+                        require(split[0].lowercase() == ROOT) { "Invalid column name: $string" }
+                        IndexName(split[1], split[2], split[3])
+                    }
+                    else -> throw IllegalArgumentException("Invalid column name: $string")
+                }
+            }
+        }
 
         init {
             require(!this.schemaName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
@@ -280,7 +366,33 @@ sealed interface Name: Comparable<Name> {
     /**
      * A [Name] object used to identify an column in Cottontail DB
      */
+    @Serializable
     data class ColumnName(val schemaName: String, val entityName: String, val columnName: String): Name {
+
+        companion object {
+
+            val ALL_COLUMNS = ColumnName("*", "*", "*")
+
+            /**
+             * Parses a string to a [ColumnName].
+             *
+             * @return [ColumnName]
+             */
+            fun parse(string: String): ColumnName {
+                val split = string.split(DELIMITER)
+                return when(split.size) {
+                    1 -> ColumnName(WILDCARD, WILDCARD, split[0])
+                    2 -> ColumnName(WILDCARD, split[0], split[1])
+                    3 -> ColumnName(split[0], split[1], split[2])
+                    4 -> {
+                        require(split[0].lowercase() == ROOT) { "Invalid column name: $string" }
+                        ColumnName(split[1], split[2], split[3])
+                    }
+                    else -> throw IllegalArgumentException("Invalid column name: $string")
+                }
+            }
+        }
+
         init {
             require(!this.schemaName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
             require(!this.entityName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}

@@ -1,7 +1,8 @@
 package org.vitrivr.cottontail.client.language.ddl
 
 import org.vitrivr.cottontail.client.language.basics.LanguageFeature
-import org.vitrivr.cottontail.client.language.extensions.parseSchema
+import org.vitrivr.cottontail.client.language.extensions.proto
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -10,13 +11,12 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class DropSchema(name: String): LanguageFeature() {
-    /** Internal [CottontailGrpc.DropSchemaMessage.Builder]. */
-    internal val builder = CottontailGrpc.DropSchemaMessage.newBuilder()
+class DropSchema(name: Name.SchemaName): LanguageFeature() {
 
-    init {
-        this.builder.schema = name.parseSchema()
-    }
+    constructor(name: String): this(Name.SchemaName.parse(name))
+
+    /** Internal [CottontailGrpc.DropSchemaMessage.Builder]. */
+    internal val builder = CottontailGrpc.DropSchemaMessage.newBuilder().setSchema(name.proto())
 
     /**
      * Sets the transaction ID for this [DropSchema].

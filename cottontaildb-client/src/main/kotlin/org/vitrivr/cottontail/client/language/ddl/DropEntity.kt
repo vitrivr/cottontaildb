@@ -1,21 +1,25 @@
 package org.vitrivr.cottontail.client.language.ddl
 
 import org.vitrivr.cottontail.client.language.basics.LanguageFeature
-import org.vitrivr.cottontail.client.language.extensions.parseEntity
+import org.vitrivr.cottontail.client.language.extensions.proto
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
  * A DROP ENTITY query in the Cottontail DB query language.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
-class DropEntity(name: String): LanguageFeature() {
+class DropEntity(name: Name.EntityName): LanguageFeature() {
+
+    constructor(name: String): this(Name.EntityName.parse(name))
+
     /** Internal [CottontailGrpc.DeleteMessage.Builder]. */
     internal val builder = CottontailGrpc.DropEntityMessage.newBuilder()
 
     init {
-        builder.entity = name.parseEntity()
+        builder.entity = name.proto()
     }
 
     /**

@@ -2,7 +2,8 @@ package org.vitrivr.cottontail.client.language.basics.expression
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.client.language.extensions.parseFunction
+import org.vitrivr.cottontail.client.language.extensions.proto
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -13,9 +14,12 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  */
 @Serializable
 @SerialName("Function")
-class Function(val name: String, vararg val args: Expression): Expression() {
+class Function(val name: Name.FunctionName, vararg val args: Expression): Expression() {
+
+    constructor(name: String, vararg args: Expression): this(Name.FunctionName.parse(name), *args)
+
     override fun toGrpc(): CottontailGrpc.Expression {
-        val function = CottontailGrpc.Function.newBuilder().setName(name.parseFunction())
+        val function = CottontailGrpc.Function.newBuilder().setName(this.name.proto())
         for (exp in this.args) {
             function.addArguments(exp.toGrpc())
         }

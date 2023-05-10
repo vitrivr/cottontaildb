@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.client.language.dml
 
 import org.vitrivr.cottontail.client.language.basics.LanguageFeature
-import org.vitrivr.cottontail.client.language.extensions.parseColumn
-import org.vitrivr.cottontail.client.language.extensions.parseEntity
+import org.vitrivr.cottontail.client.language.extensions.proto
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tryConvertToValue
 import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.grpc.CottontailGrpc
@@ -13,14 +13,15 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class Insert(entity: String? = null): LanguageFeature() {
+class Insert(entity: Name.EntityName): LanguageFeature() {
+
+    constructor(entity: String): this(Name.EntityName.parse(entity))
+
     /** Internal [CottontailGrpc.InsertMessage.Builder]. */
     internal val builder = CottontailGrpc.InsertMessage.newBuilder()
 
     init {
-        if (entity != null) {
-            this.builder.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(entity.parseEntity())))
-        }
+        this.builder.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(entity.proto())))
     }
 
     /**
@@ -51,19 +52,6 @@ class Insert(entity: String? = null): LanguageFeature() {
     override fun serializedSize() = this.builder.build().serializedSize
 
     /**
-     * Adds a FROM-clause to this [Insert].
-     *
-     * @param entity The name of the entity to [Insert] to.
-     * @return This [Insert]
-     */
-    fun into(entity: String): Insert {
-        this.builder.clearFrom()
-        this.builder.setFrom(
-            CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(entity.parseEntity())))
-        return this
-    }
-
-    /**
      * Adds a value assignments this [Insert]. This method is cumulative, i.e., invoking
      * this method multiple times appends another assignment each time.
      *
@@ -84,8 +72,8 @@ class Insert(entity: String? = null): LanguageFeature() {
     fun value(column: String, value: PublicValue?): Insert {
         this.builder.addElements(
             CottontailGrpc.InsertMessage.InsertElement.newBuilder()
-                .setColumn(column.parseColumn())
-                .setValue(value?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().build()))
+                .setColumn(Name.ColumnName.parse(column).proto())
+                .setValue(value?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder()).build()))
         return this
     }
 

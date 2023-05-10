@@ -61,8 +61,8 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      * gRPC endpoint for creating a new [Entity]
      */
     override suspend fun createEntity(request: CottontailGrpc.CreateEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
-        val entityName = request.definition.entity.fqn()
-        val columns = request.definition.columnsList.map {
+        val entityName = request.entity.fqn()
+        val columns = request.columnsList.map {
             val type = Types.forName(it.type.name, it.length)
             val name = entityName.column(it.name.name) /* To make sure that columns belongs to entity. */
             try {

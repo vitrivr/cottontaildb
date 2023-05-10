@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.client.language.ddl
 
 import org.vitrivr.cottontail.client.language.basics.LanguageFeature
-import org.vitrivr.cottontail.client.language.extensions.parseColumn
-import org.vitrivr.cottontail.client.language.extensions.parseEntity
+import org.vitrivr.cottontail.client.language.extensions.proto
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc.Type
@@ -11,15 +11,14 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc.Type
  * A CREATE ENTITY query in the Cottontail DB query language.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 2.0.0
  */
-class CreateEntity(name: String): LanguageFeature() {
-    /** Internal [CottontailGrpc.CreateEntityMessage.Builder]. */
-    internal val builder = CottontailGrpc.CreateEntityMessage.newBuilder()
+class CreateEntity(name: Name.EntityName): LanguageFeature() {
 
-    init {
-        this.builder.definitionBuilder.entity = name.parseEntity()
-    }
+    constructor(name: String): this(Name.EntityName.parse(name))
+
+    /** Internal [CottontailGrpc.CreateEntityMessage.Builder]. */
+    internal val builder = CottontailGrpc.CreateEntityMessage.newBuilder().setEntity(name.proto())
 
     /**
      * Sets the transaction ID for this [CreateEntity].
@@ -57,9 +56,9 @@ class CreateEntity(name: String): LanguageFeature() {
      * @param autoIncrement Flag indicating whether column should be auto incremented. Only works for [Type.INTEGER] or [Type.LONG]
      * @return this [CreateEntity]
      */
-    fun column(name: String, type: Types<*>, nullable: Boolean = false, autoIncrement: Boolean = false): CreateEntity {
-        val addBuilder = builder.definitionBuilder.addColumnsBuilder()
-        addBuilder.name = name.parseColumn()
+    fun column(name: Name.ColumnName, type: Types<*>, nullable: Boolean = false, autoIncrement: Boolean = false): CreateEntity {
+        val addBuilder = builder.addColumnsBuilder()
+        addBuilder.name = name.proto()
         addBuilder.type = Type.valueOf(type.name)
         addBuilder.length = type.logicalSize
         addBuilder.nullable = nullable
@@ -80,5 +79,5 @@ class CreateEntity(name: String): LanguageFeature() {
      * @return this [CreateEntity]
      */
     fun column(name: String, type: String, length: Int = 0, nullable: Boolean = false, autoIncrement: Boolean = false)
-        = this.column(name, Types.forName(type.uppercase(), length), nullable, autoIncrement)
+        = this.column(Name.ColumnName.parse(name), Types.forName(type.uppercase(), length), nullable, autoIncrement)
 }

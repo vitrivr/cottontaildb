@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.client.language.dml
 import org.vitrivr.cottontail.client.language.basics.LanguageFeature
 import org.vitrivr.cottontail.client.language.basics.predicate.*
 import org.vitrivr.cottontail.client.language.extensions.*
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -11,14 +12,15 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class Delete(entity: String? = null): LanguageFeature() {
+class Delete(entity: Name.EntityName): LanguageFeature() {
+
+    constructor(entity: String): this(Name.EntityName.parse(entity))
+
     /** Internal [CottontailGrpc.DeleteMessage.Builder]. */
     internal val builder = CottontailGrpc.DeleteMessage.newBuilder()
 
     init {
-        if (entity != null) {
-            this.builder.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(entity.parseEntity())))
-        }
+        this.builder.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(entity.proto())))
     }
 
     /**
@@ -47,19 +49,6 @@ class Delete(entity: String? = null): LanguageFeature() {
      * @return The size in bytes of this [Delete].
      */
     override fun serializedSize() = this.builder.build().serializedSize
-
-    /**
-     * Adds a FROM-clause to this [Delete].
-     *
-     * @param entity The name of the entity to [Delete] from.
-     * @return This [Delete]
-     */
-    fun from(entity: String): Delete {
-        this.builder.clearFrom()
-        this.builder.setFrom(
-            CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(entity.parseEntity())))
-        return this
-    }
 
     /**
      * Adds a WHERE-clause to this [Delete].

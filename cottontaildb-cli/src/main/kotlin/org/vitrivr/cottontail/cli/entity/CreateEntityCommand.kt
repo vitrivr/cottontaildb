@@ -56,15 +56,14 @@ class CreateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, 
         checkValid()
 
         /* Prepare entity definition and prompt user use to add columns to definition. */
-        val colDef = CottontailGrpc.EntityDefinition.newBuilder().setEntity(this.entityName.proto())
-
+        val createMessage = CottontailGrpc.CreateEntityMessage.newBuilder().setEntity(this.entityName.proto())
         if (columnDefinition != null && columnDefinition!!.isNotEmpty()) {
             columnDefinition!!.forEach {
-                colDef.addColumns(it)
+                createMessage.addColumns(it)
             }
 
             val time = measureTimedValue {
-                TabulationUtilities.tabulate(this.client.create(CottontailGrpc.CreateEntityMessage.newBuilder().setDefinition(colDef).build()))
+                TabulationUtilities.tabulate(this.client.create(createMessage.build()))
             }
             println("Entity ${this.entityName} created successfully (took ${time.duration}).")
             print(time.value)
@@ -73,14 +72,14 @@ class CreateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, 
 
             do {
                 /* Prompt user for column definition. */
-                println("Please specify column to add at position ${colDef.columnsCount + 1}.")
+                println("Please specify column to add at position ${createMessage.columnsCount + 1}.")
                 val ret = this.promptForColumn()
                 if (ret != null) {
-                    colDef.addColumns(ret)
+                    createMessage.addColumns(ret)
                 }
 
                 /* Ask if another column should be added. */
-                if (colDef.columnsCount > 0 && this.confirm("Do you want to add another column (size = ${colDef.columnsCount})?") == false) {
+                if (createMessage.columnsCount > 0 && this.confirm("Do you want to add another column (size = ${createMessage.columnsCount})?") == false) {
                     break
                 }
             } while (true)
@@ -105,7 +104,7 @@ class CreateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, 
                     }
                 }
                 body {
-                    colDef.columnsList.forEach { def ->
+                    createMessage.columnsList.forEach { def ->
                         row {
                             cells(def.name, def.type, def.length, def.nullable)
                         }
@@ -116,7 +115,7 @@ class CreateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, 
             /* As for final confirmation and create entity. */
             if (this.confirm(text = "Please confirm that you want to create the entity:\n$tbl", default = true) == true) {
                 val time = measureTimedValue {
-                    TabulationUtilities.tabulate(this.client.create(CottontailGrpc.CreateEntityMessage.newBuilder().setDefinition(colDef).build()))
+                    TabulationUtilities.tabulate(this.client.create(createMessage.build()))
                 }
                 println("Entity ${this.entityName} created successfully (took ${time.duration}).")
                 print(time.value)

@@ -1,22 +1,22 @@
 package org.vitrivr.cottontail.client.language.ddl
 
 import org.vitrivr.cottontail.client.language.basics.LanguageFeature
-import org.vitrivr.cottontail.client.language.extensions.parseEntity
+import org.vitrivr.cottontail.client.language.extensions.proto
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
  * A TRUNCATE ENTITY query in the Cottontail DB query language.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
-class TruncateEntity(name: String): LanguageFeature() {
-    /** Internal [CottontailGrpc.DeleteMessage.Builder]. */
-    internal val builder = CottontailGrpc.TruncateEntityMessage.newBuilder()
+class TruncateEntity(name: Name.EntityName): LanguageFeature() {
 
-    init {
-        builder.entity = name.parseEntity()
-    }
+    constructor(name: String): this(Name.EntityName.parse(name))
+
+    /** Internal [CottontailGrpc.DeleteMessage.Builder]. */
+    internal val builder = CottontailGrpc.TruncateEntityMessage.newBuilder().setEntity(name.proto())
 
     /**
      * Sets the transaction ID for this [DropEntity].

@@ -367,7 +367,8 @@ message ListSchemaMessage {
 /** Message to create an entity. */
 message CreateEntityMessage {
     RequestMetadata metadata = 1;
-    EntityDefinition definition = 2;
+    EntityName entity = 2;
+    repeated ColumnDefinition columns = 3;
 }
 
 /** Message to drop an entity. */
