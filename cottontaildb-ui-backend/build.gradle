@@ -47,6 +47,10 @@ test {
     useJUnitPlatform()
 }
 
-
-
+tasks.register('generateOAS', Download) {
+    /* Requires DRES running on default port */
+    def f = new File("${project.projectDir}/doc/oas.json")
+    src 'http://localhost:7070/swagger-docs'
+    dest f
+}
 

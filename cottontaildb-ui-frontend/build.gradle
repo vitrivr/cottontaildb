@@ -1,3 +1,5 @@
+import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
+
 plugins {
   id 'base'
   id 'com.github.node-gradle.node' version '4.0.0'
@@ -19,6 +21,7 @@ node {
 
 tasks.register('buildFrontend', NpxTask) {
   dependsOn npmInstall
+  dependsOn generateOpenApi
   outputs.upToDateWhen {
     return file("$buildDir/dist").isDirectory()
   }
@@ -37,6 +40,25 @@ tasks.register('packageFrontend', Zip) {
   from("$buildDir/dist") {
     into 'html'
   }
+}
+
+/* Generates the open API frontend bindings. */
+tasks.register('generateOpenApi', GenerateTask) {
+  /// Source command: openapi-generator generate -g typescript-angular -i http://localhost:8080/swagger-docs -o openapi --skip-validate-spec --additional-properties npmName=@dres-openapi/api,snapshot=true,ngVersion=9.1.0
+  generateApiTests = false // No tests please
+  generateModelTests = false // No tests please
+  validateSpec = false // No validation please (as in command above)
+  skipValidateSpec = true
+
+  generatorName = 'typescript-angular'
+  inputSpec =  "${project.parent.projectDir}/doc/oas.json"
+  outputDir = "${project.projectDir}/openapi"
+  configOptions = [
+    npmName: '@thumper-openapi/api',
+    ngVersion: '15.2.0',
+    snapshot: 'true', /// I suggest to remove this, as soon as we automate this,
+    enumPropertyNaming: 'original'
+  ]
 }
 
 artifacts {
