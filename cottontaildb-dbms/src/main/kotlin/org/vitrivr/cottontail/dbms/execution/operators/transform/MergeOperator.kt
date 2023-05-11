@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.execution.operators.transform
 
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.channelFlow
@@ -41,5 +40,5 @@ class MergeOperator(parents: List<Operator>, override val context: QueryContext)
                 }
             }
         }
-    }.buffer(Channel.UNLIMITED)
+    }.buffer(2048) /* A maximum of 2048 records are buffered here. */
 }
