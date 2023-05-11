@@ -12,14 +12,14 @@ import java.util.*
  * @param max The maximum number of components to visualize.
  */
 fun PublicValue.toDescription(vectorSeparator: String = ";", max: Int = 4) = when(this) {
-    is BooleanValue,
-    is ByteValue,
-    is ShortValue,
-    is IntValue,
-    is LongValue,
-    is DoubleValue,
+    is BooleanValue -> this.value.toString()
+    is ByteValue -> this.value.toString()
+    is ShortValue -> this.value.toString()
+    is IntValue -> this.value.toString()
+    is LongValue -> this.value.toString()
+    is DoubleValue -> this.value.toString()
     is FloatValue -> this.toString()
-    is StringValue -> "\"${this}\""
+    is StringValue -> "\"${this.value}\""
     is DateValue -> this.toDate()
     is Complex32Value -> this.toDescription()
     is Complex64Value -> this.toDescription()
@@ -92,7 +92,7 @@ fun Complex64Value.toDescription() = if (this.imaginary.value < 0.0) {
  * @return [String]
  */
 fun BooleanVectorValue.toDescription(vectorSeparator: String = ";", max: Int = 4) : String = if (this.logicalSize > max) {
-    "[${this.data.take(max - 1).joinToString(separator = vectorSeparator, prefix = "[")}.., ${this.last()}]"
+    "${this.data.take(max - 1).joinToString(separator = vectorSeparator, prefix = "[")}.., ${this.last().value}]"
 } else {
     this.data.joinToString(separator = vectorSeparator, prefix = "[", postfix = "]")
 }
@@ -105,7 +105,7 @@ fun BooleanVectorValue.toDescription(vectorSeparator: String = ";", max: Int = 4
  * @return [String]
  */
 fun DoubleVectorValue.toDescription(vectorSeparator: String = ";", max: Int = 4) : String = if (this.logicalSize > max) {
-    "[${this.data.take(max - 1).joinToString(separator = vectorSeparator, prefix = "[")}.., ${this.last()}]"
+    "${this.data.take(max - 1).joinToString(separator = vectorSeparator, prefix = "[")}.., ${this.last().value}]"
 } else {
     this.data.joinToString(separator = vectorSeparator, prefix = "[", postfix = "]")
 }
@@ -118,7 +118,7 @@ fun DoubleVectorValue.toDescription(vectorSeparator: String = ";", max: Int = 4)
  * @return [String]
  */
 fun FloatVectorValue.toDescription(vectorSeparator: String = ";", max: Int = 4) : String = if (this.logicalSize > max) {
-    "[${this.data.take(max - 1).joinToString(separator = vectorSeparator, prefix = "[")}.., ${this.last()}]"
+    "${this.data.take(max - 1).joinToString(separator = vectorSeparator, prefix = "[")}.., ${this.last().value}]"
 } else {
     this.data.joinToString(separator = vectorSeparator, prefix = "[", postfix = "]")
 }
@@ -131,7 +131,7 @@ fun FloatVectorValue.toDescription(vectorSeparator: String = ";", max: Int = 4) 
  * @return [String]
  */
 fun IntVectorValue.toDescription(vectorSeparator: String = ";", max: Int = 4) : String = if (this.logicalSize > max) {
-    "[${this.data.take(max - 1).joinToString(separator = vectorSeparator, prefix = "[")}.., ${this.last()}]"
+    "${this.data.take(max - 1).joinToString(separator = vectorSeparator, prefix = "[")}.., ${this.last().value}]"
 } else {
     this.data.joinToString(separator = vectorSeparator, prefix = "[", postfix = "]")
 }
@@ -144,7 +144,7 @@ fun IntVectorValue.toDescription(vectorSeparator: String = ";", max: Int = 4) : 
  * @return [String]
  */
 fun LongVectorValue.toDescription(vectorSeparator: String = ";", max: Int = 4) : String = if (this.logicalSize > max) {
-    "[${this.data.take(max - 1).joinToString(separator = vectorSeparator, prefix = "[")}.., ${this.last()}]"
+    "${this.data.take(max - 1).joinToString(separator = vectorSeparator, prefix = "[")}.., ${this.last().value}]"
 } else {
     this.data.joinToString(separator = vectorSeparator, prefix = "[", postfix = "]")
 }
@@ -157,7 +157,7 @@ fun LongVectorValue.toDescription(vectorSeparator: String = ";", max: Int = 4) :
  * @return [String]
  */
 fun Complex32VectorValue.toDescription(vectorSeparator: String = ";", max: Int = 4) : String = if (this.logicalSize / 2 > max) {
-    "[${this.take(max - 1).joinToString(separator = vectorSeparator, prefix = "[") { (it as Complex32Value).toDescription() }}.., ${(this.last() as Complex32Value).toDescription()}]"
+    "${this.take(max - 1).joinToString(separator = vectorSeparator, prefix = "[") { (it as Complex32Value).toDescription() }}.., ${(this.last() as Complex32Value).toDescription()}]"
 } else {
     this.joinToString(separator = vectorSeparator, prefix = "[", postfix = "]") { (it as Complex32Value).toDescription() }
 }
@@ -170,7 +170,7 @@ fun Complex32VectorValue.toDescription(vectorSeparator: String = ";", max: Int =
  * @return [String]
  */
 fun Complex64VectorValue.toDescription(vectorSeparator: String = ";", max: Int = 4) : String = if (this.logicalSize / 2 > max) {
-    "[${this.take(max - 1).joinToString(separator = vectorSeparator, prefix = "[") { (it as Complex64Value).toDescription() }}.., ${(this.last() as Complex64Value).toDescription()}]"
+    "${this.take(max - 1).joinToString(separator = vectorSeparator, prefix = "[") { (it as Complex64Value).toDescription() }}.., ${(this.last() as Complex64Value).toDescription()}]"
 } else {
     this.joinToString(separator = vectorSeparator, prefix = "[", postfix = "]") { (it as Complex64Value).toDescription() }
 }
