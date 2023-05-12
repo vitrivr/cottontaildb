@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.client.language.ddl
 
 import org.vitrivr.cottontail.client.language.basics.LanguageFeature
 import org.vitrivr.cottontail.client.language.extensions.proto
+import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.grpc.CottontailGrpc
@@ -13,7 +14,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc.Type
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class CreateEntity(name: Name.EntityName): LanguageFeature() {
+class CreateEntity(val name: Name.EntityName): LanguageFeature() {
 
     constructor(name: String): this(Name.EntityName.parse(name))
 
@@ -41,11 +42,23 @@ class CreateEntity(name: Name.EntityName): LanguageFeature() {
     }
 
     /**
-     * Returns the serialized message size in bytes of this [CreateEntity]
+     * Adds a column to this [CreateEntity].
      *
-     * @return The size in bytes of this [CreateEntity].
+     * @param def The [ColumnDef] to add.
+     * @return this [CreateEntity]
      */
-    override fun serializedSize() = this.builder.build().serializedSize
+    fun column(def: ColumnDef<*>): CreateEntity {
+        val addBuilder = builder.addColumnsBuilder()
+        addBuilder.name = def.name.proto()
+        addBuilder.type = Type.valueOf(def.type.name)
+        addBuilder.length = def.type.logicalSize
+        addBuilder.nullable = def.nullable
+        if (def.autoIncrement) {
+            require(def.type == Types.Int || def.type == Types.Long) { "Auto-increment option is only supported by INTEGER and LONG columns."}
+            addBuilder.autoIncrement = true
+        }
+        return this
+    }
 
     /**
      * Adds a column to this [CreateEntity].
@@ -56,18 +69,8 @@ class CreateEntity(name: Name.EntityName): LanguageFeature() {
      * @param autoIncrement Flag indicating whether column should be auto incremented. Only works for [Type.INTEGER] or [Type.LONG]
      * @return this [CreateEntity]
      */
-    fun column(name: Name.ColumnName, type: Types<*>, nullable: Boolean = false, autoIncrement: Boolean = false): CreateEntity {
-        val addBuilder = builder.addColumnsBuilder()
-        addBuilder.name = name.proto()
-        addBuilder.type = Type.valueOf(type.name)
-        addBuilder.length = type.logicalSize
-        addBuilder.nullable = nullable
-        if (autoIncrement) {
-            require(type == Types.Int || type == Types.Long) { "Auto-increment option is only supported by INTEGER and LONG columns."}
-            addBuilder.autoIncrement = true
-        }
-        return this
-    }
+    fun column(name: Name.ColumnName, type: Types<*>, nullable: Boolean = false, autoIncrement: Boolean = false): CreateEntity
+        = this.column(ColumnDef(name, type, nullable, autoIncrement))
 
     /**
      * Adds a column to this [CreateEntity].
@@ -80,4 +83,18 @@ class CreateEntity(name: Name.EntityName): LanguageFeature() {
      */
     fun column(name: String, type: String, length: Int = 0, nullable: Boolean = false, autoIncrement: Boolean = false)
         = this.column(Name.ColumnName.parse(name), Types.forName(type.uppercase(), length), nullable, autoIncrement)
+
+    /**
+     * Returns the number of columns held by this [CreateEntity].
+     *
+     * @return Number of columns.
+     */
+    fun columns(): Int = this.builder.columnsCount
+
+    /**
+     * Returns the serialized message size in bytes of this [CreateEntity]
+     *
+     * @return The size in bytes of this [CreateEntity].
+     */
+    override fun serializedSize() = this.builder.build().serializedSize
 }

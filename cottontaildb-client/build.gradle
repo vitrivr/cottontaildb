@@ -153,7 +153,7 @@ dependencies {
 
     /////// Kotlin references
     api group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
-    api group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-json-jvm', version: version_kotlinx_json_jvm
+    api group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-core-jvm', version: version_kotlinx_serialization
     api group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: version_kotlinx_coroutines
 }
 

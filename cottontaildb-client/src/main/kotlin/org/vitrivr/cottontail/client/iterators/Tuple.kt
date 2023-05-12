@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.client.iterators
 
-import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.values.*
+import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.values.*
 import java.util.*
 
 /**
@@ -11,15 +11,15 @@ import java.util.*
  * @author Ralph Gasser
  * @version 2.0.0
  */
-@Serializable
-abstract class Tuple(private val values: Array<PublicValue?>) {
-    abstract fun nameForIndex(index: Int): String
-    abstract fun simpleNameForIndex(index: Int): String
-    abstract fun indexForName(name: String): Int
-    abstract fun type(name: String): Types<*>
-    abstract fun type(index: Int): Types<*>
+open class Tuple(val columns: List<ColumnDef<*>>, val values: List<PublicValue?>) {
+    fun nameForIndex(index: Int): String = this.columns[index].name.fqn
+    fun simpleNameForIndex(index: Int): String = this.columns[index].name.simple
+    fun indexForName(name: String) = this.columns.indexOfFirst { it.name.fqn == name }
+    fun types(): List<Types<*>> = this.columns.map { it.type }
+    fun type(index: Int): Types<*> = this.columns[index].type
+    fun type(name: String): Types<*> = this.columns[indexForName(name)].type
     fun size() = this.values.size
-    fun values(): Array<PublicValue?> = this.values
+    fun values(): List<PublicValue?> = this.values
     operator fun get(name: String): PublicValue? = this.values[indexForName(name)]
     operator fun get(index: Int): PublicValue? = this.values[index]
     fun asBooleanValue(index: Int): BooleanValue? = this.values[index] as? BooleanValue

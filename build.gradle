@@ -104,7 +104,7 @@ subprojects {
         implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
         implementation group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: version_kotlin
         implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: version_kotlinx_coroutines
-        implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-json-jvm', version: version_kotlinx_json_jvm
+        implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-json-jvm', version: version_kotlinx_serialization
 
         ////// Log4j2 & SLF4j
         implementation group: 'org.slf4j', name: 'slf4j-api', version: version_slf4j

@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.core.values
 
+import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  * @author Ralph Gasser
  * @version 2.0.0
  */
+@Serializable
 sealed interface PublicValue: Value {
     /**
      * Converts this [Value] to a [CottontailGrpc.Literal] gRCP representation.

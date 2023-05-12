@@ -1,16 +1,13 @@
 package org.vitrivr.cottontail.client.iterators
 
 import io.grpc.Context
-import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.client.language.extensions.fqn
+import org.vitrivr.cottontail.client.language.extensions.parse
+import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.toType
 import org.vitrivr.cottontail.core.toValue
-import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.util.*
 import java.util.concurrent.CancellationException
-import kotlin.collections.ArrayList
 
 /**
  * A [TupleIterator] used for retrieving [Tuple]s in a synchronous fashion.
@@ -18,7 +15,7 @@ import kotlin.collections.ArrayList
  * Usually used with unary, server-side calls that only return a limited amount of data.
  *
  * @author Ralph Gasser
- * @version 1.1.1
+ * @version 1.2.0
  */
 class TupleIteratorImpl internal constructor(private val results: Iterator<CottontailGrpc.QueryResponseMessage>, private val context: Context.CancellableContext) : TupleIterator {
 
@@ -27,12 +24,6 @@ class TupleIteratorImpl internal constructor(private val results: Iterator<Cotto
 
     /** Internal buffer with pre-loaded [CottontailGrpc.QueryResponseMessage.Tuple]. */
     private val buffer = LinkedList<Tuple>()
-
-    /** Internal map of columns names to column indexes. */
-    private val _columns = LinkedHashMap<String,Int>()
-
-    /** Internal map of simple names to column indexes. */
-    private val _simple = LinkedHashMap<String,Int>()
 
     /** The ID of the Cottontail DB transaction this [TupleIterator] is associated with. */
     override val transactionId: Long
@@ -47,17 +38,11 @@ class TupleIteratorImpl internal constructor(private val results: Iterator<Cotto
     override val queryDuration: Long
 
     /** The column names returned by this [TupleIterator]. */
-    override val columnNames: List<String> = ArrayList()
-
-    /** [List] of simple column names returned by this [TupleIterator] in order of occurrence. */
-    override val simpleNames: List<String> = ArrayList()
-
-    /** The column [Types]s returned by this [TupleIterator]. */
-    override val columnTypes: List<Types<*>> = ArrayList()
+    override val columns: List<ColumnDef<*>>
 
     /** Returns the number of columns contained in the [Tuple]s returned by this [TupleIterator]. */
     override val numberOfColumns: Int
-        get() = this.columnNames.size
+        get() = this.columns.size
 
     init {
         /* Start loading first results. */
@@ -69,17 +54,16 @@ class TupleIteratorImpl internal constructor(private val results: Iterator<Cotto
         this.planDuration = next.metadata.planDuration
         this.queryDuration = next.metadata.queryDuration
 
-        next.tuplesList.forEach { t->
-            this.buffer.add(TupleImpl(Array(t.dataCount) { t.dataList[it].toValue() }))
+        /* Parse list of columns. */
+        val list = ArrayList<ColumnDef<*>>(next.columnsList.size)
+        next.columnsList.forEach { c ->
+            list.add(ColumnDef(c.name.parse(), c.type.toType(c.length), c.nullable, c.primary, c.autoIncrement))
         }
-        next.columnsList.forEachIndexed { i,c ->
-            this._columns[c.name.fqn()] = i
-            (this.columnNames as MutableList).add(c.name.fqn())
-            (this.simpleNames as MutableList).add(c.name.name)
-            (this.columnTypes as MutableList).add(c.type.toType(c.length))
-            if (!this._simple.contains(c.name.name)) {
-                this._simple[c.name.name] = i /* If a simple name is not unique, only the first occurrence is returned. */
-            }
+        this.columns = list
+
+        /* Parse first batch of tuples. */
+        next.tuplesList.forEach { t->
+            this.buffer.add(Tuple(this.columns, t.dataList.map { l -> l.toValue() }))
         }
 
         /** Call finalizer if no more data is available. */
@@ -110,8 +94,8 @@ class TupleIteratorImpl internal constructor(private val results: Iterator<Cotto
                 this.context.close()
                 throw IllegalArgumentException("TupleIterator has been drained and no more elements can be loaded. Call hasNext() to ensure that elements are available before calling next().")
             }
-            this.results.next().tuplesList.forEach { t ->
-                this.buffer.add(TupleImpl(Array(t.dataCount) { t.dataList[it].toValue() }))
+            this.results.next().tuplesList.map { t ->
+                this.buffer.add(Tuple(this.columns, t.dataList.map { l -> l.toValue() }))
             }
         }
         return this.buffer.poll()!!
@@ -122,13 +106,5 @@ class TupleIteratorImpl internal constructor(private val results: Iterator<Cotto
      */
     override fun close() {
         this.context.cancel(CancellationException("TupleIterator has been prematurely closed by user."))
-    }
-
-    inner class TupleImpl(values: Array<PublicValue?>): Tuple(values) {
-        override fun nameForIndex(index: Int): String = this@TupleIteratorImpl.columnNames[index]
-        override fun simpleNameForIndex(index: Int): String = this@TupleIteratorImpl.simpleNames[index]
-        override fun indexForName(name: String) = (this@TupleIteratorImpl._columns[name] ?: this@TupleIteratorImpl._simple[name]) ?: throw IllegalArgumentException("Column $name not known to this TupleIterator.")
-        override fun type(index: Int): Types<*> = this@TupleIteratorImpl.columnTypes[index]
-        override fun type(name: String): Types<*> = this@TupleIteratorImpl.columnTypes[indexForName(name)]
     }
 }

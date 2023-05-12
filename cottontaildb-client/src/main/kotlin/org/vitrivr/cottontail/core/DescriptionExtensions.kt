@@ -11,7 +11,7 @@ import java.util.*
  * @param vectorSeparator The character used to separate vector components.
  * @param max The maximum number of components to visualize.
  */
-fun PublicValue.toDescription(vectorSeparator: String = ";", max: Int = 4) = when(this) {
+fun PublicValue.toDescription(vectorSeparator: String = ";", max: Int = 4): String = when(this) {
     is BooleanValue -> this.value.toString()
     is ByteValue -> this.value.toString()
     is ShortValue -> this.value.toString()
@@ -19,8 +19,8 @@ fun PublicValue.toDescription(vectorSeparator: String = ";", max: Int = 4) = whe
     is LongValue -> this.value.toString()
     is DoubleValue -> this.value.toString()
     is FloatValue -> this.toString()
-    is StringValue -> "\"${this.value}\""
-    is DateValue -> this.toDate()
+    is StringValue -> this.value
+    is DateValue -> this.toDate().toString()
     is Complex32Value -> this.toDescription()
     is Complex64Value -> this.toDescription()
     is BooleanVectorValue -> this.toDescription(vectorSeparator, max)
