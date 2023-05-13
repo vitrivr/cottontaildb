@@ -30,7 +30,7 @@ object TabulationUtilities {
         }
         header {
             row {
-                result.columnNames.forEach { cell(it) }
+                result.columns.forEach { cell(it.name.simple) }
             }
         }
         body {
@@ -55,7 +55,7 @@ object TabulationUtilities {
         }
         header {
             row {
-                result.columnNames.forEach { cell(it) }
+                result.columns.forEach { cell(it.name.simple) }
             }
         }
         body {
