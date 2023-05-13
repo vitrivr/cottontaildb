@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.core.database
 
+import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 
@@ -10,6 +11,7 @@ import org.vitrivr.cottontail.core.types.Value
  * @author Ralph Gasser
  * @version 1.7.0
  */
+@Serializable
 data class ColumnDef<T : Value>(val name: Name.ColumnName, val type: Types<T>, val nullable: Boolean = true, val primary: Boolean = false, val autoIncrement: Boolean = false) {
 
     /**
