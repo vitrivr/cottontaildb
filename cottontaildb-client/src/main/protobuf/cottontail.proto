@@ -351,6 +351,7 @@ message Complex64Vector {
 message CreateSchemaMessage {
     RequestMetadata metadata = 1;
     SchemaName schema = 2;
+    bool mayExist = 3;
 }
 
 /** Message to drop schema. */
@@ -369,6 +370,7 @@ message CreateEntityMessage {
     RequestMetadata metadata = 1;
     EntityName entity = 2;
     repeated ColumnDefinition columns = 3;
+    bool mayExist = 4;
 }
 
 /** Message to drop an entity. */

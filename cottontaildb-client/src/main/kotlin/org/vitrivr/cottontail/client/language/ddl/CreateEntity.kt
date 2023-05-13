@@ -66,11 +66,12 @@ class CreateEntity(val name: Name.EntityName): LanguageFeature() {
      * @param name The name of the column.
      * @param type The [Types] of the column.
      * @param nullable Flag indicating whether column should be nullable.
+     * @param nullable Flag indicating whether column should be nullable
      * @param autoIncrement Flag indicating whether column should be auto incremented. Only works for [Type.INTEGER] or [Type.LONG]
      * @return this [CreateEntity]
      */
-    fun column(name: Name.ColumnName, type: Types<*>, nullable: Boolean = false, autoIncrement: Boolean = false): CreateEntity
-        = this.column(ColumnDef(name, type, nullable, autoIncrement))
+    fun column(name: Name.ColumnName, type: Types<*>, nullable: Boolean = false, primaryKey: Boolean = false, autoIncrement: Boolean = false): CreateEntity
+        = this.column(ColumnDef(name, type, nullable, primaryKey, autoIncrement))
 
     /**
      * Adds a column to this [CreateEntity].
@@ -90,6 +91,16 @@ class CreateEntity(val name: Name.EntityName): LanguageFeature() {
      * @return Number of columns.
      */
     fun columns(): Int = this.builder.columnsCount
+
+    /**
+     * Sets the IF NOT EXISTS flag. Means that the request will fail gracefully if the entity already exists.
+     *
+     * @return The [CreateEntity] object.
+     */
+    fun ifNotExists(): CreateEntity {
+        this.builder.mayExist = true
+        return this
+    }
 
     /**
      * Returns the serialized message size in bytes of this [CreateEntity]

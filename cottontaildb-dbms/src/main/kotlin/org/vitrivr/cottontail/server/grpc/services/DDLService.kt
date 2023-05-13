@@ -27,7 +27,7 @@ import kotlin.time.ExperimentalTime
  * This is a gRPC service endpoint that handles DDL (= Data Definition Language) request for Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.6.0
+ * @version 2.6.1
  */
 @ExperimentalTime
 class DDLService(override val catalogue: DefaultCatalogue, override val manager: TransactionManager, val autoRebuilderService: AutoRebuilderService, val autoAnalyzerService: AutoAnalyzerService) : DDLGrpcKt.DDLCoroutineImplBase(), TransactionalGrpcService {
@@ -36,7 +36,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      */
     override suspend fun createSchema(request: CottontailGrpc.CreateSchemaMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val schemaName = request.schema.fqn()
-        ctx.register(CreateSchemaPhysicalOperatorNode(this.catalogue.newTx(ctx), schemaName))
+        ctx.register(CreateSchemaPhysicalOperatorNode(this.catalogue.newTx(ctx), schemaName, request.mayExist))
         ctx.toOperatorTree()
     }.single()
 
@@ -71,7 +71,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
                 throw DatabaseException.ValidationException(e.message ?: "Failed to validate query input.")
             }
         }.toTypedArray()
-        ctx.register(CreateEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName, columns))
+        ctx.register(CreateEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName, request.mayExist, columns))
         ctx.toOperatorTree()
     }.single()
 
