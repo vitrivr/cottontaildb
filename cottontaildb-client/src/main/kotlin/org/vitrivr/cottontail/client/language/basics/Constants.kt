@@ -4,7 +4,7 @@ package org.vitrivr.cottontail.client.language.basics
  * Constants used in Cottontail DB client.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 object Constants {
     /** Constant used in DDL responses. Fully qualified name of the database object (DBO). */
@@ -24,6 +24,12 @@ object Constants {
 
     /** Constant used in DDL responses. Number of rows in a ENTITY database object (DBO). */
     const val COLUMN_NAME_ROWS = "rows"
+
+    /** Constant used in DML responses. The executed action (UPDATE, INSERT, DELETE). */
+    const val COLUMN_NAME_ACTION = "action"
+
+    /** Constant used in DML responses. The time it took to execute a query in ms. */
+    const val COLUMN_NAME_DURATION = "duration_ms"
 
     /** The maximum message size in bytes (slightly smaller than 4MB). */
     const val MAX_PAGE_SIZE_BYTES = 3_750_000
