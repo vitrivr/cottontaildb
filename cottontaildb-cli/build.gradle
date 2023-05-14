@@ -1,6 +1,9 @@
-/* Plugins. */
-apply plugin: 'application'
-apply plugin: 'com.github.johnrengelman.shadow'
+plugins {
+    id "application"
+    id "com.github.johnrengelman.shadow"
+    id "org.jetbrains.kotlin.plugin.serialization" version "$version_kotlin"
+}
+
 
 /* C(arrot)LI dependencies. */
 dependencies {
@@ -15,6 +18,8 @@ dependencies {
     /* JSON, PROTOBUF and CSV support for kotlinx.serialization. */
     implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-json-jvm', version: version_kotlinx_serialization
     implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-protobuf-jvm', version: version_kotlinx_serialization
+    implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-cbor-jvm', version: version_kotlinx_serialization
+
     implementation group: 'de.brudaswen.kotlinx.serialization', name: 'kotlinx-serialization-csv', version: version_kotlinx_serialization_csv
 
     /* Test Fixtures from Cottontail DB core. */

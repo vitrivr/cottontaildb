@@ -51,11 +51,11 @@ fun List<ColumnDef<*>>.valueSerializer() = TupleSerializer(this)
 fun List<ColumnDef<*>>.descriptionSerializer() = TupleSimpleSerializer(this)
 
 /**
- * Returns a [KSerializer] for a [Tuple].
+ * Returns a [TupleSerializer] for a [Tuple].
  *
  * @return [KSerializer]
  */
-fun Tuple.valueSerializer(): KSerializer<Tuple> = TupleSerializer(this.columns)
+fun Tuple.valueSerializer() = TupleSerializer(this.columns)
 
 /**
  * Returns a [TupleSimpleSerializer] for a [Tuple].
@@ -66,11 +66,11 @@ fun Tuple.descriptionSerializer() = TupleSimpleSerializer(this.columns)
 
 
 /**
- * Returns a [TupleSimpleSerializer] for a [TupleIterator].
+ * Returns a [TupleSerializer] for a [TupleIterator].
  *
  * @return [TupleSimpleSerializer]
  */
-fun TupleIterator.valueSerializer() = TupleIteratorSerializer(this.columns.valueSerializer())
+fun TupleIterator.valueSerializer() = this.columns.valueSerializer()
 
 
 /**
@@ -78,4 +78,4 @@ fun TupleIterator.valueSerializer() = TupleIteratorSerializer(this.columns.value
  *
  * @return [TupleSimpleSerializer]
  */
-fun TupleIterator.descriptionSerializer() = TupleIteratorSerializer(this.columns.descriptionSerializer())
+fun TupleIterator.descriptionSerializer() = this.columns.descriptionSerializer()

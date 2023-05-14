@@ -5,12 +5,20 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.jakewharton.picnic.Table
 import io.grpc.StatusException
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.cbor.Cbor
+import kotlinx.serialization.csv.Csv
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToStream
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.data.Format
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.serialization.valueSerializer
 import org.vitrivr.cottontail.utilities.TabulationUtilities
+import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.StandardOpenOption
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 import kotlin.time.measureTimedValue
@@ -19,7 +27,7 @@ import kotlin.time.measureTimedValue
  * An [AbstractCottontailCommand] that concerns the execution of queries.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 @ExperimentalTime
 abstract class AbstractQueryCommand(protected val client: SimpleClient, name: String, help: String, expand: Boolean = true): AbstractCottontailCommand(name, help, expand) {
@@ -43,7 +51,7 @@ abstract class AbstractQueryCommand(protected val client: SimpleClient, name: St
         "-f",
         "--format",
         help = "Only for option --out; export format. Defaults to PROTO."
-    ).convert { Format.valueOf(it) }.default(Format.PROTO)
+    ).convert { Format.valueOf(it) }.default(Format.CBOR)
 
     /** Flag indicating, whether query should written to file or console. */
     protected val toFile: Boolean
@@ -87,8 +95,7 @@ abstract class AbstractQueryCommand(protected val client: SimpleClient, name: St
      *
      * @param query The [Query] to execute and export.
      */
-    protected fun executeAndExport(query: org.vitrivr.cottontail.client.language.dql.Query)
-            = executeAndExport(query.builder.build())
+    protected fun executeAndExport(query: org.vitrivr.cottontail.client.language.dql.Query) = executeAndExport(query.builder.build())
 
     /**
      * Takes a [Query], executes and collects all results into a specified output file using the specified format.
@@ -98,10 +105,11 @@ abstract class AbstractQueryCommand(protected val client: SimpleClient, name: St
     protected fun executeAndExport(query: CottontailGrpc.QueryMessage) {
         try {
             val duration = measureTime {
-                if (this.out != null) {
+                val out = this.out
+                if (out != null) {
                     /* Determine which data exporter to use. */
-                    val dataExporter = this.format?.newExporter(this.out!!)
-                    if (dataExporter == null) {
+                    val format = this.format
+                    if (format == null) {
                         println("Valid output format needs to be specified for export!")
                         return
                     }
@@ -113,11 +121,14 @@ abstract class AbstractQueryCommand(protected val client: SimpleClient, name: St
                         this.client.query(query)
                     }
 
-                    /* Export data. */
-                    for (r in results) {
-                        dataExporter.offer(r)
+                    /* Export data using kotlinx serialization */
+                    Files.newOutputStream(this.out, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use {
+                        when (format) {
+                            Format.CBOR -> it.write(Cbor.encodeToByteArray(ListSerializer(results.valueSerializer()), results.drainToList()))
+                            Format.JSON -> Json.encodeToStream(ListSerializer(results.valueSerializer()), results.drainToList(), it)
+                            Format.CSV -> it.write(Csv.encodeToString(ListSerializer(results.valueSerializer()), results.drainToList()).toByteArray())
+                        }
                     }
-                    dataExporter.close()
                 }
             }
             println("Executing and exporting query took $duration.")

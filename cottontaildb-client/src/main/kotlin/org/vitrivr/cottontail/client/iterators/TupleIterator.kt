@@ -26,4 +26,11 @@ interface TupleIterator : Iterator<Tuple>, AutoCloseable {
 
     /** [List] of column names returned by this [TupleIterator] in order of occurrence. Contains fully qualified names. */
     val columns: List<ColumnDef<*>>
+
+    /**
+     * Drains this [TupleIterator] into a [List] of [Tuple]s.
+     *
+     * @return [List] of [Tuple]
+     */
+    fun drainToList(): List<Tuple>
 }

@@ -14,7 +14,7 @@ import java.util.*
 open class Tuple(val columns: List<ColumnDef<*>>, val values: List<PublicValue?>) {
     fun nameForIndex(index: Int): String = this.columns[index].name.fqn
     fun simpleNameForIndex(index: Int): String = this.columns[index].name.simple
-    fun indexForName(name: String) = this.columns.indexOfFirst { it.name.fqn == name }
+    fun indexForName(name: String) = this.columns.indexOfFirst { it.name.simple == name }
     fun types(): List<Types<*>> = this.columns.map { it.type }
     fun type(index: Int): Types<*> = this.columns[index].type
     fun type(name: String): Types<*> = this.columns[indexForName(name)].type

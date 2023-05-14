@@ -102,6 +102,19 @@ class TupleIteratorImpl internal constructor(private val results: Iterator<Cotto
     }
 
     /**
+     * Drains this [TupleIterator] into a [List] of [Tuple]s.
+     *
+     * @return [List] of [Tuple]
+     */
+    override fun drainToList(): List<Tuple> {
+        val list = LinkedList<Tuple>()
+        for (t in this) {
+            list.add(t)
+        }
+        return list
+    }
+
+    /**
      * Closes this [TupleIteratorImpl].
      */
     override fun close() {

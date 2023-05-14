@@ -4,8 +4,8 @@ import com.google.protobuf.ByteString
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.core.types.ScalarValue
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.util.*
 
@@ -13,7 +13,7 @@ import java.util.*
  * This is an abstraction over a [ByteArray] (BLOB).
  *
  * @author Luca Rossetto & Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.1
  */
 @Serializable
 @SerialName("ByteString")
@@ -22,6 +22,14 @@ value class ByteStringValue(override val value: ByteArray) : ScalarValue<ByteArr
 
     companion object {
         val EMPTY = ByteStringValue(ByteArray(0))
+
+        /**
+         * Decodes a Base64 string into a [ByteStringValue].
+         *
+         * @param string The [String] to decode.
+         * @return The [ByteStringValue]
+         */
+        fun fromBase64(string: String) = ByteStringValue(Base64.getDecoder().decode(string))
     }
 
     override val logicalSize: Int
@@ -52,6 +60,14 @@ value class ByteStringValue(override val value: ByteArray) : ScalarValue<ByteArr
      */
     override fun isEqual(other: Value): Boolean = (other is ByteStringValue) && other.value.contentEquals(this.value)
 
+
+    /**
+     * Returns a Base 64 encoded [String] representation of this [ByteArray].
+     *
+     * @return [String]
+     */
+    fun toBase64() = Base64.getEncoder().encodeToString(this.value)
+
     /**
      * Converts this [ByteValue] to a [CottontailGrpc.Literal] gRCP representation.
      *
@@ -59,9 +75,4 @@ value class ByteStringValue(override val value: ByteArray) : ScalarValue<ByteArr
      */
     override fun toGrpc(): CottontailGrpc.Literal
         = CottontailGrpc.Literal.newBuilder().setByteStringData(ByteString.copyFrom(this.value)).build()
-
-    /**
-     *
-     */
-    override fun toString(): String = this.value.toString()
 }
