@@ -112,7 +112,7 @@ class DefaultBindingContext: BindingContext {
         for ((i, v) in values.withIndex()) {
             check(this.boundLiterals.add(v)) { "Failed to add $v to list of bound values for index ${bindingIndexStart + i}." }
         }
-        return Binding.LiteralList(bindingIndexStart, bindingIndexStart + values.size - 1, false, values.first().type)
+        return Binding.LiteralList(bindingIndexStart, bindingIndexStart + values.size, false, values.first().type)
     }
 
     /**
