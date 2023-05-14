@@ -4,10 +4,10 @@ import org.apache.commons.math3.linear.ArrayRealVector
 import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.RepeatedTest
+import org.vitrivr.cottontail.core.toDouble
 import org.vitrivr.cottontail.core.values.BooleanVectorValue
 import org.vitrivr.cottontail.core.values.generators.BooleanVectorValueGenerator
 import org.vitrivr.cottontail.math.isApproximatelyTheSame
-import org.vitrivr.cottontail.utilities.extensions.toDouble
 import kotlin.math.pow
 
 /**

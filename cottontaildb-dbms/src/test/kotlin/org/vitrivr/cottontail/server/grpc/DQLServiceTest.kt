@@ -8,12 +8,12 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.basics.Distances
-import org.vitrivr.cottontail.client.language.basics.Type
-import org.vitrivr.cottontail.client.language.basics.predicate.Expression
+import org.vitrivr.cottontail.client.language.basics.predicate.Compare
 import org.vitrivr.cottontail.client.language.ddl.CreateEntity
 import org.vitrivr.cottontail.client.language.ddl.DropEntity
 import org.vitrivr.cottontail.client.language.dml.Insert
 import org.vitrivr.cottontail.client.language.dql.Query
+import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.embedded
 import org.vitrivr.cottontail.server.CottontailServer
 import org.vitrivr.cottontail.test.GrpcTestUtils
@@ -99,8 +99,8 @@ class DQLServiceTest {
 
     @Test
     fun queryColumn() {
-        val query = Query().from(TEST_ENTITY_NAME.fqn).select(STRING_COLUMN_NAME)
-        val result = client.query(query)
+        val query = Query(TEST_ENTITY_NAME).select(STRING_COLUMN_NAME)
+        val result = this.client.query(query)
         assert(result.numberOfColumns == 1)
         val el = result.next()
         assert(!el.asString(STRING_COLUMN_NAME).equals(""))
@@ -108,8 +108,8 @@ class DQLServiceTest {
 
     @Test
     fun queryColumnWithVector() {
-        val query = Query().from(TEST_VECTOR_ENTITY_NAME.fqn).select(STRING_COLUMN_NAME)
-        val result = client.query(query)
+        val query = Query(TEST_VECTOR_ENTITY_NAME).select(STRING_COLUMN_NAME)
+        val result = this.client.query(query)
         assert(result.numberOfColumns == 1)
         val el = result.next()
         assert(!el.asString(STRING_COLUMN_NAME).equals(""))
@@ -117,10 +117,9 @@ class DQLServiceTest {
 
     @Test
     fun haversineDistance() {
-        val query = Query()
+        val query = Query(TEST_VECTOR_ENTITY_NAME)
                 .select("*")
-                .from(TEST_VECTOR_ENTITY_NAME.fqn)
-                .distance(TWOD_COLUMN_NAME, arrayOf(5f, 10f), Distances.HAVERSINE, "distance")
+                .distance(TWOD_COLUMN_NAME, FloatVectorValue(arrayOf(5f, 10f)), Distances.HAVERSINE, "distance")
                 .order("distance", Direction.ASC)
                 .limit(500)
         val result = client.query(query)
@@ -131,15 +130,14 @@ class DQLServiceTest {
 
     @Test
     fun queryNNSWithLikeStart() {
-        val query = Query()
+        val query = Query(TEST_VECTOR_ENTITY_NAME)
                 .select("*")
-                .from(TEST_VECTOR_ENTITY_NAME.fqn)
-                .distance(TWOD_COLUMN_NAME, arrayOf(5f, 10f), Distances.L2, "distance")
-                .where(Expression(STRING_COLUMN_NAME, "LIKE", "a%"))
+                .distance(TWOD_COLUMN_NAME, FloatVectorValue(arrayOf(5f, 10f)), Distances.L2, "distance")
+                .where(Compare(STRING_COLUMN_NAME, "LIKE", "a%"))
                 .order("distance", Direction.ASC)
                 .limit(500)
 
-        val result = client.query(query)
+        val result = this.client.query(query)
         for (r in result) {
             val distance = r.asDouble("distance")
             val string = r.asString(STRING_COLUMN_NAME)!!
@@ -150,13 +148,13 @@ class DQLServiceTest {
 
     @Test
     fun queryNNSWithLikeEnd() {
-        val query = Query().from(TEST_VECTOR_ENTITY_NAME.fqn)
+        val query = Query(TEST_VECTOR_ENTITY_NAME)
                 .select("*")
-                .distance(TWOD_COLUMN_NAME, arrayOf(5f, 10f), Distances.L2, "distance")
-                .where(Expression(STRING_COLUMN_NAME, "LIKE", "%z"))
+                .distance(TWOD_COLUMN_NAME, FloatVectorValue(arrayOf(5f, 10f)), Distances.L2, "distance")
+                .where(Compare(STRING_COLUMN_NAME, "LIKE", "%z"))
                 .order("distance", Direction.ASC)
                 .limit(500)
-        val result = client.query(query)
+        val result = this.client.query(query)
         for (r in result) {
             val distance = r.asDouble("distance")
             val string = r.asString(STRING_COLUMN_NAME)!!
@@ -180,21 +178,21 @@ class DQLServiceTest {
     private fun testDistinct(entryStrings: List<String>){
         /* Create entity with one column. */
         val entityName = TestConstants.TEST_SCHEMA.entity("distinct_test")
-        this.client.create(CreateEntity(entityName.fqn).column(STRING_COLUMN_NAME, Type.STRING))
+        this.client.create(CreateEntity(entityName.fqn).column(STRING_COLUMN_NAME, "STRING"))
 
         try {
             /* INSERT the same entry multiple times. */
             val txId = this.client.begin()
             entryStrings.forEachIndexed { idx, s ->
                 repeat(maxOf(2, idx)) {
-                    val insert = Insert().into(entityName.fqn).value(STRING_COLUMN_NAME, s).txId(txId)
+                    val insert = Insert(entityName).any(STRING_COLUMN_NAME, s).txId(txId)
                     this.client.insert(insert)
                 }
             }
             this.client.commit(txId)
 
             /* Execute and check query. */
-            val query = Query().from(entityName.fqn).distinct(STRING_COLUMN_NAME, null)
+            val query = Query(entityName).distinct(STRING_COLUMN_NAME, null)
             val result = this.client.query(query)
             val set = mutableSetOf<String>()
             for(r in result){

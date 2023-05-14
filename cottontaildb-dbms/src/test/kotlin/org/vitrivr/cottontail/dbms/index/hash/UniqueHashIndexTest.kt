@@ -29,8 +29,8 @@ class UniqueHashIndexTest : AbstractIndexTest() {
 
     /** List of columns for this [UniqueHashIndexTest]. */
     override val columns = arrayOf(
-        ColumnDef(this.entityName.column("id"), Types.String, false),
-        ColumnDef(this.entityName.column("feature"), Types.FloatVector(128), false)
+        ColumnDef(this.entityName.column("id"), Types.String, false) as ColumnDef<*>,
+        ColumnDef(this.entityName.column("feature"), Types.FloatVector(128), false) as ColumnDef<*>
     )
     override val indexColumn: ColumnDef<*>
         get() = this.columns.first()
@@ -64,7 +64,7 @@ class UniqueHashIndexTest : AbstractIndexTest() {
         /* Prepare binding context and predicate. */
         val columnBinding = ctx.bindings.bind(this.columns[0])
         val valueBinding = ctx.bindings.bindNull(Types.String)
-        val predicate = BooleanPredicate.Comparison(ComparisonOperator.Binary.Equal(columnBinding, valueBinding), false)
+        val predicate = BooleanPredicate.Comparison(ComparisonOperator.Binary.Equal(columnBinding, valueBinding))
 
         /* Check all entries. */
         with(ctx.bindings) {
@@ -103,7 +103,7 @@ class UniqueHashIndexTest : AbstractIndexTest() {
         val indexTx = index.newTx(ctx)
 
         var count = 0
-        val predicate = BooleanPredicate.Comparison(ComparisonOperator.Binary.Equal(ctx.bindings.bind(this.columns[0]), ctx.bindings.bind(StringValue(UUID.randomUUID().toString()))), false)
+        val predicate = BooleanPredicate.Comparison(ComparisonOperator.Binary.Equal(ctx.bindings.bind(this.columns[0]), ctx.bindings.bind(StringValue(UUID.randomUUID().toString()))))
         val cursor = indexTx.filter(predicate)
         cursor.forEach { count += 1 }
         cursor.close()

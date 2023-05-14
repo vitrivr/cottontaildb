@@ -6,49 +6,15 @@ import org.vitrivr.cottontail.core.queries.binding.MissingRecord
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.core.values.generators.*
-import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 
 /**
  * Test case that tests for correctness of [ComparisonOperator]s.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 class NumericValueComparisonOperatorTest {
-    /**
-     * Checks correctness of the [ComparisonOperator.IsNull] operator.
-     */
-    @RepeatedTest(100)
-    fun checkIsNull() {
-        val context = DefaultBindingContext()
-        with(context) {
-            with(MissingRecord) {
-                val referenceBoolean = BooleanValueGenerator.random()
-                val referenceByte = ByteValueGenerator.random()
-                val referenceShort = ShortValueGenerator.random()
-                val referenceInt = IntValueGenerator.random()
-                val referenceLong = LongValueGenerator.random()
-                val referenceFloat = FloatValueGenerator.random()
-                val referenceDouble = DoubleValueGenerator.random()
-
-                /** Assert ISNULL. */
-                Assertions.assertFalse(ComparisonOperator.IsNull(context.bind(referenceBoolean)).match())
-                Assertions.assertFalse(ComparisonOperator.IsNull(context.bind(referenceByte)).match())
-                Assertions.assertFalse(ComparisonOperator.IsNull(context.bind(referenceShort)).match())
-                Assertions.assertFalse(ComparisonOperator.IsNull(context.bind(referenceInt)).match())
-                Assertions.assertFalse(ComparisonOperator.IsNull(context.bind(referenceLong)).match())
-                Assertions.assertFalse(ComparisonOperator.IsNull(context.bind(referenceFloat)).match())
-                Assertions.assertFalse(ComparisonOperator.IsNull(context.bind(referenceDouble)).match())
-                Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Types.Byte)).match())
-                Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Types.Int)).match())
-                Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Types.Long)).match())
-                Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Types.Float)).match())
-                Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Types.Double)).match())
-            }
-        }
-    }
-
     /**
      * Checks correctness of the [ComparisonOperator.Binary.Equal] operator.
      */
@@ -157,25 +123,25 @@ class NumericValueComparisonOperatorTest {
         val context = DefaultBindingContext()
         with(context) {
             with(MissingRecord) {
-                val positiveReference = mutableListOf(
-                    context.bind(referenceShort),
-                    context.bind(referenceInt),
-                    context.bind(referenceLong),
-                    context.bind(referenceFloat),
-                    context.bind(referenceDouble),
-                    context.bind(negativeComparisonShort),
-                    context.bind(negativeComparisonInt),
-                    context.bind(negativeComparisonLong),
-                    context.bind(negativeComparisonFloat),
-                    context.bind(negativeComparisonDouble)
-                )
-                val negativeReference = mutableListOf(
-                    context.bind(negativeComparisonShort),
-                    context.bind(negativeComparisonInt),
-                    context.bind(negativeComparisonLong),
-                    context.bind(negativeComparisonFloat),
-                    context.bind(negativeComparisonDouble)
-                )
+                val positiveReference = context.bind(listOf(
+                    referenceShort,
+                    referenceInt,
+                    referenceLong,
+                    referenceFloat,
+                    referenceDouble,
+                    negativeComparisonShort,
+                    negativeComparisonInt,
+                    negativeComparisonLong,
+                    negativeComparisonFloat,
+                    negativeComparisonDouble
+                ))
+                val negativeReference = context.bind(listOf(
+                    negativeComparisonShort,
+                    negativeComparisonInt,
+                    negativeComparisonLong,
+                    negativeComparisonFloat,
+                    negativeComparisonDouble
+                ))
 
                 /** Assert positive IN .*/
                 Assertions.assertTrue(ComparisonOperator.In(context.bind(referenceShort), positiveReference).match())
@@ -393,28 +359,37 @@ class NumericValueComparisonOperatorTest {
                 val referenceFloat = FloatValueGenerator.random()
                 val referenceDouble = DoubleValueGenerator.random()
 
-                val comparisonLowerInt = context.bind(IntValue(ValueGenerator.RANDOM.nextInt(Int.MIN_VALUE, referenceInt.value)))
-                val comparisonLowerLong = context.bind(LongValue(ValueGenerator.RANDOM.nextLong(Long.MIN_VALUE, referenceLong.value)))
-                val comparisonLowerFloat = context.bind(FloatValue(ValueGenerator.RANDOM.nextDouble(Double.MIN_VALUE, referenceFloat.value.toDouble())))
-                val comparisonLowerDouble = context.bind(DoubleValue(ValueGenerator.RANDOM.nextDouble(Double.MIN_VALUE, referenceDouble.value)))
+                val comparisonInt = listOf(
+                    IntValue(ValueGenerator.RANDOM.nextInt(Int.MIN_VALUE, referenceInt.value)),
+                    IntValue(ValueGenerator.RANDOM.nextInt(referenceInt.value, Int.MAX_VALUE))
+                )
 
-                val comparisonUpperInt = context.bind(IntValue(ValueGenerator.RANDOM.nextInt(referenceInt.value, Int.MAX_VALUE)))
-                val comparisonUpperLong = context.bind(LongValue(ValueGenerator.RANDOM.nextLong(referenceLong.value, Long.MAX_VALUE)))
-                val comparisonUpperFloat = context.bind(FloatValue(ValueGenerator.RANDOM.nextDouble(referenceFloat.value.toDouble(), Double.MAX_VALUE)))
-                val comparisonUpperDouble = context.bind(DoubleValue(ValueGenerator.RANDOM.nextDouble(referenceDouble.value, Double.MAX_VALUE)))
+                val comparisoLong = listOf(
+                    LongValue(ValueGenerator.RANDOM.nextLong(Long.MIN_VALUE, referenceLong.value)),
+                    LongValue(ValueGenerator.RANDOM.nextLong(referenceLong.value, Long.MAX_VALUE))
+                )
+                val comparisonFloat = listOf(
+                    FloatValue(ValueGenerator.RANDOM.nextDouble(Double.MIN_VALUE, referenceFloat.value.toDouble())),
+                    FloatValue(ValueGenerator.RANDOM.nextDouble(referenceFloat.value.toDouble(), Double.MAX_VALUE))
+                )
+
+                val comparisonDouble = listOf(
+                    DoubleValue(ValueGenerator.RANDOM.nextDouble(Double.MIN_VALUE, referenceDouble.value)),
+                    DoubleValue(ValueGenerator.RANDOM.nextDouble(referenceDouble.value, Double.MAX_VALUE))
+                )
 
                 /** Assert BETWEEN .*/
-                Assertions.assertTrue(ComparisonOperator.Between(context.bind(referenceInt), comparisonLowerInt, comparisonUpperInt).match())
-                Assertions.assertFalse(ComparisonOperator.Between(context.bind(referenceInt), comparisonUpperInt, comparisonLowerInt).match())
+                Assertions.assertTrue(ComparisonOperator.Between(context.bind(referenceInt), context.bind(comparisonInt)).match())
+                Assertions.assertFalse(ComparisonOperator.Between(context.bind(referenceInt), context.bind(comparisonInt.reversed())).match())
 
-                Assertions.assertTrue(ComparisonOperator.Between(context.bind(referenceLong), comparisonLowerLong, comparisonUpperLong).match())
-                Assertions.assertFalse(ComparisonOperator.Between(context.bind(referenceLong), comparisonUpperLong, comparisonLowerLong).match())
+                Assertions.assertTrue(ComparisonOperator.Between(context.bind(referenceLong), context.bind(comparisoLong)).match())
+                Assertions.assertFalse(ComparisonOperator.Between(context.bind(referenceLong), context.bind(comparisoLong.reversed())).match())
 
-                Assertions.assertTrue(ComparisonOperator.Between(context.bind(referenceFloat), comparisonLowerFloat, comparisonUpperFloat).match())
-                Assertions.assertFalse(ComparisonOperator.Between(context.bind(referenceFloat), comparisonUpperFloat, comparisonLowerFloat).match())
+                Assertions.assertTrue(ComparisonOperator.Between(context.bind(referenceFloat), context.bind(comparisonFloat)).match())
+                Assertions.assertFalse(ComparisonOperator.Between(context.bind(referenceFloat), context.bind(comparisonFloat.reversed())).match())
 
-                Assertions.assertTrue(ComparisonOperator.Between(context.bind(referenceDouble), comparisonLowerDouble, comparisonUpperDouble).match())
-                Assertions.assertFalse(ComparisonOperator.Between(context.bind(referenceDouble), comparisonUpperDouble, comparisonLowerDouble).match())
+                Assertions.assertTrue(ComparisonOperator.Between(context.bind(referenceDouble), context.bind(comparisonDouble)).match())
+                Assertions.assertFalse(ComparisonOperator.Between(context.bind(referenceDouble), context.bind(comparisonDouble.reversed())).match())
             }
         }
     }
