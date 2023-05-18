@@ -64,7 +64,7 @@ sealed interface Binding: NodeWithCost {
     data class LiteralList(val bindingIndexStart: Int, val bindingIndexEnd: Int, override val canBeNull: Boolean, override val type: Types<*>): Binding {
         override val cost: Cost = Cost.MEMORY_ACCESS
         override val static: Boolean = true
-        override fun size(): Long = (this.bindingIndexEnd - this.bindingIndexStart).toLong()
+        override fun size(): Long = this.bindingIndexEnd - this.bindingIndexStart + 1L
         context(BindingContext,Record)
         override fun getValue(): Value? = this@BindingContext[this].first()
         context(BindingContext,Record)
