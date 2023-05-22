@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergeLimitingSortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.SortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.LimitPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import java.io.PrintStream
@@ -168,7 +169,10 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
                     val limit = input[LimitTrait]!!
                     this.copyWithOutput(MergeLimitingSortPhysicalOperatorNode(*inbound.toTypedArray(), sortOn = order.order, limit = limit.limit))
                 }
-                input.hasTrait(OrderTrait) -> TODO()
+                input.hasTrait(OrderTrait) -> {
+                    val order = input[OrderTrait]!!
+                    this.copyWithOutput(SortPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), sortOn = order.order))
+                }
                 input.hasTrait(LimitTrait) -> {
                     val limit = input[LimitTrait]!!
                     this.copyWithOutput(LimitPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), limit = limit.limit))
