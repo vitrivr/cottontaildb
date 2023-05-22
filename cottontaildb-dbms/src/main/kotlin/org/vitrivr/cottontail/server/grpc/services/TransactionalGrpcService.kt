@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.transform
+import org.apache.commons.lang3.builder.ReflectionToStringBuilder
+import org.apache.commons.lang3.builder.ToStringStyle
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.client.language.basics.Constants
 import org.vitrivr.cottontail.core.basics.Record
@@ -167,7 +169,7 @@ internal interface TransactionalGrpcService {
                 }
             }
         } catch (e: Throwable) {
-            LOGGER.error("[${context.txn.txId}, ${context.queryId}] Preparation of query $context failed: ${e.message}")
+            LOGGER.error("[${context.txn.txId}, ${context.queryId}] Preparation of query ${ReflectionToStringBuilder.toString(context, ToStringStyle.JSON_STYLE)} failed: ${e.message}")
             e.printStackTrace()
             if (context.txn.type.autoRollback) context.txn.rollback() /* Handle auto-rollback. */
             return flow { throw context.toStatusException(e, false) }
