@@ -168,6 +168,7 @@ internal interface TransactionalGrpcService {
             }
         } catch (e: Throwable) {
             LOGGER.error("[${context.txn.txId}, ${context.queryId}] Preparation of query failed: ${e.message}")
+            e.printStackTrace()
             if (context.txn.type.autoRollback) context.txn.rollback() /* Handle auto-rollback. */
             return flow { throw context.toStatusException(e, false) }
         }
