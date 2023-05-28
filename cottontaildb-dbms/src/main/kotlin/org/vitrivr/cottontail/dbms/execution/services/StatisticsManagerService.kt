@@ -223,12 +223,12 @@ class StatisticsManagerService(private val catalogue: DefaultCatalogue, private 
                     // If the number of entries is smaller than the minimum sampling number, we have to sample the whole set
                     probability = 1f
                     expectedEntries = numberOfEntries
-                    LOGGER.info("Probability was set to $probability because the number of entries $numberOfEntries is smaller than the minimum sampling number $minSamplingNumber.")
+                    LOGGER.info("Sample size was set to $probability because the number of entries $numberOfEntries is smaller than the minimum sampling number $minSamplingNumber.")
                 } else if (numberOfEntries >= minSamplingNumber && expectedEntries < minSamplingNumber) {
                     // If the number of entries is bigger than the minimum sampling number, but the expected number of entries is smaller than the minimum sampling number, we calculate the new probability such that exactly the minSamplingNumber of entries are sampled
                     val prevProbability = probability // store for logging
                     probability = minSamplingNumber / numberOfEntries.toFloat()
-                    LOGGER.info("Probability was set to $probability because the number of entries $numberOfEntries * $prevProbability = $expectedEntries is smaller than the minimum sampling number $minSamplingNumber.")
+                    LOGGER.info("Sample size was set to $probability because the number of entries $numberOfEntries * $prevProbability = $expectedEntries is smaller than the minimum sampling number $minSamplingNumber.")
                     expectedEntries = minSamplingNumber.toLong()
                 } else {
                     // Sample size big enough, do nothing

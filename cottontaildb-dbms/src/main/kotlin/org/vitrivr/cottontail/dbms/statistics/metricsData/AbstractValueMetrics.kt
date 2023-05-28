@@ -51,10 +51,13 @@ sealed class AbstractValueMetrics<T : Value>(override val type: Types<T>) : Valu
     override val avgWidth: Int
         get() = (this.minWidth + this.maxWidth) / 2
 
+    /** A threshold that defines the ratio between distinct entries and number of entries at which we start to scale when going from the sample size to the population size */
+    override val distinctEntriesScalingThreshold: Float = 0.3f
+
     /**
      * Creates a descriptive map of this [AbstractValueMetrics].
      *
-     * @return Descriptive map of this [AbstractValueMetrics]
+     * @return Descriptive map of this [AbstractVflueMetrics]
      */
     override fun about(): Map<String, String> = mapOf(
         NULL_ENTRIES_KEY to this.numberOfNullEntries.toString(),

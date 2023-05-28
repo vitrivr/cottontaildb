@@ -34,7 +34,7 @@ data class LongValueMetrics(
     constructor(factor: Float, metrics: LongValueMetrics): this(
         numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
         numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
-        numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
+        numberOfDistinctEntries = if (metrics.numberOfDistinctEntries.toDouble() / metrics.numberOfEntries.toDouble() >= metrics.distinctEntriesScalingThreshold) (metrics.numberOfDistinctEntries * factor).toLong() else metrics.numberOfDistinctEntries, // Depending on the ratio between distinct entries and number of entries, we either scale the distinct entries (large ratio) or keep them as they are (small ratio).
         min = metrics.min,
         max = metrics.max,
         sum = DoubleValue(metrics.sum.value * factor),

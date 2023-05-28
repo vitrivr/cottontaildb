@@ -37,7 +37,7 @@ sealed class AbstractMetricsCollector<T : Value>(override val type: Types<T>, ov
             this.numberOfNonNullEntries += 1
 
             // BloomFilter check for distinct entries
-            if (!bloomFilter.put(value)) {
+            if (bloomFilter.put(value)) {
                 this.numberOfDistinctEntries += 1
             }
 

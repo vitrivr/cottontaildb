@@ -61,12 +61,14 @@ class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, Ind
             is DoubleVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) {  statistics.min.data[it] }
             is IntVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
             is LongVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
+            else -> throw IllegalArgumentException("Cannot construct VAFMarks from $statistics")
         },
         when (statistics) {
             is FloatVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
             is DoubleVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) {  statistics.max.data[it] }
             is IntVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
             is LongVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
+            else -> throw IllegalArgumentException("Cannot construct VAFMarks from $statistics")
         },
         marksPerDimension
     )

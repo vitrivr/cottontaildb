@@ -27,7 +27,7 @@ data class Complex32VectorValueMetrics(
         logicalSize = metrics.logicalSize,
         numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
         numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
-        numberOfDistinctEntries = (metrics.numberOfDistinctEntries * factor).toLong(),
+        numberOfDistinctEntries = if (metrics.numberOfDistinctEntries.toDouble() / metrics.numberOfEntries.toDouble() >= metrics.distinctEntriesScalingThreshold) (metrics.numberOfDistinctEntries * factor).toLong() else metrics.numberOfDistinctEntries, // Depending on the ratio between distinct entries and number of entries, we either scale the distinct entries (large ratio) or keep them as they are (small ratio).
     )
 
     /**

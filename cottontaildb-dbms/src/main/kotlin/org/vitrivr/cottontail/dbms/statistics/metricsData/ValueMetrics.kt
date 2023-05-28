@@ -38,6 +38,9 @@ sealed interface ValueMetrics<T : Value> {
     /** Mean [Value] in terms of space requirement (logical size) known to this [ValueMetrics] */
     val avgWidth: Int
 
+    /** A threshold that defines the ratio between distinct entries and number of entries at which we start to scale when going from the sample size to the population size */
+    val distinctEntriesScalingThreshold: Float
+
     /**
      * Creates a descriptive map of this [ValueMetrics].
      *

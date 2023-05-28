@@ -28,7 +28,7 @@ data class BooleanValueMetrics(
     constructor(factor: Float, metrics: BooleanValueMetrics): this(
         numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
         numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
-        numberOfDistinctEntries = min((metrics.numberOfDistinctEntries * factor).toLong(), 2), // since in the boolean setting can only be 2 distinct entries
+        numberOfDistinctEntries = min(if (metrics.numberOfDistinctEntries.toDouble() / metrics.numberOfEntries.toDouble() >= metrics.distinctEntriesScalingThreshold) (metrics.numberOfDistinctEntries * factor).toLong() else metrics.numberOfDistinctEntries, 2), // Depending on the ratio between distinct entries and number of entries, we either scale the distinct entries (large ratio) or keep them as they are (small ratio). Also don't allow values above 2.
         numberOfTrueEntries = (metrics.numberOfTrueEntries * factor).toLong(),
         numberOfFalseEntries = (metrics.numberOfFalseEntries * factor).toLong()
     )
