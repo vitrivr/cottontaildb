@@ -66,7 +66,7 @@ class CreateEntity(val name: Name.EntityName): LanguageFeature() {
      * @param name The name of the column.
      * @param type The [Types] of the column.
      * @param nullable Flag indicating whether column should be nullable.
-     * @param nullable Flag indicating whether column should be nullable
+     * @param primaryKey Flag indicating whether column should act as primary key-
      * @param autoIncrement Flag indicating whether column should be auto incremented. Only works for [Type.INTEGER] or [Type.LONG]
      * @return this [CreateEntity]
      */
@@ -80,10 +80,12 @@ class CreateEntity(val name: Name.EntityName): LanguageFeature() {
      * @param type The [CottontailGrpc.Type] of the column (as string).
      * @param length The length of the column (>= 1 for vector columns)
      * @param nullable Flag indicating whether column should be nullable.
+     * @param primaryKey Flag indicating whether column should act as primary key-
+     * @param autoIncrement Flag indicating whether column should be auto incremented. Only works for [Type.INTEGER] or [Type.LONG]
      * @return this [CreateEntity]
      */
-    fun column(name: String, type: String, length: Int = 0, nullable: Boolean = false, autoIncrement: Boolean = false)
-        = this.column(Name.ColumnName.parse(name), Types.forName(type.uppercase(), length), nullable, autoIncrement)
+    fun column(name: String, type: String, length: Int = 0, nullable: Boolean = false, primaryKey: Boolean = false, autoIncrement: Boolean = false)
+        = this.column(Name.ColumnName.parse(name), Types.forName(type.uppercase(), length), nullable, primaryKey, autoIncrement)
 
     /**
      * Returns the number of columns held by this [CreateEntity].
