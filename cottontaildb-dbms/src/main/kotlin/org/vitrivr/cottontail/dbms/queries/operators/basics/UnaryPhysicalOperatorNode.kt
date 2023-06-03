@@ -1,11 +1,11 @@
 package org.vitrivr.cottontail.dbms.queries.operators.basics
 
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
@@ -65,12 +65,12 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
         get() = this.input.statistics
 
     /** The [totalCost] of a [UnaryPhysicalOperatorNode] is always the sum of its own and its input cost. */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     final override val totalCost: Cost
         get() = this.input.totalCost + this.cost
 
     /** The [parallelizableCost] of a [UnaryPhysicalOperatorNode] is always the sum of its own and its input cost. */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     final override val parallelizableCost: Cost
         get() = if (this.hasTrait(NotPartitionableTrait)) {
             this.totalCost
@@ -79,7 +79,7 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
         }
 
     /** By default, the output size of a [UnaryPhysicalOperatorNode] is the same as its input's output size. Can be overridden! */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     override val outputSize: Long
         get() = this.input.outputSize
 
@@ -144,7 +144,7 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
         require(max > 1) { "Expected number of partitions to be greater than one but encountered $max." }
         return if (!this.input.hasTrait(NotPartitionableTrait)) {
             val partitions = with(ctx.bindings) {
-                with(MissingRecord) {
+                with(MissingTuple) {
                     ctx.costPolicy.parallelisation(this@UnaryPhysicalOperatorNode.parallelizableCost, this@UnaryPhysicalOperatorNode.totalCost, max)
                 }
             }

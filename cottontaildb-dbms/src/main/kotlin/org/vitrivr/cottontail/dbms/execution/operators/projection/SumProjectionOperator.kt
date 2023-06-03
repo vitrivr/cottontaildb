@@ -2,10 +2,10 @@ package org.vitrivr.cottontail.dbms.execution.operators.projection
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.NumericValue
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.*
@@ -17,9 +17,9 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
 
 /**
  * An [Operator.PipelineOperator] used during query execution. It calculates the SUM of all values it
- * has encountered and returns it as a [Record].
+ * has encountered and returns it as a [Tuple].
  *
- * Only produces a single [Record] and converts the projected columns to a [Types.Double] column.
+ * Only produces a single [Tuple] and converts the projected columns to a [Types.Double] column.
  * Acts as pipeline breaker.
  *
  * @author Ralph Gasser
@@ -48,7 +48,7 @@ class SumProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, ove
      *
      * @return [Flow] representing this [SumProjectionOperator]
      */
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         val incoming = this@SumProjectionOperator.parent.toFlow()
         val columns = this@SumProjectionOperator.columns.toTypedArray()
         val values: Array<NumericValue<*>> = this@SumProjectionOperator.parentColumns.map {
@@ -73,6 +73,6 @@ class SumProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, ove
         }
 
         /** Emit record. */
-        emit(StandaloneRecord(0L, columns, values.map { DoubleValue(it) }.toTypedArray()))
+        emit(StandaloneTuple(0L, columns, values.map { DoubleValue(it) }.toTypedArray()))
     }
 }

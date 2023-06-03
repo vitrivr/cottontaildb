@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.statistics.values
 
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
@@ -55,7 +55,7 @@ sealed class RealValueStatistics<T: RealValue<*>>(type: Types<T>): AbstractValue
      * @param predicate [BooleanPredicate.Comparison] to estimate [Selectivity] for.
      * @return [Selectivity]
      */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     @Suppress("UNCHECKED_CAST")
     override fun estimateSelectivity(predicate: BooleanPredicate.Comparison): Selectivity {
         val op = predicate.operator

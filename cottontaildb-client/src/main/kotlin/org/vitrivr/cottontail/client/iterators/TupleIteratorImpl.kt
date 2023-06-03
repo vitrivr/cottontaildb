@@ -3,8 +3,12 @@ package org.vitrivr.cottontail.client.iterators
 import io.grpc.Context
 import org.vitrivr.cottontail.client.language.extensions.parse
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.toType
 import org.vitrivr.cottontail.core.toValue
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.util.*
 import java.util.concurrent.CancellationException
@@ -15,14 +19,14 @@ import java.util.concurrent.CancellationException
  * Usually used with unary, server-side calls that only return a limited amount of data.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
 class TupleIteratorImpl internal constructor(private val results: Iterator<CottontailGrpc.QueryResponseMessage>, private val context: Context.CancellableContext) : TupleIterator {
 
     /** Constructor for single [CottontailGrpc.QueryResponseMessage]. */
     constructor(result: CottontailGrpc.QueryResponseMessage, context: Context.CancellableContext): this(sequenceOf(result).iterator(), context)
 
-    /** Internal buffer with pre-loaded [CottontailGrpc.QueryResponseMessage.Tuple]. */
+    /** Internal buffer with pre-loaded [Tuple]s. */
     private val buffer = LinkedList<Tuple>()
 
     /** The ID of the Cottontail DB transaction this [TupleIterator] is associated with. */
@@ -38,7 +42,10 @@ class TupleIteratorImpl internal constructor(private val results: Iterator<Cotto
     override val queryDuration: Long
 
     /** The column names returned by this [TupleIterator]. */
-    override val columns: List<ColumnDef<*>>
+    override val columns: Array<ColumnDef<*>>
+
+    /** The index of the last row returned. */
+    private var rowIndex = 0L
 
     /** Returns the number of columns contained in the [Tuple]s returned by this [TupleIterator]. */
     override val numberOfColumns: Int
@@ -55,15 +62,14 @@ class TupleIteratorImpl internal constructor(private val results: Iterator<Cotto
         this.queryDuration = next.metadata.queryDuration
 
         /* Parse list of columns. */
-        val list = ArrayList<ColumnDef<*>>(next.columnsList.size)
-        next.columnsList.forEach { c ->
-            list.add(ColumnDef(c.name.parse(), c.type.toType(c.length), c.nullable, c.primary, c.autoIncrement))
+        this.columns = Array(next.columnsList.size) {
+            val c = next.columnsList[it]
+            ColumnDef(c.name.parse(), c.type.toType(c.length), c.nullable, c.primary, c.autoIncrement)
         }
-        this.columns = list
 
         /* Parse first batch of tuples. */
         next.tuplesList.forEach { t->
-            this.buffer.add(Tuple(this.columns, t.dataList.map { l -> l.toValue() }))
+            this.buffer.add(IteratorTuple(Array<Value?>(this.numberOfColumns) { t.dataList[it].toValue() }))
         }
 
         /** Call finalizer if no more data is available. */
@@ -95,23 +101,10 @@ class TupleIteratorImpl internal constructor(private val results: Iterator<Cotto
                 throw IllegalArgumentException("TupleIterator has been drained and no more elements can be loaded. Call hasNext() to ensure that elements are available before calling next().")
             }
             this.results.next().tuplesList.map { t ->
-                this.buffer.add(Tuple(this.columns, t.dataList.map { l -> l.toValue() }))
+                this.buffer.add(IteratorTuple(Array<Value?>(this.numberOfColumns) { t.dataList[it].toValue() }))
             }
         }
         return this.buffer.poll()!!
-    }
-
-    /**
-     * Drains this [TupleIterator] into a [List] of [Tuple]s.
-     *
-     * @return [List] of [Tuple]
-     */
-    override fun drainToList(): List<Tuple> {
-        val list = LinkedList<Tuple>()
-        for (t in this) {
-            list.add(t)
-        }
-        return list
     }
 
     /**
@@ -119,5 +112,17 @@ class TupleIteratorImpl internal constructor(private val results: Iterator<Cotto
      */
     override fun close() {
         this.context.cancel(CancellationException("TupleIterator has been prematurely closed by user."))
+    }
+
+    /**
+     * Internal [Tuple] implementation.
+     */
+    inner class IteratorTuple(val values: Array<Value?>): Tuple {
+        override val tupleId: TupleId = this@TupleIteratorImpl.rowIndex++
+        override val columns: Array<ColumnDef<*>>
+            get() = this@TupleIteratorImpl.columns
+        override fun copy(): Tuple = StandaloneTuple(this.tupleId, this.columns, this.values.copyOf())
+        override fun get(index: Int): Value? = this.values[index]
+        override fun values(): List<Value?> = this.values.toList()
     }
 }

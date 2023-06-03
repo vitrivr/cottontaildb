@@ -8,9 +8,10 @@ import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.encoding.encodeStructure
-import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.core.*
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.*
 
@@ -21,7 +22,7 @@ import org.vitrivr.cottontail.core.values.*
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class TupleSimpleSerializer(val columns: List<ColumnDef<*>>): KSerializer<Tuple> {
+class TupleSimpleSerializer(val columns: Array<ColumnDef<*>>): KSerializer<Tuple> {
     /** The [TupleSerializer] returns a [List] of [PublicValue] types. */
     override val descriptor: SerialDescriptor = buildClassSerialDescriptor("SimpleTuple[${columns.map { it.type }.joinToString(",")}]") {
         for (c in this@TupleSimpleSerializer.columns) {
@@ -77,7 +78,7 @@ class TupleSimpleSerializer(val columns: List<ColumnDef<*>>): KSerializer<Tuple>
             list.add(value)
         }
         dec.endStructure(this.descriptor)
-        return Tuple(this@TupleSimpleSerializer.columns, list)
+        return StandaloneTuple(0L, this@TupleSimpleSerializer.columns, list.toTypedArray())
     }
 
     /**
@@ -89,17 +90,17 @@ class TupleSimpleSerializer(val columns: List<ColumnDef<*>>): KSerializer<Tuple>
     override fun serialize(encoder: Encoder, value: Tuple) {
         encoder.encodeStructure(this.descriptor) {
             var index = 0
-            for (v in value.values) {
-                when(v) {
+            for (v in value.values()) {
+                when(val cast = v as? PublicValue) {
                     null -> {}
-                    is BooleanValue -> encodeBooleanElement(this@TupleSimpleSerializer.descriptor, index++, v.value)
-                    is ByteValue -> encodeByteElement(this@TupleSimpleSerializer.descriptor, index++, v.value)
-                    is DoubleValue -> encodeDoubleElement(this@TupleSimpleSerializer.descriptor, index++, v.value)
-                    is FloatValue -> encodeFloatElement(this@TupleSimpleSerializer.descriptor, index++, v.value)
-                    is IntValue -> encodeIntElement(this@TupleSimpleSerializer.descriptor, index++, v.value)
-                    is LongValue -> encodeLongElement(this@TupleSimpleSerializer.descriptor, index++, v.value)
-                    is ShortValue -> encodeShortElement(this@TupleSimpleSerializer.descriptor, index++,v.value)
-                    else -> encodeStringElement(this@TupleSimpleSerializer.descriptor, index++, v.toDescription())
+                    is BooleanValue -> encodeBooleanElement(this@TupleSimpleSerializer.descriptor, index++, cast.value)
+                    is ByteValue -> encodeByteElement(this@TupleSimpleSerializer.descriptor, index++, cast.value)
+                    is DoubleValue -> encodeDoubleElement(this@TupleSimpleSerializer.descriptor, index++, cast.value)
+                    is FloatValue -> encodeFloatElement(this@TupleSimpleSerializer.descriptor, index++, cast.value)
+                    is IntValue -> encodeIntElement(this@TupleSimpleSerializer.descriptor, index++, cast.value)
+                    is LongValue -> encodeLongElement(this@TupleSimpleSerializer.descriptor, index++, cast.value)
+                    is ShortValue -> encodeShortElement(this@TupleSimpleSerializer.descriptor, index++,cast.value)
+                    else -> encodeStringElement(this@TupleSimpleSerializer.descriptor, index++, cast.toDescription())
                 }
             }
         }

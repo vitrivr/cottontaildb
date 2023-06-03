@@ -5,10 +5,10 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.NumericValue
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
@@ -24,9 +24,9 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
 
 /**
  * An [Operator.MergingPipelineOperator] used during query execution. It calculates the MEAN of all values
- * it has encountered and returns it as a [Record]. Can collect strands of execution in parallel.
+ * it has encountered and returns it as a [Tuple]. Can collect strands of execution in parallel.
  *
- * Only produces a single [Record] and converts. Acts as pipeline breaker.
+ * Only produces a single [Tuple] and converts. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
  * @version 1.0.0
@@ -55,7 +55,7 @@ class MergeMeanProjectionOperator(parents: List<Operator>, fields: List<Name.Col
      *
      * @return [Flow] representing this [MeanProjectionOperator]
      */
-    override fun toFlow(): Flow<Record> = channelFlow {
+    override fun toFlow(): Flow<Tuple> = channelFlow {
         /* Prepare a global heap selection. */
         val incoming = this@MergeMeanProjectionOperator.parents
         val columns = this@MergeMeanProjectionOperator.columns.toTypedArray()
@@ -117,6 +117,6 @@ class MergeMeanProjectionOperator(parents: List<Operator>, fields: List<Name.Col
 
         /** Emit record. */
         val results = Array<Value?>(globalSum.size) { globalSum[it] / LongValue(globalCount[it]) }
-        send(StandaloneRecord(0L, columns, results))
+        send(StandaloneTuple(0L, columns, results))
     }
 }

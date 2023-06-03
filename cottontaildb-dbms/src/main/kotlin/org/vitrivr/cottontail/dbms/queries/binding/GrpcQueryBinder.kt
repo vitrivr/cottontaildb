@@ -1,11 +1,10 @@
 package org.vitrivr.cottontail.dbms.queries.binding
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
@@ -13,6 +12,7 @@ import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.toType
 import org.vitrivr.cottontail.core.toValue
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
@@ -139,7 +139,7 @@ object GrpcQueryBinder {
         }
 
         /* Create and return INSERT-clause. */
-        val record = RecordBinding(-1L, columns, values, this@QueryContext.bindings)
+        val record = TupleBinding(-1L, columns, values, this@QueryContext.bindings)
         return InsertLogicalOperatorNode(this@QueryContext.nextGroupId(), entityTx, mutableListOf(record))
     }
 
@@ -163,8 +163,8 @@ object GrpcQueryBinder {
         }
 
         /* Parse records to BATCH INSERT. */
-        val records: MutableList<Record> = insert.insertsList.map { ins ->
-            RecordBinding(-1L, columns, Array(ins.valuesCount) { i ->
+        val tuples: MutableList<Tuple> = insert.insertsList.map { ins ->
+            TupleBinding(-1L, columns, Array(ins.valuesCount) { i ->
                 val literal = ins.valuesList[i].toValue()
                 if (literal == null) {
                     this@QueryContext.bindings.bindNull(columns[i].type)
@@ -173,7 +173,7 @@ object GrpcQueryBinder {
                 }
             }, this@QueryContext.bindings)
         }.toMutableList()
-        return InsertLogicalOperatorNode(this@QueryContext.nextGroupId(), entityTx, records)
+        return InsertLogicalOperatorNode(this@QueryContext.nextGroupId(), entityTx, tuples)
     }
 
     /**
@@ -381,7 +381,7 @@ object GrpcQueryBinder {
         CottontailGrpc.Predicate.Comparison.Operator.GEQUAL -> ComparisonOperator.Binary.GreaterEqual(left, right)
         CottontailGrpc.Predicate.Comparison.Operator.LEQUAL -> ComparisonOperator.Binary.LessEqual(left, right)
         CottontailGrpc.Predicate.Comparison.Operator.LIKE -> {
-            with(MissingRecord) {
+            with(MissingTuple) {
                 with(this@QueryContext.bindings) {
                     if (right is Binding.Literal && right.getValue() is StringValue) {
                         right.update(LikePatternValue.forValue((right.getValue() as StringValue).value))

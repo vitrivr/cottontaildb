@@ -7,11 +7,11 @@ import org.mapdb.DBException
 import org.mapdb.Serializer
 import org.mapdb.StoreWAL
 import org.vitrivr.cottontail.core.basics.Cursor
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.column.Column
@@ -214,18 +214,18 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Record {
+        override fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Tuple {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun cursor(columns: Array<ColumnDef<*>>): Cursor<Record> = cursor(columns, this.smallestTupleId() .. this.largestTupleId())
+        override fun cursor(columns: Array<ColumnDef<*>>): Cursor<Tuple> = cursor(columns, this.smallestTupleId() .. this.largestTupleId())
 
-        override fun cursor(columns: Array<ColumnDef<*>>, partition: LongRange): Cursor<Record> = object : Cursor<Record> {
+        override fun cursor(columns: Array<ColumnDef<*>>, partition: LongRange): Cursor<Tuple> = object : Cursor<Tuple> {
 
             /** The wrapped [Iterator] of the first (primary) column. */
             private val wrapped = this@EntityV1.columns.values.first().newTx(this@Tx.context).scan(partition)
 
-            override fun value(): Record {
+            override fun value(): Tuple {
                 /* Read values from underlying columns. */
                 val tupleId = this.wrapped.next()
                 val values = columns.map {
@@ -235,7 +235,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
                 }.toTypedArray()
 
                 /* Return value of all the desired columns. */
-                return StandaloneRecord(tupleId, columns, values)
+                return StandaloneTuple(tupleId, columns, values)
             }
             override fun key(): TupleId = this.wrapped.next()
             override fun moveNext(): Boolean = this.wrapped.hasNext()
@@ -246,11 +246,11 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
             return this@EntityV1.header.size
         }
 
-        override fun insert(record: Record): Record {
+        override fun insert(tuple: Tuple): Tuple {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun update(record: Record) {
+        override fun update(tuple: Tuple) {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 

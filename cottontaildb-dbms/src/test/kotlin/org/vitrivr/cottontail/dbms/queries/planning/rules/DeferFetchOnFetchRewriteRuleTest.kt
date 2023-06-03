@@ -6,7 +6,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.dbms.entity.AbstractEntityTest
@@ -196,8 +196,8 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
             val entityTx = entity.newTx(ctx)
 
             /* Insert data and track how many entries have been stored for the test later. */
-            entityTx.insert(StandaloneRecord(1L, this.columns.toTypedArray(), arrayOf(LongValue(1L), DoubleValue(0.0), StringValue("test"), IntValue(1), BooleanValue(true))))
-            entityTx.insert(StandaloneRecord(2L, this.columns.toTypedArray(), arrayOf(LongValue(2L), DoubleValue(1.0), StringValue("test"), IntValue(2), BooleanValue(false))))
+            entityTx.insert(StandaloneTuple(1L, this.columns.toTypedArray(), arrayOf(LongValue(1L), DoubleValue(0.0), StringValue("test"), IntValue(1), BooleanValue(true))))
+            entityTx.insert(StandaloneTuple(2L, this.columns.toTypedArray(), arrayOf(LongValue(2L), DoubleValue(1.0), StringValue("test"), IntValue(2), BooleanValue(false))))
 
             txn.commit()
         } catch (e: Throwable) {

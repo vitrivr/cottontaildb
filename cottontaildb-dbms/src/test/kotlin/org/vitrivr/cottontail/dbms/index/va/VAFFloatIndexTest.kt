@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.dbms.index.va
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.Argument
@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.Manhat
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.generators.FloatVectorValueGenerator
@@ -88,13 +88,13 @@ class VAFFloatIndexTest : AbstractIndexTest() {
             val bruteForceDuration = measureTime {
                 entityTx.cursor(arrayOf(this.indexColumn)).use { cursor ->
                     cursor.forEach {
-                        bruteForceResults.offer(StandaloneRecord(it.tupleId, arrayOf(this.indexColumn, predicate.distanceColumn), arrayOf(it[this.indexColumn], function(query, it[this.indexColumn]))))
+                        bruteForceResults.offer(StandaloneTuple(it.tupleId, arrayOf(this.indexColumn, predicate.distanceColumn), arrayOf(it[this.indexColumn], function(query, it[this.indexColumn]))))
                     }
                 }
             }
 
             /* Fetch results through index. */
-            val indexResults = ArrayList<Record>(k.toInt())
+            val indexResults = ArrayList<Tuple>(k.toInt())
             val indexDuration = measureTime {
                 indexTx.filter(predicate).use { cursor ->
                     cursor.forEach { indexResults.add(it) }
@@ -116,11 +116,11 @@ class VAFFloatIndexTest : AbstractIndexTest() {
     /**
      * Generates pre-clustered data, which allows control of correctness.
      */
-    override fun nextRecord(): StandaloneRecord {
+    override fun nextRecord(): StandaloneTuple {
         val id = LongValue(this.counter++)
         val vector = FloatVectorValue(FloatArray(this.indexColumn.type.logicalSize) {
             (this.counter % this.numberOfClusters) + this.random.nextDouble(-1.0, 1.0).toFloat()
         })
-        return StandaloneRecord(0L, columns = this.columns, values = arrayOf(id, vector))
+        return StandaloneTuple(0L, columns = this.columns, values = arrayOf(id, vector))
     }
 }

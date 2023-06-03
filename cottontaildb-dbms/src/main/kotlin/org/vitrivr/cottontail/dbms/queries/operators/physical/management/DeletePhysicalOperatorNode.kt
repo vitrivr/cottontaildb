@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.management
 
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
@@ -43,7 +43,7 @@ class DeletePhysicalOperatorNode(input: Physical, val entity: EntityTx) : UnaryP
     override val outputSize: Long = 1L
 
     /** The [Cost] of this [DeletePhysicalOperatorNode]. */
-    context(BindingContext,Record)    override val cost: Cost
+    context(BindingContext, Tuple)    override val cost: Cost
         get() = Cost.DISK_ACCESS_WRITE * this.entity.count() * this.input.outputSize
 
     /** The [DeletePhysicalOperatorNode] cannot be partitioned. */

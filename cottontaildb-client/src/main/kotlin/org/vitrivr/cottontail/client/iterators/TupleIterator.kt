@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.client.iterators
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.tuple.Tuple
+import java.util.*
 
 /**
  * An [Iterator] for [Tuple]s as returned by the [org.vitrivr.cottontail.client.SimpleClient]
@@ -25,12 +27,18 @@ interface TupleIterator : Iterator<Tuple>, AutoCloseable {
     val numberOfColumns: Int
 
     /** [List] of column names returned by this [TupleIterator] in order of occurrence. Contains fully qualified names. */
-    val columns: List<ColumnDef<*>>
+    val columns: Array<ColumnDef<*>>
 
     /**
      * Drains this [TupleIterator] into a [List] of [Tuple]s.
      *
      * @return [List] of [Tuple]
      */
-    fun drainToList(): List<Tuple>
+    fun toList(): List<Tuple> {
+        val list = LinkedList<Tuple>()
+        for (t in this) {
+            list.add(t)
+        }
+        return list
+    }
 }

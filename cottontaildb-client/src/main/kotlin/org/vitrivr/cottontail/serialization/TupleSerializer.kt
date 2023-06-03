@@ -6,8 +6,10 @@ import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.PublicValue
 
 /** A [KSerializer] for a [List] of [PublicValue]s (= a tuple).
@@ -15,7 +17,7 @@ import org.vitrivr.cottontail.core.values.PublicValue
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class TupleSerializer(val columns: List<ColumnDef<*>>): KSerializer<Tuple> {
+class TupleSerializer(val columns: Array<ColumnDef<*>>): KSerializer<Tuple> {
 
     /** The [TupleSerializer] generates a structure determined by the [List] of [ColumnDef]. */
     override val descriptor: SerialDescriptor = buildClassSerialDescriptor("Tuple[${columns.map { it.type }.joinToString(",")}]") {
@@ -36,16 +38,16 @@ class TupleSerializer(val columns: List<ColumnDef<*>>): KSerializer<Tuple> {
      * @return The decoded [Tuple].
      */
     override fun deserialize(decoder: Decoder): Tuple {
-        val list = ArrayList<PublicValue?>(this.columns.size)
+        val values = ArrayList<Value?>(this.columns.size)
         val dec = decoder.beginStructure(this.descriptor)
         while (true) {
             val index = dec.decodeElementIndex(this.descriptor)
             if (index == CompositeDecoder.DECODE_DONE) break
             val serializer = this.elementSerializers[index]
-            list.add(dec.decodeNullableSerializableElement(this@TupleSerializer.descriptor, index, serializer))
+            values.add(dec.decodeNullableSerializableElement(this@TupleSerializer.descriptor, index, serializer))
         }
         dec.endStructure(this.descriptor)
-        return Tuple(this@TupleSerializer.columns, list)
+        return StandaloneTuple(0L, this@TupleSerializer.columns, values.toTypedArray())
     }
 
     /**
@@ -57,8 +59,8 @@ class TupleSerializer(val columns: List<ColumnDef<*>>): KSerializer<Tuple> {
     override fun serialize(encoder: Encoder, value: Tuple) {
         val enc = encoder.beginStructure(this.descriptor)
         var index = 0
-        for ((s, v) in this@TupleSerializer.elementSerializers.zip(value.values)) {
-            enc.encodeNullableSerializableElement(this@TupleSerializer.descriptor, index++, s, v)
+        for ((s, v) in this@TupleSerializer.elementSerializers.zip(value.values())) {
+            enc.encodeNullableSerializableElement(this@TupleSerializer.descriptor, index++, s, v as? PublicValue)
         }
         enc.endStructure(this.descriptor)
     }

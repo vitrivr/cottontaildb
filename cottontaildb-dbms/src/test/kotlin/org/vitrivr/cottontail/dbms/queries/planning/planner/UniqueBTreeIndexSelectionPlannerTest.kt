@@ -6,7 +6,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.generators.StringValueGenerator
@@ -271,15 +271,15 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
     }
 
     /**
-     * Generates and returns a new, random [StandaloneRecord] for inserting into the database.
+     * Generates and returns a new, random [StandaloneTuple] for inserting into the database.
      */
-    override fun nextRecord(): StandaloneRecord {
+    override fun nextRecord(): StandaloneTuple {
         val size = this.random.nextInt(10, 25)
         val id = StringValueGenerator.random(size)
         val value = LongValue(this.random.nextLong(-100000L, 10000L))
         if (this.inList.size <= 50000 && this.random.nextBoolean()) {
             this.inList.add(id)
         }
-        return StandaloneRecord(0L, columns = this.columns, values = arrayOf(id, value))
+        return StandaloneTuple(0L, columns = this.columns, values = arrayOf(id, value))
     }
 }

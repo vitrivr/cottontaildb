@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.queries.operators.basics
 
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
@@ -9,6 +8,7 @@ import org.vitrivr.cottontail.core.queries.nodes.Node
 import org.vitrivr.cottontail.core.queries.nodes.NodeWithTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
@@ -17,7 +17,7 @@ import java.io.PrintStream
 /**
  * [OperatorNode]s are [Node]s in a Cottontail DB query execution plan and represent flow and processing of information a query gets executed.
  *
- * Conceptually, [OperatorNode]s take [org.vitrivr.cottontail.core.basics.Record]s as input and transform them into [org.vitrivr.cottontail.core.basics.Record] output. The relationship of input to output can be m to n.
+ * Conceptually, [OperatorNode]s take [org.vitrivr.cottontail.core.basics.Tuple]s as input and transform them into [org.vitrivr.cottontail.core.basics.Tuple] output. The relationship of input to output can be m to n.
  *
  * [OperatorNode]s allow for reasoning and transformation of the execution plan during query optimization and are manipulated by the query planner.
  *
@@ -171,23 +171,23 @@ sealed class OperatorNode : NodeWithTrait {
         override val executable: Boolean = true
 
         /** The estimated number of rows this [OperatorNode.Physical] generates. */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         abstract val outputSize: Long
 
         /** An estimation of the [Cost] incurred by this [OperatorNode.Physical]. */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         abstract val cost: Cost
 
         /** An estimation of the [Cost] incurred by the query plan up and until this [OperatorNode.Physical]. */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         abstract val totalCost: Cost
 
         /** An estimation of the [Cost] incurred by the parallelizable portion of the query plan up and until this [OperatorNode.Physical]. */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         abstract val parallelizableCost: Cost
 
         /** An estimation of the [Cost] incurred by the sequential portion of the query plan up and until this [OperatorNode.Physical]. */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         val sequentialCost: Cost
             get() = this.totalCost - this.parallelizableCost
 

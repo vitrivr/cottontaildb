@@ -5,7 +5,6 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
-
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
@@ -13,10 +12,9 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
@@ -30,7 +28,6 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager.Tra
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.utilities.extensions.write
-
 import java.lang.ref.SoftReference
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
@@ -261,7 +258,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          *
          * @param operator The [Operator.SinkOperator] that should be executed.
          */
-        override fun execute(operator: Operator): Flow<Record>  = operator.toFlow().flowOn(this@TransactionManager.executionManager.queryDispatcher).onStart {
+        override fun execute(operator: Operator): Flow<Tuple>  = operator.toFlow().flowOn(this@TransactionManager.executionManager.queryDispatcher).onStart {
             this@TransactionImpl.mutex.withLock {  /* Update transaction state; synchronise with ongoing COMMITS or ROLLBACKS. */
                 check(this@TransactionImpl.state.canExecute) {
                     "Cannot start execution of transaction ${this@TransactionImpl.txId} because it is in the wrong state (s = ${this@TransactionImpl.state})."

@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.statistics.values
 
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.types.Types
@@ -82,12 +82,12 @@ sealed interface ValueStatistics<T : Value> {
     fun copy(): ValueStatistics<T>
 
     /**
-     * Estimates [Selectivity] of the given [BooleanPredicate.Comparison], i.e., the percentage of [org.vitrivr.cottontail.core.basics.Record]s that match it.
+     * Estimates [Selectivity] of the given [BooleanPredicate.Comparison], i.e., the percentage of [org.vitrivr.cottontail.core.basics.Tuple]s that match it.
      * Defaults to [Selectivity.DEFAULT] but can be overridden by concrete implementations.
      *
      * @param predicate [BooleanPredicate.Comparison] To estimate [Selectivity] for.
      * @return [Selectivity] estimate.
      */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     fun estimateSelectivity(predicate: BooleanPredicate.Comparison): Selectivity
 }

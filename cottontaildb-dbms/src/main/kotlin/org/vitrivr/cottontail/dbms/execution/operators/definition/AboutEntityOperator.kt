@@ -2,10 +2,10 @@ package org.vitrivr.cottontail.dbms.execution.operators.definition
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.values.BooleanValue
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.LongValue
@@ -24,7 +24,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
 class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.EntityName, override val context: QueryContext) : Operator.SourceOperator() {
     override val columns: List<ColumnDef<*>> = ColumnSets.DDL_ABOUT_COLUMNS
 
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         val schemaTxn = this@AboutEntityOperator.tx.schemaForName(this@AboutEntityOperator.name.schema()).newTx(this@AboutEntityOperator.context)
         val entityTxn = schemaTxn.entityForName(this@AboutEntityOperator.name).newTx(this@AboutEntityOperator.context)
 
@@ -32,7 +32,8 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
         var rowId = 0L
 
         /* Describe entity. */
-        emit(StandaloneRecord(rowId++, columns, arrayOf(
+        emit(
+            StandaloneTuple(rowId++, columns, arrayOf(
             StringValue(this@AboutEntityOperator.name.toString()),
             StringValue("ENTITY"),
             null,
@@ -40,14 +41,16 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
             null,
             null,
             null
-        )))
+        ))
+        )
 
         /* Describe columns. */
         val cols = entityTxn.listColumns()
         cols.forEach {
             val column = entityTxn.columnForName(it.name)
             val columnTx = column.newTx(this@AboutEntityOperator.context)
-            emit(StandaloneRecord(rowId++, columns, arrayOf(
+            emit(
+                StandaloneTuple(rowId++, columns, arrayOf(
                 StringValue(it.name.toString()),
                 StringValue("COLUMN"),
                 StringValue(it.type.name),
@@ -59,7 +62,8 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
                 } else {
                     null
                 }
-            )))
+            ))
+            )
         }
 
         /* Describe indexes. */
@@ -67,7 +71,8 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
         indexes.forEach {
             val index = entityTxn.indexForName(it)
             val indexTx = index.newTx(this@AboutEntityOperator.context)
-            emit(StandaloneRecord(rowId++, columns, arrayOf(
+            emit(
+                StandaloneTuple(rowId++, columns, arrayOf(
                 StringValue(it.toString()),
                 StringValue("INDEX"),
                 StringValue(index.type.toString()),
@@ -75,7 +80,8 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
                 null,
                 null,
                 StringValue(indexTx.state.toString())
-            )))
+            ))
+            )
         }
     }
 }

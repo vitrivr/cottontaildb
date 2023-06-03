@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.statistics.values
 
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
@@ -117,13 +117,13 @@ sealed class AbstractValueStatistics<T : Value>(override val type: Types<T>): Va
     )
 
     /**
-     * Estimates [Selectivity] of the given [BooleanPredicate.Comparison], i.e., the percentage of [org.vitrivr.cottontail.core.basics.Record]s that match it.
+     * Estimates [Selectivity] of the given [BooleanPredicate.Comparison], i.e., the percentage of [org.vitrivr.cottontail.core.basics.Tuple]s that match it.
      * Defaults to [Selectivity.DEFAULT] but can be overridden by concrete implementations.
      *
      * @param predicate [BooleanPredicate.Comparison] To estimate [Selectivity] for.
      * @return [Selectivity] estimate.
      */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     override fun estimateSelectivity(predicate: BooleanPredicate.Comparison): Selectivity = when(val operator = predicate.operator){
         /* Assumption: All elements in IN are matches. */
         is ComparisonOperator.In -> Selectivity(operator.right.size() / this.numberOfEntries.toFloat())

@@ -6,7 +6,7 @@ import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.dbms.entity.AbstractEntityTest
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
@@ -108,9 +108,9 @@ abstract class AbstractSerializationTest: AbstractEntityTest() {
     }
 
     /**
-     * Generates and returns the i-th [StandaloneRecord]. Usually generated randomly (which is up to the implementing class).
+     * Generates and returns the i-th [StandaloneTuple]. Usually generated randomly (which is up to the implementing class).
      *
-     * @param i Index of the [StandaloneRecord]
+     * @param i Index of the [StandaloneTuple]
      */
-    abstract fun nextRecord(i: Int): StandaloneRecord
+    abstract fun nextRecord(i: Int): StandaloneTuple
 }

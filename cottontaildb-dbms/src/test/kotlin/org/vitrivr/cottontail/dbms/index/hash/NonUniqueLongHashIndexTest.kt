@@ -4,10 +4,10 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.LongValue
@@ -67,7 +67,7 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
 
             /* Check all entries. */
             with(ctx.bindings) {
-                with(MissingRecord) {
+                with(MissingTuple) {
                     for (entry in this@NonUniqueLongHashIndexTest.list.entries) {
                         valueBinding.update(entry.key) /* Update value binding. */
                         var found = false
@@ -116,9 +116,9 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
     }
 
     /**
-     * Generates and returns a new, random [StandaloneRecord] for inserting into the database.
+     * Generates and returns a new, random [StandaloneTuple] for inserting into the database.
      */
-    override fun nextRecord(): StandaloneRecord {
+    override fun nextRecord(): StandaloneTuple {
         val id = LongValue(this.random.nextLong(0L, 100L))
         val value = DoubleValue(this.random.nextDouble())
         if (this.random.nextBoolean() && this.list.size <= 1000) {
@@ -128,6 +128,6 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
                 list
             }
         }
-        return StandaloneRecord(0L, columns = this.columns, values = arrayOf(id, value))
+        return StandaloneTuple(0L, columns = this.columns, values = arrayOf(id, value))
     }
 }

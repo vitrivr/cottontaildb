@@ -2,10 +2,10 @@ package org.vitrivr.cottontail.dbms.execution.operators.projection
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.RealValue
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
@@ -17,10 +17,10 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
 
 /**
  * An [Operator.PipelineOperator] used during query execution. It tracks the MIN (minimum) value it
- * has encountered so far  and returns it as a [Record]. The [MinProjectionOperator] retains the type
+ * has encountered so far  and returns it as a [Tuple]. The [MinProjectionOperator] retains the type
  * of the incoming records.
  *
- * Only produces a single [Record]. Acts as pipeline breaker.
+ * Only produces a single [Tuple]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
  * @version 2.0.1
@@ -50,7 +50,7 @@ class MinProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, ove
      * @return [Flow] representing this [MinProjectionOperator]
      */
     @Suppress("UNCHECKED_CAST")
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         val incoming = this@MinProjectionOperator.parent.toFlow()
         val columns = this@MinProjectionOperator.columns.toTypedArray()
 
@@ -73,6 +73,6 @@ class MinProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, ove
         }
 
         /** Emit record. */
-        emit(StandaloneRecord(0L, columns, results as Array<Value?>))
+        emit(StandaloneTuple(0L, columns, results as Array<Value?>))
     }
 }

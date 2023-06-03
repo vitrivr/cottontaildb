@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.core.queries.binding
 
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.functions.Function
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 
@@ -42,7 +42,7 @@ interface BindingContext {
      * @param binding The [Binding.Function] to lookup.
      * @return The bound [Value].
      */
-    context(Record)
+    context(Tuple)
     operator fun get(binding: Binding.Function): Value?
 
     /**

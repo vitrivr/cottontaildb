@@ -1,12 +1,12 @@
 package org.vitrivr.cottontail.dbms.queries.binding
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.functions.Function
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import java.util.*
@@ -56,7 +56,7 @@ class DefaultBindingContext: BindingContext {
      * @param binding The [Binding] to lookup.
      * @return The bound [Value].
      */
-    context(Record)
+    context(Tuple)
     override operator fun get(binding: Binding.Function): Value? {
         val arguments = this.boundFunctions[binding.bindingIndex]
         for ((i,a) in binding.arguments.withIndex()) {

@@ -2,9 +2,9 @@ package org.vitrivr.cottontail.dbms.execution.operators.system
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.DateValue
 import org.vitrivr.cottontail.core.values.DoubleValue
@@ -25,7 +25,7 @@ class ListTransactionsOperator(val manager: TransactionManager, override val con
     override val columns: List<ColumnDef<*>>
         get() = ColumnSets.DDL_TRANSACTIONS_COLUMNS
 
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         val columns = this@ListTransactionsOperator.columns.toTypedArray()
         var row = 0L
         this@ListTransactionsOperator.manager.transactionHistory.forEach {
@@ -45,7 +45,7 @@ class ListTransactionsOperator(val manager: TransactionManager, override val con
                     DoubleValue((System.currentTimeMillis() - it.created) / 1000.0)
                 }
             )
-            emit(StandaloneRecord(row++, columns, values))
+            emit(StandaloneTuple(row++, columns, values))
         }
     }
 }

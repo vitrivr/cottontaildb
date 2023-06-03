@@ -5,10 +5,10 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.RealValue
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
@@ -21,10 +21,10 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
 
 /**
  * A [Operator.PipelineOperator] used during query execution. It tracks the MIN (minimum) it has
- * encountered so far for each column and returns it as a [Record]. Can collect strands of execution in parallel.
+ * encountered so far for each column and returns it as a [Tuple]. Can collect strands of execution in parallel.
  *
  * The [MergeMaxProjectionOperator] retains the [Types] of the incoming entries! Only produces a
- * single [Record]. Acts as pipeline breaker.
+ * single [Tuple]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
  * @version 1.0.0
@@ -54,7 +54,7 @@ class MergeMinProjectionOperator(parents: List<Operator>, fields: List<Name.Colu
      * @return [Flow] representing tthis@MergeMinProjectionOperator]
      */
     @Suppress("UNCHECKED_CAST")
-    override fun toFlow(): Flow<Record> = channelFlow {
+    override fun toFlow(): Flow<Tuple> = channelFlow {
         /* Prepare a global heap selection. */
         val incoming = this@MergeMinProjectionOperator.parents
         val columns = this@MergeMinProjectionOperator.columns.toTypedArray()
@@ -107,6 +107,6 @@ class MergeMinProjectionOperator(parents: List<Operator>, fields: List<Name.Colu
         jobs.forEach { it.join() } /* Wait for jobs to complete. */
 
         /** Emit record. */
-        send(StandaloneRecord(0L, columns, globalMin as Array<Value?>))
+        send(StandaloneTuple(0L, columns, globalMin as Array<Value?>))
     }
 }

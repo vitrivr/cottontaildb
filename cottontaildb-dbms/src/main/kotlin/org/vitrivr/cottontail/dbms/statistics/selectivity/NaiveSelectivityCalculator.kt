@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.statistics.selectivity
 
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
@@ -23,7 +23,7 @@ object NaiveSelectivityCalculator {
      * @param predicate The [BooleanPredicate] to evaluate.
      * @param statistics The map of [ValueStatistics] to use in the calculation.
      */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     fun estimate(predicate: BooleanPredicate, statistics: Map<ColumnDef<*>, ValueStatistics<*>>): Selectivity = when (predicate) {
         is BooleanPredicate.Literal -> if (predicate.boolean) Selectivity.ALL else Selectivity.NOTHING
         is BooleanPredicate.IsNull -> TODO()
@@ -43,7 +43,7 @@ object NaiveSelectivityCalculator {
      * @param predicate The [BooleanPredicate.Comparison] to evaluate.
      * @param statistics The map of [ValueStatistics] to use in the calculation.
      */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     private fun estimateAtomicReference(predicate: BooleanPredicate.Comparison, statistics: Map<ColumnDef<*>, ValueStatistics<*>>): Selectivity {
         val left = predicate.operator.left
         return if (left is Binding.Column) {

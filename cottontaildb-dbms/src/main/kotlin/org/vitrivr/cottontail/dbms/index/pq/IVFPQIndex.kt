@@ -7,7 +7,6 @@ import jetbrains.exodus.env.StoreConfig
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
@@ -20,6 +19,7 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
@@ -283,7 +283,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
         }
 
         /**
-         * Performs a lookup through this [IVFPQIndex.Tx] and returns a [IVFPQIndexCursor] of all [Record]s that match the [Predicate].
+         * Performs a lookup through this [IVFPQIndex.Tx] and returns a [IVFPQIndexCursor] of all [Tuple]s that match the [Predicate].
          * Only supports [ProximityPredicate.Scan]s.
          *
          * <strong>Important:</strong> The [IVFPQIndexCursor] is not thread safe! It remains to the caller to close the [IVFPQIndexCursor]
@@ -291,7 +291,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [IVFPQIndexCursor]
          */
-        override fun filter(predicate: Predicate): Cursor<Record> = this.txLatch.withLock {
+        override fun filter(predicate: Predicate): Cursor<Tuple> = this.txLatch.withLock {
             require(predicate is ProximityPredicate.Scan) { "IVFPQIndex can only be used with a SCAN type proximity predicate. This is a programmer's error!" }
             IVFPQIndexCursor(predicate, this)
         }
@@ -303,7 +303,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record>
+        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Tuple>
             = throw UnsupportedOperationException("IVFPQIndex does not support range partitioning.")
     }
 }

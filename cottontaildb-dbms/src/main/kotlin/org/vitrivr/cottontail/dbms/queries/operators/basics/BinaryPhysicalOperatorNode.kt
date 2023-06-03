@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.queries.operators.basics
 
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
@@ -8,6 +7,7 @@ import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.PlaceholderPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
@@ -41,7 +41,7 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
     }
 
     /** The [totalCost] of a [BinaryPhysicalOperatorNode] is always the sum of its own and its input cost. Can be overridden!*/
-    context(BindingContext,Record)    final override val totalCost: Cost
+    context(BindingContext, Tuple)    final override val totalCost: Cost
         get() = this.left.totalCost + this.right.totalCost + this.cost
 
     /** By default, [BinaryPhysicalOperatorNode]s are executable if both their inputs are executable. Can be overridden! */
@@ -61,7 +61,7 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
         get() = this.left.traits
 
     /** By default, the output size of a [UnaryPhysicalOperatorNode] is the same as its left input's output size. Can be overridden! */
-    context(BindingContext,Record)    override val outputSize: Long
+    context(BindingContext, Tuple)    override val outputSize: Long
         get() = this.left.outputSize
 
     /** By default, a [BinaryPhysicalOperatorNode]'s has no specific requirements. Can be overridden! */

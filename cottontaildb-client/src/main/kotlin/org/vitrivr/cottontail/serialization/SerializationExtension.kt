@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.serialization
 
 import kotlinx.serialization.KSerializer
-import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.client.iterators.TupleIterator
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.*
 
@@ -41,14 +41,14 @@ fun Types<*>.valueSerializer(): KSerializer<PublicValue?> = when (this) {
  *
  * @return [TupleSerializer]
  */
-fun List<ColumnDef<*>>.valueSerializer() = TupleSerializer(this)
+fun Array<ColumnDef<*>>.valueSerializer() = TupleSerializer(this)
 
 /**
  * Returns a [TupleSimpleSerializer] for a [List] of [ColumnDef].
  *
  * @return [TupleSimpleSerializer]
  */
-fun List<ColumnDef<*>>.descriptionSerializer() = TupleSimpleSerializer(this)
+fun Array<ColumnDef<*>>.descriptionSerializer() = TupleSimpleSerializer(this)
 
 /**
  * Returns a [TupleSerializer] for a [Tuple].

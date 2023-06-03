@@ -6,7 +6,6 @@ import jetbrains.exodus.env.StoreConfig
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
@@ -18,6 +17,7 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.VectorValue
@@ -288,7 +288,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
         }
 
         /**
-         * Performs a lookup through this [PQIndex.Tx] and returns a [Iterator] of all [Record]s that match the [Predicate].
+         * Performs a lookup through this [PQIndex.Tx] and returns a [Iterator] of all [Tuple]s that match the [Predicate].
          * Only supports [ProximityPredicate]s.
          *
          * <strong>Important:</strong> The [Iterator] is not thread safe! It remains to the
@@ -298,7 +298,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
          * @return The resulting [Iterator]
          */
         @Suppress("UNCHECKED_CAST")
-        override fun filter(predicate: Predicate): Cursor<Record> = this.txLatch.withLock {
+        override fun filter(predicate: Predicate): Cursor<Tuple> = this.txLatch.withLock {
             val entityTx = this@PQIndex.parent.newTx(this.context)
             filter(predicate,entityTx.smallestTupleId() .. entityTx.largestTupleId())
         }
@@ -310,7 +310,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
          * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> = this.txLatch.withLock {
+        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Tuple> = this.txLatch.withLock {
             require(predicate is ProximityPredicate.Scan) { "PQIndex can only be used with a SCAN type proximity predicate. This is a programmer's error!" }
             PQIndexCursor(partition, predicate, this)
         }

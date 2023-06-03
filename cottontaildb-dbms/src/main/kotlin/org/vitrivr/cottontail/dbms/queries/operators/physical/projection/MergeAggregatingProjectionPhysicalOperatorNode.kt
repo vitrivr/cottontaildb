@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.Digest
@@ -51,12 +51,12 @@ class MergeAggregatingProjectionPhysicalOperatorNode(vararg inputs: Physical, va
     }
 
     /** The output size of this [MergeAggregatingProjectionPhysicalOperatorNode] is always one. */
-    context(BindingContext, Record)
+    context(BindingContext, Tuple)
     override val outputSize: Long
         get() = 1L
 
     /** The [Cost] of a [MergeAggregatingProjectionPhysicalOperatorNode]. */
-    context(BindingContext, Record)
+    context(BindingContext, Tuple)
     override val cost: Cost
         get() = (Cost.MEMORY_ACCESS + Cost.FLOP) * 3.0f * this.inputs.sumOf { it.outputSize }
 

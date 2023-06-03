@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.utilities
 import com.jakewharton.picnic.Table
 import com.jakewharton.picnic.TableSectionDsl
 import com.jakewharton.picnic.table
-import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.client.iterators.TupleIterator
 import org.vitrivr.cottontail.core.toDescription
 import org.vitrivr.cottontail.grpc.CottontailGrpc

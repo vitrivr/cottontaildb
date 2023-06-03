@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index
 
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.functions.math.score.FulltextScore
 import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
@@ -70,7 +70,7 @@ object FulltextIndexRule : RewriteRule {
             it.state != IndexState.DIRTY && it.canProcess(predicate)
         }
 
-        with(MissingRecord) {
+        with(MissingTuple) {
             with(ctx.bindings) {
                 if (candidate != null) {
                     val produces = candidate.columnsFor(predicate)

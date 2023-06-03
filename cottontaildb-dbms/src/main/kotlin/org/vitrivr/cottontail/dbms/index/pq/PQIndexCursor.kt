@@ -2,12 +2,12 @@ package org.vitrivr.cottontail.dbms.index.pq
 
 import jetbrains.exodus.bindings.LongBinding
 import org.vitrivr.cottontail.core.basics.Cursor
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.dbms.catalogue.toKey
@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class PQIndexCursor(partition: LongRange, val predicate: ProximityPredicate.Scan, val index: PQIndex.Tx): Cursor<Record> {
+class PQIndexCursor(partition: LongRange, val predicate: ProximityPredicate.Scan, val index: PQIndex.Tx): Cursor<Tuple> {
         /** Prepares [PQLookupTable]s for the given query vector(s). */
     private val lookupTable: PQLookupTable
 
@@ -44,7 +44,7 @@ class PQIndexCursor(partition: LongRange, val predicate: ProximityPredicate.Scan
     private val boc = AtomicBoolean(true)
 
     init {
-        with(MissingRecord) {
+        with(MissingTuple) {
             with(this@PQIndexCursor.index.context.bindings) {
                 this@PQIndexCursor.lookupTable = this@PQIndexCursor.index.quantizer.createLookupTable(this@PQIndexCursor.predicate.query.getValue() as VectorValue<*>)
             }
@@ -69,14 +69,14 @@ class PQIndexCursor(partition: LongRange, val predicate: ProximityPredicate.Scan
     override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
 
     /**
-     * Returns the current [Record] this [Cursor] is pointing to.
+     * Returns the current [Tuple] this [Cursor] is pointing to.
      *
      * @return [TupleId]
      */
-    override fun value(): Record {
+    override fun value(): Tuple {
         val signature = SPQSignature.fromEntry(this.cursor.value)
         val approximation = DoubleValue(this.lookupTable.approximateDistance(signature))
-        return StandaloneRecord(LongBinding.compressedEntryToLong(cursor.key), this.produces, arrayOf(approximation))
+        return StandaloneTuple(LongBinding.compressedEntryToLong(cursor.key), this.produces, arrayOf(approximation))
     }
 
     /**

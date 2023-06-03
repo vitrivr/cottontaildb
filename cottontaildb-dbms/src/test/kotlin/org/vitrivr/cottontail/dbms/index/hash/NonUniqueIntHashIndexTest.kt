@@ -4,10 +4,10 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.FloatValue
 import org.vitrivr.cottontail.core.values.IntValue
@@ -66,7 +66,7 @@ class NonUniqueIntHashIndexTest : AbstractIndexTest() {
 
         /* Check all entries. */
         with(ctx.bindings) {
-            with(MissingRecord) {
+            with(MissingTuple) {
                 for (entry in this@NonUniqueIntHashIndexTest.list.entries) {
                     valueBinding.update(entry.key) /* Update value binding. */
                     var found = false
@@ -113,9 +113,9 @@ class NonUniqueIntHashIndexTest : AbstractIndexTest() {
     }
 
     /**
-     * Generates and returns a new, random [StandaloneRecord] for inserting into the database.
+     * Generates and returns a new, random [StandaloneTuple] for inserting into the database.
      */
-    override fun nextRecord(): StandaloneRecord {
+    override fun nextRecord(): StandaloneTuple {
         val id = IntValue(number = this.random.nextInt(0, 100))
         val value = FloatValue(this.random.nextFloat())
         if (this.random.nextBoolean() && this.list.size <= 1000) {
@@ -125,6 +125,6 @@ class NonUniqueIntHashIndexTest : AbstractIndexTest() {
                 list
             }
         }
-        return StandaloneRecord(0L, columns = this.columns, values = arrayOf(id, value))
+        return StandaloneTuple(0L, columns = this.columns, values = arrayOf(id, value))
     }
 }

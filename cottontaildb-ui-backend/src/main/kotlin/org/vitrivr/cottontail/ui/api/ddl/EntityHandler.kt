@@ -6,7 +6,6 @@ import io.grpc.StatusRuntimeException
 import io.javalin.http.BadRequestResponse
 import io.javalin.http.Context
 import io.javalin.openapi.*
-import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.types.Types

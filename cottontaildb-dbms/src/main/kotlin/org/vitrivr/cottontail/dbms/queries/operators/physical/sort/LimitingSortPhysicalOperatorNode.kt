@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.sort
 
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
@@ -37,12 +37,12 @@ class LimitingSortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<Co
     override val requires: List<ColumnDef<*>> = sortOn.map { it.first }
 
     /** The size of the output produced by this [SortPhysicalOperatorNode]. */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     override val outputSize: Long
         get() = min(super.outputSize, this.limit)
 
     /** The [Cost] incurred by this [SortPhysicalOperatorNode]. */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     override val cost: Cost
         get() = Cost(
             cpu = 2 * this.sortOn.size * Cost.MEMORY_ACCESS.cpu,
@@ -90,7 +90,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<Co
     override fun tryPartition(ctx: QueryContext, max: Int): Physical? {
         return if (!this.input.hasTrait(NotPartitionableTrait)) {
             val partitions = with(ctx.bindings) {
-                with(MissingRecord) {
+                with(MissingTuple) {
                     ctx.costPolicy.parallelisation(this@LimitingSortPhysicalOperatorNode.parallelizableCost, this@LimitingSortPhysicalOperatorNode.totalCost, max)
                 }
             }

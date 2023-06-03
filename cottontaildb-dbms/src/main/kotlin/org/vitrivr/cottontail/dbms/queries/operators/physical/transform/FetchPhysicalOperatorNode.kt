@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.transform
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
@@ -50,7 +50,7 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
         get() = super.statistics + this.localStatistics
 
     /** The [Cost] of a [FetchPhysicalOperatorNode]. */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     override val cost: Cost
         get() = (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf { (b, _) ->
             if (b.type == Types.String) {

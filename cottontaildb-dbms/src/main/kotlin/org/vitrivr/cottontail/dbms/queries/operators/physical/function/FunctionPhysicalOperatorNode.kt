@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.function
 
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
@@ -36,7 +36,7 @@ class FunctionPhysicalOperatorNode(input: Physical, val function: Binding.Functi
     }
 
     /** The [Cost] of a [FunctionPhysicalOperatorNode]. */
-    context(BindingContext,Record)    override val cost: Cost
+    context(BindingContext, Tuple)    override val cost: Cost
         get() = this.function.cost * this.outputSize
 
     /** [FunctionPhysicalOperatorNode] can only be executed if [Function] can be executed. */

@@ -2,9 +2,9 @@ package org.vitrivr.cottontail.dbms.execution.operators.predicates
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
@@ -29,7 +29,7 @@ class FilterOperator(parent: Operator, private val predicate: BooleanPredicate, 
      *
      * @return [Flow] representing this [FilterOperator]
      */
-    override fun toFlow(): Flow<Record> {
+    override fun toFlow(): Flow<Tuple> {
         with(this@FilterOperator.context.bindings) {
             this@FilterOperator.predicate.prepare()
             return this@FilterOperator.parent.toFlow().filter { record ->

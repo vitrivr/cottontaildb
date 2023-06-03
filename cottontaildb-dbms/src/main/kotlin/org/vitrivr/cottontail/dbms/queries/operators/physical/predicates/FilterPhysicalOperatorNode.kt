@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.predicates
 
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
@@ -38,12 +38,12 @@ class FilterPhysicalOperatorNode(input: Physical, val predicate: BooleanPredicat
         get() = super.executable && this.predicate.atomics.filterIsInstance<BooleanPredicate.Comparison>().none { it.operator is ComparisonOperator.Binary.Match }
 
     /** The estimated output size of this [FilterOnSubSelectPhysicalOperatorNode]. Calculated based on [Selectivity] estimates. */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     override val outputSize: Long
         get() = NaiveSelectivityCalculator.estimate(this.predicate, this.statistics).invoke(this.input.outputSize)
 
     /** The [Cost] of this [FilterPhysicalOperatorNode]. */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     override val cost: Cost
         get() = this.predicate.cost * this.input.outputSize
 

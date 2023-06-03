@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.merge
 
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
@@ -42,12 +42,12 @@ class MergeLimitingSortPhysicalOperatorNode(vararg inputs: Physical, val sortOn:
     }
 
     /** The output size of all [MergeLimitingSortPhysicalOperatorNode]s is usually the specified limit. */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     override val outputSize: Long
         get() = min(this.inputs.sumOf { it.outputSize }, this.limit)
 
     /** The [Cost] incurred by the [MergeLimitingSortPhysicalOperatorNode] is similar to that of the [LimitingSortPhysicalOperatorNode]. */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     override val cost: Cost
         get() = Cost(
              cpu = 2 * this.inputs.sumOf { it.outputSize } * this.sortOn.size * Cost.MEMORY_ACCESS.cpu,
@@ -61,7 +61,7 @@ class MergeLimitingSortPhysicalOperatorNode(vararg inputs: Physical, val sortOn:
     )
 
     /** The [Cost] incurred by merging is usually negligible. */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     override val parallelizableCost: Cost
         get() = this.inputs.map { it.totalCost }.reduce {c1, c2 -> c1 + c2}
 

@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
@@ -148,11 +148,11 @@ class PQFloatIndexTest : AbstractIndexTest() {
     /**
      * Generates pre-clustered data, which allows control of correctness.
      */
-    override fun nextRecord(): StandaloneRecord {
+    override fun nextRecord(): StandaloneTuple {
         val id = LongValue(this.counter++)
         val vector = FloatVectorValue(FloatArray(this.indexColumn.type.logicalSize) {
             (this.counter % this.numberOfClusters) + this.random.nextDouble(-1.0, 1.0).toFloat()
         })
-        return StandaloneRecord(0L, columns = this.columns, values = arrayOf(id, vector))
+        return StandaloneTuple(0L, columns = this.columns, values = arrayOf(id, vector))
     }
 }

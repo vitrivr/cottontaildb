@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 
 import org.vitrivr.cottontail.config.Config
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.Digest
@@ -36,7 +36,7 @@ class SelectDistinctProjectionPhysicalOperatorNode(input: Physical, val fields: 
         get() = this.columns
 
     /** The [Cost] of a [SelectDistinctProjectionPhysicalOperatorNode]. */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     override val cost: Cost
         get() = Cost.MEMORY_ACCESS * (this.outputSize * this.fields.size) + Cost.DISK_ACCESS_WRITE * (16 * this.fields.size * this.outputSize)
 

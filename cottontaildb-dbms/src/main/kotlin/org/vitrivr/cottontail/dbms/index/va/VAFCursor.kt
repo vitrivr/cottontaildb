@@ -2,15 +2,15 @@ package org.vitrivr.cottontail.dbms.index.va
 
 import jetbrains.exodus.bindings.LongBinding
 import org.vitrivr.cottontail.core.basics.Cursor
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.DoubleValue
@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * @version 1.1.0
  */
 @Suppress("UNCHECKED_CAST")
-sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange, protected val predicate: T, protected val index: VAFIndex.Tx): Cursor<Record> {
+sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange, protected val predicate: T, protected val index: VAFIndex.Tx): Cursor<Tuple> {
     /** [VectorValue] used for query. Must be prepared before using the [Iterator]. */
     protected val query: RealVectorValue<*>
 
@@ -67,7 +67,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
     init {
         /* Extract query vector from binding. */
         val queryVectorBinding = this.predicate.query
-        with(MissingRecord) {
+        with(MissingTuple) {
             with(this@VAFCursor.index.context.bindings) {
                 val value = queryVectorBinding.getValue()
                 check(value is RealVectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
@@ -122,16 +122,16 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
     sealed class KLimited<T : ProximityPredicate.KLimitedSearch>(partition: LongRange, predicate: T, index: VAFIndex.Tx) : VAFCursor<T>(partition, predicate, index) {
 
         /** The [Iterator] over the top k entries. */
-        protected val selection: Iterator<Record> by lazy {
+        protected val selection: Iterator<Tuple> by lazy {
             if (this.boc.compareAndExchange(true, false)) {
                 prepareVASSA().iterator()
             } else {
-                emptyList<Record>().iterator()
+                emptyList<Tuple>().iterator()
             }
         }
 
-        /** The current [Record] this [KLimited] is pointing to.  */
-        protected var current: Record? = null
+        /** The current [Tuple] this [KLimited] is pointing to.  */
+        protected var current: Tuple? = null
 
         /**
          * Moves the internal cursor and return true, as long as new candidates appear.
@@ -154,11 +154,11 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
         }
 
         /**
-         * Returns the current [Record] this [Cursor] is pointing to.
+         * Returns the current [Tuple] this [Cursor] is pointing to.
          *
-         * @return [Record]
+         * @return [Tuple]
          */
-        override fun value(): Record = try {
+        override fun value(): Tuple = try {
             this.current!!
         } catch (e: NullPointerException) {
             throw IllegalStateException("VAFCursor is not currently pointing to a record.")
@@ -169,7 +169,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
          *
          * @return [HeapSelection]
          */
-        protected abstract fun prepareVASSA(): HeapSelection<Record>
+        protected abstract fun prepareVASSA(): HeapSelection<Tuple>
     }
 
     /**
@@ -181,7 +181,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
          *
          * @return Prepared [HeapSelection]
          */
-        override fun prepareVASSA(): HeapSelection<Record> {
+        override fun prepareVASSA(): HeapSelection<Tuple> {
             val localSelection = HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
             try {
                 /* First phase: Just add entries until we have k-results. */
@@ -191,7 +191,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                     require(this.columnCursor.moveTo(tupleId)) { "Column cursor failed to seek tuple with ID ${tupleId}." }
                     val value = this.columnCursor.value()
                     val distance = this.predicate.distance(this.query, value)!!
-                    localSelection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))
+                    localSelection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))
                 } while (localSelection.size < localSelection.k && this.cursor.next && this.cursor.key <= this.endKey)
 
                 /* Second phase: Use lower-bound to decide whether entry should be added. */
@@ -205,7 +205,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                         }
                         val value = this.columnCursor.value()
                         val distance = this.predicate.distance(this.query, value)!!
-                        threshold = (localSelection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
+                        threshold = (localSelection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
                     }
                 }
 
@@ -228,7 +228,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
          *
          * @return Prepared [HeapSelection]
          */
-        override fun prepareVASSA(): HeapSelection<Record> {
+        override fun prepareVASSA(): HeapSelection<Tuple> {
             val localSelection = HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.DESCENDING))
             try {
                 /* First phase: Just add entries until we have k-results. */
@@ -237,7 +237,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                     val tupleId = LongBinding.compressedEntryToLong(cursor.key)
                     val value = this.columnCursor.value()
                     val distance = this.predicate.distance(this.query, value)!!
-                    localSelection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))
+                    localSelection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))
                 } while (localSelection.size < localSelection.k && this.cursor.next && this.cursor.key <= this.endKey)
 
                 /* Second phase: Use lower-bound to decide whether entry should be added. */
@@ -249,7 +249,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                         require(this.columnCursor.moveTo(tupleId)) { "Column cursor failed to seek tuple with ID ${tupleId}." }
                         val value = this.columnCursor.value()
                         val distance = this.predicate.distance(this.query, value)!!
-                        threshold = (localSelection.offer(StandaloneRecord(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
+                        threshold = (localSelection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
                     }
                 }
 
@@ -280,11 +280,11 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
         }
 
         override fun key(): TupleId = this.columnCursor.key()
-        override fun value(): Record {
+        override fun value(): Tuple {
             val tupleId = this.columnCursor.key()
             val value = this.columnCursor.value()
             val distance = this.predicate.distance(this.query, value)!!
-            return StandaloneRecord(tupleId, this.produces, arrayOf(distance, value))
+            return StandaloneTuple(tupleId, this.produces, arrayOf(distance, value))
         }
     }
 }

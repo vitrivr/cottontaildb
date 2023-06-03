@@ -5,11 +5,11 @@ import org.mapdb.DB
 import org.mapdb.DBException
 import org.mapdb.StoreWAL
 import org.vitrivr.cottontail.core.basics.Cursor
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.column.Column
@@ -155,15 +155,15 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, Closeabl
         }
 
         /**
-         * Reads the values of one or many [Column]s and returns it as a [Record]
+         * Reads the values of one or many [Column]s and returns it as a [Tuple]
          *
          * @param tupleId The [TupleId] of the desired entry.
          * @param columns The [ColumnDef]s that should be read.
-         * @return The desired [Record].
+         * @return The desired [Tuple].
          *
          * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
          */
-        override fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Record {
+        override fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Tuple {
             /* Read values from underlying columns. */
             val values = columns.map {
                 val column = this@EntityV2.columns[it.name] ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@EntityV2.name}.")
@@ -171,7 +171,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, Closeabl
             }.toTypedArray()
 
             /* Return value of all the desired columns. */
-            return StandaloneRecord(tupleId, columns, values)
+            return StandaloneTuple(tupleId, columns, values)
         }
 
         /**
@@ -258,7 +258,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, Closeabl
          *
          * @return [Iterator]
          */
-        override fun cursor(columns: Array<ColumnDef<*>>): Cursor<Record> = cursor(columns, this.smallestTupleId() .. this.largestTupleId())
+        override fun cursor(columns: Array<ColumnDef<*>>): Cursor<Tuple> = cursor(columns, this.smallestTupleId() .. this.largestTupleId())
 
         /**
          * Creates and returns a new [Iterator] for this [EntityV2.Tx] that returns all [TupleId]s
@@ -269,7 +269,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, Closeabl
          *
          * @return [Iterator]
          */
-        override fun cursor(columns: Array<ColumnDef<*>>, partition: LongRange) = object : Cursor<Record> {
+        override fun cursor(columns: Array<ColumnDef<*>>, partition: LongRange) = object : Cursor<Tuple> {
 
             /** List of [ColumnTx]s used by  this [Iterator]. */
             private val txs = columns.map {
@@ -283,23 +283,23 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, Closeabl
             /** Array of [Value]s emitted by this [EntityV2]. */
             private val values = arrayOfNulls<Value?>(columns.size)
 
-            override fun value(): Record {
+            override fun value(): Tuple {
                 val tupleId = this.wrapped.next()
                 for ((i, tx) in this.txs.withIndex()) {
                     this.values[i] = tx.get(tupleId)
                 }
-                return StandaloneRecord(tupleId, columns, this.values)
+                return StandaloneTuple(tupleId, columns, this.values)
             }
             override fun key(): TupleId = this.wrapped.next()
             override fun moveNext(): Boolean = this.wrapped.hasNext()
             override fun close() { /* No op. */ }
         }
 
-        override fun insert(record: Record): Record {
+        override fun insert(tuple: Tuple): Tuple {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun update(record: Record) {
+        override fun update(tuple: Tuple) {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 

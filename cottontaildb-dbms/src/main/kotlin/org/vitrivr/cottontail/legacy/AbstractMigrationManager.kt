@@ -4,7 +4,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
 import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.config.Config
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
@@ -327,7 +327,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
             throw UnsupportedOperationException("Operation signalEvent() not supported for LegacyMigrationContext.")
         }
 
-        override fun execute(operator: Operator): Flow<Record> {
+        override fun execute(operator: Operator): Flow<Tuple> {
             throw UnsupportedOperationException("Operation execute() not supported for LegacyMigrationContext.")
         }
 
@@ -428,7 +428,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
             /* No op. */
         }
 
-        override fun execute(operator: Operator): Flow<Record> {
+        override fun execute(operator: Operator): Flow<Tuple> {
             throw UnsupportedOperationException("Operation execute() not supported for MigrationContext.")
         }
 

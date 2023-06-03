@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
@@ -34,11 +34,11 @@ class CountProjectionPhysicalOperatorNode(input: Physical, val out: Binding.Colu
     override val requires: List<ColumnDef<*>> = emptyList()
 
     /** The output size of this [CountProjectionPhysicalOperatorNode] is always one. */
-    context(BindingContext,Record)    override val outputSize: Long
+    context(BindingContext, Tuple)    override val outputSize: Long
         get() = 1L
 
     /** The [Cost] of a [CountProjectionPhysicalOperatorNode]. */
-    context(BindingContext,Record)    override val cost: Cost
+    context(BindingContext, Tuple)    override val cost: Cost
         get() = Cost.MEMORY_ACCESS * this.input.outputSize
 
     /** The [CountProjectionPhysicalOperatorNode] cannot be partitioned. */

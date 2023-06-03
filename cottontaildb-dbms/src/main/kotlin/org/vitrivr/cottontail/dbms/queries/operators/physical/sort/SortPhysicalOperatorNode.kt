@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.sort
 
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.MaterializedTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
@@ -40,7 +40,7 @@ class SortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<ColumnDef<
     override val requires: List<ColumnDef<*>> = sortOn.map { it.first }
 
     /** The [Cost] incurred by this [SortPhysicalOperatorNode]. */
-    context(BindingContext,Record)    override val cost: Cost
+    context(BindingContext, Tuple)    override val cost: Cost
         get() = Cost(
             cpu = 2 * this.sortOn.size * Cost.MEMORY_ACCESS.cpu,
             memory = this.columns.sumOf {
@@ -82,7 +82,7 @@ class SortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<ColumnDef<
      */
     override fun toOperator(ctx: QueryContext): Operator {
         with(ctx.bindings) {
-            with(MissingRecord) {
+            with(MissingTuple) {
                 return HeapSortOperator(
                     this@SortPhysicalOperatorNode.input.toOperator(ctx),
                     this@SortPhysicalOperatorNode.sortOn,

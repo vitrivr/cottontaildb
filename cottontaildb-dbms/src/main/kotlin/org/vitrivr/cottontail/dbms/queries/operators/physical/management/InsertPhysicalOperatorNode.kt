@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.management
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
@@ -28,7 +28,7 @@ import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
  * @version 2.6.0
  */
 @Suppress("UNCHECKED_CAST")
-class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: EntityTx, val records: MutableList<Record>) : NullaryPhysicalOperatorNode() {
+class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: EntityTx, val tuples: MutableList<Tuple>) : NullaryPhysicalOperatorNode() {
     companion object {
         private const val NODE_NAME = "Insert"
     }
@@ -71,7 +71,7 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
             }
         }
 
-        this.cost = (Cost.DISK_ACCESS_WRITE + Cost.MEMORY_ACCESS) * estimatedInsertSize * this.records.size
+        this.cost = (Cost.DISK_ACCESS_WRITE + Cost.MEMORY_ACCESS) * estimatedInsertSize * this.tuples.size
     }
 
     /**
@@ -79,14 +79,14 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
      *
      * @return Copy of this [InsertLogicalOperatorNode].
      */
-    override fun copy() = InsertPhysicalOperatorNode(this.groupId, this.entity, this.records)
+    override fun copy() = InsertPhysicalOperatorNode(this.groupId, this.entity, this.tuples)
 
     /**
      * Converts this [InsertPhysicalOperatorNode] to a [InsertOperator].
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): Operator = InsertOperator(this.groupId, this.entity, this.records, ctx)
+    override fun toOperator(ctx: QueryContext): Operator = InsertOperator(this.groupId, this.entity, this.tuples, ctx)
 
     /**
      * The [InsertPhysicalOperatorNode] cannot be partitioned.
@@ -100,7 +100,7 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
      */
     override fun digest(): Digest {
         var result = this.entity.dbo.name.hashCode().toLong()
-        result += 31L * result + this.records.hashCode()
+        result += 31L * result + this.tuples.hashCode()
         return result
     }
 }

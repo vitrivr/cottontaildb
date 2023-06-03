@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.entity.serialization
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.*
@@ -29,9 +29,9 @@ class ScalarValueSerializationTest : AbstractSerializationTest() {
     override val name: String = "ScalarValueSerialization"
 
     /**
-     * Generates the next [StandaloneRecord] and returns it.
+     * Generates the next [StandaloneTuple] and returns it.
      */
-    override fun nextRecord(i: Int): StandaloneRecord {
+    override fun nextRecord(i: Int): StandaloneTuple {
         val values: Array<Value?> = arrayOf(
             IntValue(i),
             IntValue(this.random.nextInt()),
@@ -41,6 +41,6 @@ class ScalarValueSerializationTest : AbstractSerializationTest() {
             ByteValue(this.random.nextInt()),
             ShortValue(this.random.nextInt())
         )
-        return StandaloneRecord(0L, columns = this.columns, values = values)
+        return StandaloneTuple(0L, columns = this.columns, values = values)
     }
 }

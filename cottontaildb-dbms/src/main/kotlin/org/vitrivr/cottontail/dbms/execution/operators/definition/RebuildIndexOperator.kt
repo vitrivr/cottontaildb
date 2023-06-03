@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.dbms.execution.operators.definition
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.services.AutoRebuilderService
@@ -18,7 +18,7 @@ import kotlin.system.measureTimeMillis
  * @version 2.1.0
  */
 class RebuildIndexOperator(private val tx: CatalogueTx, private val name: Name.IndexName, private val service: AutoRebuilderService? = null, override val context: QueryContext): AbstractDataDefinitionOperator(name, "OPTIMIZE INDEX") {
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         val schemaTxn = this@RebuildIndexOperator.tx.schemaForName(this@RebuildIndexOperator.name.schema()).newTx(this@RebuildIndexOperator.context)
         val entityTxn = schemaTxn.entityForName(this@RebuildIndexOperator.name.entity()).newTx(this@RebuildIndexOperator.context)
         val index = entityTxn.indexForName(this@RebuildIndexOperator.name)

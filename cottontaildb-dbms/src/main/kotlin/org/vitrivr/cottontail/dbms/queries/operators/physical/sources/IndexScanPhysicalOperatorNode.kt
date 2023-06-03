@@ -4,7 +4,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
@@ -87,7 +87,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
 
     /** The estimated output size of this [IndexScanPhysicalOperatorNode]. */
     override val outputSize: Long by lazy {
-        with(MissingRecord) {
+        with(MissingTuple) {
             with(this@IndexScanPhysicalOperatorNode.index.context.bindings) {
                 when (val predicate = this@IndexScanPhysicalOperatorNode.predicate) {
                     is ProximityPredicate.Scan -> this@IndexScanPhysicalOperatorNode.index.count()
@@ -148,7 +148,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
 
         /* Determine optimal number of partitions and create them. */
         val partitions = with(ctx.bindings) {
-            with(MissingRecord) {
+            with(MissingTuple) {
                 ctx.costPolicy.parallelisation(this@IndexScanPhysicalOperatorNode.parallelizableCost, this@IndexScanPhysicalOperatorNode.totalCost, max)
             }
         }

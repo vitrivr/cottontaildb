@@ -1,14 +1,14 @@
 package org.vitrivr.cottontail.core.queries.predicates
 
 import it.unimi.dsi.fastutil.objects.ObjectRBTreeSet
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
 import org.vitrivr.cottontail.core.queries.nodes.PreparableNode
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.generators.defaultValue
@@ -30,7 +30,7 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
      *
      * @return True on match, false otherwise.
      */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     fun match(): Boolean
 
     /**
@@ -60,7 +60,7 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
             get() = Cost.MEMORY_ACCESS * 5
 
         data class Equal(override val left: Binding, override val right: Binding): Binary {
-            context(BindingContext,Record)
+            context(BindingContext, Tuple)
             override fun match() : Boolean {
                 val left = this.left.getValue()
                 val right = this.right.getValue()
@@ -72,7 +72,7 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
         }
 
         data class NotEqual(override val left: Binding, override val right: Binding): Binary {
-            context(BindingContext,Record)
+            context(BindingContext, Tuple)
             override fun match() : Boolean {
                 val left = this.left.getValue()
                 val right = this.right.getValue()
@@ -87,7 +87,7 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
          * A [ComparisonOperator] that expresses greater (>) comparison.
          */
         data class Greater(override val left: Binding, override val right: Binding): Binary {
-            context(BindingContext,Record)
+            context(BindingContext, Tuple)
             override fun match(): Boolean {
                 val left = this.left.getValue()
                 val right = this.right.getValue()
@@ -102,7 +102,7 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
          * A [ComparisonOperator] that expresses less (<) comparison.
          */
         data class Less(override val left: Binding, override val right: Binding) : Binary {
-            context(BindingContext,Record)
+            context(BindingContext, Tuple)
             override fun match() : Boolean {
                 val left = this.left.getValue()
                 val right = this.right.getValue()
@@ -117,7 +117,7 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
          * A [ComparisonOperator] that expresses greater or equal (>=) comparison.
          */
         data class GreaterEqual(override val left: Binding, override val right: Binding) : Binary {
-            context(BindingContext,Record)
+            context(BindingContext, Tuple)
             override fun match(): Boolean {
                 val left = this.left.getValue()
                 val right = this.right.getValue()
@@ -132,7 +132,7 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
          * A [ComparisonOperator] that expresses less or equal (<=) comparison.
          */
         data class LessEqual(override val left: Binding, override val right: Binding) : Binary {
-            context(BindingContext,Record)
+            context(BindingContext, Tuple)
             override fun match(): Boolean {
                 val left = this.left.getValue()
                 val right = this.right.getValue()
@@ -147,7 +147,7 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
          * A [ComparisonOperator] that expresses a LIKE comparison, i.e., left LIKE right.
          */
         class Like(override val left: Binding, override val right: Binding) : Binary {
-            context(BindingContext,Record)
+            context(BindingContext, Tuple)
             override fun match() = this.left.getValue() is StringValue && this.right.getValue() is LikePatternValue && (this.right.getValue() as LikePatternValue).matches(this.left.getValue() as StringValue)
             override fun copy() = Like(this.left, this.right)
             override fun toString(): String = "$left LIKE $right"
@@ -158,7 +158,7 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
          * A [ComparisonOperator] that expresses a MATCH comparison. Can only be evaluated through a lucene index.
          */
         class Match(override val left: Binding, override val right: Binding) : Binary {
-            context(BindingContext,Record)
+            context(BindingContext, Tuple)
             override fun match() = throw UnsupportedOperationException("A MATCH comparison operator cannot be evaluated directly.")
             override fun copy() = LessEqual(this.left, this.right)
             override fun toString(): String = "$left MATCH $right"
@@ -186,14 +186,14 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
         override val cost: Cost
             get() = Cost.MEMORY_ACCESS * 4
 
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         override fun match(): Boolean {
             val left = this.left.getValue()
             return left != null && left >= this.lower && left <= this.upper
         }
         context(BindingContext)
         override fun prepare() {
-            with(MissingRecord) {
+            with(MissingTuple) {
                 this@Between.lower = this@Between.right.getValues().getOrNull(0) ?: throw IllegalStateException("BETWEEN operator expects two non-null, literal values as right operands. This is a programmer's error!")
                 this@Between.upper = this@Between.right.getValues().getOrNull(1) ?: throw IllegalStateException("BETWEEN operator expects two non-null, literal values as right operands. This is a programmer's error!")
                 if (this@Between.lower > this@Between.upper) { /* Normalize order for literal bindings. */
@@ -233,7 +233,7 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
          *
          * @return True on match, false otherwise.
          */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         override fun match(): Boolean = this.left.getValue() in this.lookup
 
         /**
@@ -241,7 +241,7 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
          */
         context(BindingContext)
         override fun prepare() {
-            with (MissingRecord) {
+            with (MissingTuple) {
                 this@In.lookup.addAll(this@In.right.getValues())
             }
         }

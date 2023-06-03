@@ -6,7 +6,6 @@ import kotlinx.serialization.csv.Csv
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import org.vitrivr.cottontail.client.SimpleClient
-import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.client.language.ddl.CreateEntity
 import org.vitrivr.cottontail.client.language.dml.BatchInsert
 import org.vitrivr.cottontail.core.database.Name

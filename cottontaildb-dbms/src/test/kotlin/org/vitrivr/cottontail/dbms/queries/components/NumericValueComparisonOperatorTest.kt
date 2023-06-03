@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.components
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.core.values.generators.*
@@ -47,7 +47,7 @@ class NumericValueComparisonOperatorTest {
         val context = DefaultBindingContext()
 
         with(context) {
-            with(MissingRecord) {
+            with(MissingTuple) {
                 /** Assert equality .*/
                 Assertions.assertEquals(referenceBoolean, positiveComparisonBoolean)
                 Assertions.assertTrue(ComparisonOperator.Binary.Equal(context.bind(referenceBoolean), context.bind(positiveComparisonBoolean)).match())
@@ -122,7 +122,7 @@ class NumericValueComparisonOperatorTest {
 
         val context = DefaultBindingContext()
         with(context) {
-            with(MissingRecord) {
+            with(MissingTuple) {
                 val positiveReference = context.bind(listOf(
                     referenceShort,
                     referenceInt,
@@ -196,7 +196,7 @@ class NumericValueComparisonOperatorTest {
         val comparisonFloatBinding = context.bind(comparisonFloat)
         val comparisonDoubleBinding = context.bind(comparisonDouble)
         with(context) {
-            with(MissingRecord) {
+            with(MissingTuple) {
                 /** Assert inequality (Byte).*/
                 if (referenceByte.value > comparisonByte.value) {
                     Assertions.assertNotEquals(referenceByte, comparisonByte)
@@ -352,7 +352,7 @@ class NumericValueComparisonOperatorTest {
         val context = DefaultBindingContext()
 
         with(context) {
-            with(MissingRecord) {
+            with(MissingTuple) {
                 /* Bind values. */
                 val referenceInt = IntValueGenerator.random()
                 val referenceLong = LongValueGenerator.random()

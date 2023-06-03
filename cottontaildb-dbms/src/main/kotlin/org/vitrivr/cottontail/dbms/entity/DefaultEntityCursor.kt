@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.dbms.entity
 
 import org.vitrivr.cottontail.core.basics.Cursor
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class DefaultEntityCursor(private val columns: Array<ColumnDef<*>>, partition: LongRange, entity: DefaultEntity.Tx, context: QueryContext) : Cursor<Record> {
+class DefaultEntityCursor(private val columns: Array<ColumnDef<*>>, partition: LongRange, entity: DefaultEntity.Tx, context: QueryContext) : Cursor<Tuple> {
 
     /** The wrapped [Cursor] to iterate over columns. */
     private val cursors: Array<Cursor<out Value?>> = Array(columns.size) {
@@ -27,9 +27,9 @@ class DefaultEntityCursor(private val columns: Array<ColumnDef<*>>, partition: L
     override fun key(): TupleId = this.cursors[0].key()
 
     /**
-     * Returns the [Record] this [Cursor] is currently pointing to.
+     * Returns the [Tuple] this [Cursor] is currently pointing to.
      */
-    override fun value(): Record = StandaloneRecord(this.cursors[0].key(), this.columns, Array(this.columns.size) { this.cursors[it].value() })
+    override fun value(): Tuple = StandaloneTuple(this.cursors[0].key(), this.columns, Array(this.columns.size) { this.cursors[it].value() })
 
     /**
      * Tries to move this [DefaultEntityCursor]. Returns true on success and false otherwise.

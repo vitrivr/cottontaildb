@@ -4,10 +4,10 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.StringValue
@@ -69,7 +69,7 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
 
             /* Check all entries. */
             with(ctx.bindings) {
-                with(MissingRecord) {
+                with(MissingTuple) {
                     for (entry in this@NonUniqueStringHashIndexTest.list.entries) {
                         valueBinding.update(entry.key) /* Update value binding. */
                         var found = false
@@ -118,9 +118,9 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
     }
 
     /**
-     * Generates and returns a new, random [StandaloneRecord] for inserting into the database.
+     * Generates and returns a new, random [StandaloneTuple] for inserting into the database.
      */
-    override fun nextRecord(): StandaloneRecord {
+    override fun nextRecord(): StandaloneTuple {
         val id = StringValueGenerator.random(3)
         val value = LongValueGenerator.random(this.random)
         if (this.random.nextBoolean() && this.list.size <= 1000) {
@@ -130,6 +130,6 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
                 list
             }
         }
-        return StandaloneRecord(0L, columns = this.columns, values = arrayOf(id, value))
+        return StandaloneTuple(0L, columns = this.columns, values = arrayOf(id, value))
     }
 }

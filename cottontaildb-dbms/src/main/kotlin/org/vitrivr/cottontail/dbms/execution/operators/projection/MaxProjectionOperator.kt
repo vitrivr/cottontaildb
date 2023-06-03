@@ -4,10 +4,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onEach
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.RealValue
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
@@ -19,10 +19,10 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
 
 /**
  * A [Operator.PipelineOperator] used during query execution. It tracks the MAX (maximum) it has
- * encountered so far for each column and returns it as a [Record].
+ * encountered so far for each column and returns it as a [Tuple].
  *
  * The [MaxProjectionOperator] retains the [Types] of the incoming entries! Only produces a
- * single [Record]. Acts as pipeline breaker.
+ * single [Tuple]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
  * @version 2.0.1
@@ -52,7 +52,7 @@ class MaxProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, ove
      * @return [Flow] representing this [CountProjectionOperator]
      */
     @Suppress("UNCHECKED_CAST")
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         val incoming = this@MaxProjectionOperator.parent.toFlow()
         val columns = this@MaxProjectionOperator.columns.toTypedArray()
 
@@ -75,6 +75,6 @@ class MaxProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, ove
         }.collect()
 
         /** Emit record. */
-        emit(StandaloneRecord(0L, columns, results as Array<Value?>))
+        emit(StandaloneTuple(0L, columns, results as Array<Value?>))
     }
 }

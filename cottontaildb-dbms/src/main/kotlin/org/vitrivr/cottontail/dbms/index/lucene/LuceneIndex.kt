@@ -13,12 +13,11 @@ import org.apache.lucene.search.similarities.SimilarityBase.log2
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
@@ -28,7 +27,8 @@ import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.DoubleValue
@@ -193,7 +193,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                 }
 
                 /* Left and right-hand side of boolean predicate */
-                with (MissingRecord) {
+                with (MissingTuple) {
                     with (this@Tx.context.bindings) {
                         val left = op.left
                         val right = op.right
@@ -362,7 +362,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * @return The resulting [Iterator]
          */
         override fun filter(predicate: Predicate) = this.txLatch.withLock {
-            object : Cursor<Record> {
+            object : Cursor<Tuple> {
 
                 /** Cast [BooleanPredicate] (if such a cast is possible). */
                 private val predicate = if (predicate !is BooleanPredicate) {
@@ -397,10 +397,10 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                     return doc[TID_COLUMN].toLong()
                 }
 
-                override fun value(): Record {
+                override fun value(): Tuple {
                     val scores = this.results.scoreDocs[this.returned++]
                     val doc = this.searcher.doc(scores.doc)
-                    return StandaloneRecord(doc[TID_COLUMN].toLong(), this.columns, arrayOf(DoubleValue(scores.score)))
+                    return StandaloneTuple(doc[TID_COLUMN].toLong(), this.columns, arrayOf(DoubleValue(scores.score)))
                 }
 
                 override fun close() {}
@@ -414,7 +414,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Cursor].
          */
-        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> {
+        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Tuple> {
             throw UnsupportedOperationException("The LuceneIndex does not support ranged filtering!")
         }
 

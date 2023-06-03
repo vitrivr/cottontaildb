@@ -1,14 +1,14 @@
 package org.vitrivr.cottontail.dbms.execution.operators.transform
 
 import kotlinx.coroutines.flow.Flow
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.basics.drop
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
- * An [Operator.PipelineOperator] used during query execution. Skips incoming [Record]s.
+ * An [Operator.PipelineOperator] used during query execution. Skips incoming [Tuple]s.
  *
  * @author Ralph Gasser
  * @version 2.0.0
@@ -27,6 +27,6 @@ class SkipOperator(parent: Operator, private val skip: Long, override val contex
      *
      * @return [Flow] representing this [SkipOperator]
      */
-    override fun toFlow(): Flow<Record>
+    override fun toFlow(): Flow<Tuple>
         = this.parent.toFlow().drop(this.skip)
 }

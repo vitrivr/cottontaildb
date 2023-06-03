@@ -1,10 +1,38 @@
 package org.vitrivr.cottontail.core
 
-import org.vitrivr.cottontail.core.values.*
+import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.util.*
+
+
+/**
+ * Converts a [CottontailGrpc.QueryResponseMessage.Tuple] to a [StandaloneTuple].
+ *
+ * @return [StandaloneTuple]
+ */
+fun CottontailGrpc.QueryResponseMessage.Tuple.toTuple(tupleId: TupleId, schema: Array<ColumnDef<*>>): StandaloneTuple
+    = StandaloneTuple(tupleId, schema, schema.mapIndexed { index, column -> this.dataList[index].toValue(column.type) }.toTypedArray())
+
+/**
+ * Converts a [Tuple] to a [CottontailGrpc.QueryResponseMessage.Tuple]
+ *
+ * @return [CottontailGrpc.QueryResponseMessage.Tuple]
+ */
+fun Tuple.toTuple(): CottontailGrpc.QueryResponseMessage.Tuple {
+    val tuple = CottontailGrpc.QueryResponseMessage.Tuple.newBuilder()
+    for (i in 0 until this.size) {
+        tuple.addData((this[i] as? PublicValue?)?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(
+            CottontailGrpc.Null.newBuilder().setType(this.columns[i].type.proto()).setSize(this.columns[i].type.logicalSize)
+        ).build())
+    }
+    return tuple.build()
+}
 
 /**
  * Tries to convert an [Any] to a [PublicValue].

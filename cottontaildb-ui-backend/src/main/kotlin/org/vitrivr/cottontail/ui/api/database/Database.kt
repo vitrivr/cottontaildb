@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.ui.api.database
 
 import io.javalin.http.Context
 import org.vitrivr.cottontail.client.SimpleClient
-import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.client.iterators.TupleIterator
 import org.vitrivr.cottontail.ui.api.session.ConnectionManager
 import org.vitrivr.cottontail.ui.model.session.Connection

@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.planning
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.planning.cost.NormalizedCost
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
@@ -80,7 +80,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
 
         /* Generate candidate plans. */
         return with(this@QueryContext.bindings) {
-            with(MissingRecord) {
+            with(MissingTuple) {
                 stage2.map { (groupId, plans) ->
                     val normalized = NormalizedCost.normalize(plans.map { it.totalCost })
                     val candidates = plans.zip(normalized).map { (p, cost) -> p to this@QueryContext.costPolicy.toScore(cost) }.sortedBy { it.second }.take(limit)

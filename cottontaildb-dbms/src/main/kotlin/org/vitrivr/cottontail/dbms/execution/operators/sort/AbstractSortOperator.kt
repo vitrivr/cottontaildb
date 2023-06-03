@@ -1,13 +1,13 @@
 package org.vitrivr.cottontail.dbms.execution.operators.sort
 
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 
 /**
  * An abstract [Operator.PipelineOperator] used during query execution. Performs sorting on the specified [ColumnDef]s and
- * returns the [Record] in sorted order. Acts as pipeline breaker.
+ * returns the [Tuple] in sorted order. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
  * @version 1.1.0
@@ -23,5 +23,5 @@ abstract class AbstractSortOperator(parent: Operator, sortOn: List<Pair<ColumnDe
     override val breaker: Boolean = true
 
     /** The [Comparator] used for sorting. */
-    protected val comparator: Comparator<Record> = RecordComparator.fromList(sortOn)
+    protected val comparator: Comparator<Tuple> = RecordComparator.fromList(sortOn)
 }

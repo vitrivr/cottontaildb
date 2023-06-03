@@ -9,8 +9,9 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onCompletion
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.client.language.basics.Constants
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.proto
+import org.vitrivr.cottontail.core.toTuple
 import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
@@ -238,18 +239,5 @@ internal interface TransactionalGrpcService {
             is CancellationException -> Status.CANCELLED.withCause(e)
             else -> Status.UNKNOWN.withCause(e)
         }.withDescription(text).asException()
-    }
-
-    /**
-     * Converts a [Record] to a [CottontailGrpc.QueryResponseMessage.Tuple]
-     */
-    private fun Record.toTuple(): CottontailGrpc.QueryResponseMessage.Tuple {
-        val tuple = CottontailGrpc.QueryResponseMessage.Tuple.newBuilder()
-        for (i in 0 until this.size) {
-            tuple.addData((this[i] as? PublicValue?)?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(
-                CottontailGrpc.Null.newBuilder().setType(this.columns[i].type.proto()).setSize(this.columns[i].type.logicalSize)
-            ).build())
-        }
-        return tuple.build()
     }
 }

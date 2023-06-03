@@ -6,7 +6,6 @@ import kotlinx.serialization.csv.Csv
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToStream
 import org.vitrivr.cottontail.client.SimpleClient
-import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.client.language.basics.Constants.COLUMN_NAME_CLASS
 import org.vitrivr.cottontail.client.language.basics.Constants.COLUMN_NAME_DBO
 import org.vitrivr.cottontail.client.language.basics.Constants.COLUMN_NAME_NULLABLE

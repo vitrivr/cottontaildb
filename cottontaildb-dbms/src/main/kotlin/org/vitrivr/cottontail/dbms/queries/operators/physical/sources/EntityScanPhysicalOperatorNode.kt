@@ -4,7 +4,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
@@ -98,7 +98,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
      */
     override fun tryPartition(ctx: QueryContext, max: Int): Physical? {
         val partitions = with(ctx.bindings) {
-            with(MissingRecord) {
+            with(MissingTuple) {
                 ctx.costPolicy.parallelisation(this@EntityScanPhysicalOperatorNode.parallelizableCost, this@EntityScanPhysicalOperatorNode.totalCost, max)
             }
         }

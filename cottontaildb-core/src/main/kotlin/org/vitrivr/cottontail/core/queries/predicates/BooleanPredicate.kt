@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.core.queries.predicates
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
@@ -10,13 +9,14 @@ import org.vitrivr.cottontail.core.queries.nodes.PreparableNode
 import org.vitrivr.cottontail.core.queries.nodes.StatefulNode
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.toDouble
+import org.vitrivr.cottontail.core.tuple.Tuple
 
 /**
- * A [Predicate] that can be used to match a [Record]s using boolean algebra.
+ * A [Predicate] that can be used to match a [Tuple]s using boolean algebra.
  *
- * A [BooleanPredicate] either matches a [Record] or not, returning true or false respectively.
+ * A [BooleanPredicate] either matches a [Tuple] or not, returning true or false respectively.
  *
- * @see Record
+ * @see Tuple
  *
  * @author Ralph Gasser
  * @version 3.1.0
@@ -28,13 +28,13 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
     /**
      * Returns true, if this [BooleanPredicate] returns true in its current configuration, and false otherwise.
      */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     fun isMatch(): Boolean
 
     /**
-     * Returns the matching score, if the provided [Record]. Score of 0.0 equates to a non-match, while 1.0 equates to a full match.
+     * Returns the matching score, if the provided [Tuple]. Score of 0.0 equates to a non-match, while 1.0 equates to a full match.
      */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     fun score(): Double = this.isMatch().toDouble()
 
     /**
@@ -74,9 +74,9 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
                 (this.columns as ObjectOpenHashSet).add(this.binding.column)
             }
         }
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         override fun isMatch() = this.binding.getValue() == null
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         override fun score(): Double = (this.binding.getValue() == null).toDouble()
         override fun copy() = IsNull(this.binding)
         override fun digest(): Digest = 5L * this.hashCode().toLong()
@@ -122,11 +122,11 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
         }
 
         /**
-         * Checks if the provided [Record] matches this [Comparison] and returns true or false respectively.
+         * Checks if the provided [Tuple] matches this [Comparison] and returns true or false respectively.
          *
-         * @return true if [Record] matches this [Comparison], false otherwise.
+         * @return true if [Tuple] matches this [Comparison], false otherwise.
          */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         override fun isMatch(): Boolean = this.operator.match()
 
         /**
@@ -172,11 +172,11 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
             get() = this.p.cost
 
         /**
-         * Checks if the provided [Record] matches this [Not] and returns true or false respectively.
+         * Checks if the provided [Tuple] matches this [Not] and returns true or false respectively.
          *
-         * @return true if [Record] matches this [Not], false otherwise.
+         * @return true if [Tuple] matches this [Not], false otherwise.
          */
-        context(BindingContext, Record)
+        context(BindingContext, Tuple)
         override fun isMatch(): Boolean = !this.p.isMatch()
 
         /**
@@ -219,11 +219,11 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
             get() = this.p1.columns + this.p2.columns
 
         /**
-         * Checks if the provided [Record] matches this [And] and returns true or false respectively.
+         * Checks if the provided [Tuple] matches this [And] and returns true or false respectively.
          *
-         * @return true if [Record] matches this [And], false otherwise.
+         * @return true if [Tuple] matches this [And], false otherwise.
          */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         override fun isMatch(): Boolean = this.p1.isMatch() && this.p2.isMatch()
 
         /**
@@ -272,19 +272,19 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
             get() = this.p1.columns + this.p2.columns
 
         /**
-         * Checks if the provided [Record] matches this [Or] and returns true or false respectively.
+         * Checks if the provided [Tuple] matches this [Or] and returns true or false respectively.
          *
-         * @return true if [Record] matches this [Or], false otherwise.
+         * @return true if [Tuple] matches this [Or], false otherwise.
          */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         override fun isMatch(): Boolean = this.p1.isMatch() || this.p2.isMatch()
 
         /**
-         * Checks if the provided [Record] matches this [Or] and returns a score.
+         * Checks if the provided [Tuple] matches this [Or] and returns a score.
          *
-         * @return true if [Record] matches this [Comparison], false otherwise.
+         * @return true if [Tuple] matches this [Comparison], false otherwise.
          */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         override fun score(): Double = ((p1.isMatch() || p2.isMatch()).toDouble() / 2.0)
 
         /**

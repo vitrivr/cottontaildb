@@ -1,11 +1,11 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.types.Types
@@ -45,12 +45,12 @@ class AggregatingProjectionPhysicalOperatorNode(input: Physical, val type: Proje
     }
 
     /** The output size of this [AggregatingProjectionPhysicalOperatorNode] is always one. */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     override val outputSize: Long
         get() = 1L
 
     /** The [Cost] of a [AggregatingProjectionPhysicalOperatorNode]. */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     override val cost: Cost
        get() = (Cost.MEMORY_ACCESS + Cost.FLOP) * 3.0f * this.input.outputSize
 
@@ -99,7 +99,7 @@ class AggregatingProjectionPhysicalOperatorNode(input: Physical, val type: Proje
         require(max > 1) { "Expected number of partitions to be greater than one but encountered $max." }
         return if (!this.input.hasTrait(NotPartitionableTrait)) {
             val partitions = with(ctx.bindings) {
-                with(MissingRecord) {
+                with(MissingTuple) {
                     ctx.costPolicy.parallelisation(this@AggregatingProjectionPhysicalOperatorNode.parallelizableCost, this@AggregatingProjectionPhysicalOperatorNode.totalCost, max)
                 }
             }

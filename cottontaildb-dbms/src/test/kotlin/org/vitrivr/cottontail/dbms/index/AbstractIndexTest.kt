@@ -6,7 +6,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
@@ -228,8 +228,8 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
     }
 
     /**
-     * Generates and returns a new [StandaloneRecord] for inserting into the database. Usually
+     * Generates and returns a new [StandaloneTuple] for inserting into the database. Usually
      * generated randomly (which is up to the implementing class).
      */
-    abstract fun nextRecord(): StandaloneRecord
+    abstract fun nextRecord(): StandaloneTuple
 }

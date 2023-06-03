@@ -124,9 +124,9 @@ abstract class AbstractQueryCommand(protected val client: SimpleClient, name: St
                     /* Export data using kotlinx serialization */
                     Files.newOutputStream(this.out, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use {
                         when (format) {
-                            Format.CBOR -> it.write(Cbor.encodeToByteArray(ListSerializer(results.valueSerializer()), results.drainToList()))
-                            Format.JSON -> Json.encodeToStream(ListSerializer(results.valueSerializer()), results.drainToList(), it)
-                            Format.CSV -> it.write(Csv.encodeToString(ListSerializer(results.valueSerializer()), results.drainToList()).toByteArray())
+                            Format.CBOR -> it.write(Cbor.encodeToByteArray(ListSerializer(results.valueSerializer()), results.toList()))
+                            Format.JSON -> Json.encodeToStream(ListSerializer(results.valueSerializer()), results.toList(), it)
+                            Format.CSV -> it.write(Csv.encodeToString(ListSerializer(results.valueSerializer()), results.toList()).toByteArray())
                         }
                     }
                 }

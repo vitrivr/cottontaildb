@@ -7,11 +7,10 @@ import jetbrains.exodus.env.StoreConfig
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
@@ -19,6 +18,7 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
@@ -234,7 +234,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
             val entityTx = this.dbo.parent.newTx(this.context)
             val statistics = this.columns.associateWith { entityTx.columnForName(it.name).newTx(this.context).statistics() }
             val selectivity = with(this@Tx.context.bindings) {
-                with(MissingRecord) {
+                with(MissingTuple) {
                     NaiveSelectivityCalculator.estimate(predicate, statistics)
                 }
             }
@@ -291,7 +291,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         }
 
         /**
-         * Performs a lookup through this [BTreeIndex.Tx] and returns a [Iterator] of all [Record]s that match the [Predicate].
+         * Performs a lookup through this [BTreeIndex.Tx] and returns a [Iterator] of all [Tuple]s that match the [Predicate].
          * Only supports [BooleanPredicate.Comparison]s.
          *
          * The [Cursor] is not thread safe!
@@ -319,7 +319,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Cursor].
          */
-        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> {
+        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Tuple> {
             throw UnsupportedOperationException("BTreeIndex does not support ranged filtering!")
         }
     }

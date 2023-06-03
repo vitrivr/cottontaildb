@@ -4,15 +4,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * A [MergeOperator] merges the results of multiple incoming operators into a single [Flow].
  *
- * The incoming [Operator]s are executed in parallel, hence order of the [Record]s in the
+ * The incoming [Operator]s are executed in parallel, hence order of the [Tuple]s in the
  * outgoing [Flow] may be arbitrary.
  *
  * @author Ralph Gasser
@@ -32,7 +32,7 @@ class MergeOperator(parents: List<Operator>, override val context: QueryContext)
      *
      * @return [Flow] representing this [MergeOperator]
      */
-    override fun toFlow(): Flow<Record> = channelFlow {
+    override fun toFlow(): Flow<Tuple> = channelFlow {
         this@MergeOperator.parents.map { p ->
             launch {
                 p.toFlow().collect {

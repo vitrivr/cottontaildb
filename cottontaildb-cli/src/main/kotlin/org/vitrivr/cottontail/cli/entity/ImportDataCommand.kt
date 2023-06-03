@@ -13,7 +13,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeToSequence
 import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
-import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.client.language.dml.BatchInsert
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.data.Format

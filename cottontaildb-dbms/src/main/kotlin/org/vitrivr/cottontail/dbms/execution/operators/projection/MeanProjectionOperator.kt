@@ -2,10 +2,10 @@ package org.vitrivr.cottontail.dbms.execution.operators.projection
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.NumericValue
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
@@ -18,9 +18,9 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
 
 /**
  * An [Operator.PipelineOperator] used during query execution. It calculates the MEAN of all values
- * it has encountered and returns it as a [Record].
+ * it has encountered and returns it as a [Tuple].
  *
- * Only produces a single [Record]. Acts as pipeline breaker.
+ * Only produces a single [Tuple]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
  * @version 2.0.1
@@ -49,7 +49,7 @@ class MeanProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, ov
      *
      * @return [Flow] representing this [MeanProjectionOperator]
      */
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         val incoming = this@MeanProjectionOperator.parent.toFlow()
         val columns = this@MeanProjectionOperator.columns.toTypedArray()
 
@@ -79,6 +79,6 @@ class MeanProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, ov
 
         /** Emit record. */
         val results = Array<Value?>(sum.size) { sum[it] / LongValue(count[it]) }
-        emit(StandaloneRecord(0L, columns, results))
+        emit(StandaloneTuple(0L, columns, results))
     }
 }

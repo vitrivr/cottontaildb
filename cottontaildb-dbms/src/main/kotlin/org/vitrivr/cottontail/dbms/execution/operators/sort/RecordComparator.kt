@@ -1,17 +1,17 @@
 package org.vitrivr.cottontail.dbms.execution.operators.sort
 
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
+import org.vitrivr.cottontail.core.tuple.Tuple
 import kotlin.math.sign
 
 /**
- * A set of [Comparator] implementations to compare two [Record]s.
+ * A set of [Comparator] implementations to compare two [Tuple]s.
  *
  * @author Ralph Gasser
  * @version 1.2.0
  */
-sealed interface RecordComparator : Comparator<Record> {
+sealed interface RecordComparator : Comparator<Tuple> {
 
     companion object {
         /**
@@ -29,14 +29,14 @@ sealed interface RecordComparator : Comparator<Record> {
     }
 
     /**
-     * Compares two [Record]s based on a single [ColumnDef] that are not nullable.
+     * Compares two [Tuple]s based on a single [ColumnDef] that are not nullable.
      */
     class SingleNonNullColumnComparator(val sortOn: ColumnDef<*>, val sortOrder: SortOrder) : RecordComparator {
         init {
             require(!this.sortOn.nullable) { "Column cannot be nullable for SingleNonNullColumnComparator but is." }
         }
 
-        override fun compare(o1: Record, o2: Record): Int {
+        override fun compare(o1: Tuple, o2: Tuple): Int {
             var sort = o1[this.sortOn]!!.compareTo(o2[this.sortOn]!!).sign
             if (sort == 0) sort = o1.tupleId.compareTo(o2.tupleId).sign
             return this.sortOrder * sort
@@ -44,10 +44,10 @@ sealed interface RecordComparator : Comparator<Record> {
     }
 
     /**
-     * Compares two [Record]s based on a single [ColumnDef] that can be null.
+     * Compares two [Tuple]s based on a single [ColumnDef] that can be null.
      */
     class SingleNullColumnComparator(val sortOn: ColumnDef<*>, val sortOrder: SortOrder) : RecordComparator {
-        override fun compare(o1: Record, o2: Record): Int {
+        override fun compare(o1: Tuple, o2: Tuple): Int {
             val left = o1[this.sortOn]
             val right = o2[this.sortOn]
             return this.sortOrder * when {
@@ -64,14 +64,14 @@ sealed interface RecordComparator : Comparator<Record> {
     }
 
     /**
-     * Compares two [Record]s based on a multiple [ColumnDef] that are not nullable.
+     * Compares two [Tuple]s based on a multiple [ColumnDef] that are not nullable.
      */
     class MultiNonNullColumnComparator(private val sortOn: List<Pair<ColumnDef<*>, SortOrder>>) : RecordComparator {
         init {
             require(!sortOn.any { it.first.nullable }) { "Columns cannot be nullable for SingleNonNullColumnComparator but are." }
         }
 
-        override fun compare(o1: Record, o2: Record): Int {
+        override fun compare(o1: Tuple, o2: Tuple): Int {
             for (c in this.sortOn) {
                 val comparison = c.second * (o1[c.first]!!.compareTo(o2[c.first]!!).sign)
                 if (comparison != 0) return comparison
@@ -81,10 +81,10 @@ sealed interface RecordComparator : Comparator<Record> {
     }
 
     /**
-     * Compares two [Record]s based on a multiple [ColumnDef] that can be nullable.
+     * Compares two [Tuple]s based on a multiple [ColumnDef] that can be nullable.
      */
     class MultiNullColumnComparator(private val sortOn: List<Pair<ColumnDef<*>, SortOrder>>) : RecordComparator {
-        override fun compare(o1: Record, o2: Record): Int {
+        override fun compare(o1: Tuple, o2: Tuple): Int {
             for (c in this.sortOn) {
                 val c1 = o1[c.first]
                 val c2 = o2[c.first]

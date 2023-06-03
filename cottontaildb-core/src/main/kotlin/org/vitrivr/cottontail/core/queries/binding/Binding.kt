@@ -1,11 +1,11 @@
 package org.vitrivr.cottontail.core.queries.binding
 
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 
@@ -34,7 +34,7 @@ sealed interface Binding: NodeWithCost {
      *
      * @return A bound [Value]
      */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     fun getValue(): Value?
 
     /**
@@ -42,7 +42,7 @@ sealed interface Binding: NodeWithCost {
      *
      * @return A [List] of bound [Value]
      */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     fun getValues(): List<Value?> = listOf(this.getValue())
 
     /**
@@ -53,9 +53,9 @@ sealed interface Binding: NodeWithCost {
     /** A [Binding] for a literal [Value] without any indirection other than the [Binding] itself. */
     data class Literal(val bindingIndex: Int, override val static: Boolean, override val canBeNull: Boolean, override val type: Types<*>): Binding {
         override val cost: Cost = Cost.MEMORY_ACCESS
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         override fun getValue(): Value? = this@BindingContext[this]
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         fun update(value: Value?) = this@BindingContext.update(this, value)
         override fun toString(): String = ":$bindingIndex"
     }
@@ -65,9 +65,9 @@ sealed interface Binding: NodeWithCost {
         override val cost: Cost = Cost.MEMORY_ACCESS
         override val static: Boolean = true
         override fun size(): Long = (this.bindingIndexEnd - this.bindingIndexStart).toLong()
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         override fun getValue(): Value? = this@BindingContext[this].first()
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         override fun getValues(): List<Value?> = this@BindingContext[this]
         override fun toString(): String = ":$bindingIndexStart..$bindingIndexEnd"
     }
@@ -82,8 +82,8 @@ sealed interface Binding: NodeWithCost {
         override val canBeNull: Boolean = this.column.nullable
         override val static: Boolean = false
         override val cost: Cost = Cost.MEMORY_ACCESS
-        context(BindingContext,Record)
-        override fun getValue(): Value? = this@Record[this.column]
+        context(BindingContext, Tuple)
+        override fun getValue(): Value? = this@Tuple[this.column]
         override fun toString(): String = "${this.column.name}"
     }
 
@@ -103,7 +103,7 @@ sealed interface Binding: NodeWithCost {
         override val cost: Cost = this.function.cost + this.arguments.map { it.cost }.reduce { c1, c2 -> c1 + c2}
         override val static: Boolean = false
         val executable: Boolean = this.function.executable
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         override fun getValue(): Value? = this@BindingContext[this]
         override fun toString(): String = "${this.function.signature}"
 
@@ -134,7 +134,7 @@ sealed interface Binding: NodeWithCost {
         override val static: Boolean = false
         override val cost: Cost = Cost.ZERO
 
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         override fun getValue(): Value? = this@BindingContext[this].firstOrNull()
 
         /**
@@ -142,7 +142,7 @@ sealed interface Binding: NodeWithCost {
          *
          * @return List of [Value]s.
          */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         override fun getValues() = this@BindingContext[this]
 
         /**
@@ -150,13 +150,13 @@ sealed interface Binding: NodeWithCost {
          *
          * @param value The [Value] to append.
          */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         fun append(value: Value) = this@BindingContext.append(this, value)
 
         /**
          * Clears all [Value]s bound to this [Subquery] within the provided [BindingContext].
          */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         fun clear() = this@BindingContext.clear(this)
     }
 }

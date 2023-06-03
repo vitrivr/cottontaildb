@@ -3,10 +3,10 @@ package org.vitrivr.cottontail.dbms.execution.operators.projection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.count
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -15,9 +15,9 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
 
 /**
  * An [Operator.PipelineOperator] used during query execution. It counts the number of rows it
- * encounters and returns the value as [Record].
+ * encounters and returns the value as [Tuple].
  *
- * Only produces a single [Record]. Acts as pipeline breaker.
+ * Only produces a single [Tuple]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
  * @version 2.0.0
@@ -35,8 +35,8 @@ class CountProjectionOperator(parent: Operator, override val context: QueryConte
      *
      * @return [Flow] representing this [CountProjectionOperator]
      */
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         val incoming = this@CountProjectionOperator.parent.toFlow()
-        emit(StandaloneRecord(0L, this@CountProjectionOperator.columns[0], LongValue(incoming.count())))
+        emit(StandaloneTuple(0L, this@CountProjectionOperator.columns[0], LongValue(incoming.count())))
     }
 }

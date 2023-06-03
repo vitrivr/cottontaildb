@@ -5,10 +5,10 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.StringValue
@@ -68,7 +68,7 @@ class UniqueHashIndexTest : AbstractIndexTest() {
 
         /* Check all entries. */
         with(ctx.bindings) {
-            with(MissingRecord) {
+            with(MissingTuple) {
                 for (entry in this@UniqueHashIndexTest.list.entries) {
                     valueBinding.update(entry.key) /* Update value binding. */
                     val cursor = indexTx.filter(predicate)
@@ -112,14 +112,14 @@ class UniqueHashIndexTest : AbstractIndexTest() {
     }
 
     /**
-     * Generates and returns a new, random [StandaloneRecord] for inserting into the database.
+     * Generates and returns a new, random [StandaloneTuple] for inserting into the database.
      */
-    override fun nextRecord(): StandaloneRecord {
+    override fun nextRecord(): StandaloneTuple {
         val uuid = StringValue(UUID.randomUUID().toString())
         val vector = FloatVectorValueGenerator.random(128, this.random)
         if (this.random.nextBoolean() && this.list.size <= 1000) {
             this.list[uuid] = vector
         }
-        return StandaloneRecord(0L, columns = this.columns, values = arrayOf(uuid, vector))
+        return StandaloneTuple(0L, columns = this.columns, values = arrayOf(uuid, vector))
     }
 }

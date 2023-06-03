@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.utilities.hashing
 
 import com.google.common.hash.Funnel
 import com.google.common.hash.PrimitiveSink
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.*
 import java.nio.charset.Charset
@@ -21,7 +21,7 @@ object ValueFunnel: Funnel<Value?> {
      * Makes sure, that different combinations of types yield different results,
      * by introducing type entries and/or length information, e.g., for [Value]s.
      *
-     * @param from The [Record] to put into the [PrimitiveSink].
+     * @param from The [Tuple] to put into the [PrimitiveSink].
      * @param into The [PrimitiveSink]
      */
     override fun funnel(from: Value?, into: PrimitiveSink) {

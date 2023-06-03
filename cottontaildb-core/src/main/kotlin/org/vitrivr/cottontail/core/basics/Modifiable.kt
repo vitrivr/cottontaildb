@@ -1,32 +1,33 @@
 package org.vitrivr.cottontail.core.basics
 
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.tuple.Tuple
 
 /**
- * An objects that holds [Record] values and allows for deleting them based on their tuple ID.
+ * An objects that holds [Tuple] values and allows for deleting them based on their tuple ID.
  *
- * @see Record
+ * @see Tuple
  *
  * @author Ralph Gasser
  * @version 1.2.0
  */
 interface Modifiable {
     /**
-     * Inserts a [Record] into this [Modifiable].
+     * Inserts a [Tuple] into this [Modifiable].
      *
-     * @return The generated [Record] of the new [Record].
+     * @return The generated [Tuple] of the new [Tuple].
      */
-    fun insert(record: Record): Record
+    fun insert(tuple: Tuple): Tuple
 
     /**
-     * Updates a [Record] from this [Modifiable] based on its [TupleId].
+     * Updates a [Tuple] from this [Modifiable] based on its [TupleId].
      *
-     * @param record The [Record] that should be updated
+     * @param tuple The [Tuple] that should be updated
      */
-    fun update(record: Record)
+    fun update(tuple: Tuple)
 
     /**
-     * Deletes a [Record] from this [Modifiable] based on its [TupleId].
+     * Deletes a [Tuple] from this [Modifiable] based on its [TupleId].
      *
      * @param tupleId The [TupleId] of the record that should be deleted
      */

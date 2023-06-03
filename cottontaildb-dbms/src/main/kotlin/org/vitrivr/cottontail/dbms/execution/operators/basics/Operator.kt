@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.dbms.execution.operators.basics
 
 import kotlinx.coroutines.flow.Flow
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
@@ -29,7 +29,7 @@ sealed class Operator {
      *
      * @return Resulting [Flow]
      */
-    abstract fun toFlow(): Flow<Record>
+    abstract fun toFlow(): Flow<Tuple>
 
     /**
      * An [Operator] that can be pipelined, i.e., has a parent [Operator] and no materialization of
@@ -69,7 +69,7 @@ sealed class Operator {
     }
 
     /**
-     * An [Operator] that acts as a sink, i.e., processes and consumes [Record]s.
+     * An [Operator] that acts as a sink, i.e., processes and consumes [Tuple]s.
      *
      * @author Ralph Gasser
      * @version 1.6.0
