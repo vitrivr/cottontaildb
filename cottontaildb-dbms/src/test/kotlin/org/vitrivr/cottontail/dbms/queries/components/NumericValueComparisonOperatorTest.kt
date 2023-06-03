@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
  * Test case that tests for correctness of [ComparisonOperator]s.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.4.0
  */
 class NumericValueComparisonOperatorTest {
     /**
@@ -144,18 +144,37 @@ class NumericValueComparisonOperatorTest {
                 ))
 
                 /** Assert positive IN .*/
-                Assertions.assertTrue(ComparisonOperator.In(context.bind(referenceShort), positiveReference).match())
-                Assertions.assertTrue(ComparisonOperator.In(context.bind(referenceInt), positiveReference).match())
-                Assertions.assertTrue(ComparisonOperator.In(context.bind(referenceLong), positiveReference).match())
-                Assertions.assertTrue(ComparisonOperator.In(context.bind(referenceFloat), positiveReference).match())
-                Assertions.assertTrue(ComparisonOperator.In(context.bind(referenceDouble), positiveReference).match())
+                var op1 = ComparisonOperator.In(context.bind(referenceShort), positiveReference)
+                op1.prepare()
+                Assertions.assertTrue(op1.match())
+                op1 = ComparisonOperator.In(context.bind(referenceInt), positiveReference)
+                op1.prepare()
+                Assertions.assertTrue(op1.match())
+                op1 = ComparisonOperator.In(context.bind(referenceLong), positiveReference)
+                op1.prepare()
+                Assertions.assertTrue(op1.match())
+                op1 = ComparisonOperator.In(context.bind(referenceFloat), positiveReference)
+                op1.prepare()
+                Assertions.assertTrue(op1.match())
+                op1 = ComparisonOperator.In(context.bind(referenceDouble), positiveReference)
+                op1.prepare()
+                Assertions.assertTrue(op1.match())
 
                 /** Assert negative IN .*/
-                Assertions.assertFalse(ComparisonOperator.In(context.bind(referenceShort), negativeReference).match())
-                Assertions.assertFalse(ComparisonOperator.In(context.bind(referenceInt), negativeReference).match())
-                Assertions.assertFalse(ComparisonOperator.In(context.bind(referenceLong), negativeReference).match())
-                Assertions.assertFalse(ComparisonOperator.In(context.bind(referenceFloat), negativeReference).match())
-                Assertions.assertFalse(ComparisonOperator.In(context.bind(referenceDouble), negativeReference).match())
+                var op2 = ComparisonOperator.In(context.bind(referenceShort), negativeReference)
+                op2.prepare()
+                Assertions.assertFalse(op2.match())
+                op2 = ComparisonOperator.In(context.bind(referenceInt), negativeReference)
+                op2.prepare()
+                Assertions.assertFalse(op2.match())
+                op2 = ComparisonOperator.In(context.bind(referenceLong), negativeReference)
+                Assertions.assertFalse(op2.match())
+                op2 = ComparisonOperator.In(context.bind(referenceFloat), negativeReference)
+                op2.prepare()
+                Assertions.assertFalse(op2.match())
+                op2 = ComparisonOperator.In(context.bind(referenceDouble), negativeReference)
+                op2.prepare()
+                Assertions.assertFalse(op2.match())
             }
         }
     }
@@ -379,17 +398,33 @@ class NumericValueComparisonOperatorTest {
                 )
 
                 /** Assert BETWEEN .*/
-                Assertions.assertTrue(ComparisonOperator.Between(context.bind(referenceInt), context.bind(comparisonInt)).match())
-                Assertions.assertFalse(ComparisonOperator.Between(context.bind(referenceInt), context.bind(comparisonInt.reversed())).match())
+                var op1 = ComparisonOperator.Between(context.bind(referenceInt), context.bind(comparisonInt))
+                var op2 = ComparisonOperator.Between(context.bind(referenceInt), context.bind(comparisonInt.reversed()))
+                op1.prepare()
+                op2.prepare()
+                Assertions.assertTrue(op1.match())
+                Assertions.assertTrue(op2.match())
 
-                Assertions.assertTrue(ComparisonOperator.Between(context.bind(referenceLong), context.bind(comparisoLong)).match())
-                Assertions.assertFalse(ComparisonOperator.Between(context.bind(referenceLong), context.bind(comparisoLong.reversed())).match())
+                op1 = ComparisonOperator.Between(context.bind(referenceLong), context.bind(comparisoLong))
+                op2 = ComparisonOperator.Between(context.bind(referenceLong), context.bind(comparisoLong.reversed()))
+                op1.prepare()
+                op2.prepare()
+                Assertions.assertTrue(op1.match())
+                Assertions.assertTrue(op2.match())
 
-                Assertions.assertTrue(ComparisonOperator.Between(context.bind(referenceFloat), context.bind(comparisonFloat)).match())
-                Assertions.assertFalse(ComparisonOperator.Between(context.bind(referenceFloat), context.bind(comparisonFloat.reversed())).match())
+                op1 = ComparisonOperator.Between(context.bind(referenceFloat), context.bind(comparisonFloat))
+                op2 = ComparisonOperator.Between(context.bind(referenceFloat), context.bind(comparisonFloat.reversed()))
+                op1.prepare()
+                op2.prepare()
+                Assertions.assertTrue(op1.match())
+                Assertions.assertTrue(op2.match())
 
-                Assertions.assertTrue(ComparisonOperator.Between(context.bind(referenceDouble), context.bind(comparisonDouble)).match())
-                Assertions.assertFalse(ComparisonOperator.Between(context.bind(referenceDouble), context.bind(comparisonDouble.reversed())).match())
+                op1 = ComparisonOperator.Between(context.bind(referenceDouble), context.bind(comparisonDouble))
+                op2 = ComparisonOperator.Between(context.bind(referenceDouble), context.bind(comparisonDouble.reversed()))
+                op1.prepare()
+                op2.prepare()
+                Assertions.assertTrue(op1.match())
+                Assertions.assertTrue(op2.match())
             }
         }
     }

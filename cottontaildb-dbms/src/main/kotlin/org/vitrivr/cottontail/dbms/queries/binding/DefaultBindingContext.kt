@@ -48,7 +48,7 @@ class DefaultBindingContext: BindingContext {
      * @return The bound [Value].
      */
     override fun get(binding: Binding.LiteralList): List<Value?>
-        = (binding.bindingIndexStart until binding.bindingIndexEnd).map { this.boundLiterals[it] }
+        = (binding.bindingIndexStart .. binding.bindingIndexEnd).map { this.boundLiterals[it] }
 
     /**
      * Returns the [Value] for the given [Binding.Function].
@@ -112,7 +112,7 @@ class DefaultBindingContext: BindingContext {
         for ((i, v) in values.withIndex()) {
             check(this.boundLiterals.add(v)) { "Failed to add $v to list of bound values for index ${bindingIndexStart + i}." }
         }
-        return Binding.LiteralList(bindingIndexStart, bindingIndexStart + values.size, false, values.first().type)
+        return Binding.LiteralList(bindingIndexStart, bindingIndexStart + values.size - 1, false, values.first().type)
     }
 
     /**
