@@ -42,6 +42,7 @@ class EntityScanOperator(groupId: GroupId, private val entity: EntityTx, private
         var read = 0
         this@EntityScanOperator.entity.cursor(fetch, partition).use { cursor ->
             while (cursor.moveNext()) {
+                val record = cursor.value() as StandaloneTuple
                 emit(cursor.value())
                 read += 1
             }
