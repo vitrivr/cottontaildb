@@ -6,12 +6,13 @@ import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import java.util.*
 
 /**
  * An [Operator] used during query execution and processing.
  *
  * @author Ralph Gasser
- * @version 1.7.0
+ * @version 1.8.0
  */
 sealed class Operator {
 
@@ -23,6 +24,9 @@ sealed class Operator {
 
     /** The list of [ColumnDef]s produced by this [Operator]. */
     abstract val columns: List<ColumnDef<*>>
+
+    /** An [String] that can be used to identify this [Operator]. */
+    val identifier = UUID.randomUUID().toString().subSequence(0, 7)
 
     /**
      * Converts this [Operator] to a [Flow] and returns it.
