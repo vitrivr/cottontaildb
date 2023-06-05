@@ -34,6 +34,12 @@ class ExternalMergeSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>
     /** A [LinkedList] of chunks created by this [ExternalMergeSortOperator]. */
     private val chunks = LinkedList<Path>()
 
+    init {
+        if (!Files.exists(this.tmpPath)) {
+            Files.createDirectories(this.tmpPath)
+        }
+    }
+
     /**
      * Converts this [HeapSortOperator] to a [Flow] and returns it.
      *
@@ -81,10 +87,10 @@ class ExternalMergeSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>
 
                 emit(next.first) /* Next record in queue. */
                 if (input != null) {
-                    try {
-                        val tuple = CottontailGrpc.QueryResponseMessage.Tuple.parseDelimitedFrom(inputs[next.second]).toTuple(counter++, schema)
+                    val tuple = CottontailGrpc.QueryResponseMessage.Tuple.parseDelimitedFrom(input)?.toTuple(counter++, schema)
+                    if (tuple != null) {
                         heap.enqueue(tuple to next.second)
-                    } catch (e: IOException) {
+                    } else {
                         input.close()
                         inputs.remove(next.second)
                     }
