@@ -40,7 +40,10 @@ data class Config(
         val cache: CacheConfig = CacheConfig(),
 
         /** Reference to [CostConfig], which contains configuration regarding  Cottontail DB's cost model. */
-        val cost: CostConfig = CostConfig()
+        val cost: CostConfig = CostConfig(),
+
+        /** */
+        val memory: MemoryConfig = MemoryConfig()
 ) {
         /** Returns a path to the main data folder used by Cottontail DB. */
         fun dataFolder(): Path = this.root.resolve("xodus")

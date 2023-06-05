@@ -22,9 +22,9 @@ import java.util.concurrent.atomic.AtomicLong
  * This is often used in parallelized proximity based queries.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
-class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, private val limit: Long, override val context: QueryContext) : Operator.MergingPipelineOperator(parents) {
+class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, private val limit: Int, override val context: QueryContext) : Operator.MergingPipelineOperator(parents) {
 
     companion object {
         /** [Logger] instance used by [MergeLimitingHeapSortOperator]. */
@@ -49,7 +49,7 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<C
 
         /* Prepare a global heap selection. */
         val incoming = this@MergeLimitingHeapSortOperator.parents
-        val globalSelection = HeapSelection((this@MergeLimitingHeapSortOperator.limit).toInt(), this@MergeLimitingHeapSortOperator.comparator)
+        val globalSelection = HeapSelection((this@MergeLimitingHeapSortOperator.limit), this@MergeLimitingHeapSortOperator.comparator)
         val globalCollected = AtomicLong(0L)
 
         /*

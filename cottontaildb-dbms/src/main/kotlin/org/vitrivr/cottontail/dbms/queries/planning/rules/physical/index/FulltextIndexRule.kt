@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.OperatorNodeUtilities
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.function.FunctionPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.predicates.FilterPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.SortPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.InMemorySortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntityScanPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.IndexScanPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhysicalOperatorNode
@@ -79,7 +79,7 @@ object FulltextIndexRule : RewriteRule {
                     if (node.output == null) return fetch
                     return OperatorNodeUtilities.chainIf(fetch, node.output!!) {
                         when (it) {
-                            is SortPhysicalOperatorNode -> it.traits[OrderTrait] != indexScan.traits[OrderTrait] /* SortPhysicalOperatorNode is only retained, if order is different from index order. */
+                            is InMemorySortPhysicalOperatorNode -> it.traits[OrderTrait] != indexScan.traits[OrderTrait] /* SortPhysicalOperatorNode is only retained, if order is different from index order. */
                             is FilterPhysicalOperatorNode -> {
                                 if (it.predicate is BooleanPredicate.Comparison && it.predicate.operator is ComparisonOperator.Binary.Greater) {
                                     val op = it.predicate.operator as ComparisonOperator.Binary.Greater

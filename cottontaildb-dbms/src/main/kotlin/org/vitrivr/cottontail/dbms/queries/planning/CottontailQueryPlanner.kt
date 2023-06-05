@@ -190,7 +190,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         /* List of candidates, objects to explore and digests */
         val candidates = MemoizingOperatorList<OperatorNode.Physical>()
         val explore = MemoizingOperatorList(operator.root)
-        if (operator.executable) {
+        if (operator.canBeExecuted(this@QueryContext)) {
             candidates.enqueue(operator)
         }
 
@@ -203,7 +203,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
                     val result = rule.apply(pointer, this@QueryContext)
                     if (result is OperatorNode.Physical) {
                         explore.enqueue(result.root)
-                        if (result.root.executable) {
+                        if (result.root.canBeExecuted(this@QueryContext)) {
                             candidates.enqueue(result.root)
                         }
                     }

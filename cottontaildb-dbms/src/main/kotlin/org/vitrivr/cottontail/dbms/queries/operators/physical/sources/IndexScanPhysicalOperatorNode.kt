@@ -22,16 +22,19 @@ import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOpera
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergeLimitingSortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.ExternalSortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.LimitPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.statistics.estimateTupleSize
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
 import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
+import java.lang.Math.floorDiv
 
 /**
  * A [IndexScanPhysicalOperatorNode] that represents a predicated lookup using an [AbstractIndex].
  *
  * @author Ralph Gasser
- * @version 2.6.0
+ * @version 2.7.0
  */
 @Suppress("UNCHECKED_CAST")
 class IndexScanPhysicalOperatorNode(override val groupId: Int,
@@ -53,9 +56,6 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
 
     /** The [ColumnDef]s produced by this [IndexScanPhysicalOperatorNode] depends on the [ColumnDef]s produced by the [Index]. */
     override val columns: List<ColumnDef<*>>
-
-    /** [IndexScanPhysicalOperatorNode] are always executable. */
-    override val executable: Boolean = true
 
     /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
     override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
@@ -137,6 +137,14 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
     override fun copy() = IndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.fetch.map { it.first.copy() to it.second })
 
     /**
+     * An [IndexScanPhysicalOperatorNode] is always executable
+     *
+     * @param ctx The [QueryContext] to check.
+     * @return True
+     */
+    override fun canBeExecuted(ctx: QueryContext): Boolean = true
+
+    /**
      * [IndexScanPhysicalOperatorNode] can be partitioned if the underlying input allows for partitioning.
      *
      * @param ctx The [QueryContext] to use when determining the optimal number of partitions.
@@ -160,14 +168,23 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
             this.hasTrait(LimitTrait) && this.hasTrait(OrderTrait) -> {
                 val order = this[OrderTrait]!!
                 val limit = this[LimitTrait]!!
-                MergeLimitingSortPhysicalOperatorNode(*inbound.toTypedArray(), sortOn = order.order, limit = limit.limit)
+                if (limit.limit < Int.MAX_VALUE.toLong()) {
+                    MergeLimitingSortPhysicalOperatorNode(*inbound.toTypedArray(), sortOn = order.order, limit = limit.limit.toInt())
+                } else {
+                    val tupleSize = this.statistics.estimateTupleSize()
+                    val chunkSize = floorDiv(ctx.catalogue.config.memory.maxSortBufferSize, tupleSize).toInt()
+                    LimitPhysicalOperatorNode(ExternalSortPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), sortOn = order.order, chunkSize = chunkSize), limit.limit)
+                }
             }
             this.hasTrait(LimitTrait) -> {
                 val limit = this[LimitTrait]!!
                 LimitPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), limit = limit.limit)
             }
             this.hasTrait(OrderTrait) -> {
-                TODO()
+                val order = this[OrderTrait]!!
+                val tupleSize = this.statistics.estimateTupleSize()
+                val chunkSize = floorDiv(ctx.catalogue.config.memory.maxSortBufferSize, tupleSize).toInt()
+                ExternalSortPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), sortOn = order.order, chunkSize = chunkSize)
             }
             else -> MergePhysicalOperatorNode(*inbound.toTypedArray())
         }

@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
 import org.vitrivr.cottontail.dbms.queries.operators.physical.definition.*
-import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.SortPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.InMemorySortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DDLGrpcKt
@@ -53,7 +53,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      * gRPC endpoint listing the available [Schema]s.
      */
     override fun listSchemas(request: CottontailGrpc.ListSchemaMessage): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(request.metadata, true) { ctx ->
-        ctx.register(SortPhysicalOperatorNode(ListSchemaPhysicalOperatorNode(this.catalogue.newTx(ctx)), listOf(Pair(ColumnSets.DDL_LIST_COLUMNS[0], SortOrder.ASCENDING))))
+        ctx.register(InMemorySortPhysicalOperatorNode(ListSchemaPhysicalOperatorNode(this.catalogue.newTx(ctx)), listOf(Pair(ColumnSets.DDL_LIST_COLUMNS[0], SortOrder.ASCENDING))))
         ctx.toOperatorTree()
     }
 
@@ -111,7 +111,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      */
     override fun listEntities(request: CottontailGrpc.ListEntityMessage): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(request.metadata, true) { ctx ->
         val schemaName = if (request.hasSchema()) { request.schema.fqn() } else { null }
-        ctx.register(SortPhysicalOperatorNode(ListEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), schemaName), listOf(Pair(ColumnSets.DDL_LIST_COLUMNS[0], SortOrder.ASCENDING))))
+        ctx.register(InMemorySortPhysicalOperatorNode(ListEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), schemaName), listOf(Pair(ColumnSets.DDL_LIST_COLUMNS[0], SortOrder.ASCENDING))))
         ctx.toOperatorTree()
     }
 

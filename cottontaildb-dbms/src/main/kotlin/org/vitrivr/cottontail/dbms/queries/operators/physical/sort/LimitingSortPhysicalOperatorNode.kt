@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.sort
 
-import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
@@ -8,13 +7,14 @@ import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
-import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.sort.LimitingHeapSortOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergeLimitingSortPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.statistics.estimateTupleSize
 import kotlin.math.min
 
 /**
@@ -22,47 +22,42 @@ import kotlin.math.min
  * top K entries. This is semantically equivalent to a ORDER BY XY LIMIT Z. Internally, a heap sort algorithm is employed for sorting.
  *
  * @author Ralph Gasser
- * @version 2.4.0
+ * @version 2.5.0
  */
-class LimitingSortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<ColumnDef<*>, SortOrder>>, val limit: Long) : UnaryPhysicalOperatorNode(input) {
+class LimitingSortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<ColumnDef<*>, SortOrder>>, val limit: Int) : UnaryPhysicalOperatorNode(input) {
     companion object {
         private const val NODE_NAME = "OrderAndLimit"
     }
 
-    /** The name of this [SortPhysicalOperatorNode]. */
+    /** The name of this [InMemorySortPhysicalOperatorNode]. */
     override val name: String
         get() = NODE_NAME
 
     /** The [LimitingSortPhysicalOperatorNode] requires all [ColumnDef]s used on the ORDER BY clause. */
     override val requires: List<ColumnDef<*>> = sortOn.map { it.first }
 
-    /** The size of the output produced by this [SortPhysicalOperatorNode]. */
+    /** The estimated size of the output produced by this [InMemorySortPhysicalOperatorNode]. */
     context(BindingContext, Tuple)
     override val outputSize: Long
-        get() = min(super.outputSize, this.limit)
+        get() = min(super.outputSize, this.limit.toLong())
 
-    /** The [Cost] incurred by this [SortPhysicalOperatorNode]. */
+    /** The [Cost] incurred by this [InMemorySortPhysicalOperatorNode]. */
     context(BindingContext, Tuple)
     override val cost: Cost
         get() = Cost(
             cpu = 2 * this.sortOn.size * Cost.MEMORY_ACCESS.cpu,
-            memory = (this.columns.sumOf {
-                if (it.type == Types.String) {
-                    this.statistics[it]!!.avgWidth * Char.SIZE_BYTES
-                } else {
-                    it.type.physicalSize
-                }
-            }).toFloat()
+            memory = this.statistics.estimateTupleSize().toFloat()
         ) * this.outputSize
 
     /** The [LimitingSortPhysicalOperatorNode] overwrites/sets the [OrderTrait] and the [LimitTrait].  */
-    override val traits: Map<TraitType<*>, Trait>
-        get() = super.traits + mapOf(
+    override val traits: Map<TraitType<*>, Trait> by lazy {
+        super.traits + mapOf(
             OrderTrait to OrderTrait(this.sortOn),
-            LimitTrait to LimitTrait(this.limit),
+            LimitTrait to LimitTrait(this.limit.toLong()),
             MaterializedTrait to MaterializedTrait,
             NotPartitionableTrait to NotPartitionableTrait /* Once explicit sorting has been introduced, no more partitioning is possible. */
         )
+    }
 
     init {
         if (this.sortOn.isEmpty()) throw QueryException.QuerySyntaxException("At least one column must be specified for sorting.")
@@ -111,7 +106,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<Co
      */
     override fun toOperator(ctx: QueryContext) = LimitingHeapSortOperator(this.input.toOperator(ctx), this.sortOn, this.limit, ctx)
 
-    /** Generates and returns a [String] representation of this [SortPhysicalOperatorNode]. */
+    /** Generates and returns a [String] representation of this [InMemorySortPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.name} ${it.second}" }},${this.limit}]"
 
     /**

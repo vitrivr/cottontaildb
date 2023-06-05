@@ -44,10 +44,6 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
     context(BindingContext, Tuple)    final override val totalCost: Cost
         get() = this.left.totalCost + this.right.totalCost + this.cost
 
-    /** By default, [BinaryPhysicalOperatorNode]s are executable if both their inputs are executable. Can be overridden! */
-    override val executable: Boolean
-        get() =  this.left.executable && this.right.executable
-
     /** By default, the [BinaryPhysicalOperatorNode] outputs the physical [ColumnDef] of its left input. Can be overridden! */
     override val physicalColumns: List<ColumnDef<*>>
         get() = this.left.physicalColumns
@@ -120,6 +116,18 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
         1 -> this.copyWithNewInput(this.left.copyWithExistingGroupInput(), replacements[0])
         0 -> this.copyWithNewInput(this.left.copyWithExistingGroupInput(), PlaceholderPhysicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns))
         else -> throw IllegalArgumentException("The input arity for BinaryPhysicalOperatorNode.copyWithGroupInputs() must be smaller or equal to 1 but is ${replacements.size}. This is a programmer's error!")
+    }
+
+    /**
+     * Determines, if this [BinaryPhysicalOperatorNode] can be executed in the given [QueryContext].
+     *
+     * Typically, a [BinaryPhysicalOperatorNode] can be executed if its inputs can be executed.
+     *
+     * @param ctx The [QueryContext] to check.
+     * @return True if this [BinaryPhysicalOperatorNode] is executable, false otherwise.
+     */
+    override fun canBeExecuted(ctx: QueryContext): Boolean {
+        return this.left.canBeExecuted(ctx) && this.right.canBeExecuted(ctx)
     }
 
     /**

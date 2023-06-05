@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.predicates
 
-import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
@@ -8,6 +7,7 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.predicates.FilterOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
  * A [UnaryPhysicalOperatorNode] that represents application of a [BooleanPredicate] on some intermediate result.
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 2.4.0
  */
 class FilterPhysicalOperatorNode(input: Physical, val predicate: BooleanPredicate) : UnaryPhysicalOperatorNode(input) {
     companion object {
@@ -32,10 +32,6 @@ class FilterPhysicalOperatorNode(input: Physical, val predicate: BooleanPredicat
 
     /** The [FilterPhysicalOperatorNode] requires all [ColumnDef]s used in the [ProximityPredicate]. */
     override val requires: List<ColumnDef<*>> = this.predicate.columns.toList()
-
-    /** The [FilterPhysicalOperatorNode] can only be executed if it doesn't contain any [ComparisonOperator.Binary.Match]. */
-    override val executable: Boolean
-        get() = super.executable && this.predicate.atomics.filterIsInstance<BooleanPredicate.Comparison>().none { it.operator is ComparisonOperator.Binary.Match }
 
     /** The estimated output size of this [FilterOnSubSelectPhysicalOperatorNode]. Calculated based on [Selectivity] estimates. */
     context(BindingContext, Tuple)
@@ -57,6 +53,18 @@ class FilterPhysicalOperatorNode(input: Physical, val predicate: BooleanPredicat
         require(input.size == 1) { "The input arity for FilterPhysicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
         return FilterPhysicalOperatorNode(input = input[0], predicate = this.predicate.copy())
     }
+
+
+    /**
+     * Determines, if this [FilterPhysicalOperatorNode] can be executed in the given [QueryContext].
+     *
+     * An [FilterPhysicalOperatorNode] is executable if it does not contain any [ComparisonOperator.Binary.Match] (which must be pushed-down to a fulltext-index)
+     *
+     * @param ctx The [QueryContext] to check.
+     * @return True i
+     */
+    override fun canBeExecuted(ctx: QueryContext): Boolean
+        = this.predicate.atomics.filterIsInstance<BooleanPredicate.Comparison>().none { it.operator is ComparisonOperator.Binary.Match } && super.canBeExecuted(ctx)
 
     /**
      * Converts this [FilterPhysicalOperatorNode] to a [FilterOperator].

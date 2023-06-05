@@ -22,7 +22,7 @@ import java.io.PrintStream
  * [OperatorNode]s allow for reasoning and transformation of the execution plan during query optimization and are manipulated by the query planner.
  *
  * @author Ralph Gasser
- * @version 2.8.0
+ * @version 2.9.0
  */
 sealed class OperatorNode : NodeWithTrait {
     /** The arity of this [OperatorNode], i.e., the number of parents or inputs allowed. */
@@ -39,9 +39,6 @@ sealed class OperatorNode : NodeWithTrait {
 
     /** The name of this [OperatorNode]. */
     abstract val name: String
-
-    /** Whether this [OperatorNode] is executable. */
-    abstract val executable: Boolean
 
     /** The physical [ColumnDef]s accessed by this [OperatorNode]. */
     abstract val physicalColumns: List<ColumnDef<*>>
@@ -95,9 +92,6 @@ sealed class OperatorNode : NodeWithTrait {
 
         /** The base of this [OperatorNode], i.e., the starting point(s) in terms of operation. Depending on the tree structure, multiple bases may exist. */
         abstract val base: Collection<Logical>
-
-        /** [OperatorNode.Logical]s are never executable. */
-        override val executable: Boolean = false
 
         /**
          * Creates and returns a copy of this [OperatorNode.Logical] using the given parents as input.
@@ -167,9 +161,6 @@ sealed class OperatorNode : NodeWithTrait {
         /** Map containing all [ValueStatistics] about the [ColumnDef]s processed in this [OperatorNode.Physical]. */
         abstract val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
 
-        /** Most [OperatorNode.Physical]s are executable by default. */
-        override val executable: Boolean = true
-
         /** The estimated number of rows this [OperatorNode.Physical] generates. */
         context(BindingContext, Tuple)
         abstract val outputSize: Long
@@ -222,6 +213,14 @@ sealed class OperatorNode : NodeWithTrait {
          * @return Copy of this [OperatorNode.Physical] with its output.
          */
         abstract fun copyWithOutput(vararg input: Physical): Physical
+
+        /**
+         * Determines, if this [OperatorNode.Physical] can be executed in the given [QueryContext]
+         *
+         * @param ctx The [QueryContext] to check.
+         * @return True if this [OperatorNode.Physical] is executable, false otherwise.
+         */
+        abstract fun canBeExecuted(ctx: QueryContext): Boolean
 
         /**
          * Converts this [OperatorNode.Physical] to the corresponding [Operator].

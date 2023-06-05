@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.dbms.statistics.selectivity
 
-import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
@@ -17,6 +17,7 @@ import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
  * @version 1.1.0
  */
 object NaiveSelectivityCalculator {
+
     /**
      * Estimates the selectivity of a [BooleanPredicate] given the [ValueStatistics].
      *

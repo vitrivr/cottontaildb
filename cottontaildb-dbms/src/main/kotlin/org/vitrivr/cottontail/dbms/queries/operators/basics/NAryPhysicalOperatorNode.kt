@@ -57,10 +57,6 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
     override val requires: List<ColumnDef<*>>
         get() =  emptyList()
 
-    /** [NAryPhysicalOperatorNode]s are executable if all their inputs are executable.  Can be overridden! */
-    override val executable: Boolean
-        get() = (this.inputs.size == this.inputArity) && this.inputs.all { it.executable }
-
     /** By default, the [NAryPhysicalOperatorNode] outputs the physical [ColumnDef] of its input.  Can be overridden! */
     override val physicalColumns: List<ColumnDef<*>>
         get() = (this.inputs.firstOrNull()?.physicalColumns ?: emptyList())
@@ -119,6 +115,18 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
      */
     final override fun copyWithExistingInput(): NAryPhysicalOperatorNode {
         return this.copyWithNewInput(*this.inputs.map { it.copyWithExistingInput() }.toTypedArray())
+    }
+
+    /**
+     * Determines, if this [NAryPhysicalOperatorNode] can be executed in the given [QueryContext].
+     *
+     * Typically, a [NAryPhysicalOperatorNode] can be executed if its inputs can be executed.
+     *
+     * @param ctx The [QueryContext] to check.
+     * @return True if this [NAryPhysicalOperatorNode] is executable, false otherwise.
+     */
+    override fun canBeExecuted(ctx: QueryContext): Boolean {
+        return this.inputs.all { it.canBeExecuted(ctx) }
     }
 
     /**

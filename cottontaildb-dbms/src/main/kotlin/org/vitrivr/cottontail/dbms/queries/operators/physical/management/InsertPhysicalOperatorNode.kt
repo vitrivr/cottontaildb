@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.management
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
-import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
@@ -9,6 +8,7 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
@@ -52,9 +52,6 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
     /** The [Cost] incurred by this [InsertPhysicalOperatorNode]. */
     override val cost: Cost
 
-    /** The [InsertPhysicalOperatorNode] is always executable. */
-    override val executable: Boolean = true
-
     /** The [InsertPhysicalOperatorNode] cannot be partitioned. */
     override val traits: Map<TraitType<*>, Trait> = mapOf(NotPartitionableTrait to NotPartitionableTrait)
 
@@ -80,6 +77,14 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
      * @return Copy of this [InsertLogicalOperatorNode].
      */
     override fun copy() = InsertPhysicalOperatorNode(this.groupId, this.entity, this.tuples)
+
+    /**
+     * An [InsertPhysicalOperatorNode] is always executable
+     *
+     * @param ctx The [QueryContext] to check.
+     * @return True
+     */
+    override fun canBeExecuted(ctx: QueryContext): Boolean = true
 
     /**
      * Converts this [InsertPhysicalOperatorNode] to a [InsertOperator].

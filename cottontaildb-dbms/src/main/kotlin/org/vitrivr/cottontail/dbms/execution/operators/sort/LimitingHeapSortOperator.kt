@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.utilities.selection.HeapSelection
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class LimitingHeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, private val limit: Long, override val context: QueryContext) : AbstractSortOperator(parent, sortOn) {
+class LimitingHeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, private val limit: Int, override val context: QueryContext) : AbstractSortOperator(parent, sortOn) {
 
     /** The [HeapSortOperator] retains the [ColumnDef] of the input. */
     override val columns: List<ColumnDef<*>>
@@ -34,7 +34,7 @@ class LimitingHeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>,
      */
     override fun toFlow(): Flow<Tuple> = flow {
         val incoming = this@LimitingHeapSortOperator.parent.toFlow()
-        val selection = HeapSelection(this@LimitingHeapSortOperator.limit.toInt(), this@LimitingHeapSortOperator.comparator)
+        val selection = HeapSelection(this@LimitingHeapSortOperator.limit, this@LimitingHeapSortOperator.comparator)
         incoming.collect { selection.offer(it) }
         for(r in selection) emit(r)
     }

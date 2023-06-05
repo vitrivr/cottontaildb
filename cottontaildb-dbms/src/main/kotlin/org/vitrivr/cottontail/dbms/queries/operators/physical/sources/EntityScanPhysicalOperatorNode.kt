@@ -28,7 +28,7 @@ import java.lang.Math.floorDiv
  * A [UnaryPhysicalOperatorNode] that formalizes a scan of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.6.0
+ * @version 2.7.0
  */
 @Suppress("UNCHECKED_CAST")
 class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, val partitionIndex: Int = 0, val partitions: Int = 1) : NullaryPhysicalOperatorNode() {
@@ -49,10 +49,6 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
 
     /** The number of rows returned by this [EntityScanPhysicalOperatorNode] equals to the number of rows in the [Entity]. */
     override val outputSize = floorDiv(this.entity.count(), this.partitions)
-
-    /** [EntityScanPhysicalOperatorNode] is always executable. */
-    override val executable: Boolean = true
-
     /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
     override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
 
@@ -88,6 +84,14 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
      * @return Copy of this [EntityScanPhysicalOperatorNode].
      */
     override fun copy() = EntityScanPhysicalOperatorNode(this.groupId, this.entity, this.fetch.map { it.first.copy() to it.second })
+
+    /**
+     * An [EntityScanPhysicalOperatorNode] is always executable
+     *
+     * @param ctx The [QueryContext] to check.
+     * @return True
+     */
+    override fun canBeExecuted(ctx: QueryContext): Boolean = true
 
     /**
      * [EntityScanPhysicalOperatorNode] can be partitioned simply by creating the desired number of partitions and merging the output using the [MergePhysicalOperatorNode]

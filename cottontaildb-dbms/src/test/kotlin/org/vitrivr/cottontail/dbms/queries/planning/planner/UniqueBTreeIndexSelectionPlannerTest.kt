@@ -7,10 +7,10 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.generators.StringValueGenerator
-import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.basic.Index
@@ -27,8 +27,8 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.*
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.BooleanIndexScanRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.FulltextIndexRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanClass3Rule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.merge.LimitingSortMergeRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.CountPushdownRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.sort.LimitingSortMergeRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnFetchRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnScanRewriteRule
 

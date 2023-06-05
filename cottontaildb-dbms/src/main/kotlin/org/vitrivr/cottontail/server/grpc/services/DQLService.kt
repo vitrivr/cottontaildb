@@ -14,9 +14,10 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.Boolean
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.FulltextIndexRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanClass1Rule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanClass3Rule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.merge.LimitingSortMergeRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.CountPushdownRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.simd.FunctionVectorisationRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.sort.ExternalSortRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.sort.LimitingSortMergeRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnFetchRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnScanRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFunctionRewriteRule
@@ -48,6 +49,7 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
             NNSIndexScanClass3Rule,
             FulltextIndexRule,
             CountPushdownRule,
+            ExternalSortRule,
             LimitingSortMergeRule,
             DeferFetchOnScanRewriteRule,
             DeferFetchOnFetchRewriteRule,
