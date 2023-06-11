@@ -6,9 +6,9 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.*
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.entity.AbstractEntityTest
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
@@ -90,7 +90,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
             /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
             val context = DefaultBindingContext()
             val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, this.columns.map { ctx.bindings.bind(it) to it })
-            val filter0 = FilterPhysicalOperatorNode(scan0, BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type)), false))
+            val filter0 = FilterPhysicalOperatorNode(scan0, BooleanPredicate.Comparison(ComparisonOperator.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type))))
             val projection0 = SelectProjectionPhysicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
             /* Step 1: Execute DeferFetchOnScanRewriteRule and make basic assertions. */
@@ -159,7 +159,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
                 ctx.bindings.bind(this.columns[2]) to this.columns[2])
             )
             val fetch0 = FetchPhysicalOperatorNode(scan0, entityTx, listOf(ctx.bindings.bind(this.columns[3]) to this.columns[3]))
-            val filter0 = FilterPhysicalOperatorNode(fetch0, BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type)), false))
+            val filter0 = FilterPhysicalOperatorNode(fetch0, BooleanPredicate.Comparison(ComparisonOperator.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type))))
             val projection0 = SelectProjectionPhysicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
             /* Step 1: Execute DeferFetchOnFetchRewriteRule and make basic assertions. */
@@ -196,8 +196,8 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
             val entityTx = entity.newTx(ctx)
 
             /* Insert data and track how many entries have been stored for the test later. */
-            entityTx.insert(StandaloneRecord(1L, this.columns.toTypedArray(), arrayOf(LongValue(1L), DoubleValue(0.0), StringValue("test"), IntValue(1), BooleanValue(true))))
-            entityTx.insert(StandaloneRecord(2L, this.columns.toTypedArray(), arrayOf(LongValue(2L), DoubleValue(1.0), StringValue("test"), IntValue(2), BooleanValue(false))))
+            entityTx.insert(StandaloneTuple(1L, this.columns.toTypedArray(), arrayOf(LongValue(1L), DoubleValue(0.0), StringValue("test"), IntValue(1), BooleanValue(true))))
+            entityTx.insert(StandaloneTuple(2L, this.columns.toTypedArray(), arrayOf(LongValue(2L), DoubleValue(1.0), StringValue("test"), IntValue(2), BooleanValue(false))))
 
             txn.commit()
         } catch (e: Throwable) {

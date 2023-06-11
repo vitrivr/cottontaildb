@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.index.hash
 
 import jetbrains.exodus.bindings.LongBinding
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder

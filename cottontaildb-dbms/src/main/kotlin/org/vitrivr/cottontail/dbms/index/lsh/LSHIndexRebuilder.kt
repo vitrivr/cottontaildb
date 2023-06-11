@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.index.lsh
 
-import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder

@@ -4,15 +4,15 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.generators.LongValueGenerator
 import org.vitrivr.cottontail.core.values.generators.StringValueGenerator
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
@@ -65,11 +65,11 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
             /* Prepare binding context and predicate. */
             val columnBinding = ctx.bindings.bind(this.columns[0])
             val valueBinding = ctx.bindings.bindNull(Types.String)
-            val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(columnBinding, valueBinding), false)
+            val predicate = BooleanPredicate.Comparison(ComparisonOperator.Equal(columnBinding, valueBinding))
 
             /* Check all entries. */
             with(ctx.bindings) {
-                with(MissingRecord) {
+                with(MissingTuple) {
                     for (entry in this@NonUniqueStringHashIndexTest.list.entries) {
                         valueBinding.update(entry.key) /* Update value binding. */
                         var found = false
@@ -109,7 +109,7 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
         val indexTx = index.newTx(ctx)
 
         var count = 0
-        val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(ctx.bindings.bind(this.columns[0]), ctx.bindings.bind(StringValue(UUID.randomUUID().toString()))), false)
+        val predicate = BooleanPredicate.Comparison(ComparisonOperator.Equal(ctx.bindings.bind(this.columns[0]), ctx.bindings.bind(StringValue(UUID.randomUUID().toString()))))
         indexTx.filter(predicate).use {
             it.forEach { count += 1 }
         }
@@ -118,9 +118,9 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
     }
 
     /**
-     * Generates and returns a new, random [StandaloneRecord] for inserting into the database.
+     * Generates and returns a new, random [StandaloneTuple] for inserting into the database.
      */
-    override fun nextRecord(): StandaloneRecord {
+    override fun nextRecord(): StandaloneTuple {
         val id = StringValueGenerator.random(3)
         val value = LongValueGenerator.random(this.random)
         if (this.random.nextBoolean() && this.list.size <= 1000) {
@@ -130,6 +130,6 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
                 list
             }
         }
-        return StandaloneRecord(0L, columns = this.columns, values = arrayOf(id, value))
+        return StandaloneTuple(0L, columns = this.columns, values = arrayOf(id, value))
     }
 }

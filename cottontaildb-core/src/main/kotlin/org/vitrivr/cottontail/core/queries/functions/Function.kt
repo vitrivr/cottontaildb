@@ -4,7 +4,7 @@ import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.nodes.CopyableNode
 import org.vitrivr.cottontail.core.queries.nodes.Node
 import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.types.Value
 
 /**
  * An invokable [Function] is a [Node] that can be used by Cottontail DB to calculate values results.

@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.storage.serializers.values.mapdb
 
 import org.mapdb.Serializer
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.types.Value
 
 /**
  * A [Serializer] for MapDB based [Value] serialization and deserialization.

@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.server.grpc
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import org.junit.jupiter.api.*
-import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.test.AbstractClientTest
 import org.vitrivr.cottontail.test.GrpcTestUtils
@@ -148,7 +147,7 @@ class DDLServiceTest : AbstractClientTest() {
     fun createAndListEntity() {
         try {
             client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
-            client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", Type.STRING))
+            client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", "STRING"))
             val names = entityNames()
             assert(names.contains(TestConstants.TEST_ENTITY_NAME.fqn)) { "Returned entity names do not contain ${TestConstants.TEST_ENTITY_NAME.fqn}." }
         } catch (e: StatusRuntimeException) {
@@ -167,7 +166,7 @@ class DDLServiceTest : AbstractClientTest() {
     fun createAndVerifyAboutEntity() {
         try {
             this.client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
-            this.client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", Type.STRING))
+            this.client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", "STRING"))
             val about = this.client.about(AboutEntity(TestConstants.TEST_ENTITY_NAME.fqn))
             assert(about.hasNext()) { "could not verify existence with about message" }
         } catch (e: StatusRuntimeException) {
@@ -189,7 +188,7 @@ class DDLServiceTest : AbstractClientTest() {
     fun createAndDropEntity() {
         try {
             client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
-            client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", Type.STRING))
+            client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", "STRING"))
             client.drop(DropEntity(TestConstants.TEST_ENTITY_NAME.fqn))
             val names = entityNames()
             assert(!names.contains(TestConstants.TEST_ENTITY_NAME.fqn)) { "Returned entity names do not contain ${TestConstants.TEST_ENTITY_NAME}." }
@@ -212,7 +211,7 @@ class DDLServiceTest : AbstractClientTest() {
     fun createAndDropEntityWithWarren() {
         try {
             client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
-            client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", Type.STRING))
+            client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", "STRING"))
             client.drop(DropEntity(TestConstants.TEST_ENTITY_NAME.fqn))
             val names = entityNames()
             assert(!names.contains(TestConstants.TEST_ENTITY_NAME.fqn)) { "Returned entity names do not contain ${TestConstants.TEST_ENTITY_NAME}." }

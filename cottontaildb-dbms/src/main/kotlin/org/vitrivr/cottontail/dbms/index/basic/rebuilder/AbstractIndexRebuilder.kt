@@ -74,9 +74,9 @@ abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
      */
     protected fun tryClearAndOpenStore(): Store? {
         val storeName = this.index.name.storeName()
-        if ((this.index.catalogue as DefaultCatalogue).environment.storeExists(storeName, this.context.txn.xodusTx)) {
-            (this.index.catalogue as DefaultCatalogue).environment.truncateStore(storeName, this.context.txn.xodusTx)
-            return (this.index.catalogue as DefaultCatalogue).environment.openStore(storeName, StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
+        if (this.index.catalogue.transactionManager.environment.storeExists(storeName, this.context.txn.xodusTx)) {
+            this.index.catalogue.transactionManager.environment.truncateStore(storeName, this.context.txn.xodusTx)
+            return this.index.catalogue.transactionManager.environment.openStore(storeName, StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
         }
         return null
     }

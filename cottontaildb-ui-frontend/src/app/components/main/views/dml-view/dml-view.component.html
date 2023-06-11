@@ -1,0 +1,27 @@
+<div class="view-container">
+
+  <div class="selection-header">
+    <ng-container *ngIf="!aboutEntityData; else showName">
+      <h1>Please select an entity in the sidebar</h1>
+    </ng-container>
+    <ng-template #showName>
+      <div class="dml-view">
+        <h2>{{"FROM: " + selection['entity'].split(".").slice(-1)}}</h2>
+
+        <mat-button-toggle-group #group="matButtonToggleGroup" name="fontStyle" aria-label="Font Style" value="INSERT">
+          <mat-button-toggle value="DELETE">DELETE</mat-button-toggle>
+          <mat-button-toggle value="INSERT">INSERT</mat-button-toggle>
+          <mat-button-toggle value="UPDATE">UPDATE</mat-button-toggle>
+        </mat-button-toggle-group>
+
+        <ng-container [ngSwitch]="group.value">
+          <app-delete-form *ngSwitchCase="'DELETE'" ></app-delete-form>
+          <app-insert-form *ngSwitchCase="'INSERT'"></app-insert-form>
+          <app-update-form *ngSwitchCase="'UPDATE'"></app-update-form>
+        </ng-container>
+      </div>
+    </ng-template>
+  </div>
+
+
+</div>

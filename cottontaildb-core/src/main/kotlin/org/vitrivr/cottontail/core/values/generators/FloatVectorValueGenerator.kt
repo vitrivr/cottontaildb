@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.core.values.generators
 
+import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
-import org.vitrivr.cottontail.core.values.types.VectorValue
 import java.util.random.RandomGenerator
 
 /**

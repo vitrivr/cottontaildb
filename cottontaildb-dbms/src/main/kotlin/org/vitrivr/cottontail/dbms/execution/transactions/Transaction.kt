@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.execution.transactions
 
 import kotlinx.coroutines.flow.Flow
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 
@@ -32,9 +32,9 @@ interface Transaction: TransactionContext {
      * Schedules an [Operator] in the context of this [Transaction] and blocks, until execution has completed.
      *
      * @param operator The [Operator] to execute.
-     * @return Resulting [Flow] of [Record]s
+     * @return Resulting [Flow] of [Tuple]s
      */
-    fun execute(operator: Operator): Flow<Record>
+    fun execute(operator: Operator): Flow<Tuple>
 
     /**
      * Commits this [Transaction] thus finalizing and persisting all operations executed so far.

@@ -7,33 +7,34 @@ apply plugin: 'com.github.johnrengelman.shadow'
 
 /* Cottontail DB dependencies. */
 dependencies {
+    /* The Cottontail DB core, which includes the client library. */
     api project(':cottontaildb-core')
 
-    ///// MapDB dependency
+    /* MapDB dependency. */
     implementation group: 'org.mapdb', name: 'mapdb', version: version_mapdb
 
-    ///// Xodus dependency
+    /* Xodus dependency. */
     implementation group: 'org.jetbrains.xodus', name: 'xodus-openAPI', version: version_xodus
     implementation group: 'org.jetbrains.xodus', name: 'xodus-environment', version: version_xodus
     implementation group: 'org.jetbrains.xodus', name: 'xodus-entity-store', version: version_xodus
 
-    ///// Snappy
+    /* Snappy */
     implementation group: 'org.xerial.snappy', name: 'snappy-java', version: version_snappy
 
-    ///// FastUtil
+    /* FastUtil */
     implementation group: 'it.unimi.dsi', name: 'fastutil', version: version_fastutil
 
-    ///// Google Guava
+    /* Google Guava */
     implementation group: 'com.google.guava', name: 'guava', version: version_guava
 
-    ////// Lucene
+    /* Lucene. */
     implementation group: 'org.apache.lucene', name: 'lucene-core', version: version_lucene
     implementation group: 'org.apache.lucene', name: 'lucene-analysis-common', version: version_lucene
     implementation group: 'org.apache.lucene', name: 'lucene-analysis-phonetic', version: version_lucene
     implementation group: 'org.apache.lucene', name: 'lucene-codecs', version: version_lucene
     implementation group: 'org.apache.lucene', name: 'lucene-queryparser', version: version_lucene
 
-    ////// Test Fixtures from Cottontail DB core.
+    /* Test Fixtures from Cottontail DB core. .*/
     testFixturesImplementation group: 'io.grpc', name: 'grpc-all', version: version_grpc
     testFixturesImplementation group: 'io.grpc', name: 'grpc-kotlin-stub', version: version_grpc_kotlin
     testFixturesImplementation group: 'com.google.protobuf', name: 'protobuf-java', version: version_protobuf
@@ -57,7 +58,7 @@ publishing {
             from components.java
             pom {
                 name = 'Cottontail DB'
-                description = 'Cottontail DB as java library, for use in embedded mode.'
+                description = 'Cottontail DB database as Java / Kotlin library, for use in embedded mode.'
                 url = 'https://github.com/vitrivr/cottontaildb/'
                 licenses {
                     license {

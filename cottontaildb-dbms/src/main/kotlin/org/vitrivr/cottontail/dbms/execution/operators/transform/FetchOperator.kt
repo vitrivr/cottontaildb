@@ -2,10 +2,10 @@ package org.vitrivr.cottontail.dbms.execution.operators.transform
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -31,7 +31,7 @@ class FetchOperator(parent: Operator, private val entity: EntityTx, private val 
      *
      * @return [Flow] representing this [FetchOperator]
      */
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         val fetch = this@FetchOperator.fetch.map { it.second }.toTypedArray()
         val columns = this@FetchOperator.columns.toTypedArray()
         val incoming = this@FetchOperator.parent.toFlow()
@@ -53,7 +53,7 @@ class FetchOperator(parent: Operator, private val entity: EntityTx, private val 
                         cursor.value()
                     }
                 }
-                emit(StandaloneRecord(record.tupleId, columns, values))
+                emit(StandaloneTuple(record.tupleId, columns, values))
             }
         } finally {
             cursors.forEach { it.close() }

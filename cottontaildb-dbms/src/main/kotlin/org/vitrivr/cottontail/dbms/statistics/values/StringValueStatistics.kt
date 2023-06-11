@@ -1,103 +1,71 @@
 package org.vitrivr.cottontail.dbms.statistics.values
 
-import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.StringValue
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
 import java.io.ByteArrayInputStream
-import java.lang.Integer.max
-import java.lang.Integer.min
 
 /**
- * A specialized [ValueStatistics] for [StringValue]s.
+ * A specialized [ValueStatistics] implementation for [StringValue]s.
  *
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class StringValueStatistics : AbstractValueStatistics<StringValue>(Types.String) {
+data class StringValueStatistics(
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+    override var minWidth: Int = Int.MAX_VALUE,
+    override var maxWidth: Int = Int.MIN_VALUE
+) : AbstractScalarStatistics<StringValue>(Types.String) {
+
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: StringValueStatistics): this(
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = if (metrics.numberOfDistinctEntries.toDouble() / metrics.numberOfEntries.toDouble() >= metrics.distinctEntriesScalingThreshold) (metrics.numberOfDistinctEntries * factor).toLong() else metrics.numberOfDistinctEntries, // Depending on the ratio between distinct entries and number of entries, we either scale the distinct entries (large ratio) or keep them as they are (small ratio).
+        minWidth = metrics.minWidth,
+        maxWidth = metrics.maxWidth,
+    )
 
     /**
      * Xodus serializer for [StringValueStatistics]
      */
-    object Binding: XodusBinding<StringValueStatistics> {
+    object Binding: MetricsXodusBinding<StringValueStatistics> {
         override fun read(stream: ByteArrayInputStream): StringValueStatistics {
-            val stat = StringValueStatistics()
-            stat.fresh = BooleanBinding.BINDING.readObject(stream)
-            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
-            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            stat.minWidth = IntegerBinding.readCompressed(stream)
-            stat.maxWidth = IntegerBinding.readCompressed(stream)
-            return stat
+            val numberOfNullEntries = LongBinding.readCompressed(stream)
+            val numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            val numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            val minWidth = IntegerBinding.readCompressed(stream)
+            val maxWidth = IntegerBinding.readCompressed(stream)
+            return StringValueStatistics(numberOfNullEntries, numberOfNonNullEntries, numberOfDistinctEntries, minWidth, maxWidth)
         }
 
         override fun write(output: LightOutputStream, statistics: StringValueStatistics) {
-            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
             IntegerBinding.writeCompressed(output, statistics.minWidth)
             IntegerBinding.writeCompressed(output, statistics.maxWidth)
         }
     }
 
-    /** Shortest [StringValue] seen by this [StringValueStatistics] */
-    override var minWidth: Int = Int.MAX_VALUE
-        private set
-
-    /** Longest [StringValue] seen by this [StringValueStatistics]. */
-    override var maxWidth: Int = Int.MIN_VALUE
-        private set
 
     /**
-     * Updates this [StringValueStatistics] with an inserted [StringValue].
+     * Creates a descriptive map of this [ValueStatistics].
      *
-     * @param inserted The [StringValue] that was inserted.
+     * @return Descriptive map of this [ValueStatistics]
      */
-    override fun insert(inserted: StringValue?) {
-        super.insert(inserted)
-        if (inserted != null) {
-            this.minWidth = min(inserted.logicalSize, this.minWidth)
-            this.maxWidth = max(inserted.logicalSize, this.maxWidth)
-        }
+    override fun about(): Map<String, String> {
+        return super.about() + mapOf(
+            MIN_WIDTH_KEY to this.minWidth.toString(),
+            MAX_WIDTH_KEY to this.maxWidth.toString()
+        )
     }
 
-    /**
-     * Updates this [StringValueStatistics] with a new deleted [StringValue].
-     *
-     * @param deleted The [StringValue] that was deleted.
-     */
-    override fun delete(deleted: StringValue?) {
-        super.delete(deleted)
-
-        /* We cannot create a sensible estimate if a value is deleted. */
-        if (this.minWidth == deleted?.logicalSize || this.maxWidth == deleted?.logicalSize) {
-            this.fresh = false
-        }
-    }
-
-    /**
-     * Resets this [StringValueStatistics] and sets all its values to to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        this.minWidth = Int.MAX_VALUE
-        this.maxWidth = Int.MIN_VALUE
-    }
-
-    /**
-     * Copies this [StringValueStatistics] and returns it.
-     *
-     * @return Copy of this [StringValueStatistics].
-     */
-    override fun copy(): StringValueStatistics {
-        val copy = StringValueStatistics()
-        copy.fresh = this.fresh
-        copy.numberOfNullEntries = this.numberOfNullEntries
-        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
-        copy.minWidth = this.minWidth
-        copy.maxWidth = this.maxWidth
-        return copy
-    }
 }

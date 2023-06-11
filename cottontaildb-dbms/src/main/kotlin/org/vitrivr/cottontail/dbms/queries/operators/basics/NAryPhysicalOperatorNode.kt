@@ -1,14 +1,13 @@
 package org.vitrivr.cottontail.dbms.queries.operators.basics
 
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import java.io.PrintStream
 
@@ -45,7 +44,7 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
         get() = this.inputs.size
 
     /** The [totalCost] of a [NAryPhysicalOperatorNode] is the sum of its own and its input cost. */
-    context(BindingContext,Record)    final override val totalCost: Cost
+    context(BindingContext, Tuple)    final override val totalCost: Cost
         get() {
             var cost = this.cost
             for (i in inputs) {
@@ -58,10 +57,6 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
     override val requires: List<ColumnDef<*>>
         get() =  emptyList()
 
-    /** [NAryPhysicalOperatorNode]s are executable if all their inputs are executable.  Can be overridden! */
-    override val executable: Boolean
-        get() = (this.inputs.size == this.inputArity) && this.inputs.all { it.executable }
-
     /** By default, the [NAryPhysicalOperatorNode] outputs the physical [ColumnDef] of its input.  Can be overridden! */
     override val physicalColumns: List<ColumnDef<*>>
         get() = (this.inputs.firstOrNull()?.physicalColumns ?: emptyList())
@@ -71,11 +66,11 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
         get() = (this.inputs.firstOrNull()?.columns ?: emptyList())
 
     /** By default, a [NAryPhysicalOperatorNode]'s statistics are retained.  Can be overridden! */
-    override val statistics: Map<ColumnDef<*>, ValueMetrics<*>>
+    override val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
         get() = this.inputs.firstOrNull()?.statistics ?: emptyMap()
 
     /** By default, a [NAryPhysicalOperatorNode]'s parallelizable costs are [Cost.ZERO].  Can be overridden! */
-    context(MissingRecord,BindingContext)
+    context(MissingTuple,BindingContext)
     override val parallelizableCost: Cost
         get() = Cost.ZERO
 
@@ -120,6 +115,18 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
      */
     final override fun copyWithExistingInput(): NAryPhysicalOperatorNode {
         return this.copyWithNewInput(*this.inputs.map { it.copyWithExistingInput() }.toTypedArray())
+    }
+
+    /**
+     * Determines, if this [NAryPhysicalOperatorNode] can be executed in the given [QueryContext].
+     *
+     * Typically, a [NAryPhysicalOperatorNode] can be executed if its inputs can be executed.
+     *
+     * @param ctx The [QueryContext] to check.
+     * @return True if this [NAryPhysicalOperatorNode] is executable, false otherwise.
+     */
+    override fun canBeExecuted(ctx: QueryContext): Boolean {
+        return this.inputs.all { it.canBeExecuted(ctx) }
     }
 
     /**

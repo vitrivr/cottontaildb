@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.SortPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.InMemorySortPhysicalOperatorNode
 
 /**
  * A [UnaryLogicalOperatorNode] that represents sorting the input by a set of specified [ColumnDef]s.
@@ -52,11 +52,11 @@ class SortLogicalOperatorNode(input: Logical, val sortOn: List<Pair<ColumnDef<*>
     }
 
     /**
-     * Returns a [SortPhysicalOperatorNode] representation of this [SortLogicalOperatorNode]
+     * Returns a [InMemorySortPhysicalOperatorNode] representation of this [SortLogicalOperatorNode]
      *
-     * @return [SortPhysicalOperatorNode]
+     * @return [InMemorySortPhysicalOperatorNode]
      */
-    override fun implement(): Physical = SortPhysicalOperatorNode(this.input.implement(), this.sortOn)
+    override fun implement(): Physical = InMemorySortPhysicalOperatorNode(this.input.implement(), this.sortOn)
 
     /** Generates and returns a [String] representation of this [SortLogicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.name} ${it.second}" }}]"

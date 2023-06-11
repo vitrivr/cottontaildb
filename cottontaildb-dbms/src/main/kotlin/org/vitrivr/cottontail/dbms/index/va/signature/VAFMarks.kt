@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.index.va.signature
 
-import org.vitrivr.cottontail.core.values.types.RealVectorValue
+import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 
 /**

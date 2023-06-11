@@ -7,11 +7,10 @@ import jetbrains.exodus.env.StoreConfig
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
@@ -19,10 +18,10 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
@@ -80,7 +79,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @return True on success, false otherwise.
          */
         override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            val store = (catalogue as DefaultCatalogue).environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
+            val store = catalogue.transactionManager.environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize BTREE index $name due to an exception: ${e.message}.")
@@ -96,7 +95,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @return True on success, false otherwise.
          */
         override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            (catalogue as DefaultCatalogue).environment.removeStore(name.storeName(), context.xodusTx)
+            catalogue.transactionManager.environment.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {
             LOGGER.error("Failed to de-initialize BTREE index $name due to an exception: ${e.message}.")
@@ -150,7 +149,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
         private val binding: XodusBinding<Value> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable) as XodusBinding<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
-        private var dataStore: Store = this@UQBTreeIndex.catalogue.environment.openStore(this@UQBTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
+        private var dataStore: Store = catalogue.transactionManager.environment.openStore(this@UQBTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@UQBTreeIndex.name} is missing.")
 
         /**
@@ -188,10 +187,9 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @param predicate The [Predicate] to check.
          * @return True if [Predicate] can be processed, false otherwise.
          */
-        override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate.Atomic
-                && !predicate.not
+        override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate.Comparison
                 && predicate.columns.contains(this.columns[0])
-                && (predicate.operator is ComparisonOperator.In || predicate.operator is ComparisonOperator.Binary.Equal)
+                && (predicate.operator is ComparisonOperator.In || predicate.operator is ComparisonOperator.Equal)
 
         /**
          * Returns a [List] of the [ColumnDef] produced by this [UQBTreeIndex].
@@ -221,11 +219,11 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @return Cost estimate for the [Predicate]
          */
         override fun costFor(predicate: Predicate): Cost = this.txLatch.withLock {
-            if (predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not) return Cost.INVALID
+            if (predicate !is BooleanPredicate.Comparison || predicate.columns.first() != this.columns[0]) return Cost.INVALID
             val entityTx = this.dbo.parent.newTx(this.context)
             val statistics = this.columns.associateWith { entityTx.columnForName(it.name).newTx(this.context).statistics() }
             val selectivity = with(this@Tx.context.bindings) {
-                with(MissingRecord) {
+                with(MissingTuple) {
                     NaiveSelectivityCalculator.estimate(predicate, statistics)
                 }
             }
@@ -233,7 +231,12 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
             val countOut = selectivity(count)       /* Number of entries actually selected (comparison still required). */
             val search = log10(count.toFloat())     /* Overhead for search into the index. */
             return when (predicate.operator) {
-                is ComparisonOperator.Binary,
+                is ComparisonOperator.Equal,
+                is ComparisonOperator.NotEqual,
+                is ComparisonOperator.Greater,
+                is ComparisonOperator.Less,
+                is ComparisonOperator.GreaterEqual,
+                is ComparisonOperator.LessEqual,
                 is ComparisonOperator.In -> Cost.DISK_ACCESS_READ * (search + countOut) + predicate.cost * countOut
                 else -> Cost.INVALID
             }
@@ -283,8 +286,8 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
         }
 
         /**
-         * Performs a lookup through this [UQBTreeIndex.Tx] and returns a [Cursor] of all [Record]s that match the [Predicate].
-         * Only supports [BooleanPredicate.Atomic]s.
+         * Performs a lookup through this [UQBTreeIndex.Tx] and returns a [Cursor] of all [Tuple]s that match the [Predicate].
+         * Only supports [BooleanPredicate.Comparison]s.
          *
          * The [Cursor] is not thread safe!
          *
@@ -292,7 +295,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @return The resulting [Cursor]
          */
         override fun filter(predicate: Predicate)  = this.txLatch.withLock {
-            object : Cursor<Record> {
+            object : Cursor<Tuple> {
 
                 /** A [Queue] with values that should be queried. */
                 private val queryValueQueue: Queue<Value> = LinkedList()
@@ -305,13 +308,12 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
 
                 /* Perform initial sanity checks. */
                 init {
-                    require(predicate is BooleanPredicate.Atomic) { "UQBTreeIndex.filter() does only support Atomic.Literal boolean predicates." }
-                    require(!predicate.not) { "UniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
+                    require(predicate is BooleanPredicate.Comparison) { "UQBTreeIndex.filter() does only support Atomic.Literal boolean predicates." }
                     with(this@Tx.context.bindings) {
-                        with(MissingRecord) {
+                        with(MissingTuple) {
                             when (predicate.operator) {
-                                is ComparisonOperator.In -> queryValueQueue.addAll((predicate.operator as ComparisonOperator.In).right.mapNotNull { it.getValue() })
-                                is ComparisonOperator.Binary.Equal -> queryValueQueue.add((predicate.operator as ComparisonOperator.Binary.Equal).right.getValue() ?: throw IllegalArgumentException("UQBTreeIndex.filter() does not support NULL operands."))
+                                is ComparisonOperator.In -> queryValueQueue.addAll((predicate.operator as ComparisonOperator.In).right.getValues().filterNotNull())
+                                is ComparisonOperator.Equal -> queryValueQueue.add((predicate.operator as ComparisonOperator.Equal).right.getValue() ?: throw IllegalArgumentException("UQBTreeIndex.filter() does not support NULL operands."))
                                 else -> throw IllegalArgumentException("UQBTreeIndex.filter() does only support EQUAL, IN or LIKE operators.")
                             }
                         }
@@ -334,7 +336,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
 
                 override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.value)
 
-                override fun value(): Record = StandaloneRecord(this.key(), this@Tx.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.key)))
+                override fun value(): Tuple = StandaloneTuple(this.key(), this@Tx.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.key)))
 
                 override fun close() {
                     this.cursor.close()
@@ -350,7 +352,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Cursor].
          */
-        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> {
+        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Tuple> {
             throw UnsupportedOperationException("The UniqueHashIndex does not support ranged filtering!")
         }
     }

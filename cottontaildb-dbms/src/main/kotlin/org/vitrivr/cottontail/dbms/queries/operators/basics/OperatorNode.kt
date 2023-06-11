@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.queries.operators.basics
 
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
@@ -9,21 +8,21 @@ import org.vitrivr.cottontail.core.queries.nodes.Node
 import org.vitrivr.cottontail.core.queries.nodes.NodeWithTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import java.io.PrintStream
 
 /**
  * [OperatorNode]s are [Node]s in a Cottontail DB query execution plan and represent flow and processing of information a query gets executed.
  *
- * Conceptually, [OperatorNode]s take [org.vitrivr.cottontail.core.basics.Record]s as input and transform them into [org.vitrivr.cottontail.core.basics.Record] output. The relationship of input to output can be m to n.
+ * Conceptually, [OperatorNode]s take [org.vitrivr.cottontail.core.basics.Tuple]s as input and transform them into [org.vitrivr.cottontail.core.basics.Tuple] output. The relationship of input to output can be m to n.
  *
  * [OperatorNode]s allow for reasoning and transformation of the execution plan during query optimization and are manipulated by the query planner.
  *
  * @author Ralph Gasser
- * @version 2.8.0
+ * @version 2.9.0
  */
 sealed class OperatorNode : NodeWithTrait {
     /** The arity of this [OperatorNode], i.e., the number of parents or inputs allowed. */
@@ -40,9 +39,6 @@ sealed class OperatorNode : NodeWithTrait {
 
     /** The name of this [OperatorNode]. */
     abstract val name: String
-
-    /** Whether this [OperatorNode] is executable. */
-    abstract val executable: Boolean
 
     /** The physical [ColumnDef]s accessed by this [OperatorNode]. */
     abstract val physicalColumns: List<ColumnDef<*>>
@@ -96,9 +92,6 @@ sealed class OperatorNode : NodeWithTrait {
 
         /** The base of this [OperatorNode], i.e., the starting point(s) in terms of operation. Depending on the tree structure, multiple bases may exist. */
         abstract val base: Collection<Logical>
-
-        /** [OperatorNode.Logical]s are never executable. */
-        override val executable: Boolean = false
 
         /**
          * Creates and returns a copy of this [OperatorNode.Logical] using the given parents as input.
@@ -165,30 +158,27 @@ sealed class OperatorNode : NodeWithTrait {
         /** The base of this [OperatorNode], i.e., the starting point(s) in terms of operation. Depending on the tree structure, multiple bases may exist. */
         abstract val base: List<Physical>
 
-        /** Map containing all [ValueMetrics] about the [ColumnDef]s processed in this [OperatorNode.Physical]. */
-        abstract val statistics: Map<ColumnDef<*>, ValueMetrics<*>>
-
-        /** Most [OperatorNode.Physical]s are executable by default. */
-        override val executable: Boolean = true
+        /** Map containing all [ValueStatistics] about the [ColumnDef]s processed in this [OperatorNode.Physical]. */
+        abstract val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
 
         /** The estimated number of rows this [OperatorNode.Physical] generates. */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         abstract val outputSize: Long
 
         /** An estimation of the [Cost] incurred by this [OperatorNode.Physical]. */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         abstract val cost: Cost
 
         /** An estimation of the [Cost] incurred by the query plan up and until this [OperatorNode.Physical]. */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         abstract val totalCost: Cost
 
         /** An estimation of the [Cost] incurred by the parallelizable portion of the query plan up and until this [OperatorNode.Physical]. */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         abstract val parallelizableCost: Cost
 
         /** An estimation of the [Cost] incurred by the sequential portion of the query plan up and until this [OperatorNode.Physical]. */
-        context(BindingContext,Record)
+        context(BindingContext, Tuple)
         val sequentialCost: Cost
             get() = this.totalCost - this.parallelizableCost
 
@@ -223,6 +213,14 @@ sealed class OperatorNode : NodeWithTrait {
          * @return Copy of this [OperatorNode.Physical] with its output.
          */
         abstract fun copyWithOutput(vararg input: Physical): Physical
+
+        /**
+         * Determines, if this [OperatorNode.Physical] can be executed in the given [QueryContext]
+         *
+         * @param ctx The [QueryContext] to check.
+         * @return True if this [OperatorNode.Physical] is executable, false otherwise.
+         */
+        abstract fun canBeExecuted(ctx: QueryContext): Boolean
 
         /**
          * Converts this [OperatorNode.Physical] to the corresponding [Operator].

@@ -5,8 +5,8 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.DoubleValue
-import org.vitrivr.cottontail.core.values.types.Types
 
 /**
  * The nearest [ProximityPredicate] is a data structure used to bridge the gap between an expressed,

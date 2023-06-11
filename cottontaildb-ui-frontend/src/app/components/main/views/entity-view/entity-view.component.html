@@ -1,0 +1,13 @@
+<div id="container">
+  <h1>Entity: {{(this.dbo | async)?.entity}}</h1>
+
+  <mat-tab-group>
+    <mat-tab label="Properties" matSort>
+      <entity-about [dbo]="this.dbo"></entity-about>
+    </mat-tab>
+
+    <mat-tab label="Data">
+      <entity-preview [dbo]="this.dbo"></entity-preview>
+    </mat-tab>
+  </mat-tab-group>
+</div>

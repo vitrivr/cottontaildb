@@ -2,16 +2,16 @@ package org.vitrivr.cottontail.dbms.execution.operators.projection
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
- * An [Operator.PipelineOperator] used during query execution. It generates new [Record]s for
- * each incoming [Record] and removes field not required by the query.
+ * An [Operator.PipelineOperator] used during query execution. It generates new [Tuple]s for
+ * each incoming [Tuple] and removes field not required by the query.
  *
  * @author Ralph Gasser
  * @version 2.0.0
@@ -31,11 +31,11 @@ class SelectProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, 
      *
      * @return [Flow] representing this [SelectProjectionOperator]
      */
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         val columns = this@SelectProjectionOperator.columns.toTypedArray()
         val incoming = this@SelectProjectionOperator.parent.toFlow()
         incoming.collect { r ->
-            emit(StandaloneRecord(r.tupleId, columns, Array(columns.size) { r[columns[it]]}))
+            emit(StandaloneTuple(r.tupleId, columns, Array(columns.size) { r[columns[it]]}))
         }
     }
 }

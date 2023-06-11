@@ -13,14 +13,13 @@ import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.sources.EntityCountOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
  * A [NullaryPhysicalOperatorNode] that formalizes the counting entries in a physical [Entity].
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.6.0
  */
 class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val out: Binding.Column) : NullaryPhysicalOperatorNode() {
     companion object {
@@ -40,14 +39,11 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
     /** [ColumnDef] produced by this [EntityCountPhysicalOperatorNode]. */
     override val columns: List<ColumnDef<*>> = listOf(this.out.column)
 
-    /** [EntityCountPhysicalOperatorNode] is always executable. */
-    override val executable: Boolean = true
-
     /** The estimated [Cost] of incurred by this [EntityCountPhysicalOperatorNode]. */
     override val cost = Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS
 
-    /** [ValueMetrics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
-    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueMetrics<*>>()
+    /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
+    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
 
     /** The [EntityCountOperator] cannot be partitioned. */
     override val traits: Map<TraitType<*>, Trait> = mapOf(NotPartitionableTrait to NotPartitionableTrait)
@@ -58,6 +54,14 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
      * @return Copy of this [EntityCountPhysicalOperatorNode].
      */
     override fun copy() = EntityCountPhysicalOperatorNode(this.groupId, this.entity, this.out)
+
+    /**
+     * An [EntityCountPhysicalOperatorNode] is always executable
+     *
+     * @param ctx The [QueryContext] to check.
+     * @return True
+     */
+    override fun canBeExecuted(ctx: QueryContext): Boolean = true
 
     /**
      * Converts this [EntityCountPhysicalOperatorNode] to a [EntityCountOperator].

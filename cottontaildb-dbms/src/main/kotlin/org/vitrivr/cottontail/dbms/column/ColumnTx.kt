@@ -3,9 +3,8 @@ package org.vitrivr.cottontail.dbms.column
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.general.Tx
-import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
@@ -41,11 +40,11 @@ interface ColumnTx<T : Value> : Tx {
     fun largestTupleId(): TupleId
 
     /**
-     * Gets and returns [ValueMetrics] for the [Column] backing this [ColumnTx]
+     * Gets and returns [ValueStatistics] for the [Column] backing this [ColumnTx]
      *
-     * @return [ValueMetrics].
+     * @return [ValueStatistics].
      */
-    fun statistics(): ValueMetrics<T>
+    fun statistics(): ValueStatistics<T>
 
     /**
      * Returns the number of entries in the [Column] backing this [ColumnTx].

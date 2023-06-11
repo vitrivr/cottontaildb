@@ -4,13 +4,13 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.sources.IndexScanOperator
@@ -22,17 +22,19 @@ import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOpera
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergeLimitingSortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.ExternalSortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.LimitPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
+import org.vitrivr.cottontail.dbms.statistics.estimateTupleSize
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
 import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
+import java.lang.Math.floorDiv
 
 /**
  * A [IndexScanPhysicalOperatorNode] that represents a predicated lookup using an [AbstractIndex].
  *
  * @author Ralph Gasser
- * @version 2.6.0
+ * @version 2.7.0
  */
 @Suppress("UNCHECKED_CAST")
 class IndexScanPhysicalOperatorNode(override val groupId: Int,
@@ -55,11 +57,8 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
     /** The [ColumnDef]s produced by this [IndexScanPhysicalOperatorNode] depends on the [ColumnDef]s produced by the [Index]. */
     override val columns: List<ColumnDef<*>>
 
-    /** [IndexScanPhysicalOperatorNode] are always executable. */
-    override val executable: Boolean = true
-
-    /** [ValueMetrics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
-    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueMetrics<*>>()
+    /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
+    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
 
     /** Cost estimation for [IndexScanPhysicalOperatorNode]s is delegated to the [Index]. */
     override val cost: Cost by lazy {
@@ -88,7 +87,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
 
     /** The estimated output size of this [IndexScanPhysicalOperatorNode]. */
     override val outputSize: Long by lazy {
-        with(MissingRecord) {
+        with(MissingTuple) {
             with(this@IndexScanPhysicalOperatorNode.index.context.bindings) {
                 when (val predicate = this@IndexScanPhysicalOperatorNode.predicate) {
                     is ProximityPredicate.Scan -> this@IndexScanPhysicalOperatorNode.index.count()
@@ -121,7 +120,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
 
             /* Populate statistics. */
             if (!this.statistics.containsKey(binding.column) && entityProduces.contains(physical)) {
-                this.statistics[binding.column] = entityTx.columnForName(physical.name).newTx(this.index.context).statistics() as ValueMetrics<Value>
+                this.statistics[binding.column] = entityTx.columnForName(physical.name).newTx(this.index.context).statistics() as ValueStatistics<Value>
             }
         }
 
@@ -138,6 +137,14 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
     override fun copy() = IndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.fetch.map { it.first.copy() to it.second })
 
     /**
+     * An [IndexScanPhysicalOperatorNode] is always executable
+     *
+     * @param ctx The [QueryContext] to check.
+     * @return True
+     */
+    override fun canBeExecuted(ctx: QueryContext): Boolean = true
+
+    /**
      * [IndexScanPhysicalOperatorNode] can be partitioned if the underlying input allows for partitioning.
      *
      * @param ctx The [QueryContext] to use when determining the optimal number of partitions.
@@ -149,7 +156,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
 
         /* Determine optimal number of partitions and create them. */
         val partitions = with(ctx.bindings) {
-            with(MissingRecord) {
+            with(MissingTuple) {
                 ctx.costPolicy.parallelisation(this@IndexScanPhysicalOperatorNode.parallelizableCost, this@IndexScanPhysicalOperatorNode.totalCost, max)
             }
         }
@@ -161,14 +168,23 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
             this.hasTrait(LimitTrait) && this.hasTrait(OrderTrait) -> {
                 val order = this[OrderTrait]!!
                 val limit = this[LimitTrait]!!
-                MergeLimitingSortPhysicalOperatorNode(*inbound.toTypedArray(), sortOn = order.order, limit = limit.limit)
+                if (limit.limit < Int.MAX_VALUE.toLong()) {
+                    MergeLimitingSortPhysicalOperatorNode(*inbound.toTypedArray(), sortOn = order.order, limit = limit.limit.toInt())
+                } else {
+                    val tupleSize = this.statistics.estimateTupleSize()
+                    val chunkSize = floorDiv(ctx.catalogue.config.memory.maxSortBufferSize, tupleSize).toInt()
+                    LimitPhysicalOperatorNode(ExternalSortPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), sortOn = order.order, chunkSize = chunkSize), limit.limit)
+                }
             }
             this.hasTrait(LimitTrait) -> {
                 val limit = this[LimitTrait]!!
                 LimitPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), limit = limit.limit)
             }
             this.hasTrait(OrderTrait) -> {
-                TODO()
+                val order = this[OrderTrait]!!
+                val tupleSize = this.statistics.estimateTupleSize()
+                val chunkSize = floorDiv(ctx.catalogue.config.memory.maxSortBufferSize, tupleSize).toInt()
+                ExternalSortPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), sortOn = order.order, chunkSize = chunkSize)
             }
             else -> MergePhysicalOperatorNode(*inbound.toTypedArray())
         }

@@ -4,7 +4,7 @@ import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.values.types.RealVectorValue
+import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
@@ -19,7 +19,6 @@ import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.index.IndexStatistic
-import org.vitrivr.cottontail.dbms.statistics.metricsData.RealVectorValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -57,7 +56,7 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
         this.indexedColumn = columnTx.columnDef
 
         /* Generates new marks. */
-        this.newMarks = EquidistantVAFMarks(columnTx.statistics() as RealVectorValueMetrics<*>, config.marksPerDimension)
+        this.newMarks = EquidistantVAFMarks(columnTx.statistics() as RealVectorValueStatistics<*>, config.marksPerDimension)
     }
 
     /**

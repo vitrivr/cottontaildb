@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.cli.schema
 
-import com.github.ajalt.clikt.output.TermUi
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import org.vitrivr.cottontail.cli.basics.AbstractSchemaCommand
@@ -27,7 +26,7 @@ class DropSchemaCommand(client: SimpleClient) : AbstractSchemaCommand(client, na
 
 
     override fun exec() {
-        if (this.confirm || TermUi.confirm(
+        if (this.confirm || this.confirm(
                 "Do you really want to drop the schema ${this.schemaName} [y/N]?",
                 default = false,
                 showDefault = false

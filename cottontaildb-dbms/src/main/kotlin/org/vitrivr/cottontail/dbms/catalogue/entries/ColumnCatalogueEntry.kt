@@ -7,7 +7,7 @@ import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.column.Column
@@ -18,27 +18,27 @@ import java.io.ByteArrayInputStream
  * A [ColumnCatalogueEntry] in the Cottontail DB [Catalogue]. Used to store metadata about [Column]s
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
-data class ColumnCatalogueEntry(val name: Name.ColumnName, val type: Types<*>, val nullable: Boolean, val primary: Boolean) {
+data class ColumnCatalogueEntry(val name: Name.ColumnName, val type: Types<*>, val nullable: Boolean, val primary: Boolean, val autoIncrement: Boolean) {
     /**
      * Creates a [ColumnCatalogueEntry] from the provided [ColumnDef].
      *
      * @param [ColumnDef] to convert.
      */
-    constructor(def: ColumnDef<*>) : this(def.name, def.type, def.nullable, def.primary)
+    constructor(def: ColumnDef<*>) : this(def.name, def.type, def.nullable, def.primary, def.autoIncrement)
 
     /**
      * Creates a [Serialized] version of this [ColumnCatalogueEntry].
      *
      * @return [Serialized]
      */
-    private fun toSerialized() = Serialized(this.type, this.nullable, this.primary)
+    private fun toSerialized() = Serialized(this.type, this.nullable, this.primary, this.autoIncrement)
 
     /**
      * The [Serialized] version of the [ColumnCatalogueEntry]. That entry does not include the [Name.ColumnName]
      */
-    private data class Serialized(val type: Types<*>, val nullable: Boolean, val primary: Boolean): Comparable<Serialized> {
+    private data class Serialized(val type: Types<*>, val nullable: Boolean, val primary: Boolean, val autoIncrement: Boolean): Comparable<Serialized> {
 
         /**
          * Converts this [Serialized] to an actual [ColumnCatalogueEntry].
@@ -46,14 +46,16 @@ data class ColumnCatalogueEntry(val name: Name.ColumnName, val type: Types<*>, v
          * @param name The [Name.ColumnName] this entry belongs to.
          * @return [ColumnCatalogueEntry]
          */
-        fun toActual(name: Name.ColumnName) = ColumnCatalogueEntry(name, this.type, this.nullable, this.primary)
+        fun toActual(name: Name.ColumnName) = ColumnCatalogueEntry(name, this.type, this.nullable, this.primary, this.autoIncrement)
 
         companion object: ComparableBinding() {
             /**
              * De-serializes a [Serialized] from the given [ByteArrayInputStream].
              */
             override fun readObject(stream: ByteArrayInputStream): Serialized = Serialized(
-                Types.forOrdinal(IntegerBinding.readCompressed(stream), IntegerBinding.readCompressed(stream)),
+                Types.forOrdinal(IntegerBinding.readCompressed(stream),
+                IntegerBinding.readCompressed(stream)),
+                BooleanBinding.BINDING.readObject(stream),
                 BooleanBinding.BINDING.readObject(stream),
                 BooleanBinding.BINDING.readObject(stream),
             )
@@ -67,6 +69,7 @@ data class ColumnCatalogueEntry(val name: Name.ColumnName, val type: Types<*>, v
                 IntegerBinding.writeCompressed(output, `object`.type.logicalSize)
                 BooleanBinding.BINDING.writeObject(output, `object`.nullable)
                 BooleanBinding.BINDING.writeObject(output, `object`.primary)
+                BooleanBinding.BINDING.writeObject(output, `object`.autoIncrement)
             }
         }
         override fun compareTo(other: Serialized): Int = this.type.ordinal.compareTo(other.type.ordinal)
@@ -85,7 +88,7 @@ data class ColumnCatalogueEntry(val name: Name.ColumnName, val type: Types<*>, v
          * @param transaction The [Transaction] to use.
          */
         internal fun init(catalogue: DefaultCatalogue, transaction: Transaction) {
-            catalogue.environment.openStore(CATALOGUE_COLUMN_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
+            catalogue.transactionManager.environment.openStore(CATALOGUE_COLUMN_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
                 ?: throw DatabaseException.DataCorruptionException("Failed to create entity catalogue store.")
         }
 
@@ -97,7 +100,7 @@ data class ColumnCatalogueEntry(val name: Name.ColumnName, val type: Types<*>, v
          * @return [Store]
          */
         internal fun store(catalogue: DefaultCatalogue, transaction: Transaction ): Store =
-            catalogue.environment.openStore(CATALOGUE_COLUMN_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
+            catalogue.transactionManager.environment.openStore(CATALOGUE_COLUMN_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
                 ?: throw DatabaseException.DataCorruptionException("Failed to open store for column catalogue.")
 
         /**
@@ -146,5 +149,5 @@ data class ColumnCatalogueEntry(val name: Name.ColumnName, val type: Types<*>, v
      *
      * @return [ColumnDef] for this [ColumnCatalogueEntry]
      */
-    fun toColumnDef(): ColumnDef<*> = ColumnDef(this.name, this.type, this.nullable, this.primary)
+    fun toColumnDef(): ColumnDef<*> = ColumnDef(this.name, this.type, this.nullable, this.primary, this.autoIncrement)
 }

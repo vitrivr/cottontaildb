@@ -3,13 +3,13 @@ package org.vitrivr.cottontail.dbms.index.basic
 import org.vitrivr.cottontail.core.basics.Countable
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Filterable
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.general.Tx
 
@@ -94,15 +94,15 @@ interface IndexTx: Tx, Filterable, Countable {
     fun delete(event: DataEvent.Delete)
 
     /**
-     * Performs a lookup through this [IndexTx] and returns a [Cursor] of all the [Record]s that match the [Predicate].
+     * Performs a lookup through this [IndexTx] and returns a [Cursor] of all the [Tuple]s that match the [Predicate].
      *
      * @param predicate The [Predicate] to perform the lookup.
      * @return The resulting [Cursor].
      */
-    override fun filter(predicate: Predicate): Cursor<Record>
+    override fun filter(predicate: Predicate): Cursor<Tuple>
 
     /**
-     * Performs a lookup through this [IndexTx] and returns a [Cursor] of all the [Record]s that match the [Predicate]
+     * Performs a lookup through this [IndexTx] and returns a [Cursor] of all the [Tuple]s that match the [Predicate]
      * and fall within the specified data [LongRange], which must lie in 0..[count].
      *
      * Not all [Index] implementations support range filtering.
@@ -111,5 +111,5 @@ interface IndexTx: Tx, Filterable, Countable {
      * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
      * @return The resulting [Cursor].
      */
-    override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record>
+    override fun filter(predicate: Predicate, partition: LongRange): Cursor<Tuple>
 }

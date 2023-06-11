@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.index.pq.quantizer
 
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
-import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.core.types.VectorValue
 
 /**
  * A codebook that can be used to quantize a [VectorValue] (or more precisely, a subspace thereof)

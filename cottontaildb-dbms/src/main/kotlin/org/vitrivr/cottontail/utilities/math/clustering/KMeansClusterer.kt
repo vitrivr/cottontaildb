@@ -4,8 +4,8 @@ import org.apache.commons.math3.exception.ConvergenceException
 import org.apache.commons.math3.exception.util.LocalizedFormats
 import org.apache.commons.math3.stat.descriptive.moment.Variance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
+import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.IntValue
-import org.vitrivr.cottontail.core.values.types.VectorValue
 import java.util.*
 import java.util.random.RandomGenerator
 import kotlin.math.pow

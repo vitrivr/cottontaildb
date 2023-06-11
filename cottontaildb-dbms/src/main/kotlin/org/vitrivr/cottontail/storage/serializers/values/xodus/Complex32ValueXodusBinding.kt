@@ -3,8 +3,8 @@ package org.vitrivr.cottontail.storage.serializers.values.xodus
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.SignedFloatBinding
 import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.Complex32Value
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import java.io.ByteArrayInputStream
 

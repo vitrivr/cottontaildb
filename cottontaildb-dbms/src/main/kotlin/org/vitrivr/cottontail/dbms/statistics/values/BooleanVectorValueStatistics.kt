@@ -1,11 +1,10 @@
 package org.vitrivr.cottontail.dbms.statistics.values
 
-import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.BooleanVectorValue
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
 import java.io.ByteArrayInputStream
 
 /**
@@ -14,95 +13,58 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class BooleanVectorValueStatistics(logicalSize: Int) : AbstractValueStatistics<BooleanVectorValue>(Types.BooleanVector(logicalSize)) {
+data class BooleanVectorValueStatistics(
+    val logicalSize: Int,
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+    var numberOfTrueEntries: LongArray = LongArray(logicalSize),
+    ) : AbstractVectorStatistics<BooleanVectorValue>(Types.BooleanVector(logicalSize)) {
+
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: BooleanVectorValueStatistics): this(
+        logicalSize = metrics.logicalSize,
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = if (metrics.numberOfDistinctEntries.toDouble() / metrics.numberOfEntries.toDouble() >= metrics.distinctEntriesScalingThreshold) (metrics.numberOfDistinctEntries * factor).toLong() else metrics.numberOfDistinctEntries, // Depending on the ratio between distinct entries and number of entries, we either scale the distinct entries (large ratio) or keep them as they are (small ratio).
+        numberOfTrueEntries = metrics.numberOfTrueEntries.map { element -> (element * factor).toLong() }.toLongArray()
+    )
 
     /**
      * Xodus serializer for [BooleanVectorValueStatistics]
      */
-    class Binding(val logicalSize: Int): XodusBinding<BooleanVectorValueStatistics> {
+    class Binding(val logicalSize: Int): MetricsXodusBinding<BooleanVectorValueStatistics> {
         override fun read(stream: ByteArrayInputStream): BooleanVectorValueStatistics {
-            val stat = BooleanVectorValueStatistics(this.logicalSize)
-            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            val stat = BooleanVectorValueStatistics(this@Binding.logicalSize)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            for (i in 0 until this.logicalSize) {
+            stat.numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            for (i in 0 until this@Binding.logicalSize) {
                 stat.numberOfTrueEntries[i] = LongBinding.readCompressed(stream)
-                stat.numberOfFalseEntries[i] = LongBinding.readCompressed(stream)
+                //stat.numberOfFalseEntries[i] = LongBinding.readCompressed(stream) // false entries don't have to be read since they're computed
             }
             return stat
         }
 
         override fun write(output: LightOutputStream, statistics: BooleanVectorValueStatistics) {
-            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
             for (i in 0 until statistics.type.logicalSize) {
                 LongBinding.writeCompressed(output, statistics.numberOfTrueEntries[i])
-                LongBinding.writeCompressed(output, statistics.numberOfFalseEntries[i])
+                // LongBinding.writeCompressed(output, statistics.numberOfFalseEntries[i]) // false entries don't have to be written since they're computed
             }
         }
     }
 
     /** A histogram capturing the number of true entries per component. */
-    val numberOfTrueEntries: LongArray = LongArray(this.type.logicalSize)
+    //var numberOfTrueEntries: LongArray = LongArray(this.type.logicalSize) // initialized via constructor
 
     /** A histogram capturing the number of false entries per component. */
     val numberOfFalseEntries: LongArray
         get() = LongArray(this.type.logicalSize) {
             this.numberOfNonNullEntries - this.numberOfTrueEntries[it]
         }
-
-    /**
-     * Updates this [BooleanValueStatistics] with an inserted [BooleanVectorValue]
-     *
-     * @param inserted The [BooleanVectorValue] that was deleted.
-     */
-    override fun insert(inserted: BooleanVectorValue?) {
-        super.insert(inserted)
-        if (inserted != null) {
-            for ((i, d) in inserted.data.withIndex()) {
-                if (d) this.numberOfTrueEntries[i] = this.numberOfTrueEntries[i] + 1
-            }
-        }
-    }
-
-    /**
-     * Updates this [BooleanValueStatistics] with a deleted [BooleanVectorValue]
-     *
-     * @param deleted The [BooleanVectorValue] that was deleted.
-     */
-    override fun delete(deleted: BooleanVectorValue?) {
-        super.delete(deleted)
-        if (deleted != null) {
-            for ((i, d) in deleted.data.withIndex()) {
-                if (d) this.numberOfTrueEntries[i] = this.numberOfTrueEntries[i] - 1
-            }
-        }
-    }
-
-    /**
-     * Resets this [BooleanVectorValueStatistics] and sets all its values to to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        for (i in 0 until this.type.logicalSize) {
-            this.numberOfTrueEntries[i] = 0L
-        }
-    }
-
-    /**
-     * Copies this [BooleanVectorValueStatistics] and returns it.
-     *
-     * @return Copy of this [BooleanVectorValueStatistics].
-     */
-    override fun copy(): BooleanVectorValueStatistics {
-        val copy = BooleanVectorValueStatistics(this.type.logicalSize)
-        copy.fresh = this.fresh
-        copy.numberOfNullEntries = this.numberOfNullEntries
-        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
-        for (i in 0 until this.type.logicalSize) {
-            copy.numberOfTrueEntries[i] = this.numberOfTrueEntries[i]
-        }
-        return copy
-    }
 }

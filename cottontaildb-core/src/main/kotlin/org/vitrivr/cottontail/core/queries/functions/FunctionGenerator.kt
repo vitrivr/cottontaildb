@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.core.queries.functions
 
 import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.types.Value
 
 /**
  * A [FunctionGenerator] can be used by Cottontail DB to generate an arbitrary [Function].

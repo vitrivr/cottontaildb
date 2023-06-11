@@ -7,11 +7,10 @@ import jetbrains.exodus.env.StoreConfig
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.CosineDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
@@ -19,10 +18,10 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
@@ -87,7 +86,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return True on success, false otherwise.
          */
         override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            val store = (catalogue as DefaultCatalogue).environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
+            val store = catalogue.transactionManager.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize LSH index $name due to an exception: ${e.message}.")
@@ -103,7 +102,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return True on success, false otherwise.
          */
         override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            (catalogue as DefaultCatalogue).environment.removeStore(name.storeName(), context.xodusTx)
+            catalogue.transactionManager.environment.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {
             LOGGER.error("Failed to de-initialize LSH index $name due to an exception: ${e.message}.")
@@ -273,7 +272,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @param predicate The [ProximityPredicate] for the lookup
          * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate) = object : Cursor<Record> {
+        override fun filter(predicate: Predicate) = object : Cursor<Tuple> {
 
             /** Cast [ProximityPredicate] (if such a cast is possible).  */
             private val predicate: ProximityPredicate = if (predicate is ProximityPredicate) {
@@ -296,7 +295,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
                 }
 
                 /* Assure correctness of query vector. */
-                with(MissingRecord) {
+                with(MissingTuple) {
                     with(this@Tx.context.bindings) {
                         val value = (predicate as ProximityPredicate).query.getValue()
                         check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
@@ -317,18 +316,18 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             override fun moveNext(): Boolean = this.cursor.nextDup
 
             /**
-             * Returns the next [Record] value.
+             * Returns the next [Tuple] value.
              *
-             * @return Next [Record]
+             * @return Next [Tuple]
              */
-            override fun next(): Record = this.value()
+            override fun next(): Tuple = this.value()
 
             /**
-             * Returns the next [Record] value.
+             * Returns the next [Tuple] value.
              *
-             * @return Next [Record]
+             * @return Next [Tuple]
              */
-            override fun value(): Record = StandaloneRecord(this.key(), emptyArray(), emptyArray())
+            override fun value(): Tuple = StandaloneTuple(this.key(), emptyArray(), emptyArray())
 
             /**
              * Returns the next [TupleId].
@@ -353,7 +352,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Cursor].
          */
-        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> {
+        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Tuple> {
             throw UnsupportedOperationException("The LSHIndex does not support ranged filtering!")
         }
     }

@@ -3,12 +3,15 @@ package org.vitrivr.cottontail.dbms.entity
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.basics.Cursor
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.IntValue
+import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.ColumnCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.EntityCatalogueEntry
@@ -62,8 +65,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
     override fun equals(other: Any?): Boolean {
         if (other !is DefaultEntity) return false
         if (other.catalogue != this.catalogue) return false
-        if (other.name != this.name) return false
-        return true
+        return other.name == this.name
     }
 
     override fun hashCode(): Int {
@@ -113,7 +115,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         /**
          * Returns true if the [Entity] underpinning this [EntityTx] contains the given [TupleId] and false otherwise.
          *
-         * If this method returns true, then [EntityTx.read] will return a [Record] for [TupleId]. However, if this method
+         * If this method returns true, then [EntityTx.read] will return a [Tuple] for [TupleId]. However, if this method
          * returns false, then [EntityTx.read] will throw an exception for that [TupleId].
          *
          * @param tupleId The [TupleId] of the desired entry
@@ -124,15 +126,15 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         }
 
         /**
-         * Reads the values of one or many [Column]s and returns it as a [Record]
+         * Reads the values of one or many [Column]s and returns it as a [Tuple]
          *
          * @param tupleId The [TupleId] of the desired entry.
          * @param columns The [ColumnDef]s that should be read.
-         * @return The desired [Record].
+         * @return The desired [Tuple].
          *
          * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
          */
-        override fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Record = this.txLatch.withLock {
+        override fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Tuple = this.txLatch.withLock {
             /* Read values from underlying columns. */
             val values = columns.map {
                 val tx = this.columns[it.name]?.newTx(this.context) ?: throw IllegalArgumentException("Column ${it.name} does not exist on entity ${this@DefaultEntity.name}.")
@@ -140,7 +142,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }.toTypedArray()
 
             /* Return value of all the desired columns. */
-            return StandaloneRecord(tupleId, columns, values)
+            return StandaloneTuple(tupleId, columns, values)
         }
 
         /**
@@ -297,7 +299,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          *
          * @return [Cursor]
          */
-        override fun cursor(columns: Array<ColumnDef<*>>): Cursor<Record> = this.txLatch.withLock {
+        override fun cursor(columns: Array<ColumnDef<*>>): Cursor<Tuple> = this.txLatch.withLock {
             return cursor(columns, this.smallestTupleId()..this.largestTupleId())
         }
 
@@ -315,16 +317,16 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         }
 
         /**
-         * Insert the provided [Record].
+         * Insert the provided [Tuple].
          *
-         * @param record The [Record] that should be inserted.
-         * @return The ID of the record or null, if nothing was inserted.
+         * @param tuple The [Tuple] that should be inserted.
+         * @return The generated [Tuple].
          *
          * @throws TransactionException If some of the [Tx] on [Column] or [Index] level caused an error.
          * @throws DatabaseException If a general database error occurs during the insert.
          */
         @Suppress("UNCHECKED_CAST")
-        override fun insert(record: Record): TupleId = this.txLatch.withLock {
+        override fun insert(tuple: Tuple): Tuple = this.txLatch.withLock {
             /* Execute INSERT on entity level. */
             val nextTupleId = SequenceCatalogueEntries.next(this@DefaultEntity.sequenceName, this@DefaultEntity.catalogue, this.context.txn.xodusTx)
                 ?: throw DatabaseException.DataCorruptionException("Sequence entry for entity ${this@DefaultEntity.name} is missing.")
@@ -332,13 +334,24 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /* Execute INSERT on column level. */
             val inserts = Object2ObjectArrayMap<ColumnDef<*>, Value>(this.columns.size)
             for (column in this.columns.values) {
-                val value = record[column.columnDef]
-                inserts[column.columnDef] = value
-
-                /* Check if null value is allowed. */
-                if (value == null && !column.columnDef.nullable) {
-                    throw DatabaseException.ValidationException("Cannot INSERT a NULL value into column ${column.columnDef}.")
+                /* Make necessary checks for value. */
+                val value = when {
+                    column.columnDef.autoIncrement -> {
+                        val nextValue = SequenceCatalogueEntries.next(this@DefaultEntity.name.sequence(column.name.simple), this@DefaultEntity.catalogue, this.context.txn.xodusTx)
+                        check(nextValue != null) { "Failed to generate next value in sequence for column ${column.name}. This is a programmer's error!"}
+                        val value = when (column.type) {
+                            Types.Int -> IntValue(nextValue)
+                            Types.Long -> LongValue(nextValue)
+                            else -> throw IllegalStateException("Columns of types ${column.type} do not allow for serial values. This is a programmer's error!")
+                        }
+                        value
+                    }
+                    column.columnDef.nullable -> tuple[column.columnDef]
+                    else -> tuple[column.columnDef] ?: throw DatabaseException.ValidationException("Cannot INSERT a NULL value into column ${column.columnDef}.")
                 }
+
+                /* Record and perform insert. */
+                inserts[column.columnDef] = value
                 (column.newTx(this.context) as ColumnTx<Value>).add(nextTupleId, value)
             }
 
@@ -351,31 +364,32 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /* Signal event to transaction context. */
             this.context.txn.signalEvent(event)
 
-            return nextTupleId
+            /* Return generated record. */
+            return StandaloneTuple(nextTupleId, inserts.keys.toTypedArray(), inserts.values.toTypedArray())
         }
 
         /**
-         * Updates the provided [Record] (identified based on its [TupleId]). Columns specified in the [Record] that are not part
+         * Updates the provided [Tuple] (identified based on its [TupleId]). Columns specified in the [Tuple] that are not part
          * of the [DefaultEntity] will cause an error!
          *
-         * @param record The [Record] that should be updated
+         * @param tuple The [Tuple] that should be updated
          *
          * @throws DatabaseException If an error occurs during the insert.
          */
         @Suppress("UNCHECKED_CAST")
-        override fun update(record: Record) = this.txLatch.withLock {
+        override fun update(tuple: Tuple) = this.txLatch.withLock {
             /* Execute UPDATE on column level. */
-            val updates = Object2ObjectArrayMap<ColumnDef<*>, Pair<Value?, Value?>>(record.columns.size)
-            for (def in record.columns) {
+            val updates = Object2ObjectArrayMap<ColumnDef<*>, Pair<Value?, Value?>>(tuple.columns.size)
+            for (def in tuple.columns) {
                 val column = this.columns[def.name] ?: throw DatabaseException.ColumnDoesNotExistException(def.name)
                 val columnTx = column.newTx(this.context)
-                val value = record[def]
-                if (value == null && !def.nullable) throw DatabaseException.ValidationException("Record ${record.tupleId} cannot be updated with NULL value for column $def, because column is not nullable.")
-                updates[def] = Pair((columnTx as ColumnTx<Value>).update(record.tupleId, value), value) /* Map: ColumnDef -> Pair[Old, New]. */
+                val value = tuple[def]
+                if (value == null && !def.nullable) throw DatabaseException.ValidationException("Record ${tuple.tupleId} cannot be updated with NULL value for column $def, because column is not nullable.")
+                updates[def] = Pair((columnTx as ColumnTx<Value>).update(tuple.tupleId, value), value) /* Map: ColumnDef -> Pair[Old, New]. */
             }
 
             /* Issue DataChangeEvent.UpdateDataChangeEvent and update indexes + statistics. */
-            val event = DataEvent.Update(this@DefaultEntity.name, record.tupleId, updates)
+            val event = DataEvent.Update(this@DefaultEntity.name, tuple.tupleId, updates)
             for (index in this.indexes.values) {
                 index.newTx(this.context).update(event)
             }

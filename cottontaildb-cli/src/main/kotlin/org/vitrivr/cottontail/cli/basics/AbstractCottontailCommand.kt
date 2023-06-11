@@ -6,13 +6,13 @@ import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.AboutEntity
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.types.Types
 
 /**
  * Base class for none entity specific commands (for potential future generalisation)
 
  * @author Ralph Gasser & Loris Sauter
- * @version 3.0.0
+ * @version 3.0.1
  */
 abstract class AbstractCottontailCommand(name: String, help: String, val expand: Boolean) : CliktCommand(name = name, help = help) {
 
@@ -42,20 +42,11 @@ abstract class AbstractCottontailCommand(name: String, help: String, val expand:
             val schemaInfo = this.about(AboutEntity(entityName.toString()))
             schemaInfo.forEach {
                 if (it.asString(1) == "COLUMN") {
-                    val split = it.asString(0)!!.split(Name.DELIMITER).toTypedArray()
-                    val name = when(split.size) {
-                        3 -> Name.ColumnName(split[0], split[1], split[2])
-                        4 -> {
-                            require(split[0] == Name.ROOT) { "Invalid root qualifier ${split[0]}!" }
-                            Name.ColumnName(split[1], split[2], split[3])
-                        }
-                        else -> throw IllegalArgumentException("'$it' is not a valid column name.")
-                    }
+                    val name = Name.ColumnName.parse(it.asString(0)!!)
                     columns.add(ColumnDef(name = name, type = Types.forName(it.asString(2)!!, it.asInt(4)!!), nullable =  it.asBoolean(5)!!))
                 }
             }
             return columns
         }
     }
-
 }

@@ -8,10 +8,10 @@ import jetbrains.exodus.env.StoreConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onCompletion
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
@@ -21,7 +21,7 @@ import java.util.*
 /**
  * An [Operator.PipelineOperator] used during query execution. It projects on the defined fields and makes sure, that the combination of specified [ColumnDef] remains unique.
  *
- * Only produces a single [Record].
+ * Only produces a single [Tuple].
  *
  * @author Ralph Gasser
  * @version 2.0.0
@@ -54,7 +54,7 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.
      *
      * @return [Flow] representing this [SelectProjectionOperator]
      */
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         val columns = this@SelectDistinctProjectionOperator.columns.toTypedArray()
         val hasher = RecordHasher(this@SelectDistinctProjectionOperator.distinctColumns)
         val incoming = this@SelectDistinctProjectionOperator.parent.toFlow()
@@ -64,7 +64,7 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.
 
             /* If record could be added to list of seen records (i.e., is the first of its kind) then entry is returned. */
             if (this@SelectDistinctProjectionOperator.store.add(this@SelectDistinctProjectionOperator.tmpTxn, hash, r.tupleId.toKey())) {
-                emit(StandaloneRecord(r.tupleId, columns, Array(columns.size) { r[columns[it]]}))
+                emit(StandaloneTuple(r.tupleId, columns, Array(columns.size) { r[columns[it]]}))
             }
         }
     }.onCompletion {

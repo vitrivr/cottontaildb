@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.queries.operators.basics
 
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
@@ -8,9 +7,9 @@ import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.PlaceholderPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import java.io.PrintStream
 
@@ -42,12 +41,8 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
     }
 
     /** The [totalCost] of a [BinaryPhysicalOperatorNode] is always the sum of its own and its input cost. Can be overridden!*/
-    context(BindingContext,Record)    final override val totalCost: Cost
+    context(BindingContext, Tuple)    final override val totalCost: Cost
         get() = this.left.totalCost + this.right.totalCost + this.cost
-
-    /** By default, [BinaryPhysicalOperatorNode]s are executable if both their inputs are executable. Can be overridden! */
-    override val executable: Boolean
-        get() =  this.left.executable && this.right.executable
 
     /** By default, the [BinaryPhysicalOperatorNode] outputs the physical [ColumnDef] of its left input. Can be overridden! */
     override val physicalColumns: List<ColumnDef<*>>
@@ -62,7 +57,7 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
         get() = this.left.traits
 
     /** By default, the output size of a [UnaryPhysicalOperatorNode] is the same as its left input's output size. Can be overridden! */
-    context(BindingContext,Record)    override val outputSize: Long
+    context(BindingContext, Tuple)    override val outputSize: Long
         get() = this.left.outputSize
 
     /** By default, a [BinaryPhysicalOperatorNode]'s has no specific requirements. Can be overridden! */
@@ -70,7 +65,7 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
         get() = emptyList()
 
     /** By default, a [BinaryPhysicalOperatorNode]'s statistics are retained from its left input. Can be overridden! */
-    override val statistics: Map<ColumnDef<*>, ValueMetrics<*>>
+    override val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
         get() = this.left.statistics
 
     init {
@@ -121,6 +116,18 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
         1 -> this.copyWithNewInput(this.left.copyWithExistingGroupInput(), replacements[0])
         0 -> this.copyWithNewInput(this.left.copyWithExistingGroupInput(), PlaceholderPhysicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns))
         else -> throw IllegalArgumentException("The input arity for BinaryPhysicalOperatorNode.copyWithGroupInputs() must be smaller or equal to 1 but is ${replacements.size}. This is a programmer's error!")
+    }
+
+    /**
+     * Determines, if this [BinaryPhysicalOperatorNode] can be executed in the given [QueryContext].
+     *
+     * Typically, a [BinaryPhysicalOperatorNode] can be executed if its inputs can be executed.
+     *
+     * @param ctx The [QueryContext] to check.
+     * @return True if this [BinaryPhysicalOperatorNode] is executable, false otherwise.
+     */
+    override fun canBeExecuted(ctx: QueryContext): Boolean {
+        return this.left.canBeExecuted(ctx) && this.right.canBeExecuted(ctx)
     }
 
     /**

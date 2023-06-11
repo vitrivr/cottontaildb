@@ -1,18 +1,19 @@
 package org.vitrivr.cottontail.dbms.queries.operators.basics
 
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergeLimitingSortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.ExternalSortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.LimitPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
+import org.vitrivr.cottontail.dbms.statistics.estimateTupleSize
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import java.io.PrintStream
 
@@ -45,10 +46,6 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
     /** By default, a [UnaryPhysicalOperatorNode] has no specific requirements. */
     override val requires: List<ColumnDef<*>> = emptyList()
 
-    /** By default, [UnaryPhysicalOperatorNode]s are executable if their input is executable. */
-    override val executable: Boolean
-        get() = this.input.executable
-
     /** By default, the [UnaryPhysicalOperatorNode] outputs the physical [ColumnDef] of its input. Can be overridden! */
     override val physicalColumns: List<ColumnDef<*>>
         get() = this.input.physicalColumns
@@ -62,16 +59,16 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
         get() = this.input.traits
 
     /** By default, a [UnaryPhysicalOperatorNode]'s statistics are retained from its input. Can be overridden! */
-    override val statistics:Map<ColumnDef<*>, ValueMetrics<*>>
+    override val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
         get() = this.input.statistics
 
     /** The [totalCost] of a [UnaryPhysicalOperatorNode] is always the sum of its own and its input cost. */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     final override val totalCost: Cost
         get() = this.input.totalCost + this.cost
 
     /** The [parallelizableCost] of a [UnaryPhysicalOperatorNode] is always the sum of its own and its input cost. */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     final override val parallelizableCost: Cost
         get() = if (this.hasTrait(NotPartitionableTrait)) {
             this.totalCost
@@ -80,7 +77,7 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
         }
 
     /** By default, the output size of a [UnaryPhysicalOperatorNode] is the same as its input's output size. Can be overridden! */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     override val outputSize: Long
         get() = this.input.outputSize
 
@@ -95,6 +92,18 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
      * @return Copy of this [UnaryPhysicalOperatorNode].
      */
     abstract override fun copyWithNewInput(vararg input: Physical): UnaryPhysicalOperatorNode
+
+    /**
+     * Determines, if this [UnaryPhysicalOperatorNode] can be executed in the given [QueryContext].
+     *
+     * Typically, a [UnaryPhysicalOperatorNode] can be executed if its input can be executed.
+     *
+     * @param ctx The [QueryContext] to check.
+     * @return True if this [UnaryPhysicalOperatorNode] is executable, false otherwise.
+     */
+    override fun canBeExecuted(ctx: QueryContext): Boolean {
+        return this.input.canBeExecuted(ctx)
+    }
 
     /**
      * Creates and returns a copy of this [UnaryPhysicalOperatorNode] and its entire output [OperatorNode.Physical] tree using the provided nodes as input.
@@ -145,7 +154,7 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
         require(max > 1) { "Expected number of partitions to be greater than one but encountered $max." }
         return if (!this.input.hasTrait(NotPartitionableTrait)) {
             val partitions = with(ctx.bindings) {
-                with(MissingRecord) {
+                with(MissingTuple) {
                     ctx.costPolicy.parallelisation(this@UnaryPhysicalOperatorNode.parallelizableCost, this@UnaryPhysicalOperatorNode.totalCost, max)
                 }
             }
@@ -155,12 +164,23 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
                 this.input.hasTrait(LimitTrait) && this.input.hasTrait(OrderTrait) -> {
                     val order = input[OrderTrait]!!
                     val limit = input[LimitTrait]!!
-                    this.copyWithOutput(MergeLimitingSortPhysicalOperatorNode(*inbound.toTypedArray(), sortOn = order.order, limit = limit.limit))
+                    if (limit.limit < Int.MAX_VALUE.toLong()) {
+                        this.copyWithOutput(MergeLimitingSortPhysicalOperatorNode(*inbound.toTypedArray(), sortOn = order.order, limit = limit.limit.toInt()))
+                    } else {
+                        val tupleSize = this.statistics.estimateTupleSize()
+                        val chunkSize = Math.floorDiv(ctx.catalogue.config.memory.maxSortBufferSize, tupleSize).toInt()
+                        this.copyWithOutput(ExternalSortPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), sortOn = order.order, chunkSize = chunkSize))
+                    }
                 }
-                this.input.hasTrait(OrderTrait) -> TODO()
                 this.input.hasTrait(LimitTrait) -> {
                     val limit = this.input[LimitTrait]!!
                     this.copyWithOutput(LimitPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), limit = limit.limit))
+                }
+                this.input.hasTrait(OrderTrait) -> {
+                    val order = this[OrderTrait]!!
+                    val tupleSize = this.statistics.estimateTupleSize()
+                    val chunkSize = Math.floorDiv(ctx.catalogue.config.memory.maxSortBufferSize, tupleSize).toInt()
+                    this.copyWithOutput(ExternalSortPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), sortOn = order.order, chunkSize = chunkSize))
                 }
                 else -> this.copyWithOutput(MergePhysicalOperatorNode(*inbound.toTypedArray()))
             }

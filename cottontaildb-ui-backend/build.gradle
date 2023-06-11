@@ -1,0 +1,59 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KaptGenerateStubs
+
+apply plugin: 'application'
+apply plugin: 'kotlin-kapt'
+apply plugin: 'kotlinx-serialization'
+
+repositories {
+    mavenCentral()
+}
+
+tasks.withType(KaptGenerateStubs).configureEach {
+    compilerOptions.jvmTarget = JvmTarget.JVM_11
+}
+
+/* Configuration for frontend classpath files (see dependencies). */
+configurations {
+    frontendClasspath {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
+/* General application attributes. */
+application {
+    applicationName = 'thumper'
+    applicationDefaultJvmArgs = ["-Xms256M", "-Xmx1G"]
+    mainClassName = 'ThumperKt'
+}
+
+dependencies {
+    /* The Cottontail DB client library. */
+    api project(':cottontaildb-client')
+
+    /* Frontend artifact (HTML, JavaScript, CSS). */
+    implementation frontendClasspath(project(path: ":cottontaildb-ui-frontend", configuration: 'frontendFiles'))
+
+    /* Javalin 5 */
+    implementation group: 'io.javalin', name: 'javalin', version: version_javalin
+    implementation group: 'io.javalin.community.openapi', name: 'javalin-openapi-plugin', version: version_javalin
+    implementation group: 'io.javalin.community.openapi', name:'javalin-swagger-plugin', version: version_javalin
+    implementation group: 'io.javalin.community.ssl', name: 'ssl-plugin', version: version_javalin
+    kapt("io.javalin.community.openapi:openapi-annotation-processor:$version_javalin")
+
+    /* Caffeine 3 */
+    implementation group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: version_caffeine
+}
+
+test {
+    useJUnitPlatform()
+}
+
+tasks.register('generateOAS', Download) {
+    /* Requires DRES running on default port */
+    def f = new File("${project.projectDir}/doc/oas.json")
+    src 'http://localhost:7070/swagger-docs'
+    dest f
+}
+

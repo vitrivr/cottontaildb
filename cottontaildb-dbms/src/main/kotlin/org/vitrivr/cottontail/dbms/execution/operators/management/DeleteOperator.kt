@@ -2,13 +2,13 @@ package org.vitrivr.cottontail.dbms.execution.operators.management
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.LongValue
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -42,7 +42,7 @@ class DeleteOperator(parent: Operator, private val entity: EntityTx, override va
      *
      * @return [Flow] representing this [FilterOperator]
      */
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         var deleted = 0L
         val parent = this@DeleteOperator.parent.toFlow()
         val columns = this@DeleteOperator.columns.toTypedArray()
@@ -51,6 +51,6 @@ class DeleteOperator(parent: Operator, private val entity: EntityTx, override va
             this@DeleteOperator.entity.delete(it.tupleId) /* Safe, cause tuple IDs are retained for simple queries. */
             deleted += 1
         }
-        emit(StandaloneRecord(0L, columns, arrayOf(LongValue(deleted), DoubleValue(System.currentTimeMillis()-start))))
+        emit(StandaloneTuple(0L, columns, arrayOf(LongValue(deleted), DoubleValue(System.currentTimeMillis()-start))))
     }
 }

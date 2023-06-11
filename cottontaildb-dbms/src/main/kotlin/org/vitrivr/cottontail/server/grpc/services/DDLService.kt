@@ -4,18 +4,17 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.single
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.services.AutoRebuilderService
-import org.vitrivr.cottontail.dbms.execution.services.StatisticsManagerService
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
 import org.vitrivr.cottontail.dbms.queries.operators.physical.definition.*
-import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.SortPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.InMemorySortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DDLGrpcKt
@@ -26,16 +25,17 @@ import kotlin.time.ExperimentalTime
  * This is a gRPC service endpoint that handles DDL (= Data Definition Language) request for Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.6.0
+ * @version 2.7.0
  */
 @ExperimentalTime
-class DDLService(override val catalogue: DefaultCatalogue, override val manager: TransactionManager, val autoRebuilderService: AutoRebuilderService, val statisticsManagerService: StatisticsManagerService) : DDLGrpcKt.DDLCoroutineImplBase(), TransactionalGrpcService {
+class DDLService(override val catalogue: DefaultCatalogue, val autoRebuilderService: AutoRebuilderService) : DDLGrpcKt.DDLCoroutineImplBase(), TransactionalGrpcService {
+
     /**
      * gRPC endpoint for creating a new [Schema]
      */
     override suspend fun createSchema(request: CottontailGrpc.CreateSchemaMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val schemaName = request.schema.fqn()
-        ctx.assign(CreateSchemaPhysicalOperatorNode(this.catalogue.newTx(ctx), schemaName))
+        ctx.register(CreateSchemaPhysicalOperatorNode(this.catalogue.newTx(ctx), schemaName, request.mayExist))
         ctx.toOperatorTree()
     }.single()
 
@@ -44,7 +44,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      */
     override suspend fun dropSchema(request: CottontailGrpc.DropSchemaMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val schemaName = request.schema.fqn()
-        ctx.assign(DropSchemaPhysicalOperatorNode(this.catalogue.newTx(ctx), schemaName))
+        ctx.register(DropSchemaPhysicalOperatorNode(this.catalogue.newTx(ctx), schemaName))
         ctx.toOperatorTree()
     }.single()
 
@@ -52,7 +52,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      * gRPC endpoint listing the available [Schema]s.
      */
     override fun listSchemas(request: CottontailGrpc.ListSchemaMessage): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(request.metadata, true) { ctx ->
-        ctx.assign(SortPhysicalOperatorNode(ListSchemaPhysicalOperatorNode(this.catalogue.newTx(ctx)), listOf(Pair(ColumnSets.DDL_LIST_COLUMNS[0], SortOrder.ASCENDING))))
+        ctx.register(InMemorySortPhysicalOperatorNode(ListSchemaPhysicalOperatorNode(this.catalogue.newTx(ctx)), listOf(Pair(ColumnSets.DDL_LIST_COLUMNS[0], SortOrder.ASCENDING))))
         ctx.toOperatorTree()
     }
 
@@ -60,13 +60,17 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      * gRPC endpoint for creating a new [Entity]
      */
     override suspend fun createEntity(request: CottontailGrpc.CreateEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
-        val entityName = request.definition.entity.fqn()
-        val columns = request.definition.columnsList.map {
+        val entityName = request.entity.fqn()
+        val columns = request.columnsList.map {
             val type = Types.forName(it.type.name, it.length)
             val name = entityName.column(it.name.name) /* To make sure that columns belongs to entity. */
-            ColumnDef(name, type, it.nullable)
+            try {
+                ColumnDef(name, type, it.nullable, it.primary, it.autoIncrement)
+            } catch (e: IllegalArgumentException) {
+                throw DatabaseException.ValidationException(e.message ?: "Failed to validate query input.")
+            }
         }.toTypedArray()
-        ctx.assign(CreateEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName, columns))
+        ctx.register(CreateEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName, request.mayExist, columns))
         ctx.toOperatorTree()
     }.single()
 
@@ -75,7 +79,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      */
     override suspend fun dropEntity(request: CottontailGrpc.DropEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val entityName = request.entity.fqn()
-        ctx.assign(DropEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName))
+        ctx.register(DropEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName))
         ctx.toOperatorTree()
     }.single()
 
@@ -84,7 +88,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      */
     override suspend fun truncateEntity(request: CottontailGrpc.TruncateEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val entityName = request.entity.fqn()
-        ctx.assign(TruncateEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName))
+        ctx.register(TruncateEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName))
         ctx.toOperatorTree()
     }.single()
 
@@ -93,7 +97,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      */
     override suspend fun analyzeEntity(request: CottontailGrpc.AnalyzeEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val entityName = request.entity.fqn()
-        ctx.assign(AnalyseEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName, this.statisticsManagerService))
+        ctx.register(AnalyseEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName))
         ctx.toOperatorTree()
     }.single()
 
@@ -102,7 +106,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      */
     override fun listEntities(request: CottontailGrpc.ListEntityMessage): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(request.metadata, true) { ctx ->
         val schemaName = if (request.hasSchema()) { request.schema.fqn() } else { null }
-        ctx.assign(SortPhysicalOperatorNode(ListEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), schemaName), listOf(Pair(ColumnSets.DDL_LIST_COLUMNS[0], SortOrder.ASCENDING))))
+        ctx.register(InMemorySortPhysicalOperatorNode(ListEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), schemaName), listOf(Pair(ColumnSets.DDL_LIST_COLUMNS[0], SortOrder.ASCENDING))))
         ctx.toOperatorTree()
     }
 
@@ -111,7 +115,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      */
     override suspend fun entityDetails(request: CottontailGrpc.EntityDetailsMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, true) { ctx ->
         val entityName = request.entity.fqn()
-        ctx.assign(AboutEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName))
+        ctx.register(AboutEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName))
         ctx.toOperatorTree()
     }.single()
 
@@ -120,7 +124,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      */
     override suspend fun entityStatistics(request: CottontailGrpc.EntityDetailsMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, true) { ctx ->
         val entityName = request.entity.fqn()
-        ctx.assign(EntityStatisticsPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName))
+        ctx.register(EntityStatisticsPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName))
         ctx.toOperatorTree()
     }.single()
 
@@ -141,7 +145,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
         } else {
             entityName.index("idx_${request.columnsList.joinToString("-")}_${indexType.name.lowercase()}")
         }
-        ctx.assign(CreateIndexPhysicalOperatorNode(this.catalogue.newTx(ctx), indexName, indexType, columns, params))
+        ctx.register(CreateIndexPhysicalOperatorNode(this.catalogue.newTx(ctx), indexName, indexType, columns, params))
         ctx.toOperatorTree()
     }.single()
 
@@ -150,7 +154,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      */
     override suspend fun dropIndex(request: CottontailGrpc.DropIndexMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val indexName = request.index.fqn()
-        ctx.assign(DropIndexPhysicalOperatorNode(this.catalogue.newTx(ctx), indexName))
+        ctx.register(DropIndexPhysicalOperatorNode(this.catalogue.newTx(ctx), indexName))
         ctx.toOperatorTree()
     }.single()
 
@@ -159,7 +163,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      */
     override suspend fun indexDetails(request: CottontailGrpc.IndexDetailsMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, true) { ctx ->
         val indexName = request.index.fqn()
-        ctx.assign(AboutIndexPhysicalOperatorNode(this.catalogue.newTx(ctx), indexName))
+        ctx.register(AboutIndexPhysicalOperatorNode(this.catalogue.newTx(ctx), indexName))
         ctx.toOperatorTree()
     }.single()
 
@@ -169,9 +173,9 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
     override suspend fun rebuildIndex(request: CottontailGrpc.RebuildIndexMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val indexName = request.index.fqn()
         if (request.async) {
-            ctx.assign(RebuildIndexPhysicalOperatorNode(this.catalogue.newTx(ctx), indexName, this.autoRebuilderService))
+            ctx.register(RebuildIndexPhysicalOperatorNode(this.catalogue.newTx(ctx), indexName, this.autoRebuilderService))
         } else {
-            ctx.assign(RebuildIndexPhysicalOperatorNode(this.catalogue.newTx(ctx), indexName))
+            ctx.register(RebuildIndexPhysicalOperatorNode(this.catalogue.newTx(ctx), indexName))
         }
         ctx.toOperatorTree()
     }.single()

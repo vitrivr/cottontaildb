@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.cli.index
 
-import com.github.ajalt.clikt.output.TermUi
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import io.grpc.StatusException
@@ -24,7 +23,7 @@ class DropIndexCommand(client: SimpleClient) : AbstractIndexCommand(client, name
     private val confirm: Boolean by option("-c", "--confirm", help = "Directly provides the confirmation option.").flag()
 
     override fun exec() {
-        if (this.confirm || TermUi.confirm("Do you really want to drop the index ${this.indexName} [y/N]?", default = false, showDefault = false) == true) {
+        if (this.confirm || this.confirm("Do you really want to drop the index ${this.indexName} [y/N]?", default = false, showDefault = false) == true) {
             try {
                 val timedTable = measureTimedValue {
                     TabulationUtilities.tabulate(this.client.drop(DropIndex(this.indexName.toString())))

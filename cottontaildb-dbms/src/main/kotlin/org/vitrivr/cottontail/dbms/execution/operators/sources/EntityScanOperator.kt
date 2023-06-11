@@ -4,18 +4,18 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
- * An [Operator.SourceOperator] that scans an [Entity] and streams all [Record]s found within.
+ * An [Operator.SourceOperator] that scans an [Entity] and streams all [Tuple]s found within.
  *
  * @author Ralph Gasser
  * @version 1.6.0
@@ -35,15 +35,15 @@ class EntityScanOperator(groupId: GroupId, private val entity: EntityTx, private
      *
      * @return [Flow] representing this [EntityScanOperator]
      */
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         val fetch = this@EntityScanOperator.fetch.map { it.second }.toTypedArray()
         val columns = this@EntityScanOperator.fetch.map { it.first.column }.toTypedArray()
         val partition = this@EntityScanOperator.entity.partitionFor(this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)
         var read = 0
         this@EntityScanOperator.entity.cursor(fetch, partition).use { cursor ->
             while (cursor.moveNext()) {
-                val record = cursor.value() as StandaloneRecord
-                emit(StandaloneRecord(record.tupleId, columns, record.values))
+                val record = cursor.value() as StandaloneTuple
+                emit(StandaloneTuple(record.tupleId, columns, record.values))
                 read += 1
             }
         }

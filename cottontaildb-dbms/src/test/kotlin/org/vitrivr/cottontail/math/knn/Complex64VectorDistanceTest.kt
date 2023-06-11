@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.Manhat
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.values.Complex64VectorValue
 import org.vitrivr.cottontail.core.values.generators.Complex64VectorValueGenerator
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.math.absFromFromComplexFieldVector
 import org.vitrivr.cottontail.math.arrayFieldVectorFromVectorValue
 import org.vitrivr.cottontail.math.conjFromFromComplexFieldVector

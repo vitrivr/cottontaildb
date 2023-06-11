@@ -6,8 +6,11 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import org.vitrivr.cottontail.cli.basics.AbstractQueryCommand
 import org.vitrivr.cottontail.client.SimpleClient
-import org.vitrivr.cottontail.client.language.basics.predicate.Expression
+import org.vitrivr.cottontail.client.language.basics.expression.Column
+import org.vitrivr.cottontail.client.language.basics.expression.Literal
+import org.vitrivr.cottontail.client.language.basics.predicate.Compare
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.values.StringValue
 import kotlin.time.ExperimentalTime
 
 /**
@@ -38,7 +41,7 @@ class FindInEntityCommand(client: SimpleClient): AbstractQueryCommand(client, na
 
         val query = org.vitrivr.cottontail.client.language.dql.Query(this.entityName.toString())
             .select("*")
-            .where(Expression(this.col, "=", this.value))
+            .where(Compare(Column(this.col), Compare.Operator.EQUAL, Literal(StringValue(this.value))))
 
         /* Execute query based on options. */
         if (this.toFile) {

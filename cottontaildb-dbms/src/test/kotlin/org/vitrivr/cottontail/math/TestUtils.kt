@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.core.values.Complex32Value
 import org.vitrivr.cottontail.core.values.Complex32VectorValue
 import org.vitrivr.cottontail.core.values.Complex64Value
 import org.vitrivr.cottontail.core.values.Complex64VectorValue
-import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.core.types.VectorValue
 import kotlin.math.abs
 
 const val DELTA_COARSE = 5e-5

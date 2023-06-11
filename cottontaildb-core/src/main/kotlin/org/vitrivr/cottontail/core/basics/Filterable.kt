@@ -2,12 +2,13 @@ package org.vitrivr.cottontail.core.basics
 
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
+import org.vitrivr.cottontail.core.tuple.Tuple
 
 /**
- * An objects that holds [Record] values and allows for filtering & filtered scanning operation
- * on those [Record] values.
+ * An objects that holds [Tuple] values and allows for filtering & filtered scanning operation
+ * on those [Tuple] values.
  *
- * @see Record
+ * @see Tuple
  *
  * @author Ralph Gasser
  * @version 3.0.0
@@ -26,22 +27,22 @@ interface Filterable {
 
     /**
      * Filters this [Filterable] thereby creating and returning a new [Cursor] for all
-     * the [Record]s contained in this [Filterable].
+     * the [Tuple]s contained in this [Filterable].
      *
      * @param predicate [Predicate] to filter with.
      * @return New [Cursor]
      */
-    fun filter(predicate: Predicate): Cursor<Record>
+    fun filter(predicate: Predicate): Cursor<Tuple>
 
     /**
-     * Filters this [Filterable] thereby creating and returning a new [Cursor] for all the [Record]s
+     * Filters this [Filterable] thereby creating and returning a new [Cursor] for all the [Tuple]s
      * contained in this [Filterable] that fall into the specified partition.
      *
      * @param predicate [Predicate] to filter with.
      * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
      * @return New [Cursor]
      */
-    fun filter(predicate: Predicate, partition: LongRange): Cursor<Record>
+    fun filter(predicate: Predicate, partition: LongRange): Cursor<Tuple>
 
 }
 

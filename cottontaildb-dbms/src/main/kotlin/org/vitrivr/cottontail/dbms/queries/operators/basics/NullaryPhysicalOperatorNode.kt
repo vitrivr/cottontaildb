@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.queries.operators.basics
 
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
@@ -10,6 +9,7 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
@@ -34,11 +34,11 @@ abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical(), CopyableNo
     }
 
     /** The [totalCost] of a [NullaryPhysicalOperatorNode] is always its own [Cost]. */
-    context(BindingContext,Record)    final override val totalCost: Cost
+    context(BindingContext, Tuple)    final override val totalCost: Cost
         get() = this.cost
 
     /** The [parallelizableCost] of a [NullaryPhysicalOperatorNode] is either [Cost.ZERO] or [cost]. */
-    context(BindingContext,Record)    final override val parallelizableCost: Cost
+    context(BindingContext, Tuple)    final override val parallelizableCost: Cost
         get() = if (this.hasTrait(NotPartitionableTrait)) {
             Cost.ZERO
         } else {

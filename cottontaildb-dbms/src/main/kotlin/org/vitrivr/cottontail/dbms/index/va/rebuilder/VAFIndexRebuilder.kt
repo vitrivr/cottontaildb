@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.index.va.rebuilder
 
-import org.vitrivr.cottontail.core.values.types.RealVectorValue
+import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.toKey
@@ -11,7 +11,6 @@ import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.index.va.VAFIndexConfig
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.metricsData.RealVectorValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
 
 /**
@@ -41,7 +40,7 @@ class VAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractIndexRe
         val count = columnTx.count()
 
         /* Obtain new marks. */
-        val marks = EquidistantVAFMarks(columnTx.statistics() as RealVectorValueMetrics<*>, config.marksPerDimension)
+        val marks = EquidistantVAFMarks(columnTx.statistics() as RealVectorValueStatistics<*>, config.marksPerDimension)
 
         /* Iterate over entity and update index with entries. */
         var counter = 1

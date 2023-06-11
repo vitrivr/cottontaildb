@@ -2,18 +2,18 @@ package org.vitrivr.cottontail.dbms.execution.operators.system
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.FloatValue
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.StringValue
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.*
@@ -45,9 +45,9 @@ class ExplainQueryOperator(private val candidates: Map<GroupId,List<Pair<Operato
 
     override val columns: List<ColumnDef<*>> = COLUMNS
 
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         with(this@ExplainQueryOperator.context.bindings) {
-            with(MissingRecord) {
+            with(MissingTuple) {
                 val columns = this@ExplainQueryOperator.columns.toTypedArray()
                 for ((groupId, plans) in this@ExplainQueryOperator.candidates) {
                     var rank = 1
@@ -71,7 +71,7 @@ class ExplainQueryOperator(private val candidates: Map<GroupId,List<Pair<Operato
                                 LongValue(node.totalDigest()),
                                 StringValue(node.toString())
                             )
-                            emit(StandaloneRecord(row++, columns, values))
+                            emit(StandaloneTuple(row++, columns, values))
                             position += 1
                         }
                         rank += 1

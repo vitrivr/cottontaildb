@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.dbms.execution.operators.definition
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.index.basic.Index
@@ -17,7 +17,7 @@ import kotlin.system.measureTimeMillis
  * @version 2.0.0
  */
 class DropIndexOperator(private val tx: CatalogueTx, private val name: Name.IndexName, override val context: QueryContext): AbstractDataDefinitionOperator(name, "DROP INDEX") {
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         val schemaTxn = this@DropIndexOperator.tx.schemaForName(this@DropIndexOperator.name.schema()).newTx(this@DropIndexOperator.context)
         val entityTxn = schemaTxn.entityForName(this@DropIndexOperator.name.entity()).newTx(this@DropIndexOperator.context)
         val time = measureTimeMillis {

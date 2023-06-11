@@ -1,0 +1,13 @@
+<h1 mat-dialog-title>Create new schema</h1>
+<div mat-dialog-content>
+  <form [formGroup]="schemaForm" class="form">
+    <mat-form-field appearance="outline">
+      <mat-label>new schema</mat-label>
+      <input matInput type="text" formControlName="name" name= "name">
+    </mat-form-field>
+  </form>
+</div>
+<div mat-dialog-actions>
+  <button mat-flat-button color="primary" [disabled]="schemaForm.invalid" (click)="save()">Create</button>
+  <button mat-flat-button color="warn" (click)="abort()">Abort</button>
+</div>

@@ -5,14 +5,14 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.NumericValue
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.*
-import org.vitrivr.cottontail.core.values.types.NumericValue
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
 import org.vitrivr.cottontail.dbms.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -21,9 +21,9 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
 
 /**
  * An [Operator.PipelineOperator] used during query execution. It calculates the SUM of all values it
- * has encountered and returns it as a [Record]. Can collect strands of execution in parallel.
+ * has encountered and returns it as a [Tuple]. Can collect strands of execution in parallel.
  *
- * Only produces a single [Record]. Acts as pipeline breaker.
+ * Only produces a single [Tuple]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
  * @version 1.0.0
@@ -53,7 +53,7 @@ class MergeSumProjectionOperator(parents: List<Operator>, fields: List<Name.Colu
      * @return [Flow] representing tthis@MergeSumProjectionOperator]
      */
     @Suppress("UNCHECKED_CAST")
-    override fun toFlow(): Flow<Record> = channelFlow {
+    override fun toFlow(): Flow<Tuple> = channelFlow {
         /* Prepare a global heap selection. */
         val incoming = this@MergeSumProjectionOperator.parents
         val columns = this@MergeSumProjectionOperator.columns.toTypedArray()
@@ -110,6 +110,6 @@ class MergeSumProjectionOperator(parents: List<Operator>, fields: List<Name.Colu
         jobs.forEach { it.join() } /* Wait for jobs to complete. */
 
         /** Emit record. */
-        send(StandaloneRecord(0L, columns, globalSum as Array<Value?>))
+        send(StandaloneTuple(0L, columns, globalSum as Array<Value?>))
     }
 }

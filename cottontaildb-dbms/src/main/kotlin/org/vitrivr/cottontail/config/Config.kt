@@ -8,7 +8,8 @@ import java.nio.file.Paths
 /**
  * Cottontail DB configuration class.
  *
- * @author Ralph Gasser, Florian Burkhardt
+ * @author Ralph Gasser
+ * @author Florian Burkhardt
  * @version 1.7.0
  */
 @Serializable
@@ -43,7 +44,10 @@ data class Config(
         val cost: CostConfig = CostConfig(),
 
         /** Reference to [StatisticsConfig], which contains configuration regarding Cottontail DB's statistic manager. */
-        val statistics: StatisticsConfig = StatisticsConfig()
+        val statistics: StatisticsConfig = StatisticsConfig(),
+
+        /** Reference to [MemoryConfig], which contains configuration of memory use.*/
+        val memory: MemoryConfig = MemoryConfig()
 ) {
         /** Returns a path to the main data folder used by Cottontail DB. */
         fun dataFolder(): Path = this.root.resolve("xodus")

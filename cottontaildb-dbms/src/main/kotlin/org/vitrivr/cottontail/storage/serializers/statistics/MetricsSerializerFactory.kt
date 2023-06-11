@@ -1,8 +1,9 @@
 package org.vitrivr.cottontail.storage.serializers.statistics
 
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.statistics.metricsData.*
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.dbms.statistics.*
+import org.vitrivr.cottontail.dbms.statistics.values.*
 import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
 
 /**
@@ -19,25 +20,25 @@ object MetricsSerializerFactory {
      * @return [MetricsXodusBinding]
      */
     @Suppress("UNCHECKED_CAST")
-    fun <T : Value> xodus(type: Types<T>): MetricsXodusBinding<ValueMetrics<T>> = when(type) {
-        Types.Boolean -> BooleanValueMetrics.Binding
-        Types.Date -> DateValueMetrics.Binding
-        Types.Byte -> ByteValueMetrics.Binding
-        Types.Complex32 -> Complex32ValueMetrics.Binding
-        Types.Complex64 -> Complex64ValueMetrics.Binding
-        Types.Double -> DoubleValueMetrics.Binding
-        Types.Float -> FloatValueMetrics.Binding
-        Types.Int -> IntValueMetrics.Binding
-        Types.Long -> LongValueMetrics.Binding
-        Types.Short -> ShortValueMetrics.Binding
-        Types.String -> StringValueMetrics.Binding
-        Types.ByteString -> ByteStringValueMetrics.Binding
-        is Types.BooleanVector -> BooleanVectorValueMetrics.Binding(type.logicalSize)
-        is Types.Complex32Vector -> Complex32VectorValueMetrics.Binding(type.logicalSize)
-        is Types.Complex64Vector -> Complex64VectorValueMetrics.Binding(type.logicalSize)
-        is Types.DoubleVector -> DoubleVectorValueMetrics.Binding(type.logicalSize)
-        is Types.FloatVector -> FloatVectorValueMetrics.Binding(type.logicalSize)
-        is Types.IntVector -> IntVectorValueMetrics.Binding(type.logicalSize)
-        is Types.LongVector -> LongVectorValueMetrics.Binding(type.logicalSize)
-    } as MetricsXodusBinding<ValueMetrics<T>>
+    fun <T : Value> xodus(type: Types<T>): MetricsXodusBinding<ValueStatistics<T>> = when(type) {
+        Types.Boolean -> BooleanValueStatistics.Binding
+        Types.Date -> DateValueStatistics.Binding
+        Types.Byte -> ByteValueStatistics.Binding
+        Types.Complex32 -> Complex32ValueStatistics.Binding
+        Types.Complex64 -> Complex64ValueStatistics.Binding
+        Types.Double -> DoubleValueStatistics.Binding
+        Types.Float -> FloatValueStatistics.Binding
+        Types.Int -> IntValueStatistics.Binding
+        Types.Long -> LongValueStatistics.Binding
+        Types.Short -> ShortValueStatistics.Binding
+        Types.String -> StringValueStatistics.Binding
+        Types.ByteString -> ByteStringValueStatistics.Binding
+        is Types.BooleanVector -> BooleanVectorValueStatistics.Binding(type.logicalSize)
+        is Types.Complex32Vector -> Complex32VectorValueStatistics.Binding(type.logicalSize)
+        is Types.Complex64Vector -> Complex64VectorValueStatistics.Binding(type.logicalSize)
+        is Types.DoubleVector -> DoubleVectorValueStatistics.Binding(type.logicalSize)
+        is Types.FloatVector -> FloatVectorValueStatistics.Binding(type.logicalSize)
+        is Types.IntVector -> IntVectorValueStatistics.Binding(type.logicalSize)
+        is Types.LongVector -> LongVectorValueStatistics.Binding(type.logicalSize)
+    } as MetricsXodusBinding<ValueStatistics<T>>
 }

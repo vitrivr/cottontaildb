@@ -7,9 +7,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.utilities.selection.HeapSelection
@@ -17,14 +17,14 @@ import java.util.concurrent.atomic.AtomicLong
 
 /**
  * A [MergeLimitingHeapSortOperator] merges the results of multiple incoming operators into a single [Flow],
- * orders them by a list of specified [ColumnDef] and limits the number of output [Record]s.
+ * orders them by a list of specified [ColumnDef] and limits the number of output [Tuple]s.
  *
  * This is often used in parallelized proximity based queries.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
-class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, private val limit: Long, override val context: QueryContext) : Operator.MergingPipelineOperator(parents) {
+class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, private val limit: Int, override val context: QueryContext) : Operator.MergingPipelineOperator(parents) {
 
     companion object {
         /** [Logger] instance used by [MergeLimitingHeapSortOperator]. */
@@ -38,18 +38,18 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<C
     override val breaker: Boolean = true
 
     /** The [Comparator] used for sorting. */
-    private val comparator: Comparator<Record> = RecordComparator.fromList(sortOn)
+    private val comparator: Comparator<Tuple> = RecordComparator.fromList(sortOn)
 
     /**
      * Converts this [MergeLimitingHeapSortOperator] to a [Flow] and returns it.
      *
      * @return [Flow] representing this [MergeLimitingHeapSortOperator]
      */
-    override fun toFlow(): Flow<Record> = channelFlow {
+    override fun toFlow(): Flow<Tuple> = channelFlow {
 
         /* Prepare a global heap selection. */
         val incoming = this@MergeLimitingHeapSortOperator.parents
-        val globalSelection = HeapSelection((this@MergeLimitingHeapSortOperator.limit).toInt(), this@MergeLimitingHeapSortOperator.comparator)
+        val globalSelection = HeapSelection((this@MergeLimitingHeapSortOperator.limit), this@MergeLimitingHeapSortOperator.comparator)
         val globalCollected = AtomicLong(0L)
 
         /*

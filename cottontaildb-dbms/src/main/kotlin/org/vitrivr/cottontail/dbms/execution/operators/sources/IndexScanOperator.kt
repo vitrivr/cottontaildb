@@ -4,19 +4,19 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexTx
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
- * An [Operator.SourceOperator] that scans an [Index] and streams all [Record]s found within.
+ * An [Operator.SourceOperator] that scans an [Index] and streams all [Tuple]s found within.
  *
  * @author Ralph Gasser
  * @version 1.7.0
@@ -47,7 +47,7 @@ class IndexScanOperator(
      *
      * @return [Flow] representing this [IndexScanOperator]
      */
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         val columns = this@IndexScanOperator.fetch.map { it.first.column }.toTypedArray()
         var read = 0
         if (this@IndexScanOperator.partitions == 1) {
@@ -57,8 +57,8 @@ class IndexScanOperator(
             this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate, entityTx.partitionFor(this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions))
         }.use { cursor ->
             while (cursor.moveNext()) {
-                val record = cursor.value() as StandaloneRecord
-                emit(StandaloneRecord(record.tupleId, columns, record.values))
+                val record = cursor.value() as StandaloneTuple
+                emit(StandaloneTuple(record.tupleId, columns, record.values))
                 read += 1
             }
         }

@@ -7,7 +7,6 @@ import jetbrains.exodus.env.StoreConfig
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
@@ -20,10 +19,10 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
@@ -84,7 +83,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          * @return True on success, false otherwise.
          */
         override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            val store = (catalogue as DefaultCatalogue).environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES, context.xodusTx, true)
+            val store = catalogue.transactionManager.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize IVFPQ index $name due to an exception: ${e.message}.")
@@ -100,7 +99,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          * @return True on success, false otherwise.
          */
         override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            (catalogue as DefaultCatalogue).environment.removeStore(name.storeName(), context.xodusTx)
+            catalogue.transactionManager.environment.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {
             LOGGER.error("Failed to de-initialize IVFPQ index $name due to an exception: ${e.message}.")
@@ -157,7 +156,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
         }
 
         /** The Xodus [Store] used to store [SPQSignature]s. */
-        internal val dataStore: Store = this@IVFPQIndex.catalogue.environment.openStore(this@IVFPQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
+        internal val dataStore: Store = this@IVFPQIndex.catalogue.transactionManager.environment.openStore(this@IVFPQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for IVFPQ index ${this@IVFPQIndex.name} is missing.")
 
         /**
@@ -283,7 +282,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
         }
 
         /**
-         * Performs a lookup through this [IVFPQIndex.Tx] and returns a [IVFPQIndexCursor] of all [Record]s that match the [Predicate].
+         * Performs a lookup through this [IVFPQIndex.Tx] and returns a [IVFPQIndexCursor] of all [Tuple]s that match the [Predicate].
          * Only supports [ProximityPredicate.Scan]s.
          *
          * <strong>Important:</strong> The [IVFPQIndexCursor] is not thread safe! It remains to the caller to close the [IVFPQIndexCursor]
@@ -291,7 +290,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [IVFPQIndexCursor]
          */
-        override fun filter(predicate: Predicate): Cursor<Record> = this.txLatch.withLock {
+        override fun filter(predicate: Predicate): Cursor<Tuple> = this.txLatch.withLock {
             require(predicate is ProximityPredicate.Scan) { "IVFPQIndex can only be used with a SCAN type proximity predicate. This is a programmer's error!" }
             IVFPQIndexCursor(predicate, this)
         }
@@ -303,7 +302,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record>
+        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Tuple>
             = throw UnsupportedOperationException("IVFPQIndex does not support range partitioning.")
     }
 }

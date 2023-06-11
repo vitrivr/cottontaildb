@@ -4,21 +4,19 @@ import com.google.protobuf.Empty
 import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.execution.operators.system.ExplainQueryOperator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
-import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.LeftConjunctionOnSubselectRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.LeftConjunctionRewriteRule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.RightConjunctionOnSubselectRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.RightConjunctionRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.BooleanIndexScanRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.FulltextIndexRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanClass1Rule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanClass3Rule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.merge.LimitingSortMergeRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.CountPushdownRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.simd.FunctionVectorisationRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.sort.ExternalSortRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.sort.LimitingSortMergeRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnFetchRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnScanRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFunctionRewriteRule
@@ -34,7 +32,7 @@ import kotlin.time.ExperimentalTime
  * @version 2.4.0
  */
 @ExperimentalTime
-class DQLService(override val catalogue: Catalogue, override val manager: TransactionManager) : DQLGrpcKt.DQLCoroutineImplBase(), TransactionalGrpcService {
+class DQLService(override val catalogue: Catalogue) : DQLGrpcKt.DQLCoroutineImplBase(), TransactionalGrpcService {
 
     /** [CottontailQueryPlanner] used to generate execution plans from a logical query plan. */
     private val planner: CottontailQueryPlanner
@@ -42,9 +40,7 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
     init {
         val logical = listOf(
             LeftConjunctionRewriteRule,
-            RightConjunctionRewriteRule,
-            LeftConjunctionOnSubselectRewriteRule,
-            RightConjunctionOnSubselectRewriteRule
+            RightConjunctionRewriteRule
         )
         val physical =  mutableListOf(
             BooleanIndexScanRule,
@@ -52,6 +48,7 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
             NNSIndexScanClass3Rule,
             FulltextIndexRule,
             CountPushdownRule,
+            ExternalSortRule,
             LimitingSortMergeRule,
             DeferFetchOnScanRewriteRule,
             DeferFetchOnFetchRewriteRule,
@@ -70,7 +67,7 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
         /* Bind query and create logical plan. */
         with(ctx) {
             val canonical = GrpcQueryBinder.bind(request.query)
-            ctx.assign(canonical)
+            ctx.register(canonical)
 
             /* Plan and/or implement query to create execution plan. */
             if (ctx.hints.contains(QueryHint.NoOptimisation)) {
@@ -91,10 +88,12 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
         /* Bind query and create canonical, logical plan. */
         with(ctx) {
             val canonical = GrpcQueryBinder.bind(request.query)
-            ctx.assign(canonical)
+            ctx.register(canonical)
 
             /* Plan query and create execution plan. */
-            val candidates = this@DQLService.planner.plan(ctx, limit = 5)
+            val candidates = with(ctx) {
+               this@DQLService.planner.plan(ctx.logical.first(), limit = 5)
+            }
 
             /* Generate operator tree. */
             ExplainQueryOperator(candidates, ctx)

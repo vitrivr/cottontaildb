@@ -13,12 +13,11 @@ import org.apache.lucene.search.similarities.SimilarityBase.log2
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
@@ -28,14 +27,14 @@ import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.events.DataEvent
@@ -95,7 +94,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          */
         override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean {
             return try {
-                val directory = XodusDirectory((catalogue as DefaultCatalogue).vfs, name.toString(), context.xodusTx)
+                val directory = XodusDirectory(catalogue.transactionManager.vfs, name.toString(), context.xodusTx)
                 val config = IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE).setMergeScheduler(SerialMergeScheduler())
                 val writer = IndexWriter(directory, config)
                 writer.close()
@@ -116,7 +115,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * @return True on success, false otherwise.
          */
         override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            val directory = XodusDirectory((catalogue as DefaultCatalogue).vfs, name.toString(), context.xodusTx)
+            val directory = XodusDirectory(catalogue.transactionManager.vfs, name.toString(), context.xodusTx)
             for (file in directory.listAll()) {
                 directory.deleteFile(file)
             }
@@ -178,23 +177,76 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
     inner class Tx(context: QueryContext) : AbstractIndex.Tx(context), org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization, org.vitrivr.cottontail.dbms.general.Tx.WithRollbackFinalization  {
 
         /** The [LuceneIndexDataStore] backing this [LuceneIndex]. */
-        private val store = LuceneIndexDataStore(XodusDirectory(this@LuceneIndex.catalogue.vfs, this@LuceneIndex.name.toString(), this.context.txn.xodusTx), this.columns[0].name)
+        private val store = LuceneIndexDataStore(XodusDirectory(this@LuceneIndex.catalogue.transactionManager.vfs, this@LuceneIndex.name.toString(), this.context.txn.xodusTx), this.columns[0].name)
 
         /**
-         * Converts a [BooleanPredicate.Compound] to a [Query] supported by Apache Lucene.
+         * Converts a [BooleanPredicate] to a [Query] supported by Apache Lucene.
          *
          * @return [Query]
          */
-        private fun BooleanPredicate.Compound.toLuceneQuery(): Query {
-            val clause = when (this) {
-                is BooleanPredicate.Compound.And -> BooleanClause.Occur.MUST
-                is BooleanPredicate.Compound.Or -> BooleanClause.Occur.SHOULD
+        private fun BooleanPredicate.toLuceneQuery(): Query = when (this) {
+            is BooleanPredicate.Comparison -> {
+                val op = this.operator
+
+                /* Left and right-hand side of boolean predicate */
+                with (MissingTuple) {
+                    with (this@Tx.context.bindings) {
+                        val left = op.left
+                        val right = op.right
+                        val column = if (right is Binding.Column && right.column == this@Tx.columns[0]) {
+                            right.column
+                        } else if (left is Binding.Column && left.column ==  this@Tx.columns[0]) {
+                            left.column
+                        } else {
+                            throw QueryException("Conversion to Lucene query failed: One side of the comparison operator must be a column value!")
+                        }
+                        val literal: Value = if (right is Binding.Literal) {
+                            right.getValue() ?: throw QueryException("Conversion to Lucene query failed: Literal value cannot be null!")
+                        } else if (left is Binding.Literal) {
+                            right.getValue() ?: throw QueryException("Conversion to Lucene query failed: Literal value cannot be null!")
+                        } else {
+                            throw QueryException("Conversion to Lucene query failed: One side of the comparison operator must be a literal value!")
+                        }
+
+                        return when (op) {
+                            is ComparisonOperator.Equal -> {
+                                if (literal is StringValue) {
+                                    TermQuery(Term("${column.name}_str", literal.value))
+                                } else {
+                                    throw QueryException("Conversion to Lucene query failed: EQUAL queries strictly require a StringValue as second operand!")
+                                }
+                            }
+                            is ComparisonOperator.Like -> {
+                                when (literal) {
+                                    is StringValue -> QueryParserUtil.parse(
+                                        arrayOf(literal.value),
+                                        arrayOf("${column.name}_txt"),
+                                        StandardAnalyzer()
+                                    )
+                                    is LikePatternValue -> QueryParserUtil.parse(
+                                        arrayOf(literal.toLucene().value),
+                                        arrayOf("${column.name}_txt"),
+                                        StandardAnalyzer()
+                                    )
+                                    else -> throw throw QueryException("Conversion to Lucene query failed: LIKE queries require a StringValue OR LikePatternValue as second operand!")
+                                }
+                            }
+                            is ComparisonOperator.Match -> {
+                                if (literal is StringValue) {
+                                    QueryParserUtil.parse(arrayOf(literal.value), arrayOf("${column.name}_txt"), StandardAnalyzer())
+                                } else {
+                                    throw throw QueryException("Conversion to Lucene query failed: MATCH queries strictly require a StringValue as second operand!")
+                                }
+                            }
+                            else -> throw QueryException("Lucene Query Conversion failed: Only EQUAL, MATCH and LIKE queries can be mapped to a Apache Lucene!")
+                        }
+                    }
+                }
             }
-            val builder = BooleanQuery.Builder()
-            builder.add(this.p1.toLuceneQuery(), clause)
-            builder.add(this.p2.toLuceneQuery(), clause)
-            return builder.build()
-        }
+            is BooleanPredicate.And -> BooleanQuery.Builder().add(this.p1.toLuceneQuery(), BooleanClause.Occur.MUST).add(this.p2.toLuceneQuery(), BooleanClause.Occur.MUST)
+            is BooleanPredicate.Or -> BooleanQuery.Builder().add(this.p1.toLuceneQuery(), BooleanClause.Occur.SHOULD).add(this.p2.toLuceneQuery(), BooleanClause.Occur.SHOULD)
+            else -> throw IllegalArgumentException("LuceneIndex can only process AND and OR predicates.")
+        }.build()
 
         /**
          * Checks if this [LuceneIndex] can process the given [Predicate].
@@ -204,7 +256,10 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          */
         override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate &&
             predicate.columns.all { it in this.columns } &&
-            predicate.atomics.all { it.operator is ComparisonOperator.Binary.Like || it.operator is ComparisonOperator.Binary.Equal || it.operator is ComparisonOperator.Binary.Match }
+            predicate.atomics.all {
+                it is BooleanPredicate.Comparison &&
+                (it.operator is ComparisonOperator.Like || it.operator is ComparisonOperator.Equal || it.operator is ComparisonOperator.Match)
+            }
 
         /**
          * Returns a [List] of the [ColumnDef] produced by this [LuceneIndex].
@@ -303,7 +358,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * @return The resulting [Iterator]
          */
         override fun filter(predicate: Predicate) = this.txLatch.withLock {
-            object : Cursor<Record> {
+            object : Cursor<Tuple> {
 
                 /** Cast [BooleanPredicate] (if such a cast is possible). */
                 private val predicate = if (predicate !is BooleanPredicate) {
@@ -338,10 +393,10 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                     return doc[TID_COLUMN].toLong()
                 }
 
-                override fun value(): Record {
+                override fun value(): Tuple {
                     val scores = this.results.scoreDocs[this.returned++]
                     val doc = this.searcher.doc(scores.doc)
-                    return StandaloneRecord(doc[TID_COLUMN].toLong(), this.columns, arrayOf(DoubleValue(scores.score)))
+                    return StandaloneTuple(doc[TID_COLUMN].toLong(), this.columns, arrayOf(DoubleValue(scores.score)))
                 }
 
                 override fun close() {}
@@ -355,7 +410,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Cursor].
          */
-        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> {
+        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Tuple> {
             throw UnsupportedOperationException("The LuceneIndex does not support ranged filtering!")
         }
 
@@ -371,84 +426,6 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          */
         override fun beforeRollback() {
             this.store.close()
-        }
-
-        /**
-         * Converts a [BooleanPredicate] to a [Query] supported by Apache Lucene.
-         *
-         * @return [Query]
-         */
-        private fun BooleanPredicate.toLuceneQuery(): Query = when (this) {
-            is BooleanPredicate.Atomic -> this.toLuceneQuery()
-            is BooleanPredicate.Compound -> this.toLuceneQuery()
-        }
-
-        /**
-         * Converts an [BooleanPredicate.Atomic] to a [Query] supported by Apache Lucene.
-         * Conversion differs slightly depending on the [ComparisonOperator].
-         *
-         * @return [Query]
-         */
-        private fun BooleanPredicate.Atomic.toLuceneQuery(): Query {
-            val op = this.operator
-            if (op !is ComparisonOperator.Binary) {
-                throw QueryException("Conversion to Lucene query failed: Only binary operators are supported.")
-            }
-
-            /* Left and right-hand side of boolean predicate */
-            with (MissingRecord) {
-                with (this@Tx.context.bindings) {
-                    val left = op.left
-                    val right = op.right
-                    val column = if (right is Binding.Column && right.column == this@Tx.columns[0]) {
-                        right.column
-                    } else if (left is Binding.Column && left.column ==  this@Tx.columns[0]) {
-                        left.column
-                    } else {
-                        throw QueryException("Conversion to Lucene query failed: One side of the comparison operator must be a column value!")
-                    }
-                    val literal: Value = if (right is Binding.Literal) {
-                        right.getValue() ?: throw QueryException("Conversion to Lucene query failed: Literal value cannot be null!")
-                    } else if (left is Binding.Literal) {
-                        right.getValue() ?: throw QueryException("Conversion to Lucene query failed: Literal value cannot be null!")
-                    } else {
-                        throw QueryException("Conversion to Lucene query failed: One side of the comparison operator must be a literal value!")
-                    }
-
-                    return when (op) {
-                        is ComparisonOperator.Binary.Equal -> {
-                            if (literal is StringValue) {
-                                TermQuery(Term("${column.name}_str", literal.value))
-                            } else {
-                                throw QueryException("Conversion to Lucene query failed: EQUAL queries strictly require a StringValue as second operand!")
-                            }
-                        }
-                        is ComparisonOperator.Binary.Like -> {
-                            when (literal) {
-                                is StringValue -> QueryParserUtil.parse(
-                                    arrayOf(literal.value),
-                                    arrayOf("${column.name}_txt"),
-                                    StandardAnalyzer()
-                                )
-                                is LikePatternValue -> QueryParserUtil.parse(
-                                    arrayOf(literal.toLucene().value),
-                                    arrayOf("${column.name}_txt"),
-                                    StandardAnalyzer()
-                                )
-                                else -> throw throw QueryException("Conversion to Lucene query failed: LIKE queries require a StringValue OR LikePatternValue as second operand!")
-                            }
-                        }
-                        is ComparisonOperator.Binary.Match -> {
-                            if (literal is StringValue) {
-                                QueryParserUtil.parse(arrayOf(literal.value), arrayOf("${column.name}_txt"), StandardAnalyzer())
-                            } else {
-                                throw throw QueryException("Conversion to Lucene query failed: MATCH queries strictly require a StringValue as second operand!")
-                            }
-                        }
-                        else -> throw QueryException("Lucene Query Conversion failed: Only EQUAL, MATCH and LIKE queries can be mapped to a Apache Lucene!")
-                    }
-                }
-            }
         }
     }
 }

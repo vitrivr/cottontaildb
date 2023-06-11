@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.core.database.BOC
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
@@ -17,7 +17,6 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
@@ -71,7 +70,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
     /**
      * A [Tx] that affects this [DefaultColumn].
      */
-    inner class Tx constructor(context: QueryContext) : AbstractTx(context), ColumnTx<T>, org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization  {
+    inner class Tx constructor(context: QueryContext) : AbstractTx(context), ColumnTx<T>  {
 
 
         init {
@@ -80,7 +79,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         }
 
         /** Internal data [Store] reference. */
-        internal val dataStore: Store = this@DefaultColumn.catalogue.environment.openStore(
+        internal val dataStore: Store = this@DefaultColumn.catalogue.transactionManager.environment.openStore(
             this@DefaultColumn.name.storeName(),
             StoreConfig.USE_EXISTING,
             this.context.txn.xodusTx,
@@ -95,14 +94,13 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             get() = this@DefaultColumn
 
         /**
-         * Gets and returns [ValueMetrics] for this [ColumnTx]
+         * Gets and returns [ValueStatistics] for this [ColumnTx]
          *
-         * @return [ValueMetrics].
+         * @return [ValueStatistics].
          */
         @Suppress("UNCHECKED_CAST")
-        override fun statistics(): ValueMetrics<T> = this.txLatch.withLock {
-            (this@DefaultColumn.catalogue.statisticsStorageManager[this@DefaultColumn.name]?.statistics
-                ?: throw DatabaseException.DataCorruptionException("Failed to read column statistics.")) as ValueMetrics<T>
+        override fun statistics(): ValueStatistics<T> = this.txLatch.withLock {
+            this@DefaultColumn.catalogue.statisticsManager[this@DefaultColumn.name].statistics as ValueStatistics<T>
         }
 
         /**
@@ -247,15 +245,6 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
          */
         override fun cursor(partition: LongRange): Cursor<T?> = this.txLatch.withLock {
             DefaultColumnCursor(partition, this, this.context)
-        }
-
-        /**
-         * Called when a transactions commit.
-         *
-         * Checks for freshness of [ColumnStatistic].
-         */
-        override fun beforeCommit() {
-            /* No op. */
         }
     }
 }

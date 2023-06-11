@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.index.va.bounds
 
-import org.vitrivr.cottontail.core.values.types.RealVectorValue
+import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import kotlin.math.absoluteValue

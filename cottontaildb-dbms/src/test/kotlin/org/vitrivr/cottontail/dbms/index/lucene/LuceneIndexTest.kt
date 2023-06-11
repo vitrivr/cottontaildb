@@ -3,10 +3,10 @@ package org.vitrivr.cottontail.dbms.index.lucene
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.generators.StringValueGenerator
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
 
@@ -41,11 +41,11 @@ class LuceneIndexTest : AbstractIndexTest() {
     }
 
     /**
-     * Generates and returns a new, random [StandaloneRecord] for inserting into the database.
+     * Generates and returns a new, random [StandaloneTuple] for inserting into the database.
      */
-    override fun nextRecord(): StandaloneRecord {
+    override fun nextRecord(): StandaloneTuple {
         val id = LongValue(this.id++)
         val value = StringValueGenerator.random(128, this.random)
-        return StandaloneRecord(this.id, columns = this.columns, values = arrayOf(id, value))
+        return StandaloneTuple(this.id, columns = this.columns, values = arrayOf(id, value))
     }
 }

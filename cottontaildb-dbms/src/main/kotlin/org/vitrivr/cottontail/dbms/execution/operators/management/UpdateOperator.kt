@@ -2,15 +2,15 @@ package org.vitrivr.cottontail.dbms.execution.operators.management
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.LongValue
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -44,7 +44,7 @@ class UpdateOperator(parent: Operator, private val entity: EntityTx, private val
      *
      * @return [Flow] representing this [UpdateOperator]
      */
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         val start = System.currentTimeMillis()
         val incoming = this@UpdateOperator.parent.toFlow()
         val c = this@UpdateOperator.values.map { it.first }.toTypedArray()
@@ -53,11 +53,11 @@ class UpdateOperator(parent: Operator, private val entity: EntityTx, private val
             incoming.collect { record ->
                 with(record) {
                     val v = this@UpdateOperator.values.map { it.second?.getValue() }.toTypedArray()
-                    this@UpdateOperator.entity.update(StandaloneRecord(record.tupleId, c, v)) /* Safe, cause tuple IDs are retained for simple queries. */
+                    this@UpdateOperator.entity.update(StandaloneTuple(record.tupleId, c, v)) /* Safe, cause tuple IDs are retained for simple queries. */
                     updated += 1
                 }
             }
         }
-        emit(StandaloneRecord(0L, this@UpdateOperator.columns.toTypedArray(), arrayOf(LongValue(updated), DoubleValue(System.currentTimeMillis() - start))))
+        emit(StandaloneTuple(0L, this@UpdateOperator.columns.toTypedArray(), arrayOf(LongValue(updated), DoubleValue(System.currentTimeMillis() - start))))
     }
 }

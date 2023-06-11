@@ -4,10 +4,10 @@ import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.SignedDoubleBinding
 import jetbrains.exodus.util.LightOutputStream
-import org.vitrivr.cottontail.core.values.types.RealVectorValue
+import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
-import org.vitrivr.cottontail.dbms.statistics.metricsData.*
+import org.vitrivr.cottontail.dbms.statistics.values.*
 import java.io.ByteArrayInputStream
 
 /**
@@ -50,24 +50,24 @@ class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, Ind
     }
 
     /**
-     * Constructs [EquidistantVAFMarks] from the [RealVectorValueMetrics].
+     * Constructs [EquidistantVAFMarks] from the [RealVectorValueStatistics].
      *
      * @param statistics [VectorValueStatistics<*>] to construct [EquidistantVAFMarks] for.
      * @param marksPerDimension The number of marks per dimension.
      */
-    constructor(statistics: RealVectorValueMetrics<*>, marksPerDimension: Int): this(
+    constructor(statistics: RealVectorValueStatistics<*>, marksPerDimension: Int): this(
         when (statistics) {
-            is FloatVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
-            is DoubleVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) {  statistics.min.data[it] }
-            is IntVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
-            is LongVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
+            is FloatVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
+            is DoubleVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) {  statistics.min.data[it] }
+            is IntVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
+            is LongVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.min.data[it].toDouble() }
             else -> throw IllegalArgumentException("Cannot construct VAFMarks from $statistics")
         },
         when (statistics) {
-            is FloatVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
-            is DoubleVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) {  statistics.max.data[it] }
-            is IntVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
-            is LongVectorValueMetrics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
+            is FloatVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
+            is DoubleVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) {  statistics.max.data[it] }
+            is IntVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
+            is LongVectorValueStatistics -> DoubleArray(statistics.type.logicalSize) { statistics.max.data[it].toDouble() }
             else -> throw IllegalArgumentException("Cannot construct VAFMarks from $statistics")
         },
         marksPerDimension

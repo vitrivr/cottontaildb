@@ -2,11 +2,11 @@ package org.vitrivr.cottontail.dbms.entity
 
 import org.vitrivr.cottontail.core.basics.Countable
 import org.vitrivr.cottontail.core.basics.Modifiable
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.basics.Scanable
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.dbms.index.basic.Index
@@ -42,7 +42,7 @@ interface EntityTx : Tx, Scanable, Countable, Modifiable {
     /**
      * Returns true if the [Entity] underpinning this [EntityTx]contains the given [TupleId] and false otherwise.
      *
-     * If this method returns true, then [EntityTx.read] will return a [Record] for [TupleId]. However, if this method
+     * If this method returns true, then [EntityTx.read] will return a [Tuple] for [TupleId]. However, if this method
      * returns false, then [EntityTx.read] will throw an exception for that [TupleId].
      *
      * @param tupleId The [TupleId] of the desired entry
@@ -56,7 +56,7 @@ interface EntityTx : Tx, Scanable, Countable, Modifiable {
      * @param tupleId The [TupleId] to read.
      * @param columns The [ColumnDef] to read.
      */
-    fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Record
+    fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Tuple
 
     /**
      * Lists all [ColumnDef]s for the [Entity] associated with this [EntityTx].

@@ -1,14 +1,14 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.transform
 
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.MaterializedTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.transform.LimitOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
@@ -32,11 +32,11 @@ class LimitPhysicalOperatorNode(input: Physical, val limit: Long) : UnaryPhysica
         get() = NODE_NAME
 
     /** The output size of this [LimitPhysicalOperatorNode], which depends on skip and limit. */
-    context(BindingContext,Record)    override val outputSize: Long
+    context(BindingContext, Tuple)    override val outputSize: Long
         get() = min((super.outputSize), this.limit)
 
     /** The [Cost] of a [LimitPhysicalOperatorNode]. */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     override val cost: Cost
         get() = Cost.MEMORY_ACCESS * this.outputSize
 
@@ -69,7 +69,7 @@ class LimitPhysicalOperatorNode(input: Physical, val limit: Long) : UnaryPhysica
         require(max > 1) { "Expected number of partitions to be greater than one but encountered $max." }
         /** Check: If no materialization takes places upstream, cost must be adjusted by LIMIT. */
         with(ctx.bindings) {
-            with(MissingRecord) {
+            with(MissingTuple) {
                 if (!this@LimitPhysicalOperatorNode.input.hasTrait(MaterializedTrait)) {
                     val parallelisableCost = (this@LimitPhysicalOperatorNode.parallelizableCost / this@LimitPhysicalOperatorNode.input.outputSize) * this@LimitPhysicalOperatorNode.limit
                     val totalCost = (this@LimitPhysicalOperatorNode.parallelizableCost / this@LimitPhysicalOperatorNode.input.outputSize) * this@LimitPhysicalOperatorNode.limit

@@ -30,10 +30,6 @@ class FunctionLogicalOperatorNode(input: Logical, val function: Binding.Function
     override val requires: List<ColumnDef<*>>
         get() = this.function.requiredColumns()
 
-    /** [FunctionLogicalOperatorNode] can only be executed if [Function] can be executed. */
-    override val executable: Boolean
-        get() = super.executable && this.function.function.executable
-
     /** Human-readable name of this [FunctionLogicalOperatorNode]. */
     override val name: String
         get() = NODE_NAME

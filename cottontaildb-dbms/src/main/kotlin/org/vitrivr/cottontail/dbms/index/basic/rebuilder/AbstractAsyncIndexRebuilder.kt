@@ -274,8 +274,8 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
      */
     private fun clearAndOpenStore(context: TransactionContext): Store {
         val storeName = this.index.name.storeName()
-        (this.index.catalogue as DefaultCatalogue).environment.truncateStore(storeName, context.xodusTx)
-        return (this.index.catalogue as DefaultCatalogue).environment.openStore(storeName, StoreConfig.USE_EXISTING, context.xodusTx, false)
+        this.index.catalogue.transactionManager.environment.truncateStore(storeName, context.xodusTx)
+        return this.index.catalogue.transactionManager.environment.openStore(storeName, StoreConfig.USE_EXISTING, context.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this.index.name} is missing.")
     }
 }

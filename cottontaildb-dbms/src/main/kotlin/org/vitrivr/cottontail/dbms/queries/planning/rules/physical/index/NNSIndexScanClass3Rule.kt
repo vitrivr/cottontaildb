@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.function.FunctionPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.SortPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.InMemorySortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntityScanPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.IndexScanPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhysicalOperatorNode
@@ -65,7 +65,7 @@ object NNSIndexScanClass3Rule : RewriteRule {
 
         val physicalQueryColumn = scan.fetch.singleOrNull { it.first == queryColumn }?.second ?: return null
         val sort = node.output
-        if (sort is SortPhysicalOperatorNode) {
+        if (sort is InMemorySortPhysicalOperatorNode) {
             if (sort.sortOn.first().first != node.columns.last()) return null /* Sort on distance column is required. */
             val limit = sort.output
             if (limit is LimitPhysicalOperatorNode) {

@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.index.pq.rebuilder
 
-import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import java.util.*
 
@@ -18,7 +18,7 @@ object DataCollectionUtilities {
      * @param txn The [ColumnTx] used to obtain the learning data.
      * @param fraction The fraction of the data to select.
      * @param seed The seed for the random number generator.
-     * @return List of [Record]s used for learning.
+     * @return List of [Tuple]s used for learning.
      */
     fun acquireLearningData(txn: ColumnTx<*>, fraction: Float, seed: Long): List<VectorValue<*>> {
         val count = txn.count()

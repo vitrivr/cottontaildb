@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.dbms.execution.operators.definition
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.index.basic.Index
@@ -25,7 +25,7 @@ class CreateIndexOperator(
     private val params: Map<String, String>,
     override val context: QueryContext
 ) : AbstractDataDefinitionOperator(name, "CREATE INDEX") {
-    override fun toFlow(): Flow<Record> = flow {
+    override fun toFlow(): Flow<Tuple> = flow {
         val time = measureTimeMillis {
             val schemaTxn = this@CreateIndexOperator.tx.schemaForName(this@CreateIndexOperator.name.schema()).newTx(this@CreateIndexOperator.context)
             val entityTxn = schemaTxn.entityForName(this@CreateIndexOperator.name.entity()).newTx(this@CreateIndexOperator.context)

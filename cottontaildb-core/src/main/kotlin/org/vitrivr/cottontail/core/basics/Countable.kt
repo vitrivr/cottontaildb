@@ -2,9 +2,9 @@ package org.vitrivr.cottontail.core.basics
 
 
 /**
- * An objects that holds [Record] values and allows for counting them.
+ * An objects that holds [Tuple] values and allows for counting them.
  *
- * @see Record
+ * @see Tuple
  *
  * @author Ralph Gasser
  * @version 1.0.0

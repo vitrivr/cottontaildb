@@ -1,21 +1,20 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.transform
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.transform.FetchOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
@@ -46,12 +45,12 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
     override val columns: List<ColumnDef<*>>
         get() = super.columns + this.fetch.map { it.first.column }
 
-    /** The map of [ValueMetrics] employed by this [FetchPhysicalOperatorNode]. */
-    override val statistics: Map<ColumnDef<*>, ValueMetrics<*>>
+    /** The map of [ValueStatistics] employed by this [FetchPhysicalOperatorNode]. */
+    override val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
         get() = super.statistics + this.localStatistics
 
     /** The [Cost] of a [FetchPhysicalOperatorNode]. */
-    context(BindingContext,Record)
+    context(BindingContext, Tuple)
     override val cost: Cost
         get() = (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf { (b, _) ->
             if (b.type == Types.String) {
@@ -63,13 +62,13 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
 
 
     /** Local reference to entity statistics. */
-    private val localStatistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueMetrics<*>>()
+    private val localStatistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
 
     /* Initialize local statistics. */
     init {
         for ((binding, physical) in this.fetch) {
             if (!this.localStatistics.containsKey(binding.column)) {
-                this.localStatistics[binding.column] = this.entity.columnForName(physical.name).newTx(this.entity.context).statistics() as ValueMetrics<Value>
+                this.localStatistics[binding.column] = this.entity.columnForName(physical.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
             }
         }
     }

@@ -4,8 +4,8 @@ import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.FloatBinding
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.Complex32VectorValue
-import org.vitrivr.cottontail.core.values.types.Types
 import org.xerial.snappy.Snappy
 
 /**

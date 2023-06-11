@@ -6,14 +6,10 @@ import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
 import org.vitrivr.cottontail.dbms.execution.services.AutoRebuilderService
-import org.vitrivr.cottontail.dbms.execution.services.StatisticsManagerService
-import org.vitrivr.cottontail.dbms.execution.services.StatisticsPersisterTask
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.server.grpc.services.DDLService
 import org.vitrivr.cottontail.server.grpc.services.DMLService
 import org.vitrivr.cottontail.server.grpc.services.DQLService
 import org.vitrivr.cottontail.server.grpc.services.TXNService
-import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
 /**
@@ -25,14 +21,11 @@ import kotlin.time.ExperimentalTime
 @ExperimentalTime
 class CottontailServer(config: Config) {
 
-    /** The [DefaultCatalogue] instance used by this [CottontailServer]. */
-    internal val catalogue = DefaultCatalogue(config)
-
     /** The [ExecutionManager] used for handling gRPC calls and executing queries. */
     private val executor = ExecutionManager(config)
 
-    /** The [TransactionManager] used by this [CottontailServer] instance. */
-    private val transactionManager: TransactionManager = TransactionManager(this.executor, config.execution.transactionTableSize, config.execution.transactionHistorySize, this.catalogue)
+    /** The [DefaultCatalogue] instance used by this [CottontailServer]. */
+    private val catalogue = DefaultCatalogue(config, this.executor)
 
     /** The internal gRPC server; if building that server fails then the [DefaultCatalogue] is closed again! */
     private val grpc: Server
@@ -40,21 +33,15 @@ class CottontailServer(config: Config) {
     /* Start server and close catalogue upon failure. */
     init {
         /* Register the different service tasks. */
-        val rebuilderService = AutoRebuilderService(this.catalogue, this.transactionManager)
-        val statisticsManagerService = StatisticsManagerService(this.catalogue, this.transactionManager)
-        this.transactionManager.register(rebuilderService)
-        this.transactionManager.register(statisticsManagerService)
-
-        /* Registers the task that takes care of persisting index & column statistics. */
-        this.executor.serviceWorkerPool.scheduleAtFixedRate(StatisticsPersisterTask(this.catalogue), 1, 1, TimeUnit.MINUTES)
+        val rebuilderService = AutoRebuilderService(this.catalogue)
 
         /* Prepare gRPC server itself. */
         this.grpc = ServerBuilder.forPort(config.server.port)
             .executor(this.executor.connectionWorkerPool)
-            .addService(DDLService(this.catalogue, this.transactionManager, rebuilderService, statisticsManagerService))
-            .addService(DMLService(this.catalogue, this.transactionManager))
-            .addService(DQLService(this.catalogue, this.transactionManager))
-            .addService(TXNService(this.catalogue, this.transactionManager))
+            .addService(DDLService(this.catalogue, rebuilderService))
+            .addService(DMLService(this.catalogue))
+            .addService(DQLService(this.catalogue))
+            .addService(TXNService(this.catalogue))
             .let {
                 if (config.server.useTls) {
                     val certFile = config.server.certFile!!.toFile()

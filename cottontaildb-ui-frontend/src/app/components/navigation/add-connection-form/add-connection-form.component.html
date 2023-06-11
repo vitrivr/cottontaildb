@@ -1,0 +1,27 @@
+<h1 mat-dialog-title>Establish a new connection</h1>
+<div mat-dialog-content>
+  <form [formGroup]="connectionForm" class="form">
+    <table>
+      <tr>
+      <td>
+        <mat-form-field appearance="outline">
+          <mat-label>address</mat-label>
+          <input matInput type="text" formControlName="host" name="host">
+        </mat-form-field>
+      </td>
+      <td>
+        <mat-form-field appearance="outline">
+          <mat-label>port</mat-label>
+          <input matInput type="number" formControlName="port" name="port">
+        </mat-form-field>
+      </td>
+      </tr>
+    </table>
+  </form>
+</div>
+
+<div mat-dialog-actions>
+  <button mat-flat-button color="primary" [disabled]="connectionForm.invalid" (click)="connect()">Connect</button>
+  <button mat-flat-button color="warn" (click)="abort()">Abort</button>
+</div>
+

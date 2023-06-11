@@ -1,15 +1,12 @@
 package org.vitrivr.cottontail.dbms.statistics.values
 
-import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.SignedFloatBinding
 import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.FloatVectorValue
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
 import java.io.ByteArrayInputStream
-import java.lang.Float.max
-import java.lang.Float.min
 
 /**
  * A [ValueStatistics] implementation for [FloatVectorValue]s.
@@ -17,15 +14,28 @@ import java.lang.Float.min
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class FloatVectorValueStatistics(logicalSize: Int) : RealVectorValueStatistics<FloatVectorValue>(Types.FloatVector(logicalSize)) {
-    /** Minimum value in this [FloatVectorValueStatistics]. */
-    override val min: FloatVectorValue = FloatVectorValue(FloatArray(this.type.logicalSize) { Float.MAX_VALUE })
+data class FloatVectorValueStatistics(
+    val logicalSize: Int,
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+    override val min: FloatVectorValue = FloatVectorValue(FloatArray(logicalSize) { Float.MAX_VALUE }),
+    override val max: FloatVectorValue = FloatVectorValue(FloatArray(logicalSize) { Float.MIN_VALUE }),
+    override val sum: FloatVectorValue = FloatVectorValue(FloatArray(logicalSize))
+) : RealVectorValueStatistics<FloatVectorValue>(Types.FloatVector(logicalSize)) {
 
-    /** Minimum value in this [FloatVectorValueStatistics]. */
-    override val max: FloatVectorValue = FloatVectorValue(FloatArray(this.type.logicalSize) { Float.MIN_VALUE })
-
-    /** Sum of all floats values in this [FloatVectorValueStatistics]. */
-    override val sum: FloatVectorValue = FloatVectorValue(FloatArray(this.type.logicalSize))
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: FloatVectorValueStatistics): this(
+        logicalSize = metrics.logicalSize,
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = if (metrics.numberOfDistinctEntries.toDouble() / metrics.numberOfEntries.toDouble() >= metrics.distinctEntriesScalingThreshold) (metrics.numberOfDistinctEntries * factor).toLong() else metrics.numberOfDistinctEntries, // Depending on the ratio between distinct entries and number of entries, we either scale the distinct entries (large ratio) or keep them as they are (small ratio).
+        min = metrics.min, // min and max are not adjusted
+        max = metrics.max, // min and max are not adjusted
+        sum = FloatVectorValue(FloatArray(metrics.logicalSize) { (metrics.sum.data[it] * factor) })
+    )
 
     /** The arithmetic for the values seen by this [DoubleVectorValueStatistics]. */
     override val mean: FloatVectorValue
@@ -36,13 +46,13 @@ class FloatVectorValueStatistics(logicalSize: Int) : RealVectorValueStatistics<F
     /**
      * Xodus serializer for [FloatVectorValueStatistics]
      */
-    class Binding(val logicalSize: Int): XodusBinding<FloatVectorValueStatistics> {
+    class Binding(val logicalSize: Int): MetricsXodusBinding<FloatVectorValueStatistics> {
         override fun read(stream: ByteArrayInputStream): FloatVectorValueStatistics {
-            val stat = FloatVectorValueStatistics(logicalSize)
-            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            val stat = FloatVectorValueStatistics(this@Binding.logicalSize)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            for (i in 0 until this.logicalSize) {
+            stat.numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            for (i in 0 until this@Binding.logicalSize) {
                 stat.min.data[i] = SignedFloatBinding.BINDING.readObject(stream)
                 stat.max.data[i] = SignedFloatBinding.BINDING.readObject(stream)
                 stat.sum.data[i] = SignedFloatBinding.BINDING.readObject(stream)
@@ -51,9 +61,9 @@ class FloatVectorValueStatistics(logicalSize: Int) : RealVectorValueStatistics<F
         }
 
         override fun write(output: LightOutputStream, statistics: FloatVectorValueStatistics) {
-            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
             for (i in 0 until statistics.type.logicalSize) {
                 SignedFloatBinding.BINDING.writeObject(output, statistics.min.data[i])
                 SignedFloatBinding.BINDING.writeObject(output, statistics.max.data[i])
@@ -62,67 +72,4 @@ class FloatVectorValueStatistics(logicalSize: Int) : RealVectorValueStatistics<F
         }
     }
 
-    /**
-     * Updates this [FloatVectorValueStatistics] with an inserted [FloatVectorValue]
-     *
-     * @param inserted The [FloatVectorValue] that was inserted.
-     */
-    override fun insert(inserted: FloatVectorValue?) {
-        super.insert(inserted)
-        if (inserted != null) {
-            for ((i, d) in inserted.data.withIndex()) {
-                this.min.data[i] = min(d, this.min.data[i])
-                this.max.data[i] = max(d, this.max.data[i])
-                this.sum.data[i] += d
-            }
-        }
-    }
-
-    /**
-     * Updates this [FloatVectorValueStatistics] with a deleted [FloatVectorValue]
-     *
-     * @param deleted The [FloatVectorValue] that was deleted.
-     */
-    override fun delete(deleted: FloatVectorValue?) {
-        super.delete(deleted)
-        if (deleted != null) {
-            for ((i, d) in deleted.data.withIndex()) {
-                /* We cannot create a sensible estimate if a value is deleted. */
-                if (this.min.data[i] == d || this.max.data[i] == d) {
-                    this.fresh = false
-                }
-                this.sum.data[i] -= d
-            }
-        }
-    }
-
-    /**
-     * Resets this [FloatVectorValueStatistics] and sets all its values to to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        for (i in 0 until this.type.logicalSize) {
-            this.min.data[i] = Float.MAX_VALUE
-            this.max.data[i] = Float.MIN_VALUE
-            this.sum.data[i] = 0.0f
-        }
-    }
-
-    /**
-     * Copies this [FloatVectorValueStatistics] and returns it.
-     *
-     * @return Copy of this [FloatVectorValueStatistics].
-     */
-    override fun copy(): FloatVectorValueStatistics {
-        val copy = FloatVectorValueStatistics(this.type.logicalSize)
-        copy.fresh = this.fresh
-        copy.numberOfNullEntries = this.numberOfNullEntries
-        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
-        for (i in 0 until this.type.logicalSize) {
-            copy.min.data[i] = this.min.data[i]
-            copy.max.data[i] = this.max.data[i]
-            copy.sum.data[i] = this.sum.data[i]
-        }
-        return copy
-    }
 }

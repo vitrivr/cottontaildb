@@ -2,16 +2,16 @@ package org.vitrivr.cottontail.storage.serializers.statistics.xodus
 
 import jetbrains.exodus.util.LightOutputStream
 import org.mapdb.Serializer
-import org.vitrivr.cottontail.dbms.statistics.metricsData.ValueMetrics
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import java.io.ByteArrayInputStream
 
 /**
- * A [Serializer] for Xodus based [ValueMetrics] serialization and deserialization.
+ * A [Serializer] for Xodus based [ValueStatistics] serialization and deserialization.
  *
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.0.1
  */
-interface MetricsXodusBinding<T: ValueMetrics<*>> {
+interface MetricsXodusBinding<T: ValueStatistics<*>> {
 
     /**
      *

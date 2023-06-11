@@ -12,10 +12,10 @@ import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOpera
  * A [DataDefinitionPhysicalOperatorNode] used to create new entities.
  *
  * @author Ralph Gasser
- * @version 1.0.0.
+ * @version 1.1.0
  */
-class CreateSchemaPhysicalOperatorNode(val tx: CatalogueTx, val schemaName: Name.SchemaName): DataDefinitionPhysicalOperatorNode("CreateSchema") {
-    override fun copy(): NullaryPhysicalOperatorNode = CreateSchemaPhysicalOperatorNode(this.tx, this.schemaName)
-    override fun toOperator(ctx: QueryContext): Operator = CreateSchemaOperator(this.tx, this.schemaName, ctx)
+class CreateSchemaPhysicalOperatorNode(val tx: CatalogueTx, val schemaName: Name.SchemaName, val mayExist: Boolean): DataDefinitionPhysicalOperatorNode("CreateSchema") {
+    override fun copy(): NullaryPhysicalOperatorNode = CreateSchemaPhysicalOperatorNode(this.tx, this.schemaName, this.mayExist)
+    override fun toOperator(ctx: QueryContext): Operator = CreateSchemaOperator(this.tx, this.schemaName, this.mayExist, ctx)
     override fun digest(): Digest = this.hashCode().toLong()
 }

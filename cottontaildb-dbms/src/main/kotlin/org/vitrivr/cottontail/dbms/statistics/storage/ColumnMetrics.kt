@@ -5,11 +5,11 @@ import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.column.Column
-import org.vitrivr.cottontail.dbms.statistics.metricsCollector.*
-import org.vitrivr.cottontail.dbms.statistics.metricsData.*
+import org.vitrivr.cottontail.dbms.statistics.*
+import org.vitrivr.cottontail.dbms.statistics.collectors.*
 import org.vitrivr.cottontail.dbms.statistics.values.*
 import org.vitrivr.cottontail.storage.serializers.statistics.MetricsSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
@@ -21,7 +21,7 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser, Florian Burkhardt
  * @version 1.1.0
  */
-data class ColumnMetrics(val name: Name.ColumnName, val type: Types<*>, val statistics: ValueMetrics<*>) {
+data class ColumnMetrics(val name: Name.ColumnName, val type: Types<*>, val statistics: ValueStatistics<*>) {
 
     /**
      * Creates a [ColumnMetrics] from the provided [ColumnDef].
@@ -30,25 +30,25 @@ data class ColumnMetrics(val name: Name.ColumnName, val type: Types<*>, val stat
      */
     constructor(def: ColumnDef<*>) : this(
         def.name, def.type, when (def.type) {
-            Types.Boolean -> BooleanValueMetrics()
-            Types.Byte -> ByteValueMetrics()
-            Types.Short -> ShortValueMetrics()
-            Types.Date -> DateValueMetrics()
-            Types.Double -> DoubleValueMetrics()
-            Types.Float -> FloatValueMetrics()
-            Types.Int -> IntValueMetrics()
-            Types.Long -> LongValueMetrics()
-            Types.String -> StringValueMetrics()
-            Types.ByteString -> ByteStringValueMetrics()
-            Types.Complex32 -> Complex32ValueMetrics()
-            Types.Complex64 -> Complex64ValueMetrics()
-            is Types.BooleanVector -> BooleanVectorValueMetrics(def.type.logicalSize)
-            is Types.DoubleVector -> DoubleVectorValueMetrics(def.type.logicalSize)
-            is Types.FloatVector -> FloatVectorValueMetrics(def.type.logicalSize)
-            is Types.IntVector -> IntVectorValueMetrics(def.type.logicalSize)
-            is Types.LongVector -> LongVectorValueMetrics(def.type.logicalSize)
-            is Types.Complex32Vector -> Complex32VectorValueMetrics(def.type.logicalSize)
-            is Types.Complex64Vector -> Complex64VectorValueMetrics(def.type.logicalSize)
+            Types.Boolean -> BooleanValueStatistics()
+            Types.Byte -> ByteValueStatistics()
+            Types.Short -> ShortValueStatistics()
+            Types.Date -> DateValueStatistics()
+            Types.Double -> DoubleValueStatistics()
+            Types.Float -> FloatValueStatistics()
+            Types.Int -> IntValueStatistics()
+            Types.Long -> LongValueStatistics()
+            Types.String -> StringValueStatistics()
+            Types.ByteString -> ByteStringValueStatistics()
+            Types.Complex32 -> Complex32ValueStatistics()
+            Types.Complex64 -> Complex64ValueStatistics()
+            is Types.BooleanVector -> BooleanVectorValueStatistics(def.type.logicalSize)
+            is Types.DoubleVector -> DoubleVectorValueStatistics(def.type.logicalSize)
+            is Types.FloatVector -> FloatVectorValueStatistics(def.type.logicalSize)
+            is Types.IntVector -> IntVectorValueStatistics(def.type.logicalSize)
+            is Types.LongVector -> LongVectorValueStatistics(def.type.logicalSize)
+            is Types.Complex32Vector -> Complex32VectorValueStatistics(def.type.logicalSize)
+            is Types.Complex64Vector -> Complex64VectorValueStatistics(def.type.logicalSize)
         }
     )
 
@@ -62,7 +62,7 @@ data class ColumnMetrics(val name: Name.ColumnName, val type: Types<*>, val stat
     /**
      * The [Serialized] version of the [ColumnMetrics]. That entry does not include the [Name.ColumnName].
      */
-    data class Serialized(val type: Types<*>, val statistics: ValueMetrics<*>): Comparable<Serialized> {
+    data class Serialized(val type: Types<*>, val statistics: ValueStatistics<*>): Comparable<Serialized> {
 
         /**
          * Converts this [Serialized] to an actual [ColumnMetrics].
@@ -90,7 +90,7 @@ data class ColumnMetrics(val name: Name.ColumnName, val type: Types<*>, val stat
                 require(`object` is Serialized) { "$`object` cannot be written as statistics entry." }
                 IntegerBinding.writeCompressed(output, `object`.type.ordinal)
                 IntegerBinding.writeCompressed(output, `object`.type.logicalSize)
-                val serializer = MetricsSerializerFactory.xodus(`object`.type) as MetricsXodusBinding<ValueMetrics<*>>
+                val serializer = MetricsSerializerFactory.xodus(`object`.type) as MetricsXodusBinding<ValueStatistics<*>>
                 serializer.write(output, `object`.statistics)
             }
         }

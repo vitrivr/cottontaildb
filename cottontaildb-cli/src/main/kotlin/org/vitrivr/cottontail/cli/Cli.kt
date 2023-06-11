@@ -21,8 +21,6 @@ import org.jline.terminal.TerminalBuilder
 import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.cli.basics.AbstractQueryCommand
 import org.vitrivr.cottontail.cli.basics.AbstractSchemaCommand
-import org.vitrivr.cottontail.cli.benchmarks.AdaptiveIndexBenchmark
-import org.vitrivr.cottontail.cli.benchmarks.HighDimensionalIndexBenchmark
 import org.vitrivr.cottontail.cli.entity.*
 import org.vitrivr.cottontail.cli.index.AboutIndexCommand
 import org.vitrivr.cottontail.cli.index.CreateIndexCommand
@@ -341,18 +339,6 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                     FindInEntityCommand(this@Cli.client),
                     ExecuteQueryCommand(this@Cli.client),
                     DistinctColumnQueryCommand(this@Cli.client)
-                ),
-
-                /* Transaction related commands. */
-                object : NoOpCliktCommand(
-                    name = "benchmark",
-                    help = "Groups commands that perform system-level benchmarks.",
-                    epilog = "Benchmark related commands usually have the form: benchmark <command>.",
-                    invokeWithoutSubcommand = true,
-                    printHelpOnEmptyArgs = true
-                ){}.subcommands(
-                    HighDimensionalIndexBenchmark(this@Cli.client),
-                    AdaptiveIndexBenchmark(this@Cli.client)
                 ),
 
                 /* Transaction related commands. */

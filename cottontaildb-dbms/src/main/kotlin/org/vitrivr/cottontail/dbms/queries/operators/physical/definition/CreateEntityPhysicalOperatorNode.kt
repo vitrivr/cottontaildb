@@ -13,10 +13,10 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * A [DataDefinitionPhysicalOperatorNode] used to create new [Entity].
  *
  * @author Ralph Gasser
- * @version 1.0.0.
+ * @version 1.1.0
  */
-class CreateEntityPhysicalOperatorNode(private val tx: CatalogueTx, private val entityName: Name.EntityName, private val cols: Array<ColumnDef<*>>) : DataDefinitionPhysicalOperatorNode("CreateEntity") {
-    override fun copy(): CreateEntityPhysicalOperatorNode = CreateEntityPhysicalOperatorNode(this.tx, this.entityName, this.cols)
-    override fun toOperator(ctx: QueryContext): Operator = CreateEntityOperator(this.tx, this.entityName, this.cols, ctx)
+class CreateEntityPhysicalOperatorNode(private val tx: CatalogueTx, val entityName: Name.EntityName, val mayExist: Boolean, val cols: Array<ColumnDef<*>>) : DataDefinitionPhysicalOperatorNode("CreateEntity") {
+    override fun copy(): CreateEntityPhysicalOperatorNode = CreateEntityPhysicalOperatorNode(this.tx, this.entityName, this.mayExist, this.cols)
+    override fun toOperator(ctx: QueryContext): Operator = CreateEntityOperator(this.tx, this.entityName, this.cols,  this.mayExist, ctx)
     override fun digest(): Digest = this.hashCode().toLong()
 }

@@ -32,7 +32,7 @@ class CreateIndexCommand(client: SimpleClient) : AbstractEntityCommand(client, n
 
     override fun exec() {
         try {
-            var create = CreateIndex(this.entityName.fqn, this.attribute, this.index)
+            var create = CreateIndex(this.entityName, this.index).column(this.attribute)
             for ((k,v) in this.configuration) {
                 create = create.param(k, v)
             }

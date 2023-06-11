@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.core.values.FloatValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.generators.FloatValueGenerator
 import org.vitrivr.cottontail.core.values.generators.FloatVectorValueGenerator
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.math.isApproximatelyTheSame
 import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.utilities.VectorUtility

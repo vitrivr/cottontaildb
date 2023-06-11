@@ -1,0 +1,62 @@
+<div class="view-container" *ngFor="let connection of connections">
+  <div>
+    <div class="transactions">
+      <h2> Transactions for: {{connectionName(connection)}}</h2>
+      <div class="table">
+        <table>
+          <thead>
+          <tr>
+            <th>txId</th>
+            <th>type</th>
+            <th>state</th>
+            <th>lock count</th>
+            <th>tx count</th>
+            <th>created</th>
+            <th>ended</th>
+            <th>duration[s]</th>
+            <th>action</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr *ngFor="let item of txData">
+            <td><span>{{item.txId}}</span></td>
+            <td><span>{{item.type}}</span></td>
+            <td><span>{{item.state}}</span></td>
+            <td><span>{{item.lockCount}}</span></td>
+            <td><span>{{item.txCount}}</span></td>
+            <td><span>{{item.created}}</span></td>
+            <td><span>{{item.ended}}</span></td>
+            <td><span>{{item.duration}}</span></td>
+            <td><button mat-flat-button color="warn" class="btn btn-primary" (click)="onKillTx(item.txId)">Kill</button></td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="locks">
+      <h2>Locks for: {{connectionName(connection)}}</h2>
+      <div class="table">
+        <table>
+          <thead>
+          <tr>
+            <th>dbo</th>
+            <th>mode</th>
+            <th>owner count</th>
+            <th>owners</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr *ngFor="let item of locksData">
+            <td><span>{{item.dbo}}</span></td>
+            <td><span>{{item.mode}}</span></td>
+            <td><span>{{item.owner_count}}</span></td>
+            <td><span>{{item.owners}}</span></td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+

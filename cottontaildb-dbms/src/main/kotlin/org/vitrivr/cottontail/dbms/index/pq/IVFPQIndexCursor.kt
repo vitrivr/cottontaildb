@@ -3,15 +3,15 @@ package org.vitrivr.cottontail.dbms.index.pq
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.ShortBinding
 import org.vitrivr.cottontail.core.basics.Cursor
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.binding.MissingRecord
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.RealVectorValue
+import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.DoubleValue
-import org.vitrivr.cottontail.core.values.types.RealVectorValue
-import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.index.pq.quantizer.PQCodebook
 import org.vitrivr.cottontail.dbms.index.pq.signature.IVFPQSignature
 import org.vitrivr.cottontail.dbms.index.pq.signature.PQLookupTable
@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class IVFPQIndexCursor(val predicate: ProximityPredicate.Scan, val index: IVFPQIndex.Tx): Cursor<Record> {
+class IVFPQIndexCursor(val predicate: ProximityPredicate.Scan, val index: IVFPQIndex.Tx): Cursor<Tuple> {
 
     /** The [PQCodebook] used for coarse quantization. */
     private val coarse: PQCodebook = this.index.quantizer.coarse
@@ -54,7 +54,7 @@ class IVFPQIndexCursor(val predicate: ProximityPredicate.Scan, val index: IVFPQI
         val nprobe = this@IVFPQIndexCursor.coarse.numberOfCentroids / 32
         val selection = MinHeapSelection<ComparablePair<Int,Double>>(nprobe)
 
-        with(MissingRecord) {
+        with(MissingTuple) {
             with(this@IVFPQIndexCursor.index.context.bindings) {
                 this@IVFPQIndexCursor.lookupTable = this@IVFPQIndexCursor.index.quantizer.createLookupTable(this@IVFPQIndexCursor.predicate.query.getValue() as VectorValue<*>)
                 for (c in coarse.centroids.indices) {
@@ -88,14 +88,14 @@ class IVFPQIndexCursor(val predicate: ProximityPredicate.Scan, val index: IVFPQI
     override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.value)
 
     /**
-     * Returns the current [Record] this [Cursor] is pointing to.
+     * Returns the current [Tuple] this [Cursor] is pointing to.
      *
      * @return [TupleId]
      */
-    override fun value(): Record {
+    override fun value(): Tuple {
         val signature = IVFPQSignature.fromEntry(this.cursor.value)
         val approximation = DoubleValue(this.lookupTable.approximateDistance(signature))
-        return StandaloneRecord(signature.tupleId, this.produces, arrayOf(approximation))
+        return StandaloneTuple(signature.tupleId, this.produces, arrayOf(approximation))
     }
 
     /**

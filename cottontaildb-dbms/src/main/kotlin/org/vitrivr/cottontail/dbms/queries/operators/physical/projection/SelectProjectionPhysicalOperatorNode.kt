@@ -1,11 +1,11 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.projection.SelectProjectionOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
@@ -35,7 +35,7 @@ class SelectProjectionPhysicalOperatorNode(input: Physical, val fields: List<Nam
         get() = this.columns
 
     /** The [Cost] of a [SelectProjectionPhysicalOperatorNode]. */
-    context(BindingContext,Record)    override val cost: Cost
+    context(BindingContext, Tuple)    override val cost: Cost
         get() = Cost.MEMORY_ACCESS * (this.outputSize * this.fields.size)
 
     init {

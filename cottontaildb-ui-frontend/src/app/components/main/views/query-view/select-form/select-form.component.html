@@ -1,0 +1,23 @@
+<ng-container>
+  <mat-card>
+    <mat-card-content>
+      <div [formGroup]="conditions" class="query-form">
+        <div class="query-form-header">
+          <mat-icon>drag_indicator</mat-icon>
+          SELECT
+          <button mat-icon-button (click)="remove()"><mat-icon>delete</mat-icon></button>
+        </div>
+
+        <div class="form-container">
+          <ng-container  *ngFor="let item of aboutEntityData">
+            <div class="form-field-container" *ngIf="item._class === 'COLUMN'">
+              <mat-label matTooltip="{{item.type}}" matTooltipPosition="before"> {{item.dbo.split(".").slice(-1)}} </mat-label>
+              <mat-checkbox matTooltip="{{item.type}}" matTooltipPosition="after" [formControlName]="item.dbo"> </mat-checkbox>
+            </div>
+          </ng-container>
+        </div>
+
+      </div>
+    </mat-card-content>
+  </mat-card>
+</ng-container>

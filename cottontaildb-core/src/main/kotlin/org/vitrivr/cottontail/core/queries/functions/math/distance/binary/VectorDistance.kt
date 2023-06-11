@@ -3,9 +3,9 @@ package org.vitrivr.cottontail.core.queries.functions.math.distance.binary
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.queries.functions.Signature
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.DoubleValue
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.VectorValue
 
 /**
  * A binary [Function] used for distance calculations between a query [VectorValue] and other vector values.

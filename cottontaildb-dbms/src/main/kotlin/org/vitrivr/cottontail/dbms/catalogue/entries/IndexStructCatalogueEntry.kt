@@ -29,8 +29,8 @@ abstract class IndexStructCatalogueEntry: Comparable<IndexStructCatalogueEntry> 
          * @param catalogue The [DefaultCatalogue] to initialize.
          * @param transaction The [Transaction] to use.
          */
-        internal fun init(catalogue: DefaultCatalogue, transaction: Transaction = catalogue.environment.beginTransaction()) {
-            catalogue.environment.openStore(CATALOGUE_INDEX_STRUCT_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
+        internal fun init(catalogue: DefaultCatalogue, transaction: Transaction = catalogue.transactionManager.environment.beginTransaction()) {
+            catalogue.transactionManager.environment.openStore(CATALOGUE_INDEX_STRUCT_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
                 ?: throw DatabaseException.DataCorruptionException("Failed to create store for index related data structures.")
         }
 
@@ -42,7 +42,7 @@ abstract class IndexStructCatalogueEntry: Comparable<IndexStructCatalogueEntry> 
          * @return [Store]
          */
         internal fun store(catalogue: DefaultCatalogue, transaction: Transaction): Store =
-            catalogue.environment.openStore(CATALOGUE_INDEX_STRUCT_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
+            catalogue.transactionManager.environment.openStore(CATALOGUE_INDEX_STRUCT_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
                 ?: throw DatabaseException.DataCorruptionException("Failed to open store for index related data structures.")
 
         /**

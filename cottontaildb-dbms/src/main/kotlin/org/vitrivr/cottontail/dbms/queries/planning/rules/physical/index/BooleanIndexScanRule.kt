@@ -67,34 +67,23 @@ object BooleanIndexScanRule : RewriteRule {
      * @param fetch [Map] of [ColumnDef] and alias [Name.ColumnName].
      */
     private fun normalize(predicate: BooleanPredicate, fetch: Map<Binding.Column, ColumnDef<*>>): BooleanPredicate = when (predicate) {
-        is BooleanPredicate.Atomic -> {
-            /* Map left and right operands. */
-            val op = predicate.operator
-            val left = op.left
-            val right: List<Binding> = when(op) {
-                is ComparisonOperator.Binary -> listOf(op.right)
-                is ComparisonOperator.Between -> {
-                    listOf(op.rightLower, op.rightUpper)
-                }
-                else -> emptyList()
-            }
-
-            /* Return new operator. */
-            val newOp = when(op) {
-                is ComparisonOperator.Between -> ComparisonOperator.Between(left, right[0], right[1])
-                is ComparisonOperator.Binary.Equal -> ComparisonOperator.Binary.Equal(left, right[0])
-                is ComparisonOperator.Binary.Greater -> ComparisonOperator.Binary.Greater(left, right[0])
-                is ComparisonOperator.Binary.GreaterEqual -> ComparisonOperator.Binary.GreaterEqual(left, right[0])
-                is ComparisonOperator.Binary.Less -> ComparisonOperator.Binary.Less(left, right[0])
-                is ComparisonOperator.Binary.LessEqual -> ComparisonOperator.Binary.LessEqual(left, right[0])
-                is ComparisonOperator.Binary.Like -> ComparisonOperator.Binary.Like(left, right[0])
-                is ComparisonOperator.Binary.Match -> ComparisonOperator.Binary.Match(left, right[0])
-                is ComparisonOperator.In -> op /* IN operators only support literal bindings. */
-                is ComparisonOperator.IsNull -> ComparisonOperator.IsNull(left)
-            }
-            BooleanPredicate.Atomic(newOp, predicate.not)
-        }
-        is BooleanPredicate.Compound.And -> BooleanPredicate.Compound.And(normalize(predicate.p1, fetch), normalize(predicate.p2, fetch))
-        is BooleanPredicate.Compound.Or -> BooleanPredicate.Compound.Or(normalize(predicate.p1, fetch), normalize(predicate.p2, fetch))
+        is BooleanPredicate.IsNull -> BooleanPredicate.IsNull(predicate.binding)
+        is BooleanPredicate.Comparison -> BooleanPredicate.Comparison(
+            when(val op = predicate.operator) {
+                is ComparisonOperator.Equal -> ComparisonOperator.Equal(op.left, op.right)
+                is ComparisonOperator.NotEqual -> ComparisonOperator.NotEqual(op.left, op.right)
+                is ComparisonOperator.Greater -> ComparisonOperator.Greater(op.left, op.right)
+                is ComparisonOperator.GreaterEqual -> ComparisonOperator.GreaterEqual(op.left, op.right)
+                is ComparisonOperator.Less -> ComparisonOperator.Less(op.left, op.right)
+                is ComparisonOperator.LessEqual -> ComparisonOperator.LessEqual(op.left,op.right)
+                is ComparisonOperator.Like -> ComparisonOperator.Like(op.left, op.right)
+                is ComparisonOperator.Match -> ComparisonOperator.Match(op.left, op.right)
+                is ComparisonOperator.Between, /* IN and BETWEEN operators only support literal bindings. */
+                is ComparisonOperator.In -> op
+            })
+        is BooleanPredicate.Not -> BooleanPredicate.Not(normalize(predicate.p, fetch))
+        is BooleanPredicate.And -> BooleanPredicate.And(normalize(predicate.p1, fetch), normalize(predicate.p2, fetch))
+        is BooleanPredicate.Or -> BooleanPredicate.Or(normalize(predicate.p1, fetch), normalize(predicate.p2, fetch))
+        is BooleanPredicate.Literal -> predicate
     }
 }
