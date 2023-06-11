@@ -186,7 +186,7 @@ class StatisticsManager(private val catalogue: DefaultCatalogue, private val man
 
                 /* Now obtain the statistics and store them persistently. */
                 for ((column, collector) in columns.zip(collectors)) {
-                    this@StatisticsManager.store.setColumnStatistic(column.name, ColumnStatistic(column.name, column.type, collector.calculate(sampleProbability)))
+                    this@StatisticsManager.store.setColumnStatistic(column.name, ColumnStatistic(column.type, collector.calculate(sampleProbability)))
                     this@StatisticsManager.cache.remove(column.name) /* Invalidates entry in cache. */
                 }
 
