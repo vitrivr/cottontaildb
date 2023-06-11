@@ -49,6 +49,6 @@ class EntitySampleOperator(groupId: GroupId, private val entity: EntityTx, priva
                 }
             }
         }
-        LOGGER.debug("Read $read entries from ${this@EntitySampleOperator.entity.dbo.name}.")
+        LOGGER.debug("Read {} entries from {}.", read, this@EntitySampleOperator.entity.dbo.name)
     }
 }

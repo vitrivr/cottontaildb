@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
@@ -46,6 +45,6 @@ class EntityScanOperator(groupId: GroupId, private val entity: EntityTx, private
                 read += 1
             }
         }
-        LOGGER.debug("Read $read entries from ${this@EntityScanOperator.entity.dbo.name}.")
+        LOGGER.debug("Read {} entries from {}.", read, this@EntityScanOperator.entity.dbo.name)
     }
 }
