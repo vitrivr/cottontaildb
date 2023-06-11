@@ -38,21 +38,17 @@ class EntitySampleOperator(groupId: GroupId, private val entity: EntityTx, priva
      */
     override fun toFlow(): Flow<Tuple> = flow {
         val fetch = this@EntitySampleOperator.fetch.map { it.second }.toTypedArray()
-        val columns = this@EntitySampleOperator.fetch.map { it.first.column }.toTypedArray()
+        val rename = this@EntitySampleOperator.fetch.map { it.first.column.name }.toTypedArray()
         val random = SplittableRandom(this@EntitySampleOperator.seed)
         var read = 0
-        this@EntitySampleOperator.entity.cursor(fetch).use { cursor ->
+        this@EntitySampleOperator.entity.cursor(fetch, rename).use { cursor ->
             while (cursor.moveNext()) {
                 if (random.nextDouble(0.0, 1.0) <= this@EntitySampleOperator.p) {
-                    val record = cursor.value()
-                    for ((i,c) in columns.withIndex()) { /* Replace column designations. */
-                        record.columns[i] = c
-                    }
+                    emit(cursor.value())
                     read += 1
-                    emit(record)
                 }
             }
         }
         LOGGER.debug("Read $read entries from ${this@EntitySampleOperator.entity.dbo.name}.")
-    }.buffer(1024) /* Buffering up to 1024 records. */
+    }
 }

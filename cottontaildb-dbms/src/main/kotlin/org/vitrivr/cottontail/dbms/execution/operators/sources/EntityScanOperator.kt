@@ -37,13 +37,12 @@ class EntityScanOperator(groupId: GroupId, private val entity: EntityTx, private
      */
     override fun toFlow(): Flow<Tuple> = flow {
         val fetch = this@EntityScanOperator.fetch.map { it.second }.toTypedArray()
-        val columns = this@EntityScanOperator.fetch.map { it.first.column }.toTypedArray()
+        val rename = this@EntityScanOperator.fetch.map { it.first.column.name }.toTypedArray()
         val partition = this@EntityScanOperator.entity.partitionFor(this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)
         var read = 0
-        this@EntityScanOperator.entity.cursor(fetch, partition).use { cursor ->
+        this@EntityScanOperator.entity.cursor(fetch, partition, rename).use { cursor ->
             while (cursor.moveNext()) {
-                val record = cursor.value() as StandaloneTuple
-                emit(StandaloneTuple(record.tupleId, columns, record.values))
+                emit(cursor.value())
                 read += 1
             }
         }

@@ -2,24 +2,33 @@ package org.vitrivr.cottontail.dbms.entity
 
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * A [Cursor] implementation for the [DefaultEntity].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
-class DefaultEntityCursor(private val columns: Array<ColumnDef<*>>, partition: LongRange, entity: DefaultEntity.Tx, context: QueryContext) : Cursor<Tuple> {
+class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>, partition: LongRange, rename: Array<Name.ColumnName> = emptyArray<Name.ColumnName>()) : Cursor<Tuple> {
+
+    init {
+        require(rename.isEmpty() || columns.size == rename.size) { "The size of the rename column array does not match the number of scanned columns."}
+    }
 
     /** The wrapped [Cursor] to iterate over columns. */
     private val cursors: Array<Cursor<out Value?>> = Array(columns.size) {
-        entity.columnForName(this.columns[it].name).newTx(entity.context).cursor(partition)
+        entity.columnForName(columns[it].name).newTx(entity.context).cursor(partition)
     }
+
+    /** The array of output [ColumnDef] produced by this [DefaultEntityCursor]. */
+    private val columns = columns.mapIndexed { index, def ->
+        def.copy(name = rename.getOrNull(index) ?: def.name)
+    }.toTypedArray()
 
     /**
      * Returns the [TupleId] this [Cursor] is currently pointing to.

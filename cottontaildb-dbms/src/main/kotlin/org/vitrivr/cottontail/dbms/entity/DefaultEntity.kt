@@ -296,11 +296,12 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * <strong>Important:</strong> It remains to the caller to close the [Iterator]
          *
          * @param columns The [ColumnDef]s that should be scanned.
+         * @param rename An array of [Name.ColumnName] that should be used instead of the actual [Name.ColumnName].
          *
          * @return [Cursor]
          */
-        override fun cursor(columns: Array<ColumnDef<*>>): Cursor<Tuple> = this.txLatch.withLock {
-            return cursor(columns, this.smallestTupleId()..this.largestTupleId())
+        override fun cursor(columns: Array<ColumnDef<*>>, rename: Array<Name.ColumnName>): Cursor<Tuple> = this.txLatch.withLock {
+            return cursor(columns, this.smallestTupleId()..this.largestTupleId(), rename)
         }
 
         /**
@@ -309,11 +310,12 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          *
          * @param columns The [ColumnDef]s that should be scanned.
          * @param partition The [LongRange] specifying the [TupleId]s that should be scanned.
+         * @param rename An array of [Name.ColumnName] that should be used instead of the actual [Name.ColumnName].
          *
          * @return [Cursor]
          */
-        override fun cursor(columns: Array<ColumnDef<*>>, partition: LongRange) = this.txLatch.withLock {
-            DefaultEntityCursor(columns, partition, this, this.context)
+        override fun cursor(columns: Array<ColumnDef<*>>, partition: LongRange, rename: Array<Name.ColumnName>) = this.txLatch.withLock {
+            DefaultEntityCursor(this, columns, partition, rename)
         }
 
         /**
