@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.statistics.metrics.EntityMetric
 
 /**
- * A class that manages  the storage of [ColumnMetrics] by keeping them in memory and updating their value in the storage when necessary.
+ * A class that manages  the storage of [ColumnStatistic] by keeping them in memory and updating their value in the storage when necessary.
  *
  * @author Florian Burkhardt
  * @version 1.0.0
@@ -37,12 +37,12 @@ class StatisticsStorageManager(config: Config) {
     }
 
     /**
-     * Retrieves a statistic [ColumnMetrics] from the map.
+     * Retrieves a statistic [ColumnStatistic] from the map.
      *
-     * @param column The key to retrieve the statistics [ColumnMetrics] for.
+     * @param column The key to retrieve the statistics [ColumnStatistic] for.
      */
-    operator fun get(column: Name.ColumnName): ColumnMetrics? = this.environment.computeInReadonlyTransaction { tx ->
-        this.columnsStore.get(tx, NameBinding.Column.objectToEntry(column))?.let { (ColumnMetrics.Serialized.entryToObject(it) as ColumnMetrics.Serialized).toActual(column) }
+    operator fun get(column: Name.ColumnName): ColumnStatistic? = this.environment.computeInReadonlyTransaction { tx ->
+        this.columnsStore.get(tx, NameBinding.Column.objectToEntry(column))?.let { (ColumnStatistic.entryToObject(it)) }
     }
 
     /**
@@ -77,21 +77,21 @@ class StatisticsStorageManager(config: Config) {
     }
 
     /**
-     * Updates a statistic [ColumnMetrics] in this [StatisticsStorageManager].
+     * Updates a statistic [ColumnStatistic] in this [StatisticsStorageManager].
      *
-     * @param name The [Name.ColumnName] to set the [ColumnMetrics] for.
-     * @param statistic The new [ColumnMetrics].
+     * @param name The [Name.ColumnName] to set the [ColumnStatistic] for.
+     * @param statistic The new [ColumnStatistic].
      */
-    fun setColumnStatistic(name: Name.ColumnName, statistic: ColumnMetrics) {
+    fun setColumnStatistic(name: Name.ColumnName, statistic: ColumnStatistic) {
         this.environment.executeInExclusiveTransaction { tx ->
-            this.columnsStore.put(tx, NameBinding.Column.objectToEntry(name), ColumnMetrics.Serialized.objectToEntry(statistic.toSerialized())) // write to storage
+            this.columnsStore.put(tx, NameBinding.Column.objectToEntry(name), ColumnStatistic.objectToEntry(statistic)) // write to storage
         }
     }
 
     /**
-     * Removes a [ColumnMetrics] from this [StatisticsStorageManager]. Deletes can only happen in a persistent fashion!
+     * Removes a [ColumnStatistic] from this [StatisticsStorageManager]. Deletes can only happen in a persistent fashion!
      *
-     * @param column The [Name.ColumnName] to remove [ColumnMetrics] for.
+     * @param column The [Name.ColumnName] to remove [ColumnStatistic] for.
      */
     fun deleteColumnStatistic(column: Name.ColumnName) {
         this.environment.executeInExclusiveTransaction { tx ->

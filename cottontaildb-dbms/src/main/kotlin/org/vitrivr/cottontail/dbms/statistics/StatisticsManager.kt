@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.statistics.collectors.*
 import org.vitrivr.cottontail.dbms.statistics.metrics.EntityMetric
-import org.vitrivr.cottontail.dbms.statistics.storage.ColumnMetrics
+import org.vitrivr.cottontail.dbms.statistics.storage.ColumnStatistic
 import org.vitrivr.cottontail.dbms.statistics.storage.StatisticsStorageManager
 import org.vitrivr.cottontail.dbms.statistics.values.*
 import java.lang.ref.SoftReference
@@ -48,8 +48,8 @@ class StatisticsManager(private val catalogue: DefaultCatalogue, private val man
     /** The statistics/metrics Xodus [Environment] used by the [StatisticsManager]. */
     private val store = StatisticsStorageManager(this.catalogue.config)
 
-    /** An in-memory cache for frequently accessed [ColumnMetrics]. */
-    private val cache = ConcurrentHashMap<Name.ColumnName, SoftReference<ColumnMetrics>>()
+    /** An in-memory cache for frequently accessed [ColumnStatistic]. */
+    private val cache = ConcurrentHashMap<Name.ColumnName, SoftReference<ColumnStatistic>>()
 
     /**
      * The [StatisticsManager] is interested in all [ColumnEvent]'s.
@@ -70,11 +70,11 @@ class StatisticsManager(private val catalogue: DefaultCatalogue, private val man
         for (event in events) {
             when (event) {
                 /* Creates all the column statistics whenever an entity is created. */
-                is EntityEvent.Create -> event.columns.forEach { this.store.setColumnStatistic(it.name, ColumnMetrics(it)) }
+                is EntityEvent.Create -> event.columns.forEach { this.store.setColumnStatistic(it.name, ColumnStatistic(it)) }
 
                 /* Resets all the column statistics, whenever an entity is truncated and removes all collected metrics*/
                 is EntityEvent.Truncate -> {
-                    event.columns.forEach { this.store.setColumnStatistic(it.name, ColumnMetrics(it)) }
+                    event.columns.forEach { this.store.setColumnStatistic(it.name, ColumnStatistic(it)) }
                     this.store.deleteMetric(event.name) /* Removes all metrics collected for the entity .*/
                 }
                 /* Deletes all the column statistics, whenever an entity is dropped and removes all collected metrics. */
@@ -122,12 +122,12 @@ class StatisticsManager(private val catalogue: DefaultCatalogue, private val man
     }
 
     /**
-     * Tries to access and return an up-to-date [ColumnMetrics] object for the given [Name.ColumnName].
+     * Tries to access and return an up-to-date [ColumnStatistic] object for the given [Name.ColumnName].
      *
-     * @param name [Name.ColumnName] The [Name.ColumnName] to obtain [ColumnMetrics] for.
-     * @return [ColumnMetrics]
+     * @param name [Name.ColumnName] The [Name.ColumnName] to obtain [ColumnStatistic] for.
+     * @return [ColumnStatistic]
      */
-    operator fun get(name: Name.ColumnName): ColumnMetrics {
+    operator fun get(name: Name.ColumnName): ColumnStatistic {
         var metric = this.cache[name]?.get()
         if (metric != null) return metric
         metric = this.store[name] ?: throw IllegalArgumentException("Could not find column metric for column $name.")
@@ -186,7 +186,7 @@ class StatisticsManager(private val catalogue: DefaultCatalogue, private val man
 
                 /* Now obtain the statistics and store them persistently. */
                 for ((column, collector) in columns.zip(collectors)) {
-                    this@StatisticsManager.store.setColumnStatistic(column.name, ColumnMetrics(column.name, column.type, collector.calculate(sampleProbability)))
+                    this@StatisticsManager.store.setColumnStatistic(column.name, ColumnStatistic(column.name, column.type, collector.calculate(sampleProbability)))
                     this@StatisticsManager.cache.remove(column.name) /* Invalidates entry in cache. */
                 }
 
