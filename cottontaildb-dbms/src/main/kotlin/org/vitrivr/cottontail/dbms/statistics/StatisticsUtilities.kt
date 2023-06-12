@@ -13,8 +13,8 @@ import org.vitrivr.cottontail.dbms.statistics.values.*
  */
 fun Map<ColumnDef<*>, ValueStatistics<*>>.estimateTupleSize() = this.map {
     when (val type = it.key.type) {
-        Types.String -> it.value.avgWidth * Char.SIZE_BYTES
-        Types.ByteString -> it.value.avgWidth
+        Types.String -> it.value.avgWidth.coerceAtLeast(1) * Char.SIZE_BYTES
+        Types.ByteString -> it.value.avgWidth.coerceAtLeast(1)
         else -> type.physicalSize
     }
 }.sum()
