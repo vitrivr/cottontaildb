@@ -22,23 +22,20 @@ import kotlin.time.ExperimentalTime
  */
 @ExperimentalTime
 class EmbeddedCottontailGrpcServer(config: Config) {
-
-    /** The [DefaultCatalogue] instance used by this [CottontailServer]. */
-    internal val catalogue = DefaultCatalogue(config)
-
     /** The [ExecutionManager] used for handling gRPC calls and executing queries. */
     private val executor = ExecutionManager(config)
 
-    /** The [TransactionManager] used by this [CottontailServer] instance. */
-    private val transactionManager = TransactionManager(this.executor, config.execution.transactionTableSize, config.execution.transactionHistorySize, this.catalogue)
+    /** The [DefaultCatalogue] instance used by this [CottontailServer]. */
+    internal val catalogue = DefaultCatalogue(config, this.executor)
+
 
     /** The internal gRPC server; if building that server fails then the [DefaultCatalogue] is closed again! */
     private val grpc = ServerBuilder.forPort(config.server.port)
         .executor(this.executor.connectionWorkerPool)
-        .addService(DDLService(this.catalogue, this.transactionManager, AutoRebuilderService(this.catalogue, this.transactionManager), StatisticsManager(this.catalogue, this.transactionManager)))
-        .addService(DMLService(this.catalogue, this.transactionManager))
-        .addService(DQLService(this.catalogue, this.transactionManager))
-        .addService(TXNService(this.catalogue, this.transactionManager))
+        .addService(DDLService(this.catalogue, AutoRebuilderService(this.catalogue)))
+        .addService(DMLService(this.catalogue))
+        .addService(DQLService(this.catalogue))
+        .addService(TXNService(this.catalogue))
         .let {
             if (config.server.useTls) {
                 val certFile = config.server.certFile!!.toFile()
@@ -76,11 +73,11 @@ class EmbeddedCottontailGrpcServer(config: Config) {
             /* Shutdown gRPC server. */
             this.grpc.shutdown().awaitTermination()
 
-            /* Shutdown thread pool executor. */
-            this.executor.shutdownAndWait()
-
             /* Close catalogue. */
             this.catalogue.close()
+
+            /* Shutdown thread pool executor. */
+            this.executor.shutdownAndWait()
 
             /* Update flag. */
             this.isRunning = false
