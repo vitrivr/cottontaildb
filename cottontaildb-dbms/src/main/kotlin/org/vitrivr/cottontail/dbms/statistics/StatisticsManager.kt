@@ -8,7 +8,6 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.events.*
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
@@ -20,7 +19,6 @@ import org.vitrivr.cottontail.dbms.statistics.collectors.*
 import org.vitrivr.cottontail.dbms.statistics.metrics.EntityMetric
 import org.vitrivr.cottontail.dbms.statistics.storage.ColumnStatistic
 import org.vitrivr.cottontail.dbms.statistics.storage.StatisticsStorageManager
-import org.vitrivr.cottontail.dbms.statistics.values.*
 import java.lang.ref.SoftReference
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -127,10 +125,11 @@ class StatisticsManager(private val catalogue: DefaultCatalogue, private val man
      * @param name [Name.ColumnName] The [Name.ColumnName] to obtain [ColumnStatistic] for.
      * @return [ColumnStatistic]
      */
-    operator fun get(name: Name.ColumnName): ColumnStatistic {
+    operator fun get(name: Name.ColumnName): ColumnStatistic? {
         var metric = this.cache[name]?.get()
         if (metric != null) return metric
-        metric = this.store[name] ?: throw IllegalArgumentException("Could not find column metric for column $name.")
+        metric = this.store[name]
+        if (metric == null) return null
         this.cache[name] = SoftReference(metric)
         return metric
     }
@@ -142,6 +141,7 @@ class StatisticsManager(private val catalogue: DefaultCatalogue, private val man
      * @param entityName The [Name.EntityName] to update statistics for.
      */
     @OptIn(ExperimentalTime::class)
+    @Suppress("UNCHECKED_CAST")
     fun gatherStatisticsForEntity(entityName: Name.EntityName) {
         /* Log progress. */
         LOGGER.info("Starting statistics gathering for entity $entityName.")

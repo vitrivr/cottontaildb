@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.core.database.BOC
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
@@ -17,7 +18,8 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.defaultStatistics
+import org.vitrivr.cottontail.dbms.statistics.values.*
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
 import kotlin.concurrent.withLock
@@ -100,7 +102,29 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
          */
         @Suppress("UNCHECKED_CAST")
         override fun statistics(): ValueStatistics<T> = this.txLatch.withLock {
-            this@DefaultColumn.catalogue.statisticsManager[this@DefaultColumn.name].statistics as ValueStatistics<T>
+            val statistics = this@DefaultColumn.catalogue.statisticsManager[this@DefaultColumn.name]?.statistics as? ValueStatistics<T>
+            if (statistics != null) return statistics
+            return when(val type = this.columnDef.type) {
+                Types.Boolean -> BooleanValueStatistics()
+                Types.Byte -> ByteValueStatistics()
+                Types.Short -> ShortValueStatistics()
+                Types.Int -> IntValueStatistics()
+                Types.Long -> LongValueStatistics()
+                Types.Float -> FloatValueStatistics()
+                Types.Double -> DoubleValueStatistics()
+                Types.Complex32 -> Complex32ValueStatistics()
+                Types.Complex64 -> Complex64ValueStatistics()
+                Types.Date -> DateValueStatistics()
+                Types.ByteString -> ByteValueStatistics()
+                Types.String -> StringValueStatistics()
+                is Types.BooleanVector -> BooleanVectorValueStatistics(type.logicalSize)
+                is Types.IntVector -> IntVectorValueStatistics(type.logicalSize)
+                is Types.LongVector -> LongVectorValueStatistics(type.logicalSize)
+                is Types.FloatVector -> FloatVectorValueStatistics(type.logicalSize)
+                is Types.DoubleVector -> DoubleVectorValueStatistics(type.logicalSize)
+                is Types.Complex32Vector -> Complex32VectorValueStatistics(type.logicalSize)
+                is Types.Complex64Vector -> Complex64VectorValueStatistics(type.logicalSize)
+            } as ValueStatistics<T>
         }
 
         /**
