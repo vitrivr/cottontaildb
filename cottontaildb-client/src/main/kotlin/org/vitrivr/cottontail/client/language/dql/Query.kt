@@ -1,10 +1,12 @@
 package org.vitrivr.cottontail.client.language.dql
 
-import org.vitrivr.cottontail.client.language.basics.*
+import org.vitrivr.cottontail.client.language.basics.Direction
+import org.vitrivr.cottontail.client.language.basics.Distances
+import org.vitrivr.cottontail.client.language.basics.LanguageFeature
 import org.vitrivr.cottontail.client.language.basics.expression.Column
 import org.vitrivr.cottontail.client.language.basics.expression.Expression
 import org.vitrivr.cottontail.client.language.basics.predicate.Predicate
-import org.vitrivr.cottontail.client.language.extensions.*
+import org.vitrivr.cottontail.client.language.extensions.proto
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.grpc.CottontailGrpc

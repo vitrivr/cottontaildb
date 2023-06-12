@@ -2,10 +2,8 @@ package org.vitrivr.cottontail.client.language.basics.expression
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.grpc.CottontailGrpc.DoubleVector
 
 /**
  * A [Literal] value [Expression].

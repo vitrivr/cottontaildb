@@ -1,12 +1,11 @@
 package org.vitrivr.cottontail.dbms.statistics.values
 
-import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.SignedDoubleBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
-import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
 import java.io.ByteArrayInputStream
 
 /**
@@ -15,15 +14,28 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class DoubleVectorValueStatistics(logicalSize: Int) : RealVectorValueStatistics<DoubleVectorValue>(Types.DoubleVector(logicalSize)) {
-    /** Minimum value seen by this [DoubleVectorValueStatistics]. */
-    override val min: DoubleVectorValue = DoubleVectorValue(DoubleArray(this.type.logicalSize) { Double.MAX_VALUE })
+data class DoubleVectorValueStatistics(
+    val logicalSize: Int,
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+    override val min: DoubleVectorValue = DoubleVectorValue(DoubleArray(logicalSize) { Double.MAX_VALUE }),
+    override val max: DoubleVectorValue = DoubleVectorValue(DoubleArray(logicalSize) { Double.MIN_VALUE }),
+    override val sum: DoubleVectorValue = DoubleVectorValue(DoubleArray(logicalSize))
+) : RealVectorValueStatistics<DoubleVectorValue>(Types.DoubleVector(logicalSize)) {
 
-    /** Minimum value seen by this [DoubleVectorValueStatistics]. */
-    override val max: DoubleVectorValue = DoubleVectorValue(DoubleArray(this.type.logicalSize) { Double.MIN_VALUE })
-
-    /** Sum of all floats values seen by this [DoubleVectorValueStatistics]. */
-    override val sum: DoubleVectorValue = DoubleVectorValue(DoubleArray(this.type.logicalSize))
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: DoubleVectorValueStatistics): this(
+        logicalSize = metrics.logicalSize,
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = if (metrics.numberOfDistinctEntries.toDouble() / metrics.numberOfEntries.toDouble() >= metrics.distinctEntriesScalingThreshold) (metrics.numberOfDistinctEntries * factor).toLong() else metrics.numberOfDistinctEntries, // Depending on the ratio between distinct entries and number of entries, we either scale the distinct entries (large ratio) or keep them as they are (small ratio).
+        min = metrics.min, // min and max are not adjusted
+        max = metrics.max, // min and max are not adjusted
+        sum = DoubleVectorValue(DoubleArray(metrics.logicalSize) { (metrics.sum.data[it] * factor) })
+    )
 
     /** The arithmetic mean for the values seen by this [DoubleVectorValueStatistics]. */
     override val mean: DoubleVectorValue
@@ -34,13 +46,13 @@ class DoubleVectorValueStatistics(logicalSize: Int) : RealVectorValueStatistics<
     /**
      * Xodus serializer for [DoubleVectorValueStatistics]
      */
-    class Binding(val logicalSize: Int): XodusBinding<DoubleVectorValueStatistics> {
+    class Binding(val logicalSize: Int): MetricsXodusBinding<DoubleVectorValueStatistics> {
         override fun read(stream: ByteArrayInputStream): DoubleVectorValueStatistics {
-            val stat = DoubleVectorValueStatistics(this.logicalSize)
-            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            val stat = DoubleVectorValueStatistics(this@Binding.logicalSize)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            for (i in 0 until this.logicalSize) {
+            stat.numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            for (i in 0 until this@Binding.logicalSize) {
                 stat.min.data[i] = SignedDoubleBinding.BINDING.readObject(stream)
                 stat.max.data[i] = SignedDoubleBinding.BINDING.readObject(stream)
                 stat.sum.data[i] = SignedDoubleBinding.BINDING.readObject(stream)
@@ -49,9 +61,9 @@ class DoubleVectorValueStatistics(logicalSize: Int) : RealVectorValueStatistics<
         }
 
         override fun write(output: LightOutputStream, statistics: DoubleVectorValueStatistics) {
-            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
             for (i in 0 until statistics.type.logicalSize) {
                 SignedDoubleBinding.BINDING.writeObject(output, statistics.min.data[i])
                 SignedDoubleBinding.BINDING.writeObject(output, statistics.max.data[i])
@@ -60,68 +72,4 @@ class DoubleVectorValueStatistics(logicalSize: Int) : RealVectorValueStatistics<
         }
     }
 
-
-    /**
-     * Updates this [DoubleVectorValueStatistics] with an inserted [DoubleVectorValue]
-     *
-     * @param inserted The [DoubleVectorValue] that was inserted.
-     */
-    override fun insert(inserted: DoubleVectorValue?) {
-        super.insert(inserted)
-        if (inserted != null) {
-            for ((i, d) in inserted.data.withIndex()) {
-                this.min.data[i] = java.lang.Double.min(d, this.min.data[i])
-                this.max.data[i] = java.lang.Double.max(d, this.max.data[i])
-                this.sum.data[i] += d
-            }
-        }
-    }
-
-    /**
-     * Updates this [DoubleVectorValueStatistics] with a deleted [DoubleVectorValue]
-     *
-     * @param deleted The [DoubleVectorValue] that was deleted.
-     */
-    override fun delete(deleted: DoubleVectorValue?) {
-        super.delete(deleted)
-        if (deleted != null) {
-            for ((i, d) in deleted.data.withIndex()) {
-                /* We cannot create a sensible estimate if a value is deleted. */
-                if (this.min.data[i] == d || this.max.data[i] == d) {
-                    this.fresh = false
-                }
-                this.sum.data[i] -= d
-            }
-        }
-    }
-
-    /**
-     * Resets this [DoubleVectorValueStatistics] and sets all its values to to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        for (i in 0 until this.type.logicalSize) {
-            this.min.data[i] = Double.MAX_VALUE
-            this.max.data[i] = Double.MIN_VALUE
-            this.sum.data[i] = 0.0
-        }
-    }
-
-    /**
-     * Copies this [DoubleVectorValueStatistics] and returns it.
-     *
-     * @return Copy of this [DoubleVectorValueStatistics].
-     */
-    override fun copy(): DoubleVectorValueStatistics {
-        val copy = DoubleVectorValueStatistics(this.type.logicalSize)
-        copy.fresh = this.fresh
-        copy.numberOfNullEntries = this.numberOfNullEntries
-        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
-        for (i in 0 until this.type.logicalSize) {
-            copy.min.data[i] = this.min.data[i]
-            copy.max.data[i] = this.max.data[i]
-            copy.sum.data[i] = this.sum.data[i]
-        }
-        return copy
-    }
 }

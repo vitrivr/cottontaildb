@@ -11,4 +11,5 @@ package org.vitrivr.cottontail.core.types
 interface ScalarValue<T: Any>: Value {
     /** Actual value of this [Value]. */
     val value: T
+
 }

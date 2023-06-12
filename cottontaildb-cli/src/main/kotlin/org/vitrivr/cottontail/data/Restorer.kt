@@ -1,14 +1,16 @@
 package org.vitrivr.cottontail.data
 
+import kotlinx.serialization.BinaryFormat
+import kotlinx.serialization.StringFormat
 import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.cbor.Cbor
-import kotlinx.serialization.csv.Csv
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.CreateEntity
 import org.vitrivr.cottontail.client.language.dml.BatchInsert
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.serialization.valueSerializer
 import java.io.Closeable
 import java.io.InputStream
@@ -80,7 +82,7 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
             /* Insert the data. */
             val insert = BatchInsert(entity.name).columns(*entity.columns.map { it.name }.toTypedArray()).txId(txId)
             for (t in tuples) {
-                if (!insert.values(*t.values.toTypedArray())) {
+                if (!insert.values(*t.values().mapNotNull { it as? PublicValue }.toTypedArray())) {
                     this.client.insert(insert)
                     insert.clear()
                 }
@@ -105,12 +107,12 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
      * @return [List] of [Tuple]
      */
     protected fun read(e: Manifest.Entity, input: InputStream): List<Tuple> {
-        val serializer = e.columns.valueSerializer()
+        val serializer = e.columns.toTypedArray().valueSerializer()
         val bytes = input.readAllBytes()
-        return when(this.manifest.format) {
-            Format.CBOR -> Cbor.decodeFromByteArray(ListSerializer(serializer), bytes)
-            Format.JSON -> Json.decodeFromString(ListSerializer(serializer), bytes.toString(Charset.defaultCharset()))
-            Format.CSV -> Csv.decodeFromString(ListSerializer(serializer), bytes.toString(Charset.defaultCharset()))
+        return when(val format = this.manifest.format.format) {
+            is StringFormat -> format.decodeFromString(ListSerializer(serializer), bytes.toString(Charset.defaultCharset()))
+            is BinaryFormat -> format.decodeFromByteArray(ListSerializer(serializer), bytes)
+            else -> throw IllegalArgumentException("Unsupported format $format.")
         }
     }
 

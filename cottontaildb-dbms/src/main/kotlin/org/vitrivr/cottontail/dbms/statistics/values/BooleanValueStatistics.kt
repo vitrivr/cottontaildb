@@ -1,20 +1,38 @@
 package org.vitrivr.cottontail.dbms.statistics.values
 
-import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.BooleanValue
-import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
 import java.io.ByteArrayInputStream
+import kotlin.math.min
 
 /**
  * A [ValueStatistics] implementation for [BooleanValue]s.
  *
- * @author Ralph Gasser
- * @version 1.2.0
+ * @author Ralph Gasser, Florian Burkhardt
+ * @version 1.3.0
  */
-class BooleanValueStatistics: AbstractValueStatistics<BooleanValue>(Types.Boolean) {
+data class BooleanValueStatistics(
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+    var numberOfTrueEntries: Long = 0L,
+    var numberOfFalseEntries: Long = 0L
+): AbstractScalarStatistics<BooleanValue>(Types.Boolean) {
+
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: BooleanValueStatistics): this(
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = min(if (metrics.numberOfDistinctEntries.toDouble() / metrics.numberOfEntries.toDouble() >= metrics.distinctEntriesScalingThreshold) (metrics.numberOfDistinctEntries * factor).toLong() else metrics.numberOfDistinctEntries, 2), // Depending on the ratio between distinct entries and number of entries, we either scale the distinct entries (large ratio) or keep them as they are (small ratio). Also don't allow values above 2.
+        numberOfTrueEntries = (metrics.numberOfTrueEntries * factor).toLong(),
+        numberOfFalseEntries = (metrics.numberOfFalseEntries * factor).toLong()
+    )
+
     companion object {
         const val TRUE_ENTRIES_KEY = "true"
         const val FALSE_ENTRIES_KEY = "false"
@@ -23,80 +41,25 @@ class BooleanValueStatistics: AbstractValueStatistics<BooleanValue>(Types.Boolea
     /**
      * Xodus serializer for [BooleanValueStatistics]
      */
-    object Binding: XodusBinding<BooleanValueStatistics> {
+    object Binding: MetricsXodusBinding<BooleanValueStatistics> {
         override fun read(stream: ByteArrayInputStream): BooleanValueStatistics {
-            val stat = BooleanValueStatistics()
-            stat.fresh = BooleanBinding.BINDING.readObject(stream)
-            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
-            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            stat.numberOfTrueEntries = LongBinding.readCompressed(stream)
-            stat.numberOfFalseEntries = LongBinding.readCompressed(stream)
-            return stat
+            val numberOfNullEntries = LongBinding.readCompressed(stream)
+            val numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            val numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            val numberOfTrueEntries = LongBinding.readCompressed(stream)
+            val numberOfFalseEntries = LongBinding.readCompressed(stream)
+            return BooleanValueStatistics(numberOfNullEntries, numberOfNonNullEntries, numberOfDistinctEntries, numberOfTrueEntries, numberOfFalseEntries)
         }
 
         override fun write(output: LightOutputStream, statistics: BooleanValueStatistics) {
-            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
             LongBinding.writeCompressed(output, statistics.numberOfTrueEntries)
             LongBinding.writeCompressed(output, statistics.numberOfFalseEntries)
         }
     }
 
-    /** Number of true entries for in this [BooleanValueStatistics]. */
-    var numberOfTrueEntries: Long = 0L
-        private set
-
-    /** Number of false entries for in this [BooleanValueStatistics]. */
-    var numberOfFalseEntries: Long = 0L
-        private set
-
-    /**
-     * Updates this [BooleanValueStatistics] with an inserted [BooleanValue]
-     *
-     * @param inserted The [BooleanValue] that was inserted.
-     */
-    override fun insert(inserted: BooleanValue?) {
-        when (inserted?.value) {
-            null -> this.numberOfNullEntries += 1
-            true -> {
-                this.numberOfTrueEntries += 1
-                this.numberOfNonNullEntries += 1
-            }
-            false -> {
-                this.numberOfFalseEntries += 1
-                this.numberOfNonNullEntries += 1
-            }
-        }
-    }
-
-    /**
-     * Updates this [LongValueStatistics] with a deleted [BooleanValue]
-     *
-     * @param deleted The [BooleanValue] that was deleted.
-     */
-    override fun delete(deleted: BooleanValue?) {
-        when (deleted?.value) {
-            null -> this.numberOfNullEntries -= 1
-            true -> {
-                this.numberOfTrueEntries -= 1
-                this.numberOfNonNullEntries -= 1
-            }
-            false -> {
-                this.numberOfFalseEntries -= 1
-                this.numberOfNonNullEntries -= 1
-            }
-        }
-    }
-
-    /**
-     * Resets this [BooleanValueStatistics] and sets all its values to to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        this.numberOfTrueEntries = 0L
-        this.numberOfFalseEntries = 0L
-    }
 
     /**
      * Creates a descriptive map of this [BooleanValueStatistics].
@@ -107,19 +70,4 @@ class BooleanValueStatistics: AbstractValueStatistics<BooleanValue>(Types.Boolea
         TRUE_ENTRIES_KEY to this.numberOfTrueEntries.toString(),
         FALSE_ENTRIES_KEY to this.numberOfFalseEntries.toString(),
     )
-
-    /**
-     * Copies this [BooleanValueStatistics] and returns it.
-     *
-     * @return Copy of this [BooleanValueStatistics].
-     */
-    override fun copy(): BooleanValueStatistics {
-        val copy = BooleanValueStatistics()
-        copy.fresh = this.fresh
-        copy.numberOfNullEntries = this.numberOfNullEntries
-        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
-        copy.numberOfTrueEntries = this.numberOfTrueEntries
-        copy.numberOfTrueEntries = this.numberOfTrueEntries
-        return copy
-    }
 }

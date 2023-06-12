@@ -8,6 +8,7 @@ import io.javalin.http.Context
 import io.javalin.openapi.*
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.ui.api.database.drainToArray
 import org.vitrivr.cottontail.ui.api.database.obtainClientForContext

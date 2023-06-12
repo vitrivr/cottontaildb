@@ -2,10 +2,6 @@ package org.vitrivr.cottontail.core.values
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.ComplexValue
-import org.vitrivr.cottontail.core.types.NumericValue
-import org.vitrivr.cottontail.core.types.RealValue
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.types.*
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 

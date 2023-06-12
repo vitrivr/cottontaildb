@@ -21,7 +21,6 @@ import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
@@ -80,7 +79,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @return True on success, false otherwise.
          */
         override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            val store = (catalogue as DefaultCatalogue).environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
+            val store = catalogue.transactionManager.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize BTREE index $name due to an exception: ${e.message}.")
@@ -96,7 +95,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @return True on success, false otherwise.
          */
         override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            (catalogue as DefaultCatalogue).environment.removeStore(name.storeName(), context.xodusTx)
+            catalogue.transactionManager.environment.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {
             LOGGER.error("Failed to de-initialize BTREE index $name due to an exception: ${e.message}.")
@@ -150,7 +149,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         internal val binding: XodusBinding<Value> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable) as XodusBinding<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
-        internal val dataStore: Store = this@BTreeIndex.catalogue.environment.openStore(this@BTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
+        internal val dataStore: Store = this@BTreeIndex.catalogue.transactionManager.environment.openStore(this@BTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@BTreeIndex.name} is missing.")
 
         /**
@@ -195,9 +194,9 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
             if (predicate !is BooleanPredicate.Comparison) return false
             if (!predicate.columns.contains(this.columns[0])) return false
             return when (predicate.operator) {
-                is ComparisonOperator.Binary.Equal,
+                is ComparisonOperator.Equal,
                 is ComparisonOperator.In,
-                is ComparisonOperator.Binary.Like -> true
+                is ComparisonOperator.Like -> true
                 else -> false
             }
         }
@@ -242,8 +241,13 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
             val countOut = selectivity(count)       /* Number of entries actually selected (comparison still required). */
             val search = log10(count.toFloat())     /* Overhead for search into the index. */
             return when (predicate.operator) {
-                is ComparisonOperator.Binary,
-                is ComparisonOperator.In -> Cost.DISK_ACCESS_READ * (search + countOut) + predicate.cost * countOut
+                is ComparisonOperator.Equal,
+                is ComparisonOperator.NotEqual,
+                is ComparisonOperator.Greater,
+                is ComparisonOperator.Less,
+                is ComparisonOperator.GreaterEqual,
+                is ComparisonOperator.LessEqual,
+                is ComparisonOperator.In -> Cost.DISK_ACCESS_READ_SEQUENTIAL * (search + countOut) + predicate.cost * countOut
                 else -> Cost.INVALID
             }
         }
@@ -302,11 +306,11 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         override fun filter(predicate: Predicate) = this.txLatch.withLock {
             require(predicate is BooleanPredicate.Comparison) { "BTreeIndex.filter() does only support BooleanPredicate.Atomic boolean predicates." }
             when(val op = predicate.operator) {
-                is ComparisonOperator.Binary.Equal -> BTreeIndexCursor.Equals(op, this)
-                is ComparisonOperator.Binary.Greater -> BTreeIndexCursor.Greater(op, this)
-                is ComparisonOperator.Binary.GreaterEqual -> BTreeIndexCursor.GreaterEqual(op, this)
-                is ComparisonOperator.Binary.Less -> BTreeIndexCursor.Less(op, this)
-                is ComparisonOperator.Binary.LessEqual -> BTreeIndexCursor.LessEqual(op, this)
+                is ComparisonOperator.Equal -> BTreeIndexCursor.Equals(op, this)
+                is ComparisonOperator.Greater -> BTreeIndexCursor.Greater(op, this)
+                is ComparisonOperator.GreaterEqual -> BTreeIndexCursor.GreaterEqual(op, this)
+                is ComparisonOperator.Less -> BTreeIndexCursor.Less(op, this)
+                is ComparisonOperator.LessEqual -> BTreeIndexCursor.LessEqual(op, this)
                 is ComparisonOperator.In -> BTreeIndexCursor.In(op, this)
                 else -> throw IllegalArgumentException("BTreeIndex.filter() does only support =,>=,<=,>,< and IN operators.")
             }

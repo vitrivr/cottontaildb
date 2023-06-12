@@ -11,8 +11,8 @@ import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.client.language.dml.BatchInsert
 import org.vitrivr.cottontail.client.language.dml.Delete
 import org.vitrivr.cottontail.client.language.dml.Insert
-import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.client.language.dml.Update
+import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.grpc.*
 import kotlin.coroutines.cancellation.CancellationException
 

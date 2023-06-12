@@ -5,6 +5,11 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
+import jetbrains.exodus.env.Environment
+import jetbrains.exodus.env.Environments
+import jetbrains.exodus.vfs.ClusteringStrategy
+import jetbrains.exodus.vfs.VfsConfig
+import jetbrains.exodus.vfs.VirtualFileSystem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
@@ -12,10 +17,10 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
@@ -41,9 +46,9 @@ import kotlin.coroutines.CoroutineContext
  * @author Ralph Gasser
  * @version 1.8.0
  */
-class TransactionManager(val executionManager: ExecutionManager, transactionTableSize: Int, val transactionHistorySize: Int, private val catalogue: DefaultCatalogue) {
+class TransactionManager(val executionManager: ExecutionManager, val config: Config) {
     /** Map of [TransactionImpl]s that are currently PENDING or RUNNING. */
-    private val transactions = Collections.synchronizedMap(Long2ObjectOpenHashMap<TransactionImpl>(transactionTableSize, VERY_FAST_LOAD_FACTOR))
+    private val transactions = Collections.synchronizedMap(Long2ObjectOpenHashMap<TransactionImpl>(config.execution.transactionTableSize, VERY_FAST_LOAD_FACTOR))
 
     /** Set of [TransactionObserver]s registered with this [TransactionManager]. */
     private val observers = Collections.synchronizedSet(ObjectOpenHashSet<TransactionObserver>())
@@ -51,14 +56,38 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
     /** Internal counter to generate [TransactionId]s. Starts with 1 */
     private val tidCounter = AtomicLong(1L)
 
+    /** This lock synchronises exclusive transactions (TODO: More granularity). */
+    private val exclusiveLock = StampedLock()
+
     /** The [LockManager] instance used by this [TransactionManager]. */
     internal val lockManager = LockManager<DBO>()
 
     /** List of ongoing or past transactions (limited to [transactionHistorySize] entries). */
-    internal val transactionHistory: MutableList<Transaction> = Collections.synchronizedList(ArrayList(this.transactionHistorySize))
+    internal val transactionHistory: MutableList<Transaction> = Collections.synchronizedList(ArrayList(config.execution.transactionHistorySize))
 
-    /** This lock synchronises exclusive transactions (TODO: More granularity). */
-    private val exclusiveLock = StampedLock()
+    /** The main Xodus [Environment] used by Cottontail DB. This is an internal variable and not part of the official interface. */
+    internal val environment: Environment = Environments.newInstance(
+        this.config.dataFolder().toFile(),
+        this.config.xodus.toEnvironmentConfig()
+    )
+
+    /** The [VirtualFileSystem] used by this [TransactionManager]. */
+    internal val vfs: VirtualFileSystem
+
+    init {
+        val tx = this.environment.beginExclusiveTransaction()
+        try {
+            /** Initialize virtual file system. */
+            val config = VfsConfig()
+            config.clusteringStrategy = ClusteringStrategy.QuadraticClusteringStrategy(65536)
+            config.clusteringStrategy.maxClusterSize = 65536 * 16
+            this.vfs = VirtualFileSystem(this.environment, config, tx)
+            tx.commit()
+        } catch (e: Throwable) {
+            tx.abort()
+            throw e
+        }
+    }
 
     /**
      * Returns the [Transaction] for the provided [TransactionId].
@@ -106,8 +135,18 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
      * Starts a new [Transaction] through this [TransactionManager].
      *
      * @param type The [TransactionType] of the [Transaction] to start.
+     * @return [TransactionImpl]
      */
     fun startTransaction(type: TransactionType): Transaction = TransactionImpl(type)
+
+
+    /**
+     * Attempts to shutdown this [TransactionManager].
+     */
+    fun shutdown() {
+        this.vfs.shutdown()
+        this.environment.close()
+    }
 
     /**
      * A concrete [TransactionImpl] used for executing a query.
@@ -192,15 +231,15 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         init {
             /** Try to start transaction. */
             if (this.type.exclusive) {
-                this.xodusTx = this@TransactionManager.catalogue.environment.beginExclusiveTransaction()
+                this.xodusTx = this@TransactionManager.environment.beginExclusiveTransaction()
             } else {
-                this.xodusTx = this@TransactionManager.catalogue.environment.beginReadonlyTransaction()
+                this.xodusTx = this@TransactionManager.environment.beginReadonlyTransaction()
             }
 
             /** Add this to transaction history and transaction table. */
             this@TransactionManager.transactions[this.txId] = this
             this@TransactionManager.transactionHistory.add(this)
-            if (this@TransactionManager.transactionHistory.size >= this@TransactionManager.transactionHistorySize) {
+            if (this@TransactionManager.transactionHistory.size >= this@TransactionManager.config.execution.transactionHistorySize) {
                 this@TransactionManager.transactionHistory.removeAt(0)
             }
 

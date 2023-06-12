@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
+import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
@@ -24,14 +25,15 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * @version 1.5.0
  */
 object BooleanIndexScanRule : RewriteRule {
-    override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean = node is FilterPhysicalOperatorNode &&
-        node.input is EntityScanPhysicalOperatorNode
+    override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean
+        = !ctx.hints.contains(QueryHint.IndexHint.None) && node is FilterPhysicalOperatorNode && node.input is EntityScanPhysicalOperatorNode
 
     /**
      * Applies this [BooleanIndexScanRule] and tries to replace a [EntityScanPhysicalOperatorNode] followed by a [FilterLogicalOperatorNode]
      *
      */
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
+        if (ctx.hints.contains(QueryHint.IndexHint.None)) return null
         if (node is FilterPhysicalOperatorNode) {
             val parent = node.input
             if (parent is EntityScanPhysicalOperatorNode) {
@@ -70,14 +72,14 @@ object BooleanIndexScanRule : RewriteRule {
         is BooleanPredicate.IsNull -> BooleanPredicate.IsNull(predicate.binding)
         is BooleanPredicate.Comparison -> BooleanPredicate.Comparison(
             when(val op = predicate.operator) {
-                is ComparisonOperator.Binary.Equal -> ComparisonOperator.Binary.Equal(op.left, op.right)
-                is ComparisonOperator.Binary.NotEqual -> ComparisonOperator.Binary.NotEqual(op.left, op.right)
-                is ComparisonOperator.Binary.Greater -> ComparisonOperator.Binary.Greater(op.left, op.right)
-                is ComparisonOperator.Binary.GreaterEqual -> ComparisonOperator.Binary.GreaterEqual(op.left, op.right)
-                is ComparisonOperator.Binary.Less -> ComparisonOperator.Binary.Less(op.left, op.right)
-                is ComparisonOperator.Binary.LessEqual -> ComparisonOperator.Binary.LessEqual(op.left,op.right)
-                is ComparisonOperator.Binary.Like -> ComparisonOperator.Binary.Like(op.left, op.right)
-                is ComparisonOperator.Binary.Match -> ComparisonOperator.Binary.Match(op.left, op.right)
+                is ComparisonOperator.Equal -> ComparisonOperator.Equal(op.left, op.right)
+                is ComparisonOperator.NotEqual -> ComparisonOperator.NotEqual(op.left, op.right)
+                is ComparisonOperator.Greater -> ComparisonOperator.Greater(op.left, op.right)
+                is ComparisonOperator.GreaterEqual -> ComparisonOperator.GreaterEqual(op.left, op.right)
+                is ComparisonOperator.Less -> ComparisonOperator.Less(op.left, op.right)
+                is ComparisonOperator.LessEqual -> ComparisonOperator.LessEqual(op.left,op.right)
+                is ComparisonOperator.Like -> ComparisonOperator.Like(op.left, op.right)
+                is ComparisonOperator.Match -> ComparisonOperator.Match(op.left, op.right)
                 is ComparisonOperator.Between, /* IN and BETWEEN operators only support literal bindings. */
                 is ComparisonOperator.In -> op
             })

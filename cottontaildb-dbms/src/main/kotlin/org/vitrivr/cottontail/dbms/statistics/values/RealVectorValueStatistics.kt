@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.statistics.values
 
 import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.VectorValue
 
 /**
  * A [ValueStatistics] for [VectorValue]s
@@ -10,7 +9,7 @@ import org.vitrivr.cottontail.core.types.VectorValue
  * @author Ralph Gasser
  * @version 1.1.0
  */
-sealed class RealVectorValueStatistics<T: RealVectorValue<*>>(type: Types<T>): AbstractValueStatistics<T>(type) {
+sealed class RealVectorValueStatistics<T: RealVectorValue<*>>(type: Types<T>): AbstractVectorStatistics<T>(type) {
     companion object {
         const val MIN_KEY = "cmin"
         const val MAX_KEY = "cmax"

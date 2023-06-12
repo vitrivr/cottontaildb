@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.client.language.dml
 
 import org.vitrivr.cottontail.client.language.basics.LanguageFeature
-import org.vitrivr.cottontail.client.language.basics.predicate.*
-import org.vitrivr.cottontail.client.language.extensions.*
+import org.vitrivr.cottontail.client.language.basics.predicate.Predicate
+import org.vitrivr.cottontail.client.language.extensions.proto
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tryConvertToValue
 import org.vitrivr.cottontail.core.values.PublicValue

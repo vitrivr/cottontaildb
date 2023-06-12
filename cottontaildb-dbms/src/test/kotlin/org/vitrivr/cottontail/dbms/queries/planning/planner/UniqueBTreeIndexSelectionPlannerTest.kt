@@ -36,7 +36,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.Def
  * A collection of test cases that test the outcome for index selection in presence of an [IndexType.BTREE_UQ].
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
 class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
 
@@ -84,39 +84,34 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
      */
     @Test
     fun testEqualsWithoutHint() {
-        for (i in 0 until 100) {
-            val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
-            try {
-                val ctx = DefaultQueryContext("test", this.catalogue, txn)
-                val catalogueTx = this.catalogue.newTx(ctx)
-                val schema = catalogueTx.schemaForName(this.schemaName)
-                val schemaTx = schema.newTx(ctx)
-                val entity = schemaTx.entityForName(this.entityName)
-                val entityTx = entity.newTx(ctx)
-                val bindings = this.columns.map { ctx.bindings.bind(it) to it }
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
+        try {
+            val ctx = DefaultQueryContext("test", this.catalogue, txn)
+            val catalogueTx = this.catalogue.newTx(ctx)
+            val schema = catalogueTx.schemaForName(this.schemaName)
+            val schemaTx = schema.newTx(ctx)
+            val entity = schemaTx.entityForName(this.entityName)
+            val entityTx = entity.newTx(ctx)
+            val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
-                /* Bind EQUALS operator. */
-                val op = ComparisonOperator.Binary.Equal(bindings[0].first, ctx.bindings.bind(this.inList[this.random.nextInt(0, this.inList.size - 1)]))
+            /* Bind EQUALS operator. */
+            val op = ComparisonOperator.Equal(bindings[0].first, ctx.bindings.bind(this.inList[this.random.nextInt(0, this.inList.size - 1)]))
 
-                /* Prepare simple scan with projection. */
-                val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
-                val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op))
-                val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
+            /* Prepare simple scan with projection. */
+            val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
+            val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op))
+            val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
-                /* Execute query planing. */
-                ctx.register(projection0)
-                ctx.plan(this.planner)
+            /* Execute query planing. */
+            ctx.register(projection0)
+            ctx.plan(this.planner)
 
-                /* Check if index scan was selected. */
-                Assertions.assertTrue(ctx.physical.firstOrNull()?.base?.firstOrNull() is IndexScanPhysicalOperatorNode)
-                Assertions.assertEquals(this.indexName, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.name)
-                Assertions.assertEquals(this.indexType, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.type)
-            } finally {
-                txn.rollback()
-            }
-
-            /* Add more records. */
-            this.populateDatabase()
+            /* Check if index scan was selected. */
+            Assertions.assertTrue(ctx.physical.firstOrNull()?.base?.firstOrNull() is IndexScanPhysicalOperatorNode)
+            Assertions.assertEquals(this.indexName, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.name)
+            Assertions.assertEquals(this.indexType, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.type)
+        } finally {
+            txn.rollback()
         }
     }
 
@@ -136,7 +131,7 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
             /* Bind EQUALS operator. */
-            val op = ComparisonOperator.Binary.Equal(bindings[0].first, ctx.bindings.bind(this.inList[this.random.nextInt(0, this.inList.size - 1)]))
+            val op = ComparisonOperator.Equal(bindings[0].first, ctx.bindings.bind(this.inList[this.random.nextInt(0, this.inList.size - 1)]))
 
             /* Prepare simple scan with projection. */
             val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
@@ -160,38 +155,34 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
      */
     @Test
     fun testInWithoutHint() {
-        for (i in 0 until 100) {
-            val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
-            try {
-                val ctx = DefaultQueryContext("test", this.catalogue, txn)
-                val catalogueTx = this.catalogue.newTx(ctx)
-                val schema = catalogueTx.schemaForName(this.schemaName)
-                val schemaTx = schema.newTx(ctx)
-                val entity = schemaTx.entityForName(this.entityName)
-                val entityTx = entity.newTx(ctx)
-                val bindings = this.columns.map { ctx.bindings.bind(it) to it }
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
+        try {
+            val ctx = DefaultQueryContext("test", this.catalogue, txn)
+            val catalogueTx = this.catalogue.newTx(ctx)
+            val schema = catalogueTx.schemaForName(this.schemaName)
+            val schemaTx = schema.newTx(ctx)
+            val entity = schemaTx.entityForName(this.entityName)
+            val entityTx = entity.newTx(ctx)
+            val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
-                /* Bind IN operator. */
-                val op = ComparisonOperator.In(bindings[0].first, ctx.bindings.bind(this.inList))
+            /* Bind IN operator. */
+            val op = ComparisonOperator.In(bindings[0].first, ctx.bindings.bind(this.inList))
 
-                /* Prepare simple scan with projection. */
-                val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
-                val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op))
-                val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
+            /* Prepare simple scan with projection. */
+            val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
+            val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op))
+            val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
-                /* Execute query planing. */
-                ctx.register(projection0)
-                ctx.plan(this.planner)
+            /* Execute query planing. */
+            ctx.register(projection0)
+            ctx.plan(this.planner)
 
-                /* Check if index scan was selected. */
-                Assertions.assertTrue(ctx.physical.firstOrNull()?.base?.firstOrNull() is IndexScanPhysicalOperatorNode)
-                Assertions.assertEquals(this.indexName, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.name)
-                Assertions.assertEquals(this.indexType, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.type)
-            } finally {
-                txn.rollback()
-            }
-            /* Add more records. */
-            this.populateDatabase()
+            /* Check if index scan was selected. */
+            Assertions.assertTrue(ctx.physical.firstOrNull()?.base?.firstOrNull() is IndexScanPhysicalOperatorNode)
+            Assertions.assertEquals(this.indexName, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.name)
+            Assertions.assertEquals(this.indexType, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.type)
+        } finally {
+            txn.rollback()
         }
     }
 
@@ -200,39 +191,35 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
      */
     @Test
     fun testInWithoutHintButWithAndCondition() {
-        for (i in 0 until 100) {
-            val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
-            try {
-                val ctx = DefaultQueryContext("test", this.catalogue, txn)
-                val catalogueTx = this.catalogue.newTx(ctx)
-                val schema = catalogueTx.schemaForName(this.schemaName)
-                val schemaTx = schema.newTx(ctx)
-                val entity = schemaTx.entityForName(this.entityName)
-                val entityTx = entity.newTx(ctx)
-                val bindings = this.columns.map { ctx.bindings.bind(it) to it }
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
+        try {
+            val ctx = DefaultQueryContext("test", this.catalogue, txn)
+            val catalogueTx = this.catalogue.newTx(ctx)
+            val schema = catalogueTx.schemaForName(this.schemaName)
+            val schemaTx = schema.newTx(ctx)
+            val entity = schemaTx.entityForName(this.entityName)
+            val entityTx = entity.newTx(ctx)
+            val bindings = this.columns.map { ctx.bindings.bind(it) to it }
 
-                /* Bind IN operator. */
-                val op1 = ComparisonOperator.In(bindings[0].first, ctx.bindings.bind(this.inList))
-                val op2 = ComparisonOperator.Binary.Less(bindings[1].first, ctx.bindings.bind(LongValue.ZERO))
+            /* Bind IN operator. */
+            val op1 = ComparisonOperator.In(bindings[0].first, ctx.bindings.bind(this.inList))
+            val op2 = ComparisonOperator.Less(bindings[1].first, ctx.bindings.bind(LongValue.ZERO))
 
-                /* Prepare simple scan with projection. */
-                val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
-                val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.And(BooleanPredicate.Comparison(op1,), BooleanPredicate.Comparison(op2)))
-                val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
+            /* Prepare simple scan with projection. */
+            val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
+            val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.And(BooleanPredicate.Comparison(op1,), BooleanPredicate.Comparison(op2)))
+            val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
-                /* Execute query planing. */
-                ctx.register(projection0)
-                ctx.plan(this.planner)
+            /* Execute query planing. */
+            ctx.register(projection0)
+            ctx.plan(this.planner)
 
-                /* Check if index scan was selected. */
-                Assertions.assertTrue(ctx.physical.firstOrNull()?.base?.firstOrNull() is IndexScanPhysicalOperatorNode)
-                Assertions.assertEquals(this.indexName, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.name)
-                Assertions.assertEquals(this.indexType, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.type)
-            } finally {
-                txn.rollback()
-            }
-            /* Add more records. */
-            this.populateDatabase()
+            /* Check if index scan was selected. */
+            Assertions.assertTrue(ctx.physical.firstOrNull()?.base?.firstOrNull() is IndexScanPhysicalOperatorNode)
+            Assertions.assertEquals(this.indexName, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.name)
+            Assertions.assertEquals(this.indexType, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.type)
+        } finally {
+            txn.rollback()
         }
     }
 

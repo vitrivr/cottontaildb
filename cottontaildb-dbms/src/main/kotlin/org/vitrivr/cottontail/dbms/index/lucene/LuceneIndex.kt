@@ -35,7 +35,6 @@ import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.events.DataEvent
@@ -95,7 +94,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          */
         override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean {
             return try {
-                val directory = XodusDirectory((catalogue as DefaultCatalogue).vfs, name.toString(), context.xodusTx)
+                val directory = XodusDirectory(catalogue.transactionManager.vfs, name.toString(), context.xodusTx)
                 val config = IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE).setMergeScheduler(SerialMergeScheduler())
                 val writer = IndexWriter(directory, config)
                 writer.close()
@@ -116,7 +115,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * @return True on success, false otherwise.
          */
         override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            val directory = XodusDirectory((catalogue as DefaultCatalogue).vfs, name.toString(), context.xodusTx)
+            val directory = XodusDirectory(catalogue.transactionManager.vfs, name.toString(), context.xodusTx)
             for (file in directory.listAll()) {
                 directory.deleteFile(file)
             }
@@ -178,7 +177,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
     inner class Tx(context: QueryContext) : AbstractIndex.Tx(context), org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization, org.vitrivr.cottontail.dbms.general.Tx.WithRollbackFinalization  {
 
         /** The [LuceneIndexDataStore] backing this [LuceneIndex]. */
-        private val store = LuceneIndexDataStore(XodusDirectory(this@LuceneIndex.catalogue.vfs, this@LuceneIndex.name.toString(), this.context.txn.xodusTx), this.columns[0].name)
+        private val store = LuceneIndexDataStore(XodusDirectory(this@LuceneIndex.catalogue.transactionManager.vfs, this@LuceneIndex.name.toString(), this.context.txn.xodusTx), this.columns[0].name)
 
         /**
          * Converts a [BooleanPredicate] to a [Query] supported by Apache Lucene.
@@ -188,9 +187,6 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
         private fun BooleanPredicate.toLuceneQuery(): Query = when (this) {
             is BooleanPredicate.Comparison -> {
                 val op = this.operator
-                if (op !is ComparisonOperator.Binary) {
-                    throw QueryException("Conversion to Lucene query failed: Only binary operators are supported.")
-                }
 
                 /* Left and right-hand side of boolean predicate */
                 with (MissingTuple) {
@@ -213,14 +209,14 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                         }
 
                         return when (op) {
-                            is ComparisonOperator.Binary.Equal -> {
+                            is ComparisonOperator.Equal -> {
                                 if (literal is StringValue) {
                                     TermQuery(Term("${column.name}_str", literal.value))
                                 } else {
                                     throw QueryException("Conversion to Lucene query failed: EQUAL queries strictly require a StringValue as second operand!")
                                 }
                             }
-                            is ComparisonOperator.Binary.Like -> {
+                            is ComparisonOperator.Like -> {
                                 when (literal) {
                                     is StringValue -> QueryParserUtil.parse(
                                         arrayOf(literal.value),
@@ -235,7 +231,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                                     else -> throw throw QueryException("Conversion to Lucene query failed: LIKE queries require a StringValue OR LikePatternValue as second operand!")
                                 }
                             }
-                            is ComparisonOperator.Binary.Match -> {
+                            is ComparisonOperator.Match -> {
                                 if (literal is StringValue) {
                                     QueryParserUtil.parse(arrayOf(literal.value), arrayOf("${column.name}_txt"), StandardAnalyzer())
                                 } else {
@@ -262,7 +258,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
             predicate.columns.all { it in this.columns } &&
             predicate.atomics.all {
                 it is BooleanPredicate.Comparison &&
-                (it.operator is ComparisonOperator.Binary.Like || it.operator is ComparisonOperator.Binary.Equal || it.operator is ComparisonOperator.Binary.Match)
+                (it.operator is ComparisonOperator.Like || it.operator is ComparisonOperator.Equal || it.operator is ComparisonOperator.Match)
             }
 
         /**
@@ -299,7 +295,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
             canProcess(predicate) -> {
                 var cost = Cost.ZERO
                 repeat(predicate.columns.size) {
-                    cost += (Cost.DISK_ACCESS_READ +  Cost.MEMORY_ACCESS) * log2(this.store.indexReader.numDocs().toDouble()) /* TODO: This is an assumption. */
+                    cost += (Cost.DISK_ACCESS_READ_SEQUENTIAL +  Cost.MEMORY_ACCESS) * log2(this.store.indexReader.numDocs().toDouble()) /* TODO: This is an assumption. */
                 }
                 cost
             }

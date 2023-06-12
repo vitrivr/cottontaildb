@@ -31,7 +31,7 @@ class LuceneIndexRebuilder(index: LuceneIndex, context: QueryContext): AbstractI
         val columnTx = entityTx.columnForName(column).newTx(this.context)
 
         /* The [Directory] containing the data for this [LuceneIndex]. */
-        LuceneIndexDataStore(XodusDirectory(this.index.catalogue.vfs, this.index.name.toString(), this.context.txn.xodusTx), column).use { store ->
+        LuceneIndexDataStore(XodusDirectory(this.index.catalogue.transactionManager.vfs, this.index.name.toString(), this.context.txn.xodusTx), column).use { store ->
             /* Delete all entries. */
             store.indexWriter.deleteAll()
 

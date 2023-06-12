@@ -13,13 +13,13 @@ import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOpera
  * A [NullaryPhysicalOperatorNode] used to list all transactions.
  *
  * @author Ralph Gasser
- * @version 1.0.0.
+ * @version 1.0.0
  */
 class ListTransactionsPhysicalOperatorNode(val manager: TransactionManager): SystemPhysicalOperatorNode("ListTransactions") {
     override val groupId: GroupId = 0
-    override val name: String = "ListTransactions"
     override val outputSize: Long = 1L
-    override val columns: List<ColumnDef<*>> = ColumnSets.DDL_TRANSACTIONS_COLUMNS
+    override val columns: List<ColumnDef<*>>
+        get() = ColumnSets.DDL_LOCKS_COLUMNS
     override fun toOperator(ctx: QueryContext) = ListTransactionsOperator(this.manager, ctx)
     override fun copy() = ListTransactionsPhysicalOperatorNode(this.manager)
 

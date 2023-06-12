@@ -22,7 +22,7 @@ import kotlin.time.ExperimentalTime
  * @version 2.3.0
  */
 @ExperimentalTime
-class TXNService constructor(override val catalogue: Catalogue, override val manager: TransactionManager) : TXNGrpcKt.TXNCoroutineImplBase(), TransactionalGrpcService {
+class TXNService constructor(override val catalogue: Catalogue) : TXNGrpcKt.TXNCoroutineImplBase(), TransactionalGrpcService {
     /**
      * gRPC endpoint for beginning an new [TransactionManager.TransactionImpl].
      */

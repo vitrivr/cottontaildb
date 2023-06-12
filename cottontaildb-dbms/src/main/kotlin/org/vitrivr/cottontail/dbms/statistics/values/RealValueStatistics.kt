@@ -1,14 +1,8 @@
 package org.vitrivr.cottontail.dbms.statistics.values
 
-import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.types.RealValue
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.DoubleValue
-import org.vitrivr.cottontail.core.values.IntValue
-import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
 
 /**
  * A [ValueStatistics] implementation for [RealValue]s.
@@ -16,26 +10,37 @@ import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
  * @author Ralph Gasser
  * @version 1.1.0
  */
-sealed class RealValueStatistics<T: RealValue<*>>(type: Types<T>): AbstractValueStatistics<T>(type) {
+sealed class RealValueStatistics<T: RealValue<*>>(type: Types<T>): AbstractScalarStatistics<T>(type) {
     companion object {
         const val MIN_KEY = "min"
         const val MAX_KEY = "max"
         const val SUM_KEY = "sum"
         const val MEAN_KEY = "mean"
+        const val VARIANCE_KEY = "variance"
+        const val SKEWNESS_KEY = "skewness"
+        const val KURTOSIS_KEY = "kurtosis"
     }
 
     /** Minimum value seen by this [RealValueStatistics]. */
-    abstract val min: T
+    abstract var min: T
 
     /** Minimum value seen by this [RealValueStatistics]. */
-    abstract val max: T
+    abstract var max: T
 
     /** Sum of all values seen by this [RealValueStatistics]. */
-    abstract val sum: DoubleValue
+    abstract var sum: DoubleValue
 
-    /** The arithmetic mean for the values seen by this [RealValueStatistics]. */
-    val mean: DoubleValue
-        get() =  DoubleValue(this.sum.value / this.numberOfNonNullEntries)
+    /** The arithmetic mean for the values seen by this [RealValueStatistics]*/
+    abstract var mean : DoubleValue
+
+    /** The variance for the values seen by this [RealValueStatistics]*/
+    abstract var variance : DoubleValue
+
+    /** The skewness for the values seen by this [RealValueStatistics]*/
+    abstract var skewness : DoubleValue
+
+    /** The kurtosis for the values seen by this [RealValueStatistics]*/
+    abstract var kurtosis : DoubleValue
 
     /**
      * Creates a descriptive map of this [RealValueStatistics].
@@ -46,85 +51,10 @@ sealed class RealValueStatistics<T: RealValue<*>>(type: Types<T>): AbstractValue
         MIN_KEY to this.min.value.toString(),
         MAX_KEY to this.max.value.toString(),
         SUM_KEY to this.sum.value.toString(),
-        MEAN_KEY to this.mean.value.toString()
+        MEAN_KEY to this.mean.value.toString(),
+        VARIANCE_KEY to this.variance.value.toString(),
+        SKEWNESS_KEY to this.skewness.value.toString(),
+        KURTOSIS_KEY to this.kurtosis.value.toString()
     )
 
-    /**
-     * Estimates [Selectivity] for a [BooleanPredicate.Comparison].
-     *
-     * @param predicate [BooleanPredicate.Comparison] to estimate [Selectivity] for.
-     * @return [Selectivity]
-     */
-    context(BindingContext, Tuple)
-    @Suppress("UNCHECKED_CAST")
-    override fun estimateSelectivity(predicate: BooleanPredicate.Comparison): Selectivity {
-        val op = predicate.operator
-        if (op.left is org.vitrivr.cottontail.core.queries.binding.Binding.Column && op.left.type == this.type) {
-            when (op) {
-                is ComparisonOperator.Binary -> {
-                    val left = op.left
-                    val right = op.right
-                    if (op.right is org.vitrivr.cottontail.core.queries.binding.Binding.Literal) {
-                        return this.estimateBinarySelectivity(op, right.getValue() as T)
-                    } else if (op.left is org.vitrivr.cottontail.core.queries.binding.Binding.Literal){
-                        return this.estimateBinarySelectivity(op, left.getValue() as T)
-                    }
-                }
-                is ComparisonOperator.Between -> this.estimateBetweenSelectivity(op.right.getValues()[0] as T, op.right.getValues()[1] as T)
-                else -> { /* No op. */ }
-            }
-        }
-        return super.estimateSelectivity(predicate)
-    }
-
-    /**
-     * Estimates [Selectivity] for a [ComparisonOperator.Binary] and a fixed [IntValue].
-     *
-     * @param op [ComparisonOperator.Binary] to estimate selectivity for.
-     * @param value [IntValue] to estimate selectivity for.
-     * @return [Selectivity]
-     */
-    private fun estimateBinarySelectivity(op: ComparisonOperator.Binary, value: T): Selectivity {
-        val range = (this.max - this.min).asFloat().value + 1.0f
-        when(op) {
-            is ComparisonOperator.Binary.Equal -> {
-                if (value > this.max || value < this.min) return Selectivity.NOTHING
-                return Selectivity(1.0f / range) /* Assuming equal distribution. */
-            }
-            is ComparisonOperator.Binary.Greater -> {
-                if (value < this.min) return Selectivity.ALL
-                if (value >= this.max) return Selectivity.NOTHING
-                return Selectivity((this.max - value).asFloat().value / range) /* Assuming equal distribution. */
-            }
-            is ComparisonOperator.Binary.GreaterEqual -> {
-                if (value <= this.min) return Selectivity.ALL
-                if (value >= this.max) return Selectivity.NOTHING
-                return Selectivity((this.max - value).asFloat().value / range) /* Assuming equal distribution. */
-            }
-            is ComparisonOperator.Binary.Less -> {
-                if (value > this.max) return Selectivity.ALL
-                if (value <= this.min) return Selectivity.NOTHING
-                return Selectivity((value - this.min).asFloat().value / range) /* Assuming equal distribution. */
-            }
-            is ComparisonOperator.Binary.LessEqual -> {
-                if (value >= this.max) return Selectivity.ALL
-                if (value <= this.min) return Selectivity.NOTHING
-                return Selectivity((value - this.min).asFloat().value / range) /* Assuming equal distribution. */
-            }
-            else -> return Selectivity.DEFAULT
-        }
-    }
-
-    /**
-     * Estimates [Selectivity] for a [ComparisonOperator.Binary] and a fixed [IntValue].
-     *
-     * @param lower Lower value to estimate selectivity for.
-     * @param upper Upper value to estimate selectivity for.
-     * @return [Selectivity]
-     */
-    private fun estimateBetweenSelectivity(lower: T, upper: T): Selectivity {
-        if (lower > this.max || upper < this.min) return Selectivity.NOTHING
-        val range = (this.max - this.min).asFloat().value + 1.0f
-        return Selectivity((upper - lower).asFloat().value / range) /* Assuming equal distribution. */
-    }
 }

@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
  */
 class NumericValueComparisonOperatorTest {
     /**
-     * Checks correctness of the [ComparisonOperator.Binary.Equal] operator.
+     * Checks correctness of the [ComparisonOperator.Equal] operator.
      */
     @RepeatedTest(100)
     fun checkEqual() {
@@ -50,54 +50,54 @@ class NumericValueComparisonOperatorTest {
             with(MissingTuple) {
                 /** Assert equality .*/
                 Assertions.assertEquals(referenceBoolean, positiveComparisonBoolean)
-                Assertions.assertTrue(ComparisonOperator.Binary.Equal(context.bind(referenceBoolean), context.bind(positiveComparisonBoolean)).match())
+                Assertions.assertTrue(ComparisonOperator.Equal(context.bind(referenceBoolean), context.bind(positiveComparisonBoolean)).match())
 
                 Assertions.assertEquals(referenceByte, positiveComparisonByte)
-                Assertions.assertTrue(ComparisonOperator.Binary.Equal(context.bind(referenceByte), context.bind(positiveComparisonByte)).match())
+                Assertions.assertTrue(ComparisonOperator.Equal(context.bind(referenceByte), context.bind(positiveComparisonByte)).match())
 
                 Assertions.assertEquals(referenceShort, positiveComparisonShort)
-                Assertions.assertTrue(ComparisonOperator.Binary.Equal(context.bind(referenceShort), context.bind(positiveComparisonShort)).match())
+                Assertions.assertTrue(ComparisonOperator.Equal(context.bind(referenceShort), context.bind(positiveComparisonShort)).match())
 
                 Assertions.assertEquals(referenceInt, positiveComparisonInt)
-                Assertions.assertTrue(ComparisonOperator.Binary.Equal(context.bind(referenceInt), context.bind(positiveComparisonInt)).match())
+                Assertions.assertTrue(ComparisonOperator.Equal(context.bind(referenceInt), context.bind(positiveComparisonInt)).match())
 
                 Assertions.assertEquals(referenceLong, positiveComparisonLong)
-                Assertions.assertTrue(ComparisonOperator.Binary.Equal(context.bind(referenceLong), context.bind(positiveComparisonLong)).match())
+                Assertions.assertTrue(ComparisonOperator.Equal(context.bind(referenceLong), context.bind(positiveComparisonLong)).match())
 
                 Assertions.assertEquals(referenceFloat, positiveComparisonFloat)
-                Assertions.assertTrue(ComparisonOperator.Binary.Equal(context.bind(referenceFloat), context.bind(positiveComparisonFloat)).match())
+                Assertions.assertTrue(ComparisonOperator.Equal(context.bind(referenceFloat), context.bind(positiveComparisonFloat)).match())
 
                 Assertions.assertEquals(referenceDouble, positiveComparisonDouble)
-                Assertions.assertTrue(ComparisonOperator.Binary.Equal(context.bind(referenceDouble), context.bind(positiveComparisonDouble)).match())
+                Assertions.assertTrue(ComparisonOperator.Equal(context.bind(referenceDouble), context.bind(positiveComparisonDouble)).match())
 
                 /** Assert inequality .*/
                 if (referenceBoolean.value != negativeComparisonBoolean.value) {
                     Assertions.assertNotEquals(referenceBoolean, negativeComparisonBoolean)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(context.bind(referenceBoolean), context.bind(negativeComparisonBoolean)).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(context.bind(referenceBoolean), context.bind(negativeComparisonBoolean)).match())
                 }
                 if (referenceByte.value != negativeComparisonByte.value) {
                     Assertions.assertNotEquals(referenceByte, negativeComparisonByte)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(context.bind(referenceByte), context.bind(negativeComparisonByte)).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(context.bind(referenceByte), context.bind(negativeComparisonByte)).match())
                 }
                 if (referenceShort.value != negativeComparisonShort.value) {
                     Assertions.assertNotEquals(referenceShort, negativeComparisonShort)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(context.bind(referenceShort), context.bind(negativeComparisonShort)).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(context.bind(referenceShort), context.bind(negativeComparisonShort)).match())
                 }
                 if (referenceInt.value != negativeComparisonInt.value) {
                     Assertions.assertNotEquals(referenceInt, negativeComparisonInt)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(context.bind(referenceInt), context.bind(negativeComparisonInt)).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(context.bind(referenceInt), context.bind(negativeComparisonInt)).match())
                 }
                 if (referenceLong.value != negativeComparisonLong.value) {
                     Assertions.assertNotEquals(referenceLong, negativeComparisonLong)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(context.bind(referenceLong), context.bind(negativeComparisonLong)).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(context.bind(referenceLong), context.bind(negativeComparisonLong)).match())
                 }
                 if (referenceFloat.value != negativeComparisonFloat.value) {
                     Assertions.assertNotEquals(referenceFloat, negativeComparisonFloat)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(context.bind(referenceFloat), context.bind(negativeComparisonFloat)).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(context.bind(referenceFloat), context.bind(negativeComparisonFloat)).match())
                 }
                 if (referenceDouble.value != negativeComparisonDouble.value) {
                     Assertions.assertNotEquals(referenceDouble, negativeComparisonDouble)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(context.bind(referenceDouble), context.bind(negativeComparisonDouble)).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(context.bind(referenceDouble), context.bind(negativeComparisonDouble)).match())
                 }
             }
         }
@@ -181,7 +181,7 @@ class NumericValueComparisonOperatorTest {
 
 
     /**
-     * Checks correctness of the [ComparisonOperator.Binary.Greater] and [ComparisonOperator.Binary.Less] operator.
+     * Checks correctness of the [ComparisonOperator.Greater] and [ComparisonOperator.Less] operator.
      */
     @RepeatedTest(100)
     fun checkGreaterOrLess() {
@@ -219,145 +219,145 @@ class NumericValueComparisonOperatorTest {
                 /** Assert inequality (Byte).*/
                 if (referenceByte.value > comparisonByte.value) {
                     Assertions.assertNotEquals(referenceByte, comparisonByte)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(referenceByteBinding, comparisonByteBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.Greater(referenceByteBinding, comparisonByteBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.GreaterEqual(referenceByteBinding, comparisonByteBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Less(referenceByteBinding, comparisonByteBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.LessEqual(referenceByteBinding, comparisonByteBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(referenceByteBinding, comparisonByteBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Greater(referenceByteBinding, comparisonByteBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.GreaterEqual(referenceByteBinding, comparisonByteBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Less(referenceByteBinding, comparisonByteBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.LessEqual(referenceByteBinding, comparisonByteBinding).match())
                 } else if (referenceByte.value < comparisonByte.value) {
                     Assertions.assertNotEquals(referenceByte, comparisonByte)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(referenceByteBinding, comparisonByteBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Greater(referenceByteBinding, comparisonByteBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.GreaterEqual(referenceByteBinding, comparisonByteBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.Less(referenceByteBinding, comparisonByteBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.LessEqual(referenceByteBinding, comparisonByteBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(referenceByteBinding, comparisonByteBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Greater(referenceByteBinding, comparisonByteBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.GreaterEqual(referenceByteBinding, comparisonByteBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Less(referenceByteBinding, comparisonByteBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.LessEqual(referenceByteBinding, comparisonByteBinding).match())
                 } else {
                     Assertions.assertEquals(referenceByte, comparisonByte)
-                    Assertions.assertTrue(ComparisonOperator.Binary.Equal(referenceByteBinding, comparisonByteBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Greater(referenceByteBinding, comparisonByteBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.GreaterEqual(referenceByteBinding, comparisonByteBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Less(referenceByteBinding, comparisonByteBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.LessEqual(referenceByteBinding, comparisonByteBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Equal(referenceByteBinding, comparisonByteBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Greater(referenceByteBinding, comparisonByteBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.GreaterEqual(referenceByteBinding, comparisonByteBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Less(referenceByteBinding, comparisonByteBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.LessEqual(referenceByteBinding, comparisonByteBinding).match())
                 }
 
                 /** Assert inequality (Short) .*/
                 if (referenceShort.value > comparisonShort.value) {
                     Assertions.assertNotEquals(referenceShort, comparisonShort)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(referenceShortBinding, comparisonShortBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.Greater(referenceShortBinding, comparisonShortBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.GreaterEqual(referenceShortBinding, comparisonShortBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Less(referenceShortBinding, comparisonShortBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.LessEqual(referenceShortBinding, comparisonShortBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(referenceShortBinding, comparisonShortBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Greater(referenceShortBinding, comparisonShortBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.GreaterEqual(referenceShortBinding, comparisonShortBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Less(referenceShortBinding, comparisonShortBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.LessEqual(referenceShortBinding, comparisonShortBinding).match())
                 } else if (referenceShort.value < comparisonShort.value) {
                     Assertions.assertNotEquals(referenceShort, comparisonShort)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(referenceShortBinding, comparisonShortBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Greater(referenceShortBinding, comparisonShortBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.GreaterEqual(referenceShortBinding, comparisonShortBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.Less(referenceShortBinding, comparisonShortBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.LessEqual(referenceShortBinding, comparisonShortBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(referenceShortBinding, comparisonShortBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Greater(referenceShortBinding, comparisonShortBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.GreaterEqual(referenceShortBinding, comparisonShortBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Less(referenceShortBinding, comparisonShortBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.LessEqual(referenceShortBinding, comparisonShortBinding).match())
                 } else {
                     Assertions.assertEquals(referenceShort, comparisonShort)
-                    Assertions.assertTrue(ComparisonOperator.Binary.Equal(referenceShortBinding, comparisonShortBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Greater(referenceShortBinding, comparisonShortBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.GreaterEqual(referenceShortBinding, comparisonShortBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Less(referenceShortBinding, comparisonShortBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.LessEqual(referenceShortBinding, comparisonShortBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Equal(referenceShortBinding, comparisonShortBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Greater(referenceShortBinding, comparisonShortBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.GreaterEqual(referenceShortBinding, comparisonShortBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Less(referenceShortBinding, comparisonShortBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.LessEqual(referenceShortBinding, comparisonShortBinding).match())
                 }
 
                 /** Assert inequality (Int) .*/
                 if (referenceInt.value > comparisonInt.value) {
                     Assertions.assertNotEquals(referenceInt, comparisonInt)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(referenceIntBinding, comparisonIntBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.Greater(referenceIntBinding, comparisonIntBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.GreaterEqual(referenceIntBinding, comparisonIntBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Less(referenceIntBinding, comparisonIntBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.LessEqual(referenceIntBinding, comparisonIntBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(referenceIntBinding, comparisonIntBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Greater(referenceIntBinding, comparisonIntBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.GreaterEqual(referenceIntBinding, comparisonIntBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Less(referenceIntBinding, comparisonIntBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.LessEqual(referenceIntBinding, comparisonIntBinding).match())
                 } else if (referenceInt.value < comparisonInt.value) {
                     Assertions.assertNotEquals(referenceInt, comparisonInt)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(referenceIntBinding, comparisonIntBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Greater(referenceIntBinding, comparisonIntBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.GreaterEqual(referenceIntBinding, comparisonIntBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.Less(referenceIntBinding, comparisonIntBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.LessEqual(referenceIntBinding, comparisonIntBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(referenceIntBinding, comparisonIntBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Greater(referenceIntBinding, comparisonIntBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.GreaterEqual(referenceIntBinding, comparisonIntBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Less(referenceIntBinding, comparisonIntBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.LessEqual(referenceIntBinding, comparisonIntBinding).match())
                 } else {
                     Assertions.assertNotEquals(referenceInt, comparisonInt)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(referenceIntBinding, comparisonIntBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Greater(referenceIntBinding, comparisonIntBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.GreaterEqual(referenceIntBinding, comparisonIntBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.Less(referenceIntBinding, comparisonIntBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.LessEqual(referenceIntBinding, comparisonIntBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(referenceIntBinding, comparisonIntBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Greater(referenceIntBinding, comparisonIntBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.GreaterEqual(referenceIntBinding, comparisonIntBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Less(referenceIntBinding, comparisonIntBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.LessEqual(referenceIntBinding, comparisonIntBinding).match())
                 }
 
                 /** Assert inequality (Long) .*/
                 if (referenceLong.value > comparisonLong.value) {
                     Assertions.assertNotEquals(referenceLong, comparisonLong)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(referenceLongBinding, comparisonLongBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.Greater(referenceLongBinding, comparisonLongBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.GreaterEqual(referenceLongBinding, comparisonLongBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Less(referenceLongBinding, comparisonLongBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.LessEqual(referenceLongBinding, comparisonLongBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(referenceLongBinding, comparisonLongBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Greater(referenceLongBinding, comparisonLongBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.GreaterEqual(referenceLongBinding, comparisonLongBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Less(referenceLongBinding, comparisonLongBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.LessEqual(referenceLongBinding, comparisonLongBinding).match())
                 } else if (referenceLong.value < comparisonLong.value) {
                     Assertions.assertNotEquals(referenceLong, comparisonLong)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(referenceLongBinding, comparisonLongBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Greater(referenceLongBinding, comparisonLongBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.GreaterEqual(referenceLongBinding, comparisonLongBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.Less(referenceLongBinding, comparisonLongBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.LessEqual(referenceLongBinding, comparisonLongBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(referenceLongBinding, comparisonLongBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Greater(referenceLongBinding, comparisonLongBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.GreaterEqual(referenceLongBinding, comparisonLongBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Less(referenceLongBinding, comparisonLongBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.LessEqual(referenceLongBinding, comparisonLongBinding).match())
                 } else {
                     Assertions.assertNotEquals(referenceLong, comparisonLong)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(referenceLongBinding, comparisonLongBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Greater(referenceLongBinding, comparisonLongBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.GreaterEqual(referenceLongBinding, comparisonLongBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.Less(referenceLongBinding, comparisonLongBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.LessEqual(referenceLongBinding, comparisonLongBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(referenceLongBinding, comparisonLongBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Greater(referenceLongBinding, comparisonLongBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.GreaterEqual(referenceLongBinding, comparisonLongBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Less(referenceLongBinding, comparisonLongBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.LessEqual(referenceLongBinding, comparisonLongBinding).match())
                 }
 
                 /** Assert inequality (Float) .*/
                 if (referenceFloat.value > comparisonFloat.value) {
                     Assertions.assertNotEquals(referenceFloat, comparisonFloat)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(referenceFloatBinding, comparisonFloatBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.Greater(referenceFloatBinding, comparisonFloatBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.GreaterEqual(referenceFloatBinding, comparisonFloatBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Less(referenceFloatBinding, comparisonFloatBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.LessEqual(referenceFloatBinding, comparisonFloatBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(referenceFloatBinding, comparisonFloatBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Greater(referenceFloatBinding, comparisonFloatBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.GreaterEqual(referenceFloatBinding, comparisonFloatBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Less(referenceFloatBinding, comparisonFloatBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.LessEqual(referenceFloatBinding, comparisonFloatBinding).match())
                 } else if (referenceFloat.value < comparisonFloat.value) {
                     Assertions.assertNotEquals(referenceFloat, comparisonFloat)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(referenceFloatBinding, comparisonFloatBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Greater(referenceFloatBinding, comparisonFloatBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.GreaterEqual(referenceFloatBinding, comparisonFloatBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.Less(referenceFloatBinding, comparisonFloatBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.LessEqual(referenceFloatBinding, comparisonFloatBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(referenceFloatBinding, comparisonFloatBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Greater(referenceFloatBinding, comparisonFloatBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.GreaterEqual(referenceFloatBinding, comparisonFloatBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Less(referenceFloatBinding, comparisonFloatBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.LessEqual(referenceFloatBinding, comparisonFloatBinding).match())
                 } else {
                     Assertions.assertNotEquals(referenceFloat, comparisonFloat)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(referenceFloatBinding, comparisonFloatBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Greater(referenceFloatBinding, comparisonFloatBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.GreaterEqual(referenceFloatBinding, comparisonFloatBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.Less(referenceFloatBinding, comparisonFloatBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.LessEqual(referenceFloatBinding, comparisonFloatBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(referenceFloatBinding, comparisonFloatBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Greater(referenceFloatBinding, comparisonFloatBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.GreaterEqual(referenceFloatBinding, comparisonFloatBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Less(referenceFloatBinding, comparisonFloatBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.LessEqual(referenceFloatBinding, comparisonFloatBinding).match())
                 }
 
                 /** Assert inequality (Double) .*/
                 if (referenceDouble.value > comparisonDouble.value) {
                     Assertions.assertNotEquals(referenceDouble, comparisonDouble)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(referenceDoubleBinding, comparisonDoubleBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.Greater(referenceDoubleBinding, comparisonDoubleBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.GreaterEqual(referenceDoubleBinding, comparisonDoubleBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Less(referenceDoubleBinding, comparisonDoubleBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.LessEqual(referenceDoubleBinding, comparisonDoubleBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(referenceDoubleBinding, comparisonDoubleBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Greater(referenceDoubleBinding, comparisonDoubleBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.GreaterEqual(referenceDoubleBinding, comparisonDoubleBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Less(referenceDoubleBinding, comparisonDoubleBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.LessEqual(referenceDoubleBinding, comparisonDoubleBinding).match())
                 } else if (referenceDouble.value < comparisonDouble.value) {
                     Assertions.assertNotEquals(referenceDouble, comparisonDouble)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(referenceDoubleBinding, comparisonDoubleBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Greater(referenceDoubleBinding, comparisonDoubleBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.GreaterEqual(referenceDoubleBinding, comparisonDoubleBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.Less(referenceDoubleBinding, comparisonDoubleBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.LessEqual(referenceDoubleBinding, comparisonDoubleBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(referenceDoubleBinding, comparisonDoubleBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Greater(referenceDoubleBinding, comparisonDoubleBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.GreaterEqual(referenceDoubleBinding, comparisonDoubleBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Less(referenceDoubleBinding, comparisonDoubleBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.LessEqual(referenceDoubleBinding, comparisonDoubleBinding).match())
                 } else {
                     Assertions.assertNotEquals(referenceDouble, comparisonDouble)
-                    Assertions.assertFalse(ComparisonOperator.Binary.Equal(referenceDoubleBinding, comparisonDoubleBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.Greater(referenceDoubleBinding, comparisonDoubleBinding).match())
-                    Assertions.assertFalse(ComparisonOperator.Binary.GreaterEqual(referenceDoubleBinding, comparisonDoubleBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.Less(referenceDoubleBinding, comparisonDoubleBinding).match())
-                    Assertions.assertTrue(ComparisonOperator.Binary.LessEqual(referenceDoubleBinding, comparisonDoubleBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Equal(referenceDoubleBinding, comparisonDoubleBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.Greater(referenceDoubleBinding, comparisonDoubleBinding).match())
+                    Assertions.assertFalse(ComparisonOperator.GreaterEqual(referenceDoubleBinding, comparisonDoubleBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.Less(referenceDoubleBinding, comparisonDoubleBinding).match())
+                    Assertions.assertTrue(ComparisonOperator.LessEqual(referenceDoubleBinding, comparisonDoubleBinding).match())
                 }
             }
         }

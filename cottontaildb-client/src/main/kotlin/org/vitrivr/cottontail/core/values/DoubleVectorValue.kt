@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.core.values
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.core.types.*
-import org.vitrivr.cottontail.core.types.*
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.util.*
 import kotlin.math.absoluteValue

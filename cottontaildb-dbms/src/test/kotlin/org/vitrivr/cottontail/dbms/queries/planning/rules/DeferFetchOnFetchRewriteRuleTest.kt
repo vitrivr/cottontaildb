@@ -90,7 +90,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
             /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
             val context = DefaultBindingContext()
             val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, this.columns.map { ctx.bindings.bind(it) to it })
-            val filter0 = FilterPhysicalOperatorNode(scan0, BooleanPredicate.Comparison(ComparisonOperator.Binary.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type))))
+            val filter0 = FilterPhysicalOperatorNode(scan0, BooleanPredicate.Comparison(ComparisonOperator.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type))))
             val projection0 = SelectProjectionPhysicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
             /* Step 1: Execute DeferFetchOnScanRewriteRule and make basic assertions. */
@@ -159,7 +159,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
                 ctx.bindings.bind(this.columns[2]) to this.columns[2])
             )
             val fetch0 = FetchPhysicalOperatorNode(scan0, entityTx, listOf(ctx.bindings.bind(this.columns[3]) to this.columns[3]))
-            val filter0 = FilterPhysicalOperatorNode(fetch0, BooleanPredicate.Comparison(ComparisonOperator.Binary.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type))))
+            val filter0 = FilterPhysicalOperatorNode(fetch0, BooleanPredicate.Comparison(ComparisonOperator.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type))))
             val projection0 = SelectProjectionPhysicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
             /* Step 1: Execute DeferFetchOnFetchRewriteRule and make basic assertions. */

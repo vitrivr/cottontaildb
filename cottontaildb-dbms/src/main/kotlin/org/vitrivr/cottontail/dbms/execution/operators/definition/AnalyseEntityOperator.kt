@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.services.AutoAnalyzerService
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import kotlin.system.measureTimeMillis
 
@@ -17,21 +16,10 @@ import kotlin.system.measureTimeMillis
  * @author Ralph Gasser
  * @version 2.1.0
  */
-class AnalyseEntityOperator(private val tx: CatalogueTx, private val name: Name.EntityName, private val service: AutoAnalyzerService? = null, override val context: QueryContext) : AbstractDataDefinitionOperator(name, "ANALYSE ENTITY") {
+class AnalyseEntityOperator(private val tx: CatalogueTx, private val name: Name.EntityName, override val context: QueryContext) : AbstractDataDefinitionOperator(name, "ANALYSE ENTITY") {
     override fun toFlow(): Flow<Tuple> = flow {
-        val schemaTxn = this@AnalyseEntityOperator.tx.schemaForName(this@AnalyseEntityOperator.name.schema()).newTx(this@AnalyseEntityOperator.context)
-        val entityTxn = schemaTxn.entityForName(this@AnalyseEntityOperator.name).newTx(this@AnalyseEntityOperator.context)
         val time = measureTimeMillis {
-            if (this@AnalyseEntityOperator.service != null) {
-                for (column in entityTxn.listColumns().map { entityTxn.columnForName(it.name) }) {
-                    this@AnalyseEntityOperator.service.schedule(column.name)
-                }
-            } else {
-                for (column in entityTxn.listColumns().map { entityTxn.columnForName(it.name) }) {
-                    val columnTx = column.newTx(this@AnalyseEntityOperator.context)
-                    columnTx.analyse()
-                }
-            }
+            this@AnalyseEntityOperator.tx.dbo.statisticsManager.gatherStatisticsForEntity(this@AnalyseEntityOperator.name)
         }
         emit(this@AnalyseEntityOperator.statusRecord(time))
     }

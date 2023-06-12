@@ -61,7 +61,7 @@ object FulltextIndexRule : RewriteRule {
 
         val probingArgument = node.function.arguments.filterIsInstance<Binding.Column>().singleOrNull() ?: return null
         val queryString = node.function.arguments.filterIsInstance<Binding.Literal>().singleOrNull() ?: return null
-        val predicate = BooleanPredicate.Comparison(ComparisonOperator.Binary.Match(probingArgument, queryString))
+        val predicate = BooleanPredicate.Comparison(ComparisonOperator.Match(probingArgument, queryString))
 
         /* This rule does not heed index hints, because it can lead the planner to not produce a plan at all. */
         val candidate = scan.entity.listIndexes().map {
@@ -81,8 +81,8 @@ object FulltextIndexRule : RewriteRule {
                         when (it) {
                             is InMemorySortPhysicalOperatorNode -> it.traits[OrderTrait] != indexScan.traits[OrderTrait] /* SortPhysicalOperatorNode is only retained, if order is different from index order. */
                             is FilterPhysicalOperatorNode -> {
-                                if (it.predicate is BooleanPredicate.Comparison && it.predicate.operator is ComparisonOperator.Binary.Greater) {
-                                    val op = it.predicate.operator as ComparisonOperator.Binary.Greater
+                                if (it.predicate is BooleanPredicate.Comparison && it.predicate.operator is ComparisonOperator.Greater) {
+                                    val op = it.predicate.operator as ComparisonOperator.Greater
                                     ((op.left is Binding.Column && (op.left as Binding.Column).column == indexScan.columns.first() && op.right.getValue() == DoubleValue.ZERO) ||
                                             (op.right is Binding.Column && (op.right as Binding.Column).column == indexScan.columns.first() && op.left.getValue() == DoubleValue.ZERO)).not()
                                 } else {

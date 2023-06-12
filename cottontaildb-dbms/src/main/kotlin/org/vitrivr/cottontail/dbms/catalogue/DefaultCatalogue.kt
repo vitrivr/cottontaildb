@@ -1,11 +1,6 @@
 package org.vitrivr.cottontail.dbms.catalogue
 
-import jetbrains.exodus.env.Environment
-import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.forEach
-import jetbrains.exodus.vfs.ClusteringStrategy
-import jetbrains.exodus.vfs.VfsConfig
-import jetbrains.exodus.vfs.VirtualFileSystem
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.config.Config
@@ -13,7 +8,10 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.dbms.catalogue.entries.*
 import org.vitrivr.cottontail.dbms.catalogue.entries.MetadataEntry.Companion.METADATA_ENTRY_DB_VERSION
+import org.vitrivr.cottontail.dbms.events.SchemaEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.vitrivr.cottontail.dbms.execution.ExecutionManager
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.functions.initialize
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBO
@@ -22,7 +20,7 @@ import org.vitrivr.cottontail.dbms.index.cache.InMemoryIndexCache
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
-import org.vitrivr.cottontail.dbms.statistics.columns.ColumnStatisticsManager
+import org.vitrivr.cottontail.dbms.statistics.StatisticsManager
 import org.vitrivr.cottontail.dbms.statistics.index.IndexStatisticsManager
 import java.nio.file.Files
 import java.nio.file.Path
@@ -37,7 +35,7 @@ import kotlin.concurrent.withLock
  * @author Ralph Gasser
  * @version 3.0.0
  */
-class DefaultCatalogue(override val config: Config) : Catalogue {
+class DefaultCatalogue(override val config: Config, executor: ExecutionManager) : Catalogue {
     /**
      * Companion object to [DefaultCatalogue]
      */
@@ -76,29 +74,23 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
     /** The [FunctionRegistry] exposed by this [Catalogue]. */
     override val functions: FunctionRegistry = FunctionRegistry()
 
-    /** The main Xodus [Environment] used by Cottontail DB. This is an internal variable and not part of the official interface. */
-    internal val environment: Environment = Environments.newInstance(
-        this.config.dataFolder().toFile(),
-        this.config.xodus.toEnvironmentConfig()
-    )
-
-    /** The Xodus [VirtualFileSystem] used by Cottontail DB. This is an internal variable and not part of the official interface. */
-    val vfs: VirtualFileSystem
-
     /** The [IndexStatisticsManager] used by this [DefaultCatalogue]. */
     val indexStatistics: IndexStatisticsManager
 
-    /** The [ColumnStatisticsManager] used by this [DefaultCatalogue]. */
-    val columnStatistics: ColumnStatisticsManager
+    /** The [TransactionManager] instanced used and exposed by this [DefaultCatalogue]. */
+    override val transactionManager = TransactionManager(executor, this.config)
 
-    /** A internal, in-memory cache for frequently used index structures. This is highly experimental! */
+    /** The [StatisticsManager] instanced used and exposed by this [DefaultCatalogue]. */
+    override val statisticsManager = StatisticsManager(this, this.transactionManager)
+
+    /** An internal, in-memory cache for frequently used index structures. This is highly experimental! */
     val cache = InMemoryIndexCache()
 
     init {
         /* Check if catalogue has been initialized and initialize if needed. */
-        val tx = this.environment.beginExclusiveTransaction()
+        val tx = this.transactionManager.environment.beginExclusiveTransaction()
         try {
-            if (this.environment.getAllStoreNames(tx).size == 0) {
+            if (this.transactionManager.environment.getAllStoreNames(tx).size < 7) {
                 /* Initialize database metadata. */
                 MetadataEntry.init(this, tx)
                 MetadataEntry.write(MetadataEntry(METADATA_ENTRY_DB_VERSION, this.version.toString()), this, tx)
@@ -112,15 +104,8 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
                 IndexStructCatalogueEntry.init(this, tx)
             }
 
-            /** Initialize virtual file system. */
-            val config = VfsConfig()
-            config.clusteringStrategy = ClusteringStrategy.QuadraticClusteringStrategy(65536)
-            config.clusteringStrategy.maxClusterSize = 65536 * 16
-            this.vfs = VirtualFileSystem(this.environment, config, tx)
-
             /** Open the IndexStatisticsManager. */
-            this.indexStatistics = IndexStatisticsManager(this.environment, tx)
-            this.columnStatistics = ColumnStatisticsManager(this.environment, tx)
+            this.indexStatistics = IndexStatisticsManager(this.transactionManager.environment, tx)
 
             /* Check database version. */
             val version = MetadataEntry.read(METADATA_ENTRY_DB_VERSION, this, tx)?.let { it -> DBOVersion.valueOf(it.value) } ?: DBOVersion.UNDEFINED
@@ -135,7 +120,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
             throw e
         }
 
-        /* Tries to clean-up the temporary environment. */
+        /* Tries to clean up the temporary environment. */
         if (!Files.exists(this.config.temporaryDataFolder())) {
             Files.createDirectories(this.config.temporaryDataFolder())
         } else {
@@ -167,8 +152,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         try {
             this.indexStatistics.persist() /* Persist all index statistics. */
         } finally {
-            this.vfs.shutdown()
-            this.environment.close()
+            this.transactionManager.shutdown()
         }
     }
 
@@ -232,6 +216,11 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
             /* Write schema! */
             SchemaCatalogueEntry.write(SchemaCatalogueEntry(name), this@DefaultCatalogue, this.context.txn.xodusTx)
+
+            /* Create Event and notify observers */
+            val event = SchemaEvent.Create(name)
+            this.context.txn.signalEvent(event)
+
             return DefaultSchema(name, this@DefaultCatalogue)
         }
 
@@ -249,6 +238,10 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
             /* Obtain schema Tx and drop all entities contained in schema. */
             val schemaTx = DefaultSchema(name, this@DefaultCatalogue).newTx(this.context)
             schemaTx.listEntities().forEach { schemaTx.dropEntity(it) }
+
+            /* Create Event and notify observers */
+            val event = SchemaEvent.Create(name)
+            this.context.txn.signalEvent(event)
 
             /* Remove schema from catalogue. */
             SchemaCatalogueEntry.delete(name, this@DefaultCatalogue, this.context.txn.xodusTx)

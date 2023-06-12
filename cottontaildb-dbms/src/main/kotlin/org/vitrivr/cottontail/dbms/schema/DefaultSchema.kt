@@ -8,11 +8,11 @@ import org.vitrivr.cottontail.dbms.catalogue.entries.*
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.events.EntityEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.columns.ColumnStatistic
 import kotlin.concurrent.withLock
 
 /**
@@ -135,17 +135,19 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
                     throw DatabaseException.DataCorruptionException("CREATE entity $name failed: Failed to create column entry for column $it.")
                 }
 
-                this@DefaultSchema.catalogue.columnStatistics.updatePersistently(ColumnStatistic(it), this.context.txn.xodusTx)
-
                 /* Write sequence catalogue entry. */
                 if (it.autoIncrement && !SequenceCatalogueEntries.create(name.sequence(it.name.simple), this@DefaultSchema.catalogue, this.context.txn.xodusTx)) {
                     throw DatabaseException.DataCorruptionException("CREATE entity $name failed: Failed to create sequence entry for column ${it.name}.")
                 }
 
-                if (this@DefaultSchema.catalogue.environment.openStore(it.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.context.txn.xodusTx, true) == null) {
+                if (this@DefaultSchema.catalogue.transactionManager.environment.openStore(it.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.context.txn.xodusTx, true) == null) {
                     throw DatabaseException.DataCorruptionException("CREATE entity $name failed: Failed to create store for column $it.")
                 }
             }
+
+            /* Create Event and notify observers */
+            val event = EntityEvent.Create(name, arrayOf(*columns))
+            this.context.txn.signalEvent(event)
 
             /* Return a DefaultEntity instance. */
             return DefaultEntity(name, this@DefaultSchema)
@@ -162,6 +164,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
 
             /* Drop all indexes from entity. */
             val entityTx = DefaultEntity(name, this@DefaultSchema).newTx(this.context)
+            val columns = entityTx.listColumns().toTypedArray() // get columns for dropEntityEvent
             entry.indexes.forEach { entityTx.dropIndex(it) }
 
             /* Drop all columns from entity. */
@@ -173,11 +176,8 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
                 /* Delete column sequence catalogue entry (if exists). */
                 SequenceCatalogueEntries.delete(name.sequence(it.simple), this@DefaultSchema.catalogue, this.context.txn.xodusTx)
 
-                /* Delete column statistics entry. */
-                this@DefaultSchema.catalogue.columnStatistics.deletePersistently(it, this.context.txn.xodusTx)
-
                 /* Remove store for column. */
-                this@DefaultSchema.parent.environment.removeStore(it.storeName(), this.context.txn.xodusTx)
+                this@DefaultSchema.catalogue.transactionManager.environment.removeStore(it.storeName(), this.context.txn.xodusTx)
             }
 
             /* Now remove all catalogue entries related to entity.  */
@@ -187,6 +187,10 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             if (!SequenceCatalogueEntries.delete(name.tid(), this@DefaultSchema.catalogue, this.context.txn.xodusTx)) {
                 throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to delete tuple ID sequence entry.")
             }
+
+            /* Create Event and notify observers */
+            val event = EntityEvent.Drop(name, columns)
+            this.context.txn.signalEvent(event)
         }
 
         /**
@@ -207,7 +211,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
 
             /* Clears all columns. */
             entry.columns.forEach {
-                this@DefaultSchema.catalogue.environment.truncateStore(it.storeName(), this.context.txn.xodusTx)
+                this@DefaultSchema.catalogue.transactionManager.environment.truncateStore(it.storeName(), this.context.txn.xodusTx)
             }
 
             /* Resets the tuple ID counter. */

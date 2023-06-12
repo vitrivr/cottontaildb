@@ -8,18 +8,18 @@ import org.vitrivr.cottontail.core.database.BOC
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
-import org.vitrivr.cottontail.dbms.events.ColumnEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.columns.ColumnStatistic
-import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.defaultStatistics
+import org.vitrivr.cottontail.dbms.statistics.values.*
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
 import kotlin.concurrent.withLock
@@ -72,7 +72,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
     /**
      * A [Tx] that affects this [DefaultColumn].
      */
-    inner class Tx constructor(context: QueryContext) : AbstractTx(context), ColumnTx<T>, org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization  {
+    inner class Tx constructor(context: QueryContext) : AbstractTx(context), ColumnTx<T>  {
 
 
         init {
@@ -81,7 +81,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         }
 
         /** Internal data [Store] reference. */
-        internal val dataStore: Store = this@DefaultColumn.catalogue.environment.openStore(
+        internal val dataStore: Store = this@DefaultColumn.catalogue.transactionManager.environment.openStore(
             this@DefaultColumn.name.storeName(),
             StoreConfig.USE_EXISTING,
             this.context.txn.xodusTx,
@@ -96,31 +96,35 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             get() = this@DefaultColumn
 
         /**
-         * Performs analysis of the [DefaultColumn] backing this [ColumnTx] and updates the associated [ValueStatistics].
-         */
-        @Suppress("UNCHECKED_CAST")
-        override fun analyse() = this.txLatch.withLock {
-            /* Reset and refresh statistics object. */
-            val cursor = this.cursor()
-            val newEntry = ColumnStatistic(this@DefaultColumn.columnDef)
-            while (cursor.moveNext()) {
-                (newEntry.statistics as ValueStatistics<T>).insert(cursor.value())
-            }
-            cursor.close()
-
-            /* Update statistics entry.*/
-            this@DefaultColumn.catalogue.columnStatistics.update(newEntry)
-        }
-
-        /**
          * Gets and returns [ValueStatistics] for this [ColumnTx]
          *
          * @return [ValueStatistics].
          */
         @Suppress("UNCHECKED_CAST")
         override fun statistics(): ValueStatistics<T> = this.txLatch.withLock {
-            (this@DefaultColumn.catalogue.columnStatistics[this@DefaultColumn.name]?.statistics
-                ?: throw DatabaseException.DataCorruptionException("Failed to read column statistics.")) as ValueStatistics<T>
+            val statistics = this@DefaultColumn.catalogue.statisticsManager[this@DefaultColumn.name]?.statistics as? ValueStatistics<T>
+            if (statistics != null) return statistics
+            return when(val type = this.columnDef.type) {
+                Types.Boolean -> BooleanValueStatistics()
+                Types.Byte -> ByteValueStatistics()
+                Types.Short -> ShortValueStatistics()
+                Types.Int -> IntValueStatistics()
+                Types.Long -> LongValueStatistics()
+                Types.Float -> FloatValueStatistics()
+                Types.Double -> DoubleValueStatistics()
+                Types.Complex32 -> Complex32ValueStatistics()
+                Types.Complex64 -> Complex64ValueStatistics()
+                Types.Date -> DateValueStatistics()
+                Types.ByteString -> ByteValueStatistics()
+                Types.String -> StringValueStatistics()
+                is Types.BooleanVector -> BooleanVectorValueStatistics(type.logicalSize)
+                is Types.IntVector -> IntVectorValueStatistics(type.logicalSize)
+                is Types.LongVector -> LongVectorValueStatistics(type.logicalSize)
+                is Types.FloatVector -> FloatVectorValueStatistics(type.logicalSize)
+                is Types.DoubleVector -> DoubleVectorValueStatistics(type.logicalSize)
+                is Types.Complex32Vector -> Complex32VectorValueStatistics(type.logicalSize)
+                is Types.Complex64Vector -> Complex64VectorValueStatistics(type.logicalSize)
+            } as ValueStatistics<T>
         }
 
         /**
@@ -199,7 +203,6 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             if (!this.dataStore.add(this.context.txn.xodusTx, rawTuple, valueRaw)) {
                 throw DatabaseException.DataCorruptionException("Failed to ADD tuple $tupleId to column ${this@DefaultColumn.name}.")
             }
-            this.statistics().insert(value)
 
             /* Return success status. */
             return true
@@ -223,7 +226,6 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             if (!this.dataStore.put(this.context.txn.xodusTx, rawTuple, valueRaw)) {
                 throw DatabaseException.DataCorruptionException("Failed to PUT tuple $tupleId to column ${this@DefaultColumn.name}.")
             }
-            this.statistics().update(existing, value)
 
             /* Return updated value. */
             return existing
@@ -245,7 +247,6 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             if (!this.dataStore.delete(this.context.txn.xodusTx, rawTuple)) {
                 throw DatabaseException.DataCorruptionException("Failed to DELETE tuple $tupleId to column ${this@DefaultColumn.name}.")
             }
-            this.statistics().delete(existing)
 
             /* Return existing value. */
             return existing
@@ -268,17 +269,6 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
          */
         override fun cursor(partition: LongRange): Cursor<T?> = this.txLatch.withLock {
             DefaultColumnCursor(partition, this, this.context)
-        }
-
-        /**
-         * Called when a transactions commit.
-         *
-         * Checks for freshness of [ColumnStatistic].
-         */
-        override fun beforeCommit() {
-            if (!this.statistics().fresh) {
-                this.context.txn.signalEvent(ColumnEvent.Stale(this@DefaultColumn.name))
-            }
         }
     }
 }

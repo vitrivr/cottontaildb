@@ -4,10 +4,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.core.toDouble
 import org.vitrivr.cottontail.core.toInt
-import org.vitrivr.cottontail.core.types.NumericValue
-import org.vitrivr.cottontail.core.types.RealVectorValue
-import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.types.*
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.util.*

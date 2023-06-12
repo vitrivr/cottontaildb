@@ -88,7 +88,7 @@ data class ColumnCatalogueEntry(val name: Name.ColumnName, val type: Types<*>, v
          * @param transaction The [Transaction] to use.
          */
         internal fun init(catalogue: DefaultCatalogue, transaction: Transaction) {
-            catalogue.environment.openStore(CATALOGUE_COLUMN_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
+            catalogue.transactionManager.environment.openStore(CATALOGUE_COLUMN_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
                 ?: throw DatabaseException.DataCorruptionException("Failed to create entity catalogue store.")
         }
 
@@ -100,7 +100,7 @@ data class ColumnCatalogueEntry(val name: Name.ColumnName, val type: Types<*>, v
          * @return [Store]
          */
         internal fun store(catalogue: DefaultCatalogue, transaction: Transaction ): Store =
-            catalogue.environment.openStore(CATALOGUE_COLUMN_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
+            catalogue.transactionManager.environment.openStore(CATALOGUE_COLUMN_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
                 ?: throw DatabaseException.DataCorruptionException("Failed to open store for column catalogue.")
 
         /**

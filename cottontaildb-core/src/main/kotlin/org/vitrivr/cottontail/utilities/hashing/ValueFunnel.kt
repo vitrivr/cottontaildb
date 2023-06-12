@@ -25,58 +25,60 @@ object ValueFunnel: Funnel<Value?> {
      * @param into The [PrimitiveSink]
      */
     override fun funnel(from: Value?, into: PrimitiveSink) {
-        when (from) {
-            is BooleanValue -> into.putBoolean(from.value)
-            is ByteValue -> into.putByte(from.value)
-            is ShortValue -> into.putShort(from.value)
-            is IntValue -> into.putInt(from.value)
-            is LongValue -> into.putLong(from.value)
-            is FloatValue -> into.putFloat(from.value)
-            is DoubleValue -> into.putDouble(from.value)
-            is DateValue -> into.putLong(from.value)
+        val value = from as? PublicValue
+        if (value == null) {
+            into.putBoolean(true)
+            return
+        }
+        into.putBoolean(false)
+        when (value) {
+            is BooleanValue -> into.putBoolean(value.value)
+            is ByteValue -> into.putByte(value.value)
+            is ShortValue -> into.putShort(value.value)
+            is IntValue -> into.putInt(value.value)
+            is LongValue -> into.putLong(value.value)
+            is FloatValue -> into.putFloat(value.value)
+            is DoubleValue -> into.putDouble(value.value)
+            is DateValue -> into.putLong(value.value)
             is Complex32Value -> {
-                into.putByte(0)
-                into.putFloat(from.real.value)
-                into.putFloat(from.imaginary.value)
+                into.putFloat(value.data[0])
+                into.putFloat(value.data[1])
             }
             is Complex64Value -> {
-                into.putByte(1)
-                into.putDouble(from.real.value)
-                into.putDouble(from.imaginary.value)
+                into.putDouble(value.data[0])
+                into.putDouble(value.data[1])
             }
-            is StringValue -> into.putString(from.value, Charset.forName("UTF-8"))
+            is StringValue -> into.putString(value.value, Charset.forName("UTF-8"))
+            is ByteStringValue -> into.putBytes(value.value)
             is BooleanVectorValue -> {
-                into.putByte(2)
-                from.data.forEach { into.putBoolean(it) }
+                into.putInt(value.logicalSize)
+                value.data.forEach { into.putBoolean(it) }
             }
             is IntVectorValue -> {
-                into.putByte(3)
-                from.data.forEach { into.putInt(it) }
+                into.putInt(value.logicalSize)
+                value.data.forEach { into.putInt(it) }
             }
             is LongVectorValue -> {
-                into.putByte(4)
-                from.data.forEach { into.putLong(it) }
+                into.putInt(value.logicalSize)
+                value.data.forEach { into.putLong(it) }
             }
             is FloatVectorValue -> {
-                into.putByte(5)
-                from.data.forEach { into.putFloat(it) }
+                into.putInt(value.logicalSize)
+                value.data.forEach { into.putFloat(it) }
             }
             is DoubleVectorValue -> {
-                into.putByte(6)
-                from.data.forEach { into.putDouble(it) }
+                into.putInt(value.logicalSize)
+                value.data.forEach { into.putDouble(it) }
             }
             is Complex32VectorValue -> {
-                into.putByte(7)
-                from.data.forEach { into.putFloat(it) }
+                into.putInt(value.logicalSize)
+                value.data.forEach { into.putFloat(it) }
             }
             is Complex64VectorValue -> {
-                into.putByte(8)
-                from.data.forEach { into.putDouble(it) }
+                into.putInt(value.logicalSize)
+                value.data.forEach { into.putDouble(it) }
             }
-            null -> {
-                into.putByte(-1)
-                into.putByte(-1)
-            }
+            null -> { /* No op. */ }
         }
     }
 }

@@ -1,11 +1,10 @@
 package org.vitrivr.cottontail.dbms.statistics.values
 
-import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.Complex32Value
-import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
 import java.io.ByteArrayInputStream
 
 /**
@@ -14,36 +13,36 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class Complex32ValueStatistics(): AbstractValueStatistics<Complex32Value>(Types.Complex32) {
+data class Complex32ValueStatistics(
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+): AbstractScalarStatistics<Complex32Value>(Types.Complex32) {
+
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: Complex32ValueStatistics): this(
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = if (metrics.numberOfDistinctEntries.toDouble() / metrics.numberOfEntries.toDouble() >= metrics.distinctEntriesScalingThreshold) (metrics.numberOfDistinctEntries * factor).toLong() else metrics.numberOfDistinctEntries, // Depending on the ratio between distinct entries and number of entries, we either scale the distinct entries (large ratio) or keep them as they are (small ratio).
+    )
+
     /**
      * Xodus serializer for [Complex32ValueStatistics]
      */
-    object Binding: XodusBinding<Complex32ValueStatistics> {
+    object Binding: MetricsXodusBinding<Complex32ValueStatistics> {
         override fun read(stream: ByteArrayInputStream): Complex32ValueStatistics {
-            val stat = Complex32ValueStatistics()
-            stat.fresh = BooleanBinding.BINDING.readObject(stream)
-            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
-            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            return stat
+            val numberOfNullEntries = LongBinding.readCompressed(stream)
+            val numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            val numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            return Complex32ValueStatistics(numberOfNullEntries, numberOfNonNullEntries, numberOfDistinctEntries)
         }
 
         override fun write(output: LightOutputStream, statistics: Complex32ValueStatistics) {
-            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
         }
-    }
-
-    /**
-     * Copies this [BooleanValueStatistics] and returns it.
-     *
-     * @return Copy of this [BooleanValueStatistics].
-     */
-    override fun copy(): Complex32ValueStatistics {
-        val copy = Complex32ValueStatistics()
-        copy.fresh = this.fresh
-        copy.numberOfNullEntries = this.numberOfNullEntries
-        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
-        return copy
     }
 }

@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
  * A [SystemPhysicalOperatorNode] used to list all locks.
  *
  * @author Ralph Gasser
- * @version 1.0.0.
+ * @version 1.0.0
  */
 class ListLocksPhysicalOperatorNode(val manager: LockManager<DBO>): SystemPhysicalOperatorNode("ListLocks") {
     override val groupId: GroupId = 0
