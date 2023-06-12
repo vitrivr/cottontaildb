@@ -90,7 +90,7 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
         /* Check if catalogue has been initialized and initialize if needed. */
         val tx = this.transactionManager.environment.beginExclusiveTransaction()
         try {
-            if (this.transactionManager.environment.getAllStoreNames(tx).size == 0) {
+            if (this.transactionManager.environment.getAllStoreNames(tx).size < 7) {
                 /* Initialize database metadata. */
                 MetadataEntry.init(this, tx)
                 MetadataEntry.write(MetadataEntry(METADATA_ENTRY_DB_VERSION, this.version.toString()), this, tx)

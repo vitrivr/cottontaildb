@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.dbms.statistics.metrics.EntityMetric
 class StatisticsStorageManager(config: Config) {
 
     /** The statistics/metrics Xodus [Environment] used by the [StatisticsStorageManager]. */
-    private val environment: Environment = Environments.newInstance(config.statisticsFolder().toFile())
+    private val environment: Environment = Environments.newInstance(config.statisticsFolder().toFile(), config.xodus.toEnvironmentConfig())
 
     /** The Xodus [Store] backing this [StatisticsStorageManager]. */
     private val columnsStore: Store
@@ -27,7 +27,7 @@ class StatisticsStorageManager(config: Config) {
     private val metricsStore: Store
 
     init{
-        val tx = this.environment.beginReadonlyTransaction()
+        val tx = this.environment.beginExclusiveTransaction()
         try {
             this.columnsStore = this.environment.openStore("org.vitrivr.cottontail.statistics.column", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, tx)
             this.metricsStore = this.environment.openStore("org.vitrivr.cottontail.statistics.column", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, tx)

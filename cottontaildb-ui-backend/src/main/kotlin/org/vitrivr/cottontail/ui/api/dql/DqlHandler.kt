@@ -4,8 +4,10 @@ import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import io.javalin.http.Context
 import io.javalin.openapi.*
+import org.vitrivr.cottontail.client.iterators.TupleIterator
 import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.dql.Query
+import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.ui.api.database.drainToList
 import org.vitrivr.cottontail.ui.api.database.obtainClientForContext
 import org.vitrivr.cottontail.ui.model.results.Column
@@ -62,11 +64,9 @@ fun previewEntity(context: Context) {
         client.query(Query("${schemaName}.${entityName}").count()).forEach {
             count = it.asLong(0)!!
         }
-        val iterator = client.query(query)
-        val columnsNames = iterator.simpleNames
-        val columnsTypes = iterator.columnTypes
-        val results = iterator.drainToList { t -> t.values() }
-        context.json(Resultset(columnsNames.zip(columnsTypes).map { Column(it.first, it.second) }, results, count))
+        val iterator: TupleIterator = client.query(query)
+        val results = iterator.drainToList { t -> t.values().filterIsInstance<PublicValue?>().toTypedArray() }
+        context.json(Resultset(iterator.columns.map { Column(it.name.schemaName, it.type) }, results, count))
     } catch (e: StatusRuntimeException) {
         when (e.status.code) {
             Status.Code.NOT_FOUND -> throw ErrorStatusException(404, "The requested entity '${schemaName}.${entityName} could not be found.")
