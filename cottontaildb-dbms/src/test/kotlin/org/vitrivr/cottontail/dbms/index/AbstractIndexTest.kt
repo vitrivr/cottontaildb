@@ -179,6 +179,9 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
             txn.rollback()
             throw e
         }
+
+        /** Update database statistics. This is important for some applications. */
+        this.catalogue.statisticsManager.gatherStatisticsForEntity(this.entityName)
     }
 
     /**
