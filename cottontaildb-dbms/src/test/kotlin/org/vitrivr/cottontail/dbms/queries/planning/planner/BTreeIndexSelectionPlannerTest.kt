@@ -116,7 +116,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
     }
 
     /**
-     * Tests the [BooleanIndexScanRule] in case of an EQUALS comparison when the [QueryHint.NoIndex] hint is set.
+     * Tests the [BooleanIndexScanRule] in case of an EQUALS comparison when the [QueryHint.IndexHint.None] hint is set.
      */
     @Test
     fun testEqualsWithNoIndexHint() {
