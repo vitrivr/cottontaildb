@@ -144,6 +144,7 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
      * Attempts to shutdown this [TransactionManager].
      */
     fun shutdown() {
+        this.vfs.shutdown()
         this.environment.close()
     }
 
