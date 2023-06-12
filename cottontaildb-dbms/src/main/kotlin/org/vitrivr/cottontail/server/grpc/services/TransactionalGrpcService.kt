@@ -9,10 +9,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onCompletion
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.client.language.basics.Constants
-import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.proto
 import org.vitrivr.cottontail.core.toTuple
-import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
@@ -49,6 +47,7 @@ internal interface TransactionalGrpcService {
 
     /** The [TransactionManager] instance used by this [TransactionalGrpcService]. */
     val manager: TransactionManager
+        get() = this.catalogue.transactionManager
 
     /**
      * Generates and returns a new [DefaultQueryContext] for the given [CottontailGrpc.RequestMetadata].

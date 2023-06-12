@@ -1,16 +1,13 @@
 package org.vitrivr.cottontail.dbms.statistics.values
 
-import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.SignedDoubleBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.LongValue
-import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
 import java.io.ByteArrayInputStream
-import java.lang.Long.max
-import java.lang.Long.min
 
 /**
  * A [ValueStatistics] implementation for [LongValue]s.
@@ -18,93 +15,75 @@ import java.lang.Long.min
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class LongValueStatistics : RealValueStatistics<LongValue>(Types.Long) {
+data class LongValueStatistics(
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+    override var min: LongValue = LongValue.MAX_VALUE,
+    override var max: LongValue = LongValue.MIN_VALUE,
+    override var sum: DoubleValue = DoubleValue.ZERO,
+    override var mean: DoubleValue = DoubleValue.ZERO,
+    override var variance: DoubleValue = DoubleValue.ZERO,
+    override var skewness: DoubleValue = DoubleValue.ZERO,
+    override var kurtosis: DoubleValue = DoubleValue.ZERO
+) : RealValueStatistics<LongValue>(Types.Long) {
+
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: LongValueStatistics): this(
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = if (metrics.numberOfDistinctEntries.toDouble() / metrics.numberOfEntries.toDouble() >= metrics.distinctEntriesScalingThreshold) (metrics.numberOfDistinctEntries * factor).toLong() else metrics.numberOfDistinctEntries, // Depending on the ratio between distinct entries and number of entries, we either scale the distinct entries (large ratio) or keep them as they are (small ratio).
+        min = metrics.min,
+        max = metrics.max,
+        sum = DoubleValue(metrics.sum.value * factor),
+        mean = metrics.mean,
+        variance = metrics.variance,
+        skewness = metrics.skewness,
+        kurtosis = metrics.kurtosis
+    )
 
     /**
      * Xodus serializer for [LongValueStatistics]
      */
-    object Binding: XodusBinding<LongValueStatistics> {
+    object Binding: MetricsXodusBinding<LongValueStatistics> {
         override fun read(stream: ByteArrayInputStream): LongValueStatistics {
-            val stat = LongValueStatistics()
-            stat.fresh = BooleanBinding.BINDING.readObject(stream)
-            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
-            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            stat.min = LongValue(LongBinding.BINDING.readObject(stream))
-            stat.max = LongValue(LongBinding.BINDING.readObject(stream))
-            stat.sum = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
-            return stat
+            val numberOfNullEntries = LongBinding.readCompressed(stream)
+            val numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            val numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            val min = LongValue(LongBinding.BINDING.readObject(stream))
+            val max = LongValue(LongBinding.BINDING.readObject(stream))
+            val sum = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            val mean = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            val variance = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            val skewness = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            val kurtosis = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            return LongValueStatistics(
+                numberOfNullEntries,
+                numberOfNonNullEntries,
+                numberOfDistinctEntries,
+                min,
+                max,
+                sum,
+                mean,
+                variance,
+                skewness,
+                kurtosis)
         }
 
         override fun write(output: LightOutputStream, statistics: LongValueStatistics) {
-            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
             LongBinding.BINDING.writeObject(output, statistics.min.value)
             LongBinding.BINDING.writeObject(output, statistics.max.value)
             SignedDoubleBinding.BINDING.writeObject(output, statistics.sum.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.mean.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.variance.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.skewness.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.kurtosis.value)
         }
     }
 
-    /** Minimum value seen by this [LongValueStatistics]. */
-    override var min: LongValue = LongValue.MAX_VALUE
-        private set
-
-    /** Minimum value seen by this [LongValueStatistics]. */
-    override var max: LongValue = LongValue.MIN_VALUE
-        private set
-
-    /** Sum of all [LongValue]s seen by this [LongValueStatistics]. */
-    override var sum: DoubleValue = DoubleValue.ZERO
-        private set
-
-    /**
-     * Updates this [LongValueStatistics] with an inserted [LongValue]
-     *
-     * @param inserted The [LongValue] that was inserted.
-     */
-    override fun insert(inserted: LongValue?) {
-        super.insert(inserted)
-        if (inserted != null) {
-            this.min = LongValue(min(inserted.value, this.min.value))
-            this.max = LongValue(max(inserted.value, this.max.value))
-        }
-    }
-
-    /**
-     * Updates this [LongValueStatistics] with a deleted [LongValue]
-     *
-     * @param deleted The [LongValue] that was deleted.
-     */
-    override fun delete(deleted: LongValue?) {
-        super.delete(deleted)
-
-        /* We cannot create a sensible estimate if a value is deleted. */
-        if (this.min == deleted || this.max == deleted) {
-            this.fresh = false
-        }
-    }
-
-    /**
-     * Resets this [LongValueStatistics] and sets all its values to to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        this.min = LongValue.MAX_VALUE
-        this.max = LongValue.MIN_VALUE
-    }
-
-    /**
-     * Copies this [LongValueStatistics] and returns it.
-     *
-     * @return Copy of this [LongValueStatistics].
-     */
-    override fun copy(): LongValueStatistics {
-        val copy = LongValueStatistics()
-        copy.fresh = this.fresh
-        copy.numberOfNullEntries = this.numberOfNullEntries
-        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
-        copy.min = this.min
-        copy.max = this.max
-        return copy
-    }
 }

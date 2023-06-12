@@ -12,12 +12,14 @@ import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
+import org.vitrivr.cottontail.dbms.statistics.StatisticsManager
 import org.vitrivr.cottontail.test.TestConstants
 
 /**
@@ -33,6 +35,10 @@ object DummyQueryContext: QueryContext {
         override val functions: FunctionRegistry = FunctionRegistry()
         override val name = Name.RootName
         override val parent: DBO? = null
+        override val transactionManager: TransactionManager
+            get() =  throw UnsupportedOperationException("Operation not supported for dummy catalogue.")
+        override val statisticsManager: StatisticsManager
+            get() =  throw UnsupportedOperationException("Operation not supported for dummy catalogue.")
         override val catalogue: Catalogue
             get() = this
         override val version: DBOVersion

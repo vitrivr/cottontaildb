@@ -98,26 +98,11 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
         override val columns: Set<ColumnDef<*>> = ObjectOpenHashSet()
 
         init {
-            when(this.operator) {
-                is ComparisonOperator.Binary -> {
-                    if (this.operator.left is Binding.Column) {
-                        (this.columns as ObjectOpenHashSet).add((this.operator.left as Binding.Column).column)
-                    }
-                    if (this.operator.right is Binding.Column) {
-                        (this.columns as ObjectOpenHashSet).add((this.operator.right as Binding.Column).column)
-                    }
-                }
-
-                is ComparisonOperator.Between -> {
-                    if (this.operator.left is Binding.Column) {
-                        (this.columns as ObjectOpenHashSet).add((this.operator.left as Binding.Column).column)
-                    }
-                }
-                is ComparisonOperator.In -> {
-                    if (this.operator.left is Binding.Column) {
-                        (this.columns as ObjectOpenHashSet).add((this.operator.left as Binding.Column).column)
-                    }
-                }
+            if (this.operator.left is Binding.Column) {
+                (this.columns as ObjectOpenHashSet).add((this.operator.left as Binding.Column).column)
+            }
+            if (this.operator.right is Binding.Column) {
+                (this.columns as ObjectOpenHashSet).add((this.operator.right as Binding.Column).column)
             }
         }
 

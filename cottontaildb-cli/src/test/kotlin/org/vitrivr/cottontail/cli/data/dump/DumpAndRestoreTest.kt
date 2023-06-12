@@ -44,6 +44,9 @@ class DumpAndRestoreTest : AbstractClientTest() {
         /* Prepare path. */
         val path = Path("data", "test", "export", "test.dump")
         path.deleteIfExists()
+        if (!Files.exists(path.parent)) {
+            Files.createDirectories(path.parent)
+        }
 
         /* Dump entity. */
         val dumps = Dumper.Zip(this.client, path, format, TestConstants.TEST_COLLECTION_SIZE/ 4).use {
@@ -88,6 +91,9 @@ class DumpAndRestoreTest : AbstractClientTest() {
         /* Determine path. */
         val path = Path("data", "test", "export", "${TEST_ENTITY_NAME.fqn}.dump")
         path.deleteIfExists()
+        if (!Files.exists(path.parent)) {
+            Files.createDirectories(path.parent)
+        }
 
         /* Dump entity. */
         val dumps = Dumper.Zip(this.client, path, format, TestConstants.TEST_COLLECTION_SIZE/ 4).use {

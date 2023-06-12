@@ -4,7 +4,6 @@ import com.google.protobuf.Empty
 import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.execution.operators.system.ExplainQueryOperator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
@@ -33,7 +32,7 @@ import kotlin.time.ExperimentalTime
  * @version 2.4.0
  */
 @ExperimentalTime
-class DQLService(override val catalogue: Catalogue, override val manager: TransactionManager) : DQLGrpcKt.DQLCoroutineImplBase(), TransactionalGrpcService {
+class DQLService(override val catalogue: Catalogue) : DQLGrpcKt.DQLCoroutineImplBase(), TransactionalGrpcService {
 
     /** [CottontailQueryPlanner] used to generate execution plans from a logical query plan. */
     private val planner: CottontailQueryPlanner

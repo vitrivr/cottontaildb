@@ -30,8 +30,8 @@ data class MetadataEntry(val key: String, val value: String) {
          * @param catalogue The [DefaultCatalogue] to initialize.
          * @param transaction The [Transaction] to use.
          */
-        internal fun init(catalogue: DefaultCatalogue, transaction: Transaction = catalogue.environment.beginTransaction()) {
-            catalogue.environment.openStore(CATALOGUE_METADATA_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
+        internal fun init(catalogue: DefaultCatalogue, transaction: Transaction) {
+            catalogue.transactionManager.environment.openStore(CATALOGUE_METADATA_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
                 ?: throw DatabaseException.DataCorruptionException("Failed to create catalogue metadata store.")
         }
 
@@ -42,8 +42,8 @@ data class MetadataEntry(val key: String, val value: String) {
          * @param transaction The Xodus [Transaction] to use. If not set, a new [Transaction] will be created.
          * @return [Store]
          */
-        internal fun store(catalogue: DefaultCatalogue, transaction: Transaction = catalogue.environment.beginTransaction()): Store =
-            catalogue.environment.openStore(CATALOGUE_METADATA_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
+        internal fun store(catalogue: DefaultCatalogue, transaction: Transaction): Store =
+            catalogue.transactionManager.environment.openStore(CATALOGUE_METADATA_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
                 ?: throw DatabaseException.DataCorruptionException("Failed to open catalogue metadata store.")
 
         /**
@@ -54,7 +54,7 @@ data class MetadataEntry(val key: String, val value: String) {
          * @param transaction The Xodus [Transaction] to use. If not set, a new [Transaction] will be created.
          * @return [ColumnCatalogueEntry]
          */
-        internal fun read(key: String, catalogue: DefaultCatalogue, transaction: Transaction = catalogue.environment.beginTransaction()): MetadataEntry? {
+        internal fun read(key: String, catalogue: DefaultCatalogue, transaction: Transaction): MetadataEntry? {
             val rawEntry = store(catalogue, transaction).get(transaction, StringBinding.stringToEntry(key))
             return if (rawEntry != null) {
                 MetadataEntry(key, StringBinding.entryToString(rawEntry))
@@ -68,10 +68,10 @@ data class MetadataEntry(val key: String, val value: String) {
          *
          * @param entry [MetadataEntry] to write
          * @param catalogue [DefaultCatalogue] to write [MetadataEntry] to.
-         * @param transaction The Xodus [Transaction] to use. If not set, a new [Transaction] will be created.
+         * @param transaction The Xodus [Transaction] to use.
          * @return True on success, false otherwise.
          */
-        internal fun write(entry: MetadataEntry, catalogue: DefaultCatalogue, transaction: Transaction = catalogue.environment.beginTransaction()): Boolean =
+        internal fun write(entry: MetadataEntry, catalogue: DefaultCatalogue, transaction: Transaction): Boolean =
             store(catalogue, transaction).put(transaction, StringBinding.stringToEntry(entry.key), StringBinding.stringToEntry(entry.value))
 
         /**
@@ -79,10 +79,10 @@ data class MetadataEntry(val key: String, val value: String) {
          *
          * @param key [String] key of the [MetadataEntry] that should be deleted.
          * @param catalogue [DefaultCatalogue] to write [MetadataEntry] to.
-         * @param transaction The Xodus [Transaction] to use. If not set, a new [Transaction] will be created.
+         * @param transaction The Xodus [Transaction] to use.
          * @return True on success, false otherwise.
          */
-        internal fun delete(key: String, catalogue: DefaultCatalogue, transaction: Transaction = catalogue.environment.beginTransaction()): Boolean =
+        internal fun delete(key: String, catalogue: DefaultCatalogue, transaction: Transaction): Boolean =
             store(catalogue, transaction).delete(transaction, StringBinding.stringToEntry(key))
     }
 }

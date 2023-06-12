@@ -58,13 +58,13 @@ class FilterPhysicalOperatorNode(input: Physical, val predicate: BooleanPredicat
     /**
      * Determines, if this [FilterPhysicalOperatorNode] can be executed in the given [QueryContext].
      *
-     * An [FilterPhysicalOperatorNode] is executable if it does not contain any [ComparisonOperator.Binary.Match] (which must be pushed-down to a fulltext-index)
+     * An [FilterPhysicalOperatorNode] is executable if it does not contain any [ComparisonOperator.Match] (which must be pushed-down to a fulltext-index)
      *
      * @param ctx The [QueryContext] to check.
      * @return True i
      */
     override fun canBeExecuted(ctx: QueryContext): Boolean
-        = this.predicate.atomics.filterIsInstance<BooleanPredicate.Comparison>().none { it.operator is ComparisonOperator.Binary.Match } && super.canBeExecuted(ctx)
+        = this.predicate.atomics.filterIsInstance<BooleanPredicate.Comparison>().none { it.operator is ComparisonOperator.Match } && super.canBeExecuted(ctx)
 
     /**
      * Converts this [FilterPhysicalOperatorNode] to a [FilterOperator].

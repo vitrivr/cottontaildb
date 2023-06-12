@@ -21,7 +21,7 @@ value class LSHDataStore internal constructor(val store: Store) {
 
     companion object {
         internal fun open(transaction: Transaction, index: LSHIndex): LSHDataStore {
-            val store = index.catalogue.environment.openStore(index.name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, transaction, false)
+            val store = index.catalogue.transactionManager.environment.openStore(index.name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, transaction, false)
                 ?: throw DatabaseException.DataCorruptionException("Data store for index ${index.name} is missing.")
             return LSHDataStore(store)
         }

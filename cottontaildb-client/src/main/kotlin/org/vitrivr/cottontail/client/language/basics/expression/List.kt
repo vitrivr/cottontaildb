@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.client.language.basics.expression
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 

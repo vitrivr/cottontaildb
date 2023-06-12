@@ -1,15 +1,12 @@
 package org.vitrivr.cottontail.dbms.statistics.values
 
-import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.IntVectorValue
-import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
 import java.io.ByteArrayInputStream
-import java.lang.Integer.max
-import java.lang.Integer.min
 
 /**
  * A [ValueStatistics] implementation for [IntVectorValue]s.
@@ -17,15 +14,28 @@ import java.lang.Integer.min
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class IntVectorValueStatistics(logicalSize: Int): RealVectorValueStatistics<IntVectorValue>(Types.IntVector(logicalSize)) {
-    /** Minimum value seen by this [IntVectorValueStatistics]. */
-    override val min: IntVectorValue = IntVectorValue(IntArray(this.type.logicalSize) { Int.MAX_VALUE })
+data class IntVectorValueStatistics(
+    val logicalSize: Int,
+    override var numberOfNullEntries: Long = 0L,
+    override var numberOfNonNullEntries: Long = 0L,
+    override var numberOfDistinctEntries: Long = 0L,
+    override val min: IntVectorValue = IntVectorValue(IntArray(logicalSize) { Int.MAX_VALUE }),
+    override val max: IntVectorValue = IntVectorValue(IntArray(logicalSize) { Int.MIN_VALUE }),
+    override val sum: IntVectorValue = IntVectorValue(IntArray(logicalSize))
+): RealVectorValueStatistics<IntVectorValue>(Types.IntVector(logicalSize)) {
 
-    /** Minimum value seen by this [IntVectorValueStatistics]. */
-    override val max: IntVectorValue = IntVectorValue(IntArray(this.type.logicalSize) { Int.MIN_VALUE })
-
-    /** Sum of all values seen by this [IntVectorValueStatistics]. */
-    override val sum: IntVectorValue = IntVectorValue(IntArray(this.type.logicalSize))
+    /**
+     * Constructor for the collector to get from the sample to the population
+     */
+    constructor(factor: Float, metrics: IntVectorValueStatistics): this(
+        logicalSize = metrics.logicalSize,
+        numberOfNullEntries = (metrics.numberOfNullEntries * factor).toLong(),
+        numberOfNonNullEntries = (metrics.numberOfNonNullEntries * factor).toLong(),
+        numberOfDistinctEntries = if (metrics.numberOfDistinctEntries.toDouble() / metrics.numberOfEntries.toDouble() >= metrics.distinctEntriesScalingThreshold) (metrics.numberOfDistinctEntries * factor).toLong() else metrics.numberOfDistinctEntries, // Depending on the ratio between distinct entries and number of entries, we either scale the distinct entries (large ratio) or keep them as they are (small ratio).
+        min = metrics.min, // min and max are not adjusted
+        max = metrics.max, // min and max are not adjusted
+        sum = IntVectorValue(IntArray(metrics.logicalSize) { (metrics.sum.data[it] * factor).toInt() })
+    )
 
     /** The arithmetic for the values seen by this [DoubleVectorValueStatistics]. */
     override val mean: IntVectorValue
@@ -36,25 +46,24 @@ class IntVectorValueStatistics(logicalSize: Int): RealVectorValueStatistics<IntV
     /**
      * Xodus serializer for [IntVectorValueStatistics]
      */
-    class Binding(val logicalSize: Int): XodusBinding<IntVectorValueStatistics> {
+    class Binding(val logicalSize: Int): MetricsXodusBinding<IntVectorValueStatistics> {
         override fun read(stream: ByteArrayInputStream): IntVectorValueStatistics {
-            val stat = IntVectorValueStatistics(this.logicalSize)
-            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            val stat = IntVectorValueStatistics(this@Binding.logicalSize)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            for (i in 0 until this.logicalSize) {
+            stat.numberOfDistinctEntries = LongBinding.readCompressed(stream)
+            for (i in 0 until this@Binding.logicalSize) {
                 stat.min.data[i] = IntegerBinding.BINDING.readObject(stream)
                 stat.max.data[i] = IntegerBinding.BINDING.readObject(stream)
                 stat.sum.data[i] = IntegerBinding.BINDING.readObject(stream)
-
             }
             return stat
         }
 
         override fun write(output: LightOutputStream, statistics: IntVectorValueStatistics) {
-            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfDistinctEntries)
             for (i in 0 until statistics.type.logicalSize) {
                 IntegerBinding.BINDING.writeObject(output, statistics.min.data[i])
                 IntegerBinding.BINDING.writeObject(output, statistics.max.data[i])
@@ -63,63 +72,4 @@ class IntVectorValueStatistics(logicalSize: Int): RealVectorValueStatistics<IntV
         }
     }
 
-    /**
-     * Updates this [IntVectorValueStatistics] with an inserted [IntVectorValue]
-     *
-     * @param inserted The [IntVectorValue] that was inserted.
-     */
-    override fun insert(inserted: IntVectorValue?) {
-        super.insert(inserted)
-        if (inserted != null) {
-            for ((i, d) in inserted.data.withIndex()) {
-                this.min.data[i] = min(d, this.min.data[i])
-                this.max.data[i] = max(d, this.max.data[i])
-            }
-        }
-    }
-
-    /**
-     * Updates this [IntVectorValueStatistics] with a deleted [IntVectorValue]
-     *
-     * @param deleted The [IntVectorValue] that was deleted.
-     */
-    override fun delete(deleted: IntVectorValue?) {
-        super.delete(deleted)
-        if (deleted != null) {
-            for ((i, d) in deleted.data.withIndex()) {
-                if (this.min.data[i] == d || this.max.data[i] == d) {
-                    this.fresh = false
-                }
-            }
-        }
-    }
-
-    /**
-     * Resets this [IntVectorValueStatistics] and sets all its values to to the default value.
-     */
-    override fun reset() {
-        super.reset()
-        for (i in 0 until this.type.logicalSize) {
-            this.min.data[i] = Int.MAX_VALUE
-            this.max.data[i] = Int.MIN_VALUE
-        }
-    }
-
-    /**
-     * Copies this [IntVectorValueStatistics] and returns it.
-     *
-     * @return Copy of this [IntVectorValueStatistics].
-     */
-    override fun copy(): IntVectorValueStatistics {
-        val copy = IntVectorValueStatistics(this.type.logicalSize)
-        copy.fresh = this.fresh
-        copy.numberOfNullEntries = this.numberOfNullEntries
-        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
-        for (i in 0 until this.type.logicalSize) {
-            copy.min.data[i] = this.min.data[i]
-            copy.max.data[i] = this.max.data[i]
-            copy.sum.data[i] = this.sum.data[i]
-        }
-        return copy
-    }
 }

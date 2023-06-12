@@ -147,7 +147,7 @@ fun standalone(config: Config) {
     }
 
     println(
-        "Cottontail DB server is up and running at port ${config.server.port}! Hop along... (catalogue: ${server.catalogue.version}, pid: ${
+        "Cottontail DB server is up and running at port ${config.server.port}! Hop along... (catalogue: ${DBOVersion.current()}, pid: ${
             ProcessHandle.current().pid()
         })"
     )

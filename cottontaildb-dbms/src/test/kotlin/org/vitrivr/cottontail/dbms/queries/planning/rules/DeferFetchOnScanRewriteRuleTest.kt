@@ -156,7 +156,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
             /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
             val context = DefaultBindingContext()
             val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, this.columns.map { ctx.bindings.bind(it) to it })
-            val filter0 = FilterPhysicalOperatorNode(scan0, BooleanPredicate.Comparison(ComparisonOperator.Binary.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type))))
+            val filter0 = FilterPhysicalOperatorNode(scan0, BooleanPredicate.Comparison(ComparisonOperator.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type))))
             val projection0 = SelectProjectionPhysicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
 
 

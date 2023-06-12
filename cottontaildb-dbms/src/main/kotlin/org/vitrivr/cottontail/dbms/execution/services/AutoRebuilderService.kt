@@ -8,7 +8,6 @@ import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.events.IndexEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.basic.Index
@@ -26,7 +25,7 @@ import java.util.concurrent.atomic.AtomicLong
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionManager): TransactionObserver {
+class AutoRebuilderService(private val catalogue: Catalogue): TransactionObserver {
 
     companion object {
         private const val MAX_INDEX_REBUILDING_RETRY = 3
@@ -88,7 +87,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
      * @param type The [IndexType] of the [Index] to rebuild.
      */
     fun schedule(index: Name.IndexName, type: IndexType) {
-        this.manager.executionManager.serviceWorkerPool.schedule(Task(index, type), 500L, TimeUnit.MILLISECONDS)
+        this.catalogue.transactionManager.executionManager.serviceWorkerPool.schedule(Task(index, type), 500L, TimeUnit.MILLISECONDS)
     }
 
     /**
@@ -119,7 +118,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
             val failures = this@AutoRebuilderService.failures.compute(this.index) { _, v -> (v ?: 0) + 1 }
             if (failures!! <= MAX_INDEX_REBUILDING_RETRY) {
                 LOGGER.warn("Index auto-rebuilding for $index failed $failures time(s). Re-scheduling the task...")
-                this@AutoRebuilderService.manager.executionManager.serviceWorkerPool.schedule(Task(this.index, this.type), 5000L, TimeUnit.MILLISECONDS)
+                this@AutoRebuilderService.catalogue.transactionManager.executionManager.serviceWorkerPool.schedule(Task(this.index, this.type), 5000L, TimeUnit.MILLISECONDS)
             } else {
                 LOGGER.error("Index auto-rebuilding for $index failed $failures time(s). Aborting...")
                 this@AutoRebuilderService.failures.remove(this.index)
@@ -132,7 +131,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
          * @return True on success, false otherwise.
          */
         private fun performRebuild(): Boolean {
-            val transaction = this@AutoRebuilderService.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+            val transaction = this@AutoRebuilderService.catalogue.transactionManager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
             val context = DefaultQueryContext("auto-rebuild-${this@AutoRebuilderService.counter.incrementAndGet()}", this@AutoRebuilderService.catalogue, transaction)
             try {
                 val catalogueTx = this@AutoRebuilderService.catalogue.newTx(context)
@@ -167,7 +166,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
          */
         private fun performConcurrentRebuild(): Boolean {
             /* Step 1a: Scan index (read-only). */
-            val transaction = this@AutoRebuilderService.manager.startTransaction(TransactionType.SYSTEM_READONLY)
+            val transaction = this@AutoRebuilderService.catalogue.transactionManager.startTransaction(TransactionType.SYSTEM_READONLY)
             val context = DefaultQueryContext("auto-rebuild-prepare", this@AutoRebuilderService.catalogue, transaction)
             val rebuilder = try {
                 val catalogueTx = this@AutoRebuilderService.catalogue.newTx(context)
@@ -208,7 +207,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
                 LOGGER.error("Index auto-rebuilding (MERGE) for $index failed due to exception: ${e.message}.")
                 return false
             } finally {
-                this@AutoRebuilderService.manager.deregister(rebuilder)
+                this@AutoRebuilderService.catalogue.transactionManager.deregister(rebuilder)
                 rebuilder.close()
             }
         }

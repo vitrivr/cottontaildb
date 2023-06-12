@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.dbms.execution.operators.DummyQueryContext
 import org.vitrivr.cottontail.dbms.execution.operators.RandomTupleSourceOperator
 import org.vitrivr.cottontail.test.TestConstants
 import java.lang.Math.floorDiv
-import java.util.SplittableRandom
+import java.util.*
 
 class SortOperatorTests {
 

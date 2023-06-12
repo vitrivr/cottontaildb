@@ -4,8 +4,8 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
 import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.config.Config
-import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.database.TransactionId
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.column.Column
@@ -18,7 +18,6 @@ import org.vitrivr.cottontail.dbms.execution.transactions.*
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
-import org.vitrivr.cottontail.legacy.v2.entity.BrokenIndexV2
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.BufferedWriter
 import java.lang.Math.floorDiv
@@ -142,7 +141,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
     protected open fun migrateDBOs(source: Catalogue, destination: DefaultCatalogue) {
         /* Execute actual data migration. */
         val sourceContext = DefaultQueryContext("migration", source, LegacyMigrationContext())
-        val destinationContext = DefaultQueryContext("migration", destination, MigrationContext(destination.environment.beginExclusiveTransaction()))
+        val destinationContext = DefaultQueryContext("migration", destination, MigrationContext(destination.transactionManager.environment.beginExclusiveTransaction()))
         val srcCatalogueTx = source.newTx(sourceContext)
         val dstCatalogueTx = destination.newTx(destinationContext)
 
@@ -165,9 +164,10 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
                 /* Migrate indexes. */
                 for (indexName in srcEntityTx.listIndexes()) {
                     this.log("---- Migrating index $indexName...\n")
-                    val index = srcEntityTx.indexForName(indexName) as BrokenIndexV2
+                    val index = srcEntityTx.indexForName(indexName)
+                    val indexTx = index.newTx(sourceContext)
                     val destEntityTx = entity.newTx(destinationContext)
-                    destEntityTx.createIndex(index.name, index.type, index.columns.map { it.name }, index.type.descriptor.buildConfig())
+                    destEntityTx.createIndex(index.name, index.type, indexTx.columns.map { it.name }, index.type.descriptor.buildConfig())
                 }
             }
         }
@@ -207,7 +207,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
                     val columns = srcEntityTx.listColumns().toTypedArray()
                     var i = 0L
                     for (p in 0 until partitions) {
-                        val destinationContext = DefaultQueryContext("migration", destination, MigrationContext(destination.environment.beginExclusiveTransaction()))
+                        val destinationContext = DefaultQueryContext("migration", destination, MigrationContext(destination.transactionManager.environment.beginExclusiveTransaction()))
                         val destCatalogueTx = destination.newTx(destinationContext)
                         val destSchemaTx = destCatalogueTx.schemaForName(srcSchemaName).newTx(destinationContext)
                         val destEntityTx = destSchemaTx.entityForName(srcEntityName).newTx(destinationContext)

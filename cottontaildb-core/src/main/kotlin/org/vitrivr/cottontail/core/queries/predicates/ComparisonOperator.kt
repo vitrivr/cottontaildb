@@ -24,6 +24,9 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
     /** The [Binding] that acts as left operand for this [ComparisonOperator]. */
     val left: Binding
 
+    /** The [Binding] that acts as right operand for this [ComparisonOperator]. */
+    val right: Binding
+
     /**
      * Matches the given [Value] to this [ComparisonOperator] and returns true,
      * if there is a match (i.e. value satisfies operation) and false otherwise.
@@ -48,128 +51,120 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
      */
     fun copy(): ComparisonOperator
 
+    /** The cost of evaluating a [Binary]. */
+    override val cost: Cost
+        get() = Cost.MEMORY_ACCESS * 5
+
+    data class Equal(override val left: Binding, override val right: Binding): ComparisonOperator {
+        context(BindingContext, Tuple)
+        override fun match() : Boolean {
+            val left = this.left.getValue()
+            val right = this.right.getValue()
+            return left != null && right != null && left == right
+        }
+        override fun toString(): String = "$left = $right"
+        override fun copy() = Equal(this.left, this.right)
+        override fun digest(): Digest = this.hashCode().toLong()
+    }
+
+    data class NotEqual(override val left: Binding, override val right: Binding): ComparisonOperator {
+        context(BindingContext, Tuple)
+        override fun match() : Boolean {
+            val left = this.left.getValue()
+            val right = this.right.getValue()
+            return left != null && right != null && left != right
+        }
+        override fun toString(): String = "$left != $right"
+        override fun copy() = NotEqual(this.left, this.right)
+        override fun digest(): Digest = this.hashCode().toLong()
+    }
+
     /**
-     * A [ComparisonOperator] that expresses an equality (==) comparison.
+     * A [ComparisonOperator] that expresses greater (>) comparison.
      */
-    sealed interface Binary : ComparisonOperator {
-        /** The [Binding] that acts as right operand for this [ComparisonOperator]. */
-        val right: Binding
-
-        /** The cost of evaluating a [Binary]. */
-        override val cost: Cost
-            get() = Cost.MEMORY_ACCESS * 5
-
-        data class Equal(override val left: Binding, override val right: Binding): Binary {
-            context(BindingContext, Tuple)
-            override fun match() : Boolean {
-                val left = this.left.getValue()
-                val right = this.right.getValue()
-                return left != null && right != null && left == right
-            }
-            override fun toString(): String = "$left = $right"
-            override fun copy() = Equal(this.left, this.right)
-            override fun digest(): Digest = this.hashCode().toLong()
+    data class Greater(override val left: Binding, override val right: Binding): ComparisonOperator {
+        context(BindingContext, Tuple)
+        override fun match(): Boolean {
+            val left = this.left.getValue()
+            val right = this.right.getValue()
+            return left != null && right != null && left > right
         }
+        override fun toString(): String = "$left > $right"
+        override fun copy() = Greater(this.left, this.right)
+        override fun digest(): Digest = this.hashCode().toLong()
+    }
 
-        data class NotEqual(override val left: Binding, override val right: Binding): Binary {
-            context(BindingContext, Tuple)
-            override fun match() : Boolean {
-                val left = this.left.getValue()
-                val right = this.right.getValue()
-                return left != null && right != null && left != right
-            }
-            override fun toString(): String = "$left != $right"
-            override fun copy() = NotEqual(this.left, this.right)
-            override fun digest(): Digest = this.hashCode().toLong()
+    /**
+     * A [ComparisonOperator] that expresses less (<) comparison.
+     */
+    data class Less(override val left: Binding, override val right: Binding) : ComparisonOperator {
+        context(BindingContext, Tuple)
+        override fun match() : Boolean {
+            val left = this.left.getValue()
+            val right = this.right.getValue()
+            return left != null && right != null && left < right
         }
+        override fun toString(): String = "$left < $right"
+        override fun copy() = Greater(this.left, this.right)
+        override fun digest(): Digest = this.hashCode().toLong()
+    }
 
-        /**
-         * A [ComparisonOperator] that expresses greater (>) comparison.
-         */
-        data class Greater(override val left: Binding, override val right: Binding): Binary {
-            context(BindingContext, Tuple)
-            override fun match(): Boolean {
-                val left = this.left.getValue()
-                val right = this.right.getValue()
-                return left != null && right != null && left > right
-            }
-            override fun toString(): String = "$left > $right"
-            override fun copy() = Greater(this.left, this.right)
-            override fun digest(): Digest = this.hashCode().toLong()
+    /**
+     * A [ComparisonOperator] that expresses greater or equal (>=) comparison.
+     */
+    data class GreaterEqual(override val left: Binding, override val right: Binding) : ComparisonOperator {
+        context(BindingContext, Tuple)
+        override fun match(): Boolean {
+            val left = this.left.getValue()
+            val right = this.right.getValue()
+            return left != null && right != null && left >= right
         }
+        override fun toString(): String = "$left >= $right"
+        override fun copy() = GreaterEqual(this.left, this.right)
+        override fun digest(): Digest = this.hashCode().toLong()
+    }
 
-        /**
-         * A [ComparisonOperator] that expresses less (<) comparison.
-         */
-        data class Less(override val left: Binding, override val right: Binding) : Binary {
-            context(BindingContext, Tuple)
-            override fun match() : Boolean {
-                val left = this.left.getValue()
-                val right = this.right.getValue()
-                return left != null && right != null && left < right
-            }
-            override fun toString(): String = "$left < $right"
-            override fun copy() = Greater(this.left, this.right)
-            override fun digest(): Digest = this.hashCode().toLong()
+    /**
+     * A [ComparisonOperator] that expresses less or equal (<=) comparison.
+     */
+    data class LessEqual(override val left: Binding, override val right: Binding) : ComparisonOperator {
+        context(BindingContext, Tuple)
+        override fun match(): Boolean {
+            val left = this.left.getValue()
+            val right = this.right.getValue()
+            return left != null && right != null && left <= right
         }
+        override fun copy() = LessEqual(this.left, this.right)
+        override fun toString(): String = "$left <= $right"
+        override fun digest(): Digest = this.hashCode().toLong()
+    }
 
-        /**
-         * A [ComparisonOperator] that expresses greater or equal (>=) comparison.
-         */
-        data class GreaterEqual(override val left: Binding, override val right: Binding) : Binary {
-            context(BindingContext, Tuple)
-            override fun match(): Boolean {
-                val left = this.left.getValue()
-                val right = this.right.getValue()
-                return left != null && right != null && left >= right
-            }
-            override fun toString(): String = "$left >= $right"
-            override fun copy() = GreaterEqual(this.left, this.right)
-            override fun digest(): Digest = this.hashCode().toLong()
-        }
+    /**
+     * A [ComparisonOperator] that expresses a LIKE comparison, i.e., left LIKE right.
+     */
+    class Like(override val left: Binding, override val right: Binding) : ComparisonOperator {
+        context(BindingContext, Tuple)
+        override fun match() = this.left.getValue() is StringValue && this.right.getValue() is LikePatternValue && (this.right.getValue() as LikePatternValue).matches(this.left.getValue() as StringValue)
+        override fun copy() = Like(this.left, this.right)
+        override fun toString(): String = "$left LIKE $right"
+        override fun digest(): Digest = this.hashCode().toLong()
+    }
 
-        /**
-         * A [ComparisonOperator] that expresses less or equal (<=) comparison.
-         */
-        data class LessEqual(override val left: Binding, override val right: Binding) : Binary {
-            context(BindingContext, Tuple)
-            override fun match(): Boolean {
-                val left = this.left.getValue()
-                val right = this.right.getValue()
-                return left != null && right != null && left <= right
-            }
-            override fun copy() = LessEqual(this.left, this.right)
-            override fun toString(): String = "$left <= $right"
-            override fun digest(): Digest = this.hashCode().toLong()
-        }
-
-        /**
-         * A [ComparisonOperator] that expresses a LIKE comparison, i.e., left LIKE right.
-         */
-        class Like(override val left: Binding, override val right: Binding) : Binary {
-            context(BindingContext, Tuple)
-            override fun match() = this.left.getValue() is StringValue && this.right.getValue() is LikePatternValue && (this.right.getValue() as LikePatternValue).matches(this.left.getValue() as StringValue)
-            override fun copy() = Like(this.left, this.right)
-            override fun toString(): String = "$left LIKE $right"
-            override fun digest(): Digest = this.hashCode().toLong()
-        }
-
-        /**
-         * A [ComparisonOperator] that expresses a MATCH comparison. Can only be evaluated through a lucene index.
-         */
-        class Match(override val left: Binding, override val right: Binding) : Binary {
-            context(BindingContext, Tuple)
-            override fun match() = throw UnsupportedOperationException("A MATCH comparison operator cannot be evaluated directly.")
-            override fun copy() = LessEqual(this.left, this.right)
-            override fun toString(): String = "$left MATCH $right"
-            override fun digest(): Digest = this.hashCode().toLong()
-        }
+    /**
+     * A [ComparisonOperator] that expresses a MATCH comparison. Can only be evaluated through a lucene index.
+     */
+    class Match(override val left: Binding, override val right: Binding) : ComparisonOperator {
+        context(BindingContext, Tuple)
+        override fun match() = throw UnsupportedOperationException("A MATCH comparison operator cannot be evaluated directly.")
+        override fun copy() = LessEqual(this.left, this.right)
+        override fun toString(): String = "$left MATCH $right"
+        override fun digest(): Digest = this.hashCode().toLong()
     }
 
     /**
      * A [ComparisonOperator] that expresses a BETWEEN comparison (i.e. lower <= left <= upper).
      */
-    data class Between(override val left: Binding, val right: Binding) : ComparisonOperator {
+    data class Between(override val left: Binding, override val right: Binding) : ComparisonOperator {
         init {
             /* Sanity check + initialization of values list. */
             require(this.right is Binding.LiteralList && this.right.size() == 2L) {
@@ -212,7 +207,7 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
     /**
      * A [ComparisonOperator] that expresses an IN comparison (i.e. left IN right).
      */
-    class In(override val left: Binding, val right: Binding) : ComparisonOperator {
+    class In(override val left: Binding, override val right: Binding) : ComparisonOperator {
 
         /** Cost of executing this [ComparisonOperator.In]*/
         override val cost: Cost

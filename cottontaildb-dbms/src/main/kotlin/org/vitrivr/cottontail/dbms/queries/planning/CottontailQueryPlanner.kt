@@ -82,8 +82,9 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         return with(this@QueryContext.bindings) {
             with(MissingTuple) {
                 stage2.map { (groupId, plans) ->
-                    val normalized = NormalizedCost.normalize(plans.map { it.totalCost })
-                    val candidates = plans.zip(normalized).map { (p, cost) -> p to this@QueryContext.costPolicy.toScore(cost) }.sortedBy { it.second }.take(limit)
+                    val total = plans.map { it.totalCost }
+                    val normalized = NormalizedCost.normalize(total)
+                    val candidates = plans.zip(normalized).map { (p, cost) -> p to this@QueryContext.costPolicy.toScore(cost) }.sortedBy { it.second }.take(10)
                     groupId to candidates
                 }.toMap()
             }
@@ -116,6 +117,8 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
                     next.inputs.drop(1).forEach { decomposition.putAll(this.decompose(it.copyWithExistingInput())) }
                     next = next.inputs.first()
                 }
+                else -> Unit
+
             }
         }
         return decomposition
@@ -135,6 +138,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
                 is UnaryPhysicalOperatorNode -> next.input
                 is BinaryPhysicalOperatorNode ->  next.copyWithOutput(next.left.copyWithExistingInput(), compose(decomposition[next.right.groupId]!!, decomposition)).left
                 is NAryPhysicalOperatorNode -> next.copyWithOutput(next.inputs[0].copyWithExistingInput(), *next.inputs.drop(1).map { compose(decomposition[it.groupId]!!, decomposition) }.toTypedArray()).inputs[0]
+                else -> return next.root // somehow when must be exhaustive, even though all is already here..
             }
         } while (true)
     }
@@ -170,6 +174,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
                 is BinaryLogicalOperatorNode -> explore.enqueue(pointer.left)
                 is UnaryLogicalOperatorNode -> explore.enqueue(pointer.input)
                 is NullaryLogicalOperatorNode -> { /* No op. */ }
+                else -> Unit
             }
 
             /* Get next in line. */

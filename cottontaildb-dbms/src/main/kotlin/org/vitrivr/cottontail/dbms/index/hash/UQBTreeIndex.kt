@@ -22,7 +22,6 @@ import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
@@ -80,7 +79,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @return True on success, false otherwise.
          */
         override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            val store = (catalogue as DefaultCatalogue).environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
+            val store = catalogue.transactionManager.environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize BTREE index $name due to an exception: ${e.message}.")
@@ -96,7 +95,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @return True on success, false otherwise.
          */
         override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            (catalogue as DefaultCatalogue).environment.removeStore(name.storeName(), context.xodusTx)
+            catalogue.transactionManager.environment.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {
             LOGGER.error("Failed to de-initialize BTREE index $name due to an exception: ${e.message}.")
@@ -150,7 +149,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
         private val binding: XodusBinding<Value> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable) as XodusBinding<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
-        private var dataStore: Store = this@UQBTreeIndex.catalogue.environment.openStore(this@UQBTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
+        private var dataStore: Store = catalogue.transactionManager.environment.openStore(this@UQBTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@UQBTreeIndex.name} is missing.")
 
         /**
@@ -190,7 +189,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          */
         override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate.Comparison
                 && predicate.columns.contains(this.columns[0])
-                && (predicate.operator is ComparisonOperator.In || predicate.operator is ComparisonOperator.Binary.Equal)
+                && (predicate.operator is ComparisonOperator.In || predicate.operator is ComparisonOperator.Equal)
 
         /**
          * Returns a [List] of the [ColumnDef] produced by this [UQBTreeIndex].
@@ -232,8 +231,13 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
             val countOut = selectivity(count)       /* Number of entries actually selected (comparison still required). */
             val search = log10(count.toFloat())     /* Overhead for search into the index. */
             return when (predicate.operator) {
-                is ComparisonOperator.Binary,
-                is ComparisonOperator.In -> Cost.DISK_ACCESS_READ * (search + countOut) + predicate.cost * countOut
+                is ComparisonOperator.Equal,
+                is ComparisonOperator.NotEqual,
+                is ComparisonOperator.Greater,
+                is ComparisonOperator.Less,
+                is ComparisonOperator.GreaterEqual,
+                is ComparisonOperator.LessEqual,
+                is ComparisonOperator.In -> Cost.DISK_ACCESS_READ_SEQUENTIAL * (search + countOut) + predicate.cost * countOut
                 else -> Cost.INVALID
             }
         }
@@ -309,7 +313,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
                         with(MissingTuple) {
                             when (predicate.operator) {
                                 is ComparisonOperator.In -> queryValueQueue.addAll((predicate.operator as ComparisonOperator.In).right.getValues().filterNotNull())
-                                is ComparisonOperator.Binary.Equal -> queryValueQueue.add((predicate.operator as ComparisonOperator.Binary.Equal).right.getValue() ?: throw IllegalArgumentException("UQBTreeIndex.filter() does not support NULL operands."))
+                                is ComparisonOperator.Equal -> queryValueQueue.add((predicate.operator as ComparisonOperator.Equal).right.getValue() ?: throw IllegalArgumentException("UQBTreeIndex.filter() does not support NULL operands."))
                                 else -> throw IllegalArgumentException("UQBTreeIndex.filter() does only support EQUAL, IN or LIKE operators.")
                             }
                         }

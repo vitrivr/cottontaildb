@@ -22,7 +22,6 @@ import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
@@ -90,7 +89,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
          * @return True on success, false otherwise.
          */
         override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            val store = (catalogue as DefaultCatalogue).environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES, context.xodusTx, true)
+            val store = catalogue.transactionManager.environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize PQ index $name due to an exception: ${e.message}.")
@@ -106,7 +105,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
          * @return True on success, false otherwise.
          */
         override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            (catalogue as DefaultCatalogue).environment.removeStore(name.storeName(), context.xodusTx)
+            catalogue.transactionManager.environment.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {
             LOGGER.error("Failed to de-initialize PQ index $name due to an exception: ${e.message}.")
@@ -180,7 +179,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
         }
 
         /** The Xodus [Store] used to store [SPQSignature]s. */
-        internal val dataStore: Store = this@PQIndex.catalogue.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
+        internal val dataStore: Store = this@PQIndex.catalogue.transactionManager.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@PQIndex.name} is missing.")
 
         /**
@@ -225,7 +224,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
             if (predicate.distance.name != (this.config as PQIndexConfig).distance) return Cost.INVALID
             val count = this.count()
             return Cost(
-                io = Cost.DISK_ACCESS_READ.io * Short.SIZE_BYTES,
+                io = Cost.DISK_ACCESS_READ_SEQUENTIAL.io * Short.SIZE_BYTES,
                 cpu = 4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu,
                 accuracy = 0.2f
             ) * this.quantizer.codebooks.size * count

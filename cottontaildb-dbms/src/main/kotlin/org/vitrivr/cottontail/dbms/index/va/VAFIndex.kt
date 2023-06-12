@@ -21,7 +21,6 @@ import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
@@ -91,7 +90,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return True on success, false otherwise.
          */
         override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            val store = (catalogue as DefaultCatalogue).environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES, context.xodusTx, true)
+            val store = catalogue.transactionManager.environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize VAF index $name due to an exception: ${e.message}.")
@@ -107,7 +106,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return True on success, false otherwise.
          */
         override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
-            (catalogue as DefaultCatalogue).environment.removeStore(name.storeName(), context.xodusTx)
+            catalogue.transactionManager.environment.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {
             LOGGER.error("Failed to de-initialize VAF index $name due to an exception: ${e.message}.")
@@ -170,7 +169,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         }
 
         /** The Xodus [Store] used to store [VAFSignature]s. */
-        internal val dataStore: Store = this@VAFIndex.catalogue.environment.openStore(this@VAFIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
+        internal val dataStore: Store = this@VAFIndex.catalogue.transactionManager.environment.openStore(this@VAFIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Store for VAF index ${this@VAFIndex.name} is missing.")
 
         /**
@@ -214,11 +213,11 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             return when (predicate) {
                 is ProximityPredicate.Scan -> Cost.INVALID
                 is ProximityPredicate.ENN -> Cost(
-                    Cost.DISK_ACCESS_READ.io * this.columns[0].type.logicalSize * signatureRead + Cost.DISK_ACCESS_READ.io * this.columns[0].type.physicalSize * fullRead,
+                    Cost.DISK_ACCESS_READ_SEQUENTIAL.io * this.columns[0].type.logicalSize * signatureRead + Cost.DISK_ACCESS_READ_SEQUENTIAL.io * this.columns[0].type.physicalSize * fullRead,
                     (Cost.MEMORY_ACCESS.memory * 2.0f + Cost.FLOP.cpu) * this.columns[0].type.logicalSize * signatureRead + predicate.cost.cpu * fullRead
                 )
                 is ProximityPredicate.KLimitedSearch -> Cost(
-                    Cost.DISK_ACCESS_READ.io * this.columns[0].type.logicalSize * signatureRead + Cost.DISK_ACCESS_READ.io * this.columns[0].type.physicalSize * fullRead,
+                    Cost.DISK_ACCESS_READ_SEQUENTIAL.io * this.columns[0].type.logicalSize * signatureRead + Cost.DISK_ACCESS_READ_SEQUENTIAL.io * this.columns[0].type.physicalSize * fullRead,
                     (Cost.MEMORY_ACCESS.memory * 2.0f + Cost.FLOP.cpu) * this.columns[0].type.logicalSize * signatureRead + predicate.cost.cpu * fullRead,
                     (Long.SIZE_BYTES + Double.SIZE_BYTES + this.columns[0].type.physicalSize).toFloat() * predicate.k
                 )

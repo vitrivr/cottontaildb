@@ -374,18 +374,18 @@ object GrpcQueryBinder {
      */
     context(QueryContext)
     private fun parseAndBindOperator(operator: CottontailGrpc.Predicate.Comparison.Operator, left: Binding, right: Binding) = when (operator) {
-        CottontailGrpc.Predicate.Comparison.Operator.EQUAL -> ComparisonOperator.Binary.Equal(left, right)
-        CottontailGrpc.Predicate.Comparison.Operator.NOTEQUAL -> ComparisonOperator.Binary.NotEqual(left, right)
-        CottontailGrpc.Predicate.Comparison.Operator.GREATER -> ComparisonOperator.Binary.Greater(left, right)
-        CottontailGrpc.Predicate.Comparison.Operator.LESS -> ComparisonOperator.Binary.Less(left, right)
-        CottontailGrpc.Predicate.Comparison.Operator.GEQUAL -> ComparisonOperator.Binary.GreaterEqual(left, right)
-        CottontailGrpc.Predicate.Comparison.Operator.LEQUAL -> ComparisonOperator.Binary.LessEqual(left, right)
+        CottontailGrpc.Predicate.Comparison.Operator.EQUAL -> ComparisonOperator.Equal(left, right)
+        CottontailGrpc.Predicate.Comparison.Operator.NOTEQUAL -> ComparisonOperator.NotEqual(left, right)
+        CottontailGrpc.Predicate.Comparison.Operator.GREATER -> ComparisonOperator.Greater(left, right)
+        CottontailGrpc.Predicate.Comparison.Operator.LESS -> ComparisonOperator.Less(left, right)
+        CottontailGrpc.Predicate.Comparison.Operator.GEQUAL -> ComparisonOperator.GreaterEqual(left, right)
+        CottontailGrpc.Predicate.Comparison.Operator.LEQUAL -> ComparisonOperator.LessEqual(left, right)
         CottontailGrpc.Predicate.Comparison.Operator.LIKE -> {
             with(MissingTuple) {
                 with(this@QueryContext.bindings) {
                     if (right is Binding.Literal && right.getValue() is StringValue) {
                         right.update(LikePatternValue.forValue((right.getValue() as StringValue).value))
-                        ComparisonOperator.Binary.Like(left, right)
+                        ComparisonOperator.Like(left, right)
                     } else {
                         throw QueryException.QuerySyntaxException("LIKE operator expects a literal, parseable string value as right operand.")
                     }

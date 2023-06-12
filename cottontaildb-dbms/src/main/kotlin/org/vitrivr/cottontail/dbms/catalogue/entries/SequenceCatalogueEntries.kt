@@ -22,7 +22,7 @@ object SequenceCatalogueEntries {
      * Initializes the store used to store sequences in Cottontail DB.
      */
     internal fun init(catalogue: DefaultCatalogue, transaction: Transaction) {
-        catalogue.environment.openStore(CATALOGUE_SEQUENCE_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
+        catalogue.transactionManager.environment.openStore(CATALOGUE_SEQUENCE_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
             ?: throw DatabaseException.DataCorruptionException("Failed to create store for sequence catalogue.")
     }
 
@@ -34,7 +34,7 @@ object SequenceCatalogueEntries {
      * @return [EntityCatalogueEntry]
      */
     internal fun store(catalogue: DefaultCatalogue, transaction: Transaction): Store {
-        return catalogue.environment.openStore(CATALOGUE_SEQUENCE_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
+        return catalogue.transactionManager.environment.openStore(CATALOGUE_SEQUENCE_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
             ?: throw DatabaseException.DataCorruptionException("Failed to open store for sequence catalogue.")
     }
 

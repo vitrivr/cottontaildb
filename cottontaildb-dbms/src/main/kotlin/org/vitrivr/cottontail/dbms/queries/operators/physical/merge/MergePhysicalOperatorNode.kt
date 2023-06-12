@@ -1,12 +1,12 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.merge
 
-import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.transform.MergeOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext

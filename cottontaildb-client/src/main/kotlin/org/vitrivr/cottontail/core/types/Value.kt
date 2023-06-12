@@ -1,7 +1,5 @@
 package org.vitrivr.cottontail.core.types
 
-import org.vitrivr.cottontail.core.types.Types
-
 /**
  * This is an abstraction over the existing primitive types provided by Kotlin. It allows for the
  * advanced type system implemented by Cottontail DB.
