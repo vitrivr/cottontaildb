@@ -213,11 +213,11 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             return when (predicate) {
                 is ProximityPredicate.Scan -> Cost.INVALID
                 is ProximityPredicate.ENN -> Cost(
-                    Cost.DISK_ACCESS_READ.io * this.columns[0].type.logicalSize * signatureRead + Cost.DISK_ACCESS_READ.io * this.columns[0].type.physicalSize * fullRead,
+                    Cost.DISK_ACCESS_READ_SEQUENTIAL.io * this.columns[0].type.logicalSize * signatureRead + Cost.DISK_ACCESS_READ_SEQUENTIAL.io * this.columns[0].type.physicalSize * fullRead,
                     (Cost.MEMORY_ACCESS.memory * 2.0f + Cost.FLOP.cpu) * this.columns[0].type.logicalSize * signatureRead + predicate.cost.cpu * fullRead
                 )
                 is ProximityPredicate.KLimitedSearch -> Cost(
-                    Cost.DISK_ACCESS_READ.io * this.columns[0].type.logicalSize * signatureRead + Cost.DISK_ACCESS_READ.io * this.columns[0].type.physicalSize * fullRead,
+                    Cost.DISK_ACCESS_READ_SEQUENTIAL.io * this.columns[0].type.logicalSize * signatureRead + Cost.DISK_ACCESS_READ_SEQUENTIAL.io * this.columns[0].type.physicalSize * fullRead,
                     (Cost.MEMORY_ACCESS.memory * 2.0f + Cost.FLOP.cpu) * this.columns[0].type.logicalSize * signatureRead + predicate.cost.cpu * fullRead,
                     (Long.SIZE_BYTES + Double.SIZE_BYTES + this.columns[0].type.physicalSize).toFloat() * predicate.k
                 )

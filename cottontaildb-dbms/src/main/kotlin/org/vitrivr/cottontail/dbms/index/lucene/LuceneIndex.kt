@@ -295,7 +295,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
             canProcess(predicate) -> {
                 var cost = Cost.ZERO
                 repeat(predicate.columns.size) {
-                    cost += (Cost.DISK_ACCESS_READ +  Cost.MEMORY_ACCESS) * log2(this.store.indexReader.numDocs().toDouble()) /* TODO: This is an assumption. */
+                    cost += (Cost.DISK_ACCESS_READ_SEQUENTIAL +  Cost.MEMORY_ACCESS) * log2(this.store.indexReader.numDocs().toDouble()) /* TODO: This is an assumption. */
                 }
                 cost
             }

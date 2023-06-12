@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
+import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
@@ -24,14 +25,15 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * @version 1.5.0
  */
 object BooleanIndexScanRule : RewriteRule {
-    override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean = node is FilterPhysicalOperatorNode &&
-        node.input is EntityScanPhysicalOperatorNode
+    override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean
+        = !ctx.hints.contains(QueryHint.IndexHint.None) && node is FilterPhysicalOperatorNode && node.input is EntityScanPhysicalOperatorNode
 
     /**
      * Applies this [BooleanIndexScanRule] and tries to replace a [EntityScanPhysicalOperatorNode] followed by a [FilterLogicalOperatorNode]
      *
      */
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
+        if (ctx.hints.contains(QueryHint.IndexHint.None)) return null
         if (node is FilterPhysicalOperatorNode) {
             val parent = node.input
             if (parent is EntityScanPhysicalOperatorNode) {

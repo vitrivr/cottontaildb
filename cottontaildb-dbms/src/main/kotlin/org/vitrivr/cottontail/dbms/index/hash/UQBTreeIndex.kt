@@ -237,7 +237,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
                 is ComparisonOperator.Less,
                 is ComparisonOperator.GreaterEqual,
                 is ComparisonOperator.LessEqual,
-                is ComparisonOperator.In -> Cost.DISK_ACCESS_READ * (search + countOut) + predicate.cost * countOut
+                is ComparisonOperator.In -> Cost.DISK_ACCESS_READ_SEQUENTIAL * (search + countOut) + predicate.cost * countOut
                 else -> Cost.INVALID
             }
         }

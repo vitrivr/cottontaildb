@@ -69,7 +69,7 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
                 binding.type.physicalSize
             }
         }
-        this.cost = (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * this.outputSize * fetchSize
+        this.cost = (Cost.DISK_ACCESS_READ_SEQUENTIAL + Cost.MEMORY_ACCESS) * this.outputSize * fetchSize
     }
 
     /**

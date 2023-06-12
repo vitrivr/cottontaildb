@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 
-import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
@@ -10,7 +9,6 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
-import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
@@ -21,6 +19,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOpera
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.statistics.estimateTupleSize
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import java.lang.Math.floorDiv
 
@@ -28,7 +27,7 @@ import java.lang.Math.floorDiv
  * A [UnaryPhysicalOperatorNode] that formalizes a scan of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.7.0
+ * @version 2.7.1
  */
 @Suppress("UNCHECKED_CAST")
 class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, val partitionIndex: Int = 0, val partitions: Int = 1) : NullaryPhysicalOperatorNode() {
@@ -38,45 +37,42 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
     }
 
     /** The name of this [EntityScanPhysicalOperatorNode]. */
-    override val name: String
-        get() = NODE_NAME
+    override val name: String = NODE_NAME
 
     /** The physical [ColumnDef] accessed by this [EntityScanPhysicalOperatorNode]. */
-    override val physicalColumns: List<ColumnDef<*>> = this.fetch.map { it.second }
-
-    /** The [ColumnDef] produced by this [EntityScanPhysicalOperatorNode]. */
-    override val columns: List<ColumnDef<*>> = this.fetch.map { it.first.column }
-
-    /** The number of rows returned by this [EntityScanPhysicalOperatorNode] equals to the number of rows in the [Entity]. */
-    override val outputSize = floorDiv(this.entity.count(), this.partitions)
-
-    /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
-    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
-
-    /** The estimated [Cost] incurred by scanning the [Entity]. */
-    override val cost: Cost
-
-    /** The [EntitySampleOperator] cannot be partitioned. */
-    override val traits: Map<TraitType<*>, Trait> = if (this.partitions > 1) {
-        mapOf(NotPartitionableTrait to NotPartitionableTrait)
-    } else {
-        emptyMap()
+    override val physicalColumns: List<ColumnDef<*>> by lazy {
+        this.fetch.map { it.second }
     }
 
-    /** Initialize entity statistics and cost. */
-    init {
-        var fetchSize = 0
-        for ((binding, physical) in this.fetch) {
-            if (!this.statistics.containsKey(binding.column)) {
-                this.statistics[binding.column] = this.entity.columnForName(physical.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
-            }
-            fetchSize += if (binding.type == Types.String) {
-                this.statistics[binding.column]!!.avgWidth * Char.SIZE_BYTES
-            } else {
-                binding.type.physicalSize
-            }
+    /** The [ColumnDef] produced by this [EntityScanPhysicalOperatorNode]. */
+    override val columns: List<ColumnDef<*>> by lazy {
+        this.fetch.map { it.first.column }
+    }
+
+    /** The number of rows returned by this [EntityScanPhysicalOperatorNode] equals to the number of rows in the [Entity]. */
+    override val outputSize by lazy {
+        floorDiv(this.entity.count(), this.partitions)
+    }
+
+    /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
+    override val statistics by lazy {
+        this.fetch.associate {
+            it.first.column to this.entity.columnForName(it.second.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
         }
-        this.cost = (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * this.outputSize * fetchSize
+    }
+
+    /** The estimated [Cost] incurred by scanning the [Entity]. */
+    override val cost: Cost by lazy {
+        (Cost.DISK_ACCESS_READ_SEQUENTIAL + Cost.MEMORY_ACCESS) * this.outputSize * this.statistics.estimateTupleSize()
+    }
+
+    /** The [EntitySampleOperator] cannot be partitioned. */
+    override val traits: Map<TraitType<*>, Trait> by lazy {
+        if (this.partitions > 1) {
+            mapOf(NotPartitionableTrait to NotPartitionableTrait)
+        } else {
+            emptyMap()
+        }
     }
 
     /**

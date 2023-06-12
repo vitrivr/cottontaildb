@@ -203,7 +203,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
             val nprobe = numberOfCoarseCentroids / 32
             val count = Math.floorDiv(this.count(), numberOfCoarseCentroids) * nprobe
             return Cost(
-                io = Cost.DISK_ACCESS_READ.io * Short.SIZE_BYTES,
+                io = Cost.DISK_ACCESS_READ_SEQUENTIAL.io * Short.SIZE_BYTES,
                 cpu = 4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu,
                 accuracy = 0.1f
             ) * this.quantizer.fine.size * count
