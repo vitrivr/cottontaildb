@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.data
 
+import kotlinx.serialization.BinaryFormat
+import kotlinx.serialization.StringFormat
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.cbor.Cbor
 import kotlinx.serialization.csv.Csv
@@ -64,19 +66,11 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
      * @param stream The [OutputStream] to write to.
      */
     protected fun writeBatch(list: List<Tuple>, stream: OutputStream) {
-        when(this.manifest.format) {
-            Format.CBOR -> {
-                val serializer = list.firstOrNull()?.valueSerializer() ?: return
-                stream.write(Cbor.encodeToByteArray(ListSerializer(serializer), list))
-            }
-            Format.JSON -> {
-                val serializer = list.firstOrNull()?.valueSerializer() ?: return
-                Json.encodeToStream(ListSerializer(serializer), list, stream)
-            }
-            Format.CSV -> {
-                val serializer = list.firstOrNull()?.valueSerializer() ?: return
-                stream.write(Csv.encodeToString(ListSerializer(serializer), list).toByteArray())
-            }
+        val serializer = list.firstOrNull()?.valueSerializer() ?: return
+        when(val format = this.manifest.format.format) {
+            is BinaryFormat -> stream.write(format.encodeToByteArray(ListSerializer(serializer), list))
+            is StringFormat -> stream.write(format.encodeToString(ListSerializer(serializer), list).toByteArray())
+            else -> throw IllegalArgumentException("Unsupported format $format.")
         }
         stream.flush()
     }

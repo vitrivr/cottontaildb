@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.data
 
+import kotlinx.serialization.BinaryFormat
+import kotlinx.serialization.StringFormat
 import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.cbor.Cbor
-import kotlinx.serialization.csv.Csv
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import org.vitrivr.cottontail.client.SimpleClient
@@ -109,10 +109,10 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
     protected fun read(e: Manifest.Entity, input: InputStream): List<Tuple> {
         val serializer = e.columns.toTypedArray().valueSerializer()
         val bytes = input.readAllBytes()
-        return when(this.manifest.format) {
-            Format.CBOR -> Cbor.decodeFromByteArray(ListSerializer(serializer), bytes)
-            Format.JSON -> Json.decodeFromString(ListSerializer(serializer), bytes.toString(Charset.defaultCharset()))
-            Format.CSV -> Csv.decodeFromString(ListSerializer(serializer), bytes.toString(Charset.defaultCharset()))
+        return when(val format = this.manifest.format.format) {
+            is StringFormat -> format.decodeFromString(ListSerializer(serializer), bytes.toString(Charset.defaultCharset()))
+            is BinaryFormat -> format.decodeFromByteArray(ListSerializer(serializer), bytes)
+            else -> throw IllegalArgumentException("Unsupported format $format.")
         }
     }
 
