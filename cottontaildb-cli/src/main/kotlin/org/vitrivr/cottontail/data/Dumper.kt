@@ -226,7 +226,7 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
             }
 
             /* Add manifest entry. */
-            (this.manifest.entites as MutableList).add(e.copy(size = dumped, batches = batch + 1))
+            (this.manifest.entites as MutableList).add(e.copy(size = dumped, batches = batch))
             return dumped
         }
 
