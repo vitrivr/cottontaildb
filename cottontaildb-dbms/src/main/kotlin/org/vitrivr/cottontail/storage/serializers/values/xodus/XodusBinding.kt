@@ -1,12 +1,11 @@
 package org.vitrivr.cottontail.storage.serializers.values.xodus
 
 import jetbrains.exodus.ByteIterable
-import org.mapdb.Serializer
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 
 /**
- * A [Serializer] for Xodus based [Value] serialization and deserialization.
+ * A serializer for Xodus based [Value] serialization and deserialization.
  *
  * @author Ralph Gasser
  * @version 1.0.0
