@@ -223,6 +223,7 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
             if (buffer.isNotEmpty()) {
                 this.stream.putNextEntry(ZipEntry("${entity.fqn}.$batch.${this.manifest.format.suffix}"))
                 this.writeBatch(buffer, this.stream)
+                batch += 1
             }
 
             /* Add manifest entry. */
