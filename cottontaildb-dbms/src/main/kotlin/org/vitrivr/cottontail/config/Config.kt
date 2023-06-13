@@ -28,9 +28,6 @@ data class Config(
         /** Reference to [XodusConfig], which contains configuration regarding Xodus. */
         val xodus: XodusConfig = XodusConfig(),
 
-        /** Reference to [MapDBConfig], which contains configuration regarding the memory usage of Cottontail DB. */
-        val mapdb: MapDBConfig = MapDBConfig(),
-
         /** Reference to [ServerConfig], which contains configuration regarding the gRPC server. */
         val server: ServerConfig = ServerConfig(),
 
