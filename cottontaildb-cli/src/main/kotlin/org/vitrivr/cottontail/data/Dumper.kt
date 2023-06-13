@@ -3,15 +3,12 @@ package org.vitrivr.cottontail.data
 import kotlinx.serialization.BinaryFormat
 import kotlinx.serialization.StringFormat
 import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.cbor.Cbor
-import kotlinx.serialization.csv.Csv
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.encodeToStream
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.basics.Constants.COLUMN_NAME_CLASS
 import org.vitrivr.cottontail.client.language.basics.Constants.COLUMN_NAME_DBO
 import org.vitrivr.cottontail.client.language.basics.Constants.COLUMN_NAME_NULLABLE
-import org.vitrivr.cottontail.client.language.basics.Constants.COLUMN_NAME_ROWS
 import org.vitrivr.cottontail.client.language.basics.Constants.COLUMN_NAME_SIZE
 import org.vitrivr.cottontail.client.language.basics.Constants.COLUMN_NAME_TYPE
 import org.vitrivr.cottontail.client.language.ddl.AboutEntity
@@ -24,7 +21,7 @@ import org.vitrivr.cottontail.data.Manifest.Companion.MANIFEST_FILE_NAME
 import org.vitrivr.cottontail.serialization.valueSerializer
 import java.io.Closeable
 import java.io.OutputStream
-import java.lang.Math.floorDiv
+import java.nio.charset.Charset
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
@@ -80,7 +77,8 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
      *
      * @param stream The [OutputStream] to write to.
      */
-    protected fun writeManifest(stream: OutputStream) = Json.encodeToStream(this.manifest, stream)
+    protected fun writeManifest(stream: OutputStream)
+        = stream.write(Json.encodeToString(this.manifest).toByteArray(Charset.defaultCharset()))
 
     /**
      * Internal convenience method to load meta-information about specified [Name.EntityName].
@@ -90,7 +88,6 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
     protected fun loadEntityInformation(entity: Name.EntityName): Manifest.Entity {
         val results = this.client.about(AboutEntity(entity).txId(this.txId))
         val columns = mutableListOf<ColumnDef<*>>()
-        var count: Long = 0L
         results.forEach {
             if (it.asString(COLUMN_NAME_CLASS) == "COLUMN") {
                 columns.add(ColumnDef(
@@ -99,17 +96,9 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
                     it.asBoolean(COLUMN_NAME_NULLABLE)!!
                 ))
             }
-            if (it.asString(COLUMN_NAME_CLASS) == "ENTITY") {
-                count = it.asLong(COLUMN_NAME_ROWS)!!
-            }
         }
 
-        val batches = if (count % this.manifest.batchSize > 0) {
-            floorDiv(count, this.manifest.batchSize) + 1
-        } else {
-            floorDiv(count, this.manifest.batchSize)
-        }
-        return Manifest.Entity(entity, batches, count, columns)
+        return Manifest.Entity(entity, 0L, 0L, columns)
     }
 
     /**
@@ -147,23 +136,30 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
             val buffer = mutableListOf<Tuple>()
             val results = this.client.query(Query(entity).txId(this.txId))
             var dumped = 0L
-            for (i in 0L until e.batches) {
-                buffer.clear()
-                Files.newOutputStream(this.output.resolve("${entity.fqn}.${i}.${this.manifest.format.suffix}"), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use {
-                    var j = 0
-                    while (results.hasNext()) {
-                        buffer.add(results.next())
-                        dumped += 1L
-                        if (j++ == this.manifest.batchSize) {
-                            break
-                        }
+            var batch = 0L
+
+            /* Read data and write it to archive. */
+            while (results.hasNext()) {
+                buffer.add(results.next())
+                dumped += 1L
+                if (dumped % this.manifest.batchSize == 0L) {
+                    Files.newOutputStream(this.output.resolve("${entity.fqn}.${batch}.${this.manifest.format.suffix}"), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use {
+                        this.writeBatch(buffer,it)
                     }
+                    batch += 1
+                    buffer.clear()
+                }
+            }
+
+            /* Write final batch. */
+            if (buffer.isNotEmpty()) {
+                Files.newOutputStream(this.output.resolve("${entity.fqn}.${batch}.${this.manifest.format.suffix}"), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use {
                     this.writeBatch(buffer, it)
                 }
             }
 
             /* Add manifest entry. */
-            (this.manifest.entites as MutableList).add(e)
+            (this.manifest.entites as MutableList).add(e.copy(size = dumped, batches = batch + 1))
             return dumped
         }
 
@@ -208,22 +204,28 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
             val buffer = mutableListOf<Tuple>()
             val results = this.client.query(Query(entity).txId(this.txId))
             var dumped = 0L
-            for (i in 0L until e.batches) {
-                buffer.clear()
-                this.stream.putNextEntry(ZipEntry("${entity.fqn}.${i}.${this.manifest.format.suffix}"))
-                var j = 0
-                while (results.hasNext()) {
-                    buffer.add(results.next())
-                    dumped += 1L
-                    if (j++ == this.manifest.batchSize) {
-                        break
-                    }
+            var batch = 0L
+
+            /* Read data and write it to archive. */
+            while (results.hasNext()) {
+                buffer.add(results.next())
+                dumped += 1L
+                if (dumped % this.manifest.batchSize == 0L) {
+                    this.stream.putNextEntry(ZipEntry("${entity.fqn}.$batch.${this.manifest.format.suffix}"))
+                    this.writeBatch(buffer, this.stream)
+                    batch += 1
+                    buffer.clear()
                 }
+            }
+
+            /* Write final batch. */
+            if (buffer.isNotEmpty()) {
+                this.stream.putNextEntry(ZipEntry("${entity.fqn}.$batch.${this.manifest.format.suffix}"))
                 this.writeBatch(buffer, this.stream)
             }
 
             /* Add manifest entry. */
-            (this.manifest.entites as MutableList).add(e)
+            (this.manifest.entites as MutableList).add(e.copy(size = dumped, batches = batch + 1))
             return dumped
         }
 

@@ -4,7 +4,6 @@ import kotlinx.serialization.BinaryFormat
 import kotlinx.serialization.StringFormat
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.decodeFromStream
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.CreateEntity
 import org.vitrivr.cottontail.client.language.dml.BatchInsert
@@ -40,6 +39,7 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
 
     /** A flag indicating, whether this [Dumper] was closed.*/
     protected var closed = false
+
 
     /**
      * Creates an [Iterator] of [Tuple] for the [Name.EntityName] held by this [Restorer].
@@ -109,7 +109,8 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
     protected fun read(e: Manifest.Entity, input: InputStream): List<Tuple> {
         val serializer = e.columns.toTypedArray().valueSerializer()
         val bytes = input.readAllBytes()
-        return when(val format = this.manifest.format.format) {
+        if (bytes.isEmpty()) return emptyList()
+        return when (val format = this.manifest.format.format) {
             is StringFormat -> format.decodeFromString(ListSerializer(serializer), bytes.toString(Charset.defaultCharset()))
             is BinaryFormat -> format.decodeFromByteArray(ListSerializer(serializer), bytes)
             else -> throw IllegalArgumentException("Unsupported format $format.")
@@ -143,7 +144,7 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
 
         init {
             this.manifest = try {
-                Files.newInputStream(output.resolve(Manifest.MANIFEST_FILE_NAME), StandardOpenOption.READ).use { Json.decodeFromStream(it) }
+                Json.decodeFromString(Files.readAllBytes(output.resolve(Manifest.MANIFEST_FILE_NAME)).toString(Charset.defaultCharset()))
             } catch (e: Throwable) {
                 throw IllegalArgumentException("Unable to restore dump: Failed to read MANIFEST from ${this.output}.")
             }
@@ -152,7 +153,7 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
         /**
          * This function loads a batch of [Tuple]s from the dump by reading the respective ZIP entry.
          *
-         * @param e The [Entity] to restore.
+         * @param e The [Manifest.Entity] to restore.
          * @param batchIndex The index of the batch to load.
          * @return [List] of [Tuple]s read.
          */
@@ -183,9 +184,7 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
 
             this.manifest = try {
                 val entry = this.zip.getEntry(Manifest.MANIFEST_FILE_NAME)
-                this.zip.getInputStream(entry).use {
-                    Json.decodeFromStream(it)
-                }
+                Json.decodeFromString(this.zip.getInputStream(entry).readAllBytes().toString(Charset.defaultCharset()))
             } catch (e: Throwable) {
                 throw IllegalArgumentException("Unable to restore dump: Failed to read MANIFEST from ${this.output}.")
             }
