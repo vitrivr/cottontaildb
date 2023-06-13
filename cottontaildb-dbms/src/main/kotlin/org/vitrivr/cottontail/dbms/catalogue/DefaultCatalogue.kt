@@ -171,7 +171,7 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
 
         init {
             /* Cache this Tx for future use. */
-            context.txn.cacheTxForDBO(this)
+            context.txn.cacheTx(this)
         }
 
         /** Reference to the [DefaultCatalogue] this [CatalogueTx] belongs to. */

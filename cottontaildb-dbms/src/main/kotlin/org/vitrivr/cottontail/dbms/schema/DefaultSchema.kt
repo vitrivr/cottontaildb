@@ -51,7 +51,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
 
         init {
             /* Cache this Tx for future use. */
-            context.txn.cacheTxForDBO(this)
+            context.txn.cacheTx(this)
         }
 
         /** Reference to the surrounding [DefaultSchema]. */

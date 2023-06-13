@@ -303,11 +303,11 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         /**
          * Caches a [Tx] for later re-use.
          *
-         * @param dbo The [DBO] to create the [Tx] for.
+         * @param tx The [DBO] to create the [Tx] for.
          * @return True on success, false otherwise.
          */
-        override fun cacheTxForDBO(dbo: Tx): Boolean {
-            return this.txns.putIfAbsent(dbo.dbo, dbo) != null
+        override fun cacheTx(tx: Tx): Boolean {
+            return this.txns.putIfAbsent(tx.dbo, tx) != null
         }
 
         /**
@@ -317,6 +317,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
          * @param dbo [DBO] to return the [Tx] for.
          * @return entity [Tx]
          */
+        @Suppress("UNCHECKED_CAST")
         override fun <T: Tx>getCachedTxForDBO(dbo: DBO): T = this.txns[dbo] as T
 
         override fun requestLock(dbo: DBO, mode: LockMode) {
@@ -405,8 +406,8 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         /** List of all [Tx.WithRollbackFinalization] that must be notified before rollback. */
         private val notifyOnRollback: MutableList<Tx.WithRollbackFinalization> = Collections.synchronizedList(LinkedList())
 
-        override fun cacheTxForDBO(dbo: Tx): Boolean {
-            return this.txns.putIfAbsent(dbo.dbo, dbo) != null
+        override fun cacheTx(tx: Tx): Boolean {
+            return this.txns.putIfAbsent(tx.dbo, tx) != null
         }
 
         /**
@@ -416,6 +417,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
          * @param dbo [DBO] to return the [Tx] for.
          * @return entity [Tx]
          */
+        @Suppress("UNCHECKED_CAST")
         override fun <T: Tx>getCachedTxForDBO(dbo: DBO): T? {
             return this.txns[dbo] as T?
         }

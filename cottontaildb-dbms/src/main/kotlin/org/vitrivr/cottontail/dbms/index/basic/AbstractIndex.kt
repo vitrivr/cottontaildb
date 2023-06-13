@@ -62,7 +62,7 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
 
         init {
             /* Cache this Tx for future use. */
-            context.txn.cacheTxForDBO(this)
+            context.txn.cacheTx(this)
         }
 
         /** Reference to the [AbstractIndex] */

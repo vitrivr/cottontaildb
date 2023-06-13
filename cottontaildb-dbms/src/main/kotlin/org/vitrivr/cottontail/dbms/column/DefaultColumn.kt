@@ -18,7 +18,6 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.defaultStatistics
 import org.vitrivr.cottontail.dbms.statistics.values.*
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
@@ -77,7 +76,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
 
         init {
             /* Cache this Tx for future use. */
-            context.txn.cacheTxForDBO(this)
+            context.txn.cacheTx(this)
         }
 
         /** Internal data [Store] reference. */

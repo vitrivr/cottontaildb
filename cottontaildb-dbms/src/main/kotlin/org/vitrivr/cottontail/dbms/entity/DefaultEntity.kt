@@ -91,7 +91,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
 
         init {
             /* Cache this Tx for future use. */
-            context.txn.cacheTxForDBO(this)
+            context.txn.cacheTx(this)
 
             /* Load entity entry.  */
             val entityEntry = EntityCatalogueEntry.read(this@DefaultEntity.name, this@DefaultEntity.catalogue, this.context.txn.xodusTx)

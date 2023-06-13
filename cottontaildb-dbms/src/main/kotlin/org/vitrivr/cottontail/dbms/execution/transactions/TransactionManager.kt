@@ -62,7 +62,7 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
     /** The [LockManager] instance used by this [TransactionManager]. */
     internal val lockManager = LockManager<DBO>()
 
-    /** List of ongoing or past transactions (limited to [transactionHistorySize] entries). */
+    /** List of ongoing or past transactions. */
     internal val transactionHistory: MutableList<Transaction> = Collections.synchronizedList(ArrayList(config.execution.transactionHistorySize))
 
     /** The main Xodus [Environment] used by Cottontail DB. This is an internal variable and not part of the official interface. */
@@ -255,9 +255,10 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
         /**
          * Caches a [Tx] in this [TransactionManager.TransactionImpl]s cache.
          *
-         * @return The [Tx] to cache
+         * @param tx The [Tx] to cache
+         * @return True if [Tx] was cached.
          */
-        override fun cacheTxForDBO(tx: Tx): Boolean = this.txns.putIfAbsent(tx.dbo.name, tx) != null
+        override fun cacheTx(tx: Tx): Boolean = this.txns.putIfAbsent(tx.dbo.name, tx) != null
 
         /**
          * Tries to retrieve a cached [Tx] from this [TransactionManager.TransactionImpl]s cache.
@@ -265,6 +266,7 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
          * @param dbo The [DBO] to obtain the [Tx] for.
          * @return The [Tx] or null
          */
+        @Suppress("UNCHECKED_CAST")
         override fun <T : Tx> getCachedTxForDBO(dbo: DBO): T? = this.txns[dbo.name] as T?
 
         /**

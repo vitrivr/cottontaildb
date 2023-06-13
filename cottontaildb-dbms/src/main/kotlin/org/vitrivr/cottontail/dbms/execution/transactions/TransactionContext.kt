@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.dbms.general.Tx
  * This is the view of a [Transaction] that is available to the operators that execute a query.
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.5.1
  */
 interface TransactionContext: ExecutionContext {
 
@@ -29,10 +29,10 @@ interface TransactionContext: ExecutionContext {
     /**
      * Caches a [Tx] for later re-use.
      *
-     * @param dbo The [DBO] to create the [Tx] for.
+     * @param tx The [DBO] to create the [Tx] for.
      * @return True on success, false otherwise.
      */
-    fun cacheTxForDBO(dbo: Tx): Boolean
+    fun cacheTx(tx: Tx): Boolean
 
     /**
      * Obtains a cached [Tx] for the given [DBO].
