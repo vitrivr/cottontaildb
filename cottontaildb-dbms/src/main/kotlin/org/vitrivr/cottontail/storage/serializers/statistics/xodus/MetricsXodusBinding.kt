@@ -1,25 +1,31 @@
 package org.vitrivr.cottontail.storage.serializers.statistics.xodus
 
 import jetbrains.exodus.util.LightOutputStream
-import org.mapdb.Serializer
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import java.io.ByteArrayInputStream
 
 /**
- * A [Serializer] for Xodus based [ValueStatistics] serialization and deserialization.
+ * A serializer for Xodus based [ValueStatistics] serialization and deserialization.
  *
- * @author Ralph Gasser, Florian Burkhardt
+ * @author Florian Burkhardt
+ * @author Ralph Gasser
  * @version 1.0.1
  */
 interface MetricsXodusBinding<T: ValueStatistics<*>> {
 
     /**
+     * Reads a [ValueStatistics] from the given [ByteArrayInputStream].
      *
+     * @param [ByteArrayInputStream] to read from
+     * @return [ValueStatistics]
      */
     fun read(stream: ByteArrayInputStream): T
 
     /**
+     * Writes a [ValueStatistics] to the given [LightOutputStream].
      *
+     * @param output The [LightOutputStream] to write to.
+     * @param statistics The [ValueStatistics] to write.
      */
     fun write(output: LightOutputStream, statistics: T)
 }
