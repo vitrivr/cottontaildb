@@ -16,7 +16,7 @@ interface MetricsXodusBinding<T: ValueStatistics<*>> {
     /**
      * Reads a [ValueStatistics] from the given [ByteArrayInputStream].
      *
-     * @param [ByteArrayInputStream] to read from
+     * @param stream [ByteArrayInputStream] to read from
      * @return [ValueStatistics]
      */
     fun read(stream: ByteArrayInputStream): T
