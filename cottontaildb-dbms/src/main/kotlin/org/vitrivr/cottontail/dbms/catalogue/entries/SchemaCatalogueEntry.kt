@@ -1,26 +1,23 @@
 package org.vitrivr.cottontail.dbms.catalogue.entries
 
-import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.env.Transaction
-import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.schema.Schema
-import java.io.ByteArrayInputStream
 
 /**
  * A [SchemaCatalogueEntry] in the Cottontail DB [Catalogue]. Used to store metadata about [Schema]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 data class SchemaCatalogueEntry(val name: Name.SchemaName): Comparable<SchemaCatalogueEntry> {
 
-    companion object: ComparableBinding() {
+    companion object {
 
         /** Name of the [SchemaCatalogueEntry] store in this [DefaultCatalogue]. */
         private const val CATALOGUE_SCHEMA_STORE_NAME: String = "ctt_cat_schemas"
@@ -57,9 +54,9 @@ data class SchemaCatalogueEntry(val name: Name.SchemaName): Comparable<SchemaCat
          * @return [SchemaCatalogueEntry]
          */
         internal fun read(name: Name.SchemaName, catalogue: DefaultCatalogue, transaction: Transaction): SchemaCatalogueEntry? {
-            val rawEntry = store(catalogue, transaction).get(transaction, NameBinding.Schema.objectToEntry(name))
+            val rawEntry = store(catalogue, transaction).get(transaction, NameBinding.Schema.toEntry(name))
             return if (rawEntry != null) {
-                entryToObject(rawEntry) as SchemaCatalogueEntry
+                SchemaCatalogueEntry(NameBinding.Schema.fromEntry(rawEntry))
             } else {
                 null
             }
@@ -74,7 +71,7 @@ data class SchemaCatalogueEntry(val name: Name.SchemaName): Comparable<SchemaCat
          * @return [SchemaCatalogueEntry]
          */
         internal fun exists(name: Name.SchemaName, catalogue: DefaultCatalogue, transaction: Transaction): Boolean =
-            store(catalogue, transaction).get(transaction, NameBinding.Schema.objectToEntry(name)) != null
+            store(catalogue, transaction).get(transaction, NameBinding.Schema.toEntry(name)) != null
 
         /**
          * Writes the given [SchemaCatalogueEntry] to the given [DefaultCatalogue].
@@ -85,7 +82,7 @@ data class SchemaCatalogueEntry(val name: Name.SchemaName): Comparable<SchemaCat
          * @return True on success, false otherwise.
          */
         internal fun write(entry: SchemaCatalogueEntry, catalogue: DefaultCatalogue, transaction: Transaction ): Boolean =
-            store(catalogue, transaction).put(transaction, NameBinding.Schema.objectToEntry(entry.name), objectToEntry(entry))
+            store(catalogue, transaction).put(transaction, NameBinding.Schema.toEntry(entry.name), NameBinding.Schema.toEntry(entry.name))
 
         /**
          * Deletes the [SchemaCatalogueEntry] for the given [Name.SchemaName] from the given [DefaultCatalogue].
@@ -96,13 +93,7 @@ data class SchemaCatalogueEntry(val name: Name.SchemaName): Comparable<SchemaCat
          * @return True on success, false otherwise.
          */
         internal fun delete(name: Name.SchemaName, catalogue: DefaultCatalogue, transaction: Transaction): Boolean
-            = store(catalogue, transaction).delete(transaction, NameBinding.Schema.objectToEntry(name))
-
-        override fun readObject(stream: ByteArrayInputStream) = SchemaCatalogueEntry(NameBinding.Schema.readObject(stream))
-        override fun writeObject(output: LightOutputStream, `object`: Comparable<Nothing>) {
-            require(`object` is SchemaCatalogueEntry) { "$`object` cannot be written as schema entry." }
-            NameBinding.Schema.writeObject(output, `object`.name)
-        }
+            = store(catalogue, transaction).delete(transaction, NameBinding.Schema.toEntry(name))
     }
     override fun compareTo(other: SchemaCatalogueEntry): Int = this.name.toString().compareTo(other.name.toString())
 }

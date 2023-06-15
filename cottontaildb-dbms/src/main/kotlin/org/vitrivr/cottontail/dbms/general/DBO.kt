@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.general
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import org.vitrivr.cottontail.dbms.sequence.SequenceTx
 
 /**
  * A database object [DBO] in Cottontail DB (e.g., a schema, entity etc.). [DBO]s are identified by
@@ -24,6 +25,7 @@ interface DBO {
 
     /** The [DBOVersion] of this [DBO]. */
     val version: DBOVersion
+        get() = DBOVersion.current()
 
     /**
      * Creates a new [Tx] for the given [QueryContext].

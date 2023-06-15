@@ -37,7 +37,7 @@ class VAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractIndexRe
         val entityTx = this.index.parent.newTx(this.context)
         val columnTx = entityTx.columnForName(column).newTx(this.context) as ColumnTx<*>
         val dataStore = this.tryClearAndOpenStore() ?: return false
-        val count = columnTx.count()
+        val count = entityTx.count()
 
         /* Obtain new marks. */
         val marks = EquidistantVAFMarks(columnTx.statistics() as RealVectorValueStatistics<*>, config.marksPerDimension)

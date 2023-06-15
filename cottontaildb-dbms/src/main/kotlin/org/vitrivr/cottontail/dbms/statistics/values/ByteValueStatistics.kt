@@ -8,7 +8,7 @@ import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.ByteValue
 import org.vitrivr.cottontail.core.values.DoubleValue
-import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
+import org.vitrivr.cottontail.storage.serializers.statistics.MetricsXodusBinding
 import java.io.ByteArrayInputStream
 
 /**

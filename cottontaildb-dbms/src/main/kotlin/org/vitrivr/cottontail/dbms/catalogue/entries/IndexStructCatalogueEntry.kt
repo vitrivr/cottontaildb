@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
  * [IndexStructCatalogueEntry] are used to wrap data structures used for certain index structures.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 abstract class IndexStructCatalogueEntry: Comparable<IndexStructCatalogueEntry> {
     companion object {
@@ -53,7 +53,7 @@ abstract class IndexStructCatalogueEntry: Comparable<IndexStructCatalogueEntry> 
          * @param transaction The Xodus [Transaction] to use.
          */
         internal inline fun <reified T: IndexStructCatalogueEntry> read(name: Name.IndexName, catalogue: DefaultCatalogue, transaction: Transaction, binding: ComparableBinding): T? {
-            val rawEntry = store(catalogue, transaction).get(transaction, NameBinding.Index.objectToEntry(name))
+            val rawEntry = store(catalogue, transaction).get(transaction, NameBinding.Index.toEntry(name))
             return if (rawEntry != null) {
                 val value = binding.entryToObject(rawEntry)
                 if (value is T) {
@@ -74,7 +74,7 @@ abstract class IndexStructCatalogueEntry: Comparable<IndexStructCatalogueEntry> 
          * @param transaction The Xodus [Transaction] to use.
          */
         internal fun exists(name: Name.IndexName, catalogue: DefaultCatalogue, transaction: Transaction): Boolean =
-            store(catalogue, transaction).get(transaction, NameBinding.Index.objectToEntry(name)) != null
+            store(catalogue, transaction).get(transaction, NameBinding.Index.toEntry(name)) != null
 
         /**
          * Writes the given [IndexStructCatalogueEntry] to the given [DefaultCatalogue].
@@ -85,7 +85,7 @@ abstract class IndexStructCatalogueEntry: Comparable<IndexStructCatalogueEntry> 
          * @return True on success, false otherwise.
          */
         internal inline fun <reified T: IndexStructCatalogueEntry> write(name: Name.IndexName, entry: T, catalogue: DefaultCatalogue, transaction: Transaction, binding: ComparableBinding): Boolean =
-            store(catalogue, transaction).put(transaction, NameBinding.Index.objectToEntry(name), binding.objectToEntry(entry))
+            store(catalogue, transaction).put(transaction, NameBinding.Index.toEntry(name), binding.objectToEntry(entry))
 
         /**
          * Deletes the [IndexStructCatalogueEntry] for the given [Name.IndexName] from the given [DefaultCatalogue].
@@ -96,6 +96,6 @@ abstract class IndexStructCatalogueEntry: Comparable<IndexStructCatalogueEntry> 
          * @return True on success, false otherwise.
          */
         internal fun delete(name: Name.IndexName, catalogue: DefaultCatalogue, transaction: Transaction): Boolean =
-            store(catalogue, transaction).delete(transaction, NameBinding.Index.objectToEntry(name))
+            store(catalogue, transaction).delete(transaction, NameBinding.Index.toEntry(name))
     }
 }

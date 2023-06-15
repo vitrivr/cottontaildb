@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.statistics.values.*
 import org.vitrivr.cottontail.storage.serializers.statistics.MetricsSerializerFactory
-import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
+import org.vitrivr.cottontail.storage.serializers.statistics.MetricsXodusBinding
 
 /**
  * A [ColumnStatistic] in the Cottontail DB [Catalogue]. Used to store metrics about [Column]s.

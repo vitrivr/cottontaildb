@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.catalogue
 
-import jetbrains.exodus.env.forEach
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.config.Config
@@ -8,6 +7,8 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.dbms.catalogue.entries.*
 import org.vitrivr.cottontail.dbms.catalogue.entries.MetadataEntry.Companion.METADATA_ENTRY_DB_VERSION
+import org.vitrivr.cottontail.dbms.column.ColumnMetadata
+import org.vitrivr.cottontail.dbms.entity.EntityMetadata
 import org.vitrivr.cottontail.dbms.events.SchemaEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
@@ -16,10 +17,13 @@ import org.vitrivr.cottontail.dbms.functions.initialize
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.DBOVersion
+import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata
 import org.vitrivr.cottontail.dbms.index.cache.InMemoryIndexCache
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
+import org.vitrivr.cottontail.dbms.schema.SchemaMetadata
+import org.vitrivr.cottontail.dbms.sequence.DefaultSequence
 import org.vitrivr.cottontail.dbms.statistics.StatisticsManager
 import org.vitrivr.cottontail.dbms.statistics.index.IndexStatisticsManager
 import java.nio.file.Files
@@ -96,11 +100,11 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
                 MetadataEntry.write(MetadataEntry(METADATA_ENTRY_DB_VERSION, this.version.toString()), this, tx)
 
                 /* Initialize necessary stores. */
-                SchemaCatalogueEntry.init(this, tx)
-                EntityCatalogueEntry.init(this, tx)
-                SequenceCatalogueEntries.init(this, tx)
-                ColumnCatalogueEntry.init(this, tx)
-                IndexCatalogueEntry.init(this, tx)
+                SchemaMetadata.init(this, tx)
+                EntityMetadata.init(this, tx)
+                ColumnMetadata.init(this, tx)
+                IndexMetadata.init(this, tx)
+                DefaultSequence.init(this, tx)
                 IndexStructCatalogueEntry.init(this, tx)
             }
 
@@ -184,11 +188,12 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
          * @return [List] of all [Name.SchemaName].
          */
         override fun listSchemas(): List<Name.SchemaName> = this.txLatch.withLock {
-            val store = SchemaCatalogueEntry.store(this@DefaultCatalogue, this.context.txn.xodusTx)
+            val store = SchemaMetadata.store(this.dbo, this.context.txn.xodusTx)
             val list = mutableListOf<Name.SchemaName>()
-            store.openCursor(this.context.txn.xodusTx).forEach {
-                val entry = SchemaCatalogueEntry.entryToObject(this.value) as SchemaCatalogueEntry
-                list.add(entry.name)
+            store.openCursor(this.context.txn.xodusTx).use { cursor ->
+                while (cursor.next) {
+                    list.add(NameBinding.Schema.fromEntry(cursor.key))
+                }
             }
             return list
         }
@@ -199,7 +204,8 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
          * @param name [Name.SchemaName] to obtain the [Schema] for.
          */
         override fun schemaForName(name: Name.SchemaName): Schema = this.txLatch.withLock {
-            if (!SchemaCatalogueEntry.exists(name, this@DefaultCatalogue, this.context.txn.xodusTx)) {
+            val store = SchemaMetadata.store(this.dbo, this.context.txn.xodusTx)
+            if (store.get(this.context.txn.xodusTx, NameBinding.Schema.toEntry(name)) == null) {
                 throw DatabaseException.SchemaDoesNotExistException(name)
             }
             return DefaultSchema(name, this@DefaultCatalogue)
@@ -211,16 +217,17 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
          * @param name The [Name.SchemaName] of the new [Schema].
          */
         override fun createSchema(name: Name.SchemaName): Schema = this.txLatch.withLock {
-            /* Check if schema exists! */
-            if (SchemaCatalogueEntry.exists(name, this@DefaultCatalogue, this.context.txn.xodusTx)) throw DatabaseException.SchemaAlreadyExistsException(name)
-
-            /* Write schema! */
-            SchemaCatalogueEntry.write(SchemaCatalogueEntry(name), this@DefaultCatalogue, this.context.txn.xodusTx)
+            val store = SchemaMetadata.store(this@DefaultCatalogue, this.context.txn.xodusTx)
+            val metadata = SchemaMetadata(System.currentTimeMillis(), System.currentTimeMillis())
+            if (!store.add(this.context.txn.xodusTx, NameBinding.Schema.toEntry(name), SchemaMetadata.toEntry(metadata))) {
+                throw DatabaseException.SchemaAlreadyExistsException(name) /* Schema already exists. */
+            }
 
             /* Create Event and notify observers */
             val event = SchemaEvent.Create(name)
             this.context.txn.signalEvent(event)
 
+            /* Return schema. */
             return DefaultSchema(name, this@DefaultCatalogue)
         }
 
@@ -231,7 +238,8 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
          */
         override fun dropSchema(name: Name.SchemaName) = this.txLatch.withLock {
             /* Check if schema exists! */
-            if (!SchemaCatalogueEntry.exists(name, this@DefaultCatalogue, this.context.txn.xodusTx)) {
+            val store = SchemaMetadata.store(this@DefaultCatalogue, this.context.txn.xodusTx)
+            if (!store.delete(this.context.txn.xodusTx, NameBinding.Schema.toEntry(name))) {
                 throw DatabaseException.SchemaDoesNotExistException(name)
             }
 
@@ -240,12 +248,8 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
             schemaTx.listEntities().forEach { schemaTx.dropEntity(it) }
 
             /* Create Event and notify observers */
-            val event = SchemaEvent.Create(name)
+            val event = SchemaEvent.Drop(name)
             this.context.txn.signalEvent(event)
-
-            /* Remove schema from catalogue. */
-            SchemaCatalogueEntry.delete(name, this@DefaultCatalogue, this.context.txn.xodusTx)
-            Unit
         }
     }
 }

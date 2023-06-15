@@ -47,7 +47,7 @@ object SequenceCatalogueEntries {
      * @return [EntityCatalogueEntry]
      */
     internal fun read(name: Name.SequenceName, catalogue: DefaultCatalogue, transaction: Transaction): Long? {
-        val rawEntry = store(catalogue, transaction).get(transaction, NameBinding.Sequence.objectToEntry(name))
+        val rawEntry = store(catalogue, transaction).get(transaction, NameBinding.Sequence.toEntry(name))
         return if (rawEntry != null) {
             LongBinding.compressedEntryToLong(rawEntry)
         } else {
@@ -64,7 +64,7 @@ object SequenceCatalogueEntries {
      */
     internal fun next(name: Name.SequenceName, catalogue: DefaultCatalogue, transaction: Transaction): Long? {
         val store = store(catalogue, transaction)
-        val rawName = NameBinding.Sequence.objectToEntry(name)
+        val rawName = NameBinding.Sequence.toEntry(name)
         val rawEntry = store(catalogue, transaction).get(transaction, rawName)
         return if (rawEntry != null) {
             val next = LongBinding.compressedEntryToLong(rawEntry) + 1
@@ -84,7 +84,7 @@ object SequenceCatalogueEntries {
      * @return True on success.
      */
     internal fun create(name: Name.SequenceName, catalogue: DefaultCatalogue, transaction: Transaction): Boolean =
-        store(catalogue, transaction).add(transaction, NameBinding.Sequence.objectToEntry(name), LongBinding.longToCompressedEntry(0L))
+        store(catalogue, transaction).add(transaction, NameBinding.Sequence.toEntry(name), LongBinding.longToCompressedEntry(0L))
 
     /**
      * Deletes the sequence with the given name.
@@ -95,7 +95,7 @@ object SequenceCatalogueEntries {
      * @return True on success.
      */
     internal fun delete(name: Name.SequenceName, catalogue: DefaultCatalogue, transaction: Transaction): Boolean =
-        store(catalogue, transaction).delete(transaction, NameBinding.Sequence.objectToEntry(name))
+        store(catalogue, transaction).delete(transaction, NameBinding.Sequence.toEntry(name))
 
     /**
      * Resets the sequence with the given name.
@@ -106,5 +106,5 @@ object SequenceCatalogueEntries {
      * @return True on success.
      */
     internal fun reset(name: Name.SequenceName, catalogue: DefaultCatalogue, transaction: Transaction): Boolean =
-        store(catalogue, transaction).put(transaction, NameBinding.Sequence.objectToEntry(name), LongBinding.longToCompressedEntry(0L))
+        store(catalogue, transaction).put(transaction, NameBinding.Sequence.toEntry(name), LongBinding.longToCompressedEntry(0L))
 }

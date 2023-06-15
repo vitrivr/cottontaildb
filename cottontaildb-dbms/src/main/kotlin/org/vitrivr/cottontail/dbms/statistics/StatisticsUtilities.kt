@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.statistics
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.statistics.values.*
 
 
@@ -24,7 +25,8 @@ fun Map<ColumnDef<*>, ValueStatistics<*>>.estimateTupleSize() = this.map {
  *
  * @return [ValueStatistics] matching this [Types]
  */
-fun Types<*>.defaultStatistics() = when(this) {
+@Suppress("UNCHECKED_CAST")
+fun <T: Value> Types<*>.defaultStatistics(): ValueStatistics<T> = when(this) {
     Types.Boolean -> BooleanValueStatistics()
     Types.Byte -> ByteValueStatistics()
     Types.Short -> ShortValueStatistics()
@@ -44,4 +46,4 @@ fun Types<*>.defaultStatistics() = when(this) {
     is Types.DoubleVector -> DoubleVectorValueStatistics(this.logicalSize)
     is Types.Complex32Vector -> Complex32VectorValueStatistics(this.logicalSize)
     is Types.Complex64Vector -> Complex64VectorValueStatistics(this.logicalSize)
-}
+} as ValueStatistics<T>

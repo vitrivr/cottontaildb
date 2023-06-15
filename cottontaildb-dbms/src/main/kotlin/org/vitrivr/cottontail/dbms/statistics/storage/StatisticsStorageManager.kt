@@ -42,7 +42,7 @@ class StatisticsStorageManager(config: Config) {
      * @param column The key to retrieve the statistics [ColumnStatistic] for.
      */
     operator fun get(column: Name.ColumnName): ColumnStatistic? = this.environment.computeInReadonlyTransaction { tx ->
-        this.columnsStore.get(tx, NameBinding.Column.objectToEntry(column))?.let { (ColumnStatistic.entryToObject(it)) }
+        this.columnsStore.get(tx, NameBinding.Column.toEntry(column))?.let { (ColumnStatistic.entryToObject(it)) }
     }
 
     /**
@@ -52,7 +52,7 @@ class StatisticsStorageManager(config: Config) {
      * @return [EntityMetric]
      */
     fun getMetric(entity: Name.EntityName): EntityMetric? = this.environment.computeInReadonlyTransaction { tx ->
-        this.metricsStore.get(tx, NameBinding.Entity.objectToEntry(entity))?.let { EntityMetric.entryToObject(it) }
+        this.metricsStore.get(tx, NameBinding.Entity.toEntry(entity))?.let { EntityMetric.entryToObject(it) }
     }
 
     /**
@@ -63,7 +63,7 @@ class StatisticsStorageManager(config: Config) {
      * @return [EntityMetric]
      */
     fun setMetric(entity: Name.EntityName, metric: EntityMetric): Boolean = this.environment.computeInExclusiveTransaction { tx ->
-        this.metricsStore.put(tx, NameBinding.Entity.objectToEntry(entity), EntityMetric.objectToEntry(metric))
+        this.metricsStore.put(tx, NameBinding.Entity.toEntry(entity), EntityMetric.objectToEntry(metric))
     }
 
     /**
@@ -73,7 +73,7 @@ class StatisticsStorageManager(config: Config) {
      * @return True if [EntityMetric] was deleted, false otherwise.
      */
     fun deleteMetric(entity: Name.EntityName): Boolean = this.environment.computeInExclusiveTransaction { tx ->
-        this.metricsStore.delete(tx, NameBinding.Entity.objectToEntry(entity))
+        this.metricsStore.delete(tx, NameBinding.Entity.toEntry(entity))
     }
 
     /**
@@ -84,7 +84,7 @@ class StatisticsStorageManager(config: Config) {
      */
     fun setColumnStatistic(name: Name.ColumnName, statistic: ColumnStatistic) {
         this.environment.executeInExclusiveTransaction { tx ->
-            this.columnsStore.put(tx, NameBinding.Column.objectToEntry(name), ColumnStatistic.objectToEntry(statistic)) // write to storage
+            this.columnsStore.put(tx, NameBinding.Column.toEntry(name), ColumnStatistic.objectToEntry(statistic)) // write to storage
         }
     }
 
@@ -95,7 +95,7 @@ class StatisticsStorageManager(config: Config) {
      */
     fun deleteColumnStatistic(column: Name.ColumnName) {
         this.environment.executeInExclusiveTransaction { tx ->
-            this.columnsStore.delete(tx, NameBinding.Column.objectToEntry(column)) // write to storage
+            this.columnsStore.delete(tx, NameBinding.Column.toEntry(column)) // write to storage
         }
     }
 }

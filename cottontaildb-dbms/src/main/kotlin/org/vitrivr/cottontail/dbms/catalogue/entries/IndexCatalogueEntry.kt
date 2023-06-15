@@ -115,7 +115,7 @@ data class IndexCatalogueEntry(val name: Name.IndexName, val type: IndexType, va
          * @param transaction The Xodus [Transaction] to use.
          */
         internal fun read(name: Name.IndexName, catalogue: DefaultCatalogue, transaction: Transaction): IndexCatalogueEntry? {
-            val rawEntry = store(catalogue, transaction).get(transaction, NameBinding.Index.objectToEntry(name))
+            val rawEntry = store(catalogue, transaction).get(transaction, NameBinding.Index.toEntry(name))
             return if (rawEntry != null) {
                 (Serialized.entryToObject(rawEntry) as Serialized).toActual(name)
             } else {
@@ -131,7 +131,7 @@ data class IndexCatalogueEntry(val name: Name.IndexName, val type: IndexType, va
          * @param transaction The Xodus [Transaction] to use.
          */
         internal fun exists(name: Name.IndexName, catalogue: DefaultCatalogue, transaction: Transaction): Boolean =
-            store(catalogue, transaction).get(transaction, NameBinding.Index.objectToEntry(name)) != null
+            store(catalogue, transaction).get(transaction, NameBinding.Index.toEntry(name)) != null
 
         /**
          * Writes the given [IndexCatalogueEntry] to the given [DefaultCatalogue].
@@ -142,7 +142,7 @@ data class IndexCatalogueEntry(val name: Name.IndexName, val type: IndexType, va
          * @return True on success, false otherwise.
          */
         internal fun write(entry: IndexCatalogueEntry, catalogue: DefaultCatalogue, transaction: Transaction): Boolean =
-            store(catalogue, transaction).put(transaction, NameBinding.Index.objectToEntry(entry.name), Serialized.objectToEntry(entry.toSerialized()))
+            store(catalogue, transaction).put(transaction, NameBinding.Index.toEntry(entry.name), Serialized.objectToEntry(entry.toSerialized()))
 
         /**
          * Deletes the [IndexCatalogueEntry] for the given [Name.IndexName] from the given [DefaultCatalogue].
@@ -153,7 +153,7 @@ data class IndexCatalogueEntry(val name: Name.IndexName, val type: IndexType, va
          * @return True on success, false otherwise.
          */
         internal fun delete(name: Name.IndexName, catalogue: DefaultCatalogue, transaction: Transaction): Boolean =
-            store(catalogue, transaction).delete(transaction, NameBinding.Index.objectToEntry(name))
+            store(catalogue, transaction).delete(transaction, NameBinding.Index.toEntry(name))
 
         /**
          * Convenience method to update the [IndexState] of this [IndexCatalogueEntry].

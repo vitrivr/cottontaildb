@@ -40,7 +40,7 @@ class IVFPQIndexRebuilder(index: IVFPQIndex, context: QueryContext): AbstractInd
         val entityTx = this.index.parent.newTx(this.context)
         val columnTx = entityTx.columnForName(column).newTx(this.context)
         val dataStore = this.tryClearAndOpenStore() ?: return false
-        val count = columnTx.count()
+        val count = entityTx.count()
 
         /* Obtain PQ data structure. */
         val type = columnTx.columnDef.type as Types.Vector<*,*>

@@ -32,8 +32,8 @@ import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
-import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
-import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
+import org.vitrivr.cottontail.storage.serializers.SerializerFactory
+import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
 import kotlin.concurrent.withLock
 import kotlin.math.log10
 
@@ -144,9 +144,9 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
      */
     inner class Tx(context: QueryContext) : AbstractIndex.Tx(context) {
 
-        /** The internal [XodusBinding] reference used for de-/serialization. */
+        /** The internal [ValueSerializer] reference used for de-/serialization. */
         @Suppress("UNCHECKED_CAST")
-        internal val binding: XodusBinding<Value> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable) as XodusBinding<Value>
+        internal val binding: ValueSerializer<Value> = SerializerFactory.value(this.columns[0].type, this.columns[0].nullable) as ValueSerializer<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
         internal val dataStore: Store = this@BTreeIndex.catalogue.transactionManager.environment.openStore(this@BTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
@@ -161,7 +161,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * This is an internal function and can be used safely with values o
          */
         private fun addMapping(key: Value, tupleId: TupleId): Boolean {
-            val keyRaw = this.binding.valueToEntry(key)
+            val keyRaw = this.binding.toEntry(key)
             val tupleIdRaw = LongBinding.longToCompressedEntry(tupleId)
             return this.dataStore.put(this.context.txn.xodusTx, keyRaw, tupleIdRaw)
         }
@@ -174,7 +174,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * This is an internal function and can be used safely with values o
          */
         private fun removeMapping(key: Value, tupleId: TupleId): Boolean {
-            val keyRaw = this.binding.valueToEntry(key)
+            val keyRaw = this.binding.toEntry(key)
             val valueRaw = LongBinding.longToCompressedEntry(tupleId)
             val cursor = this.dataStore.openCursor(this.context.txn.xodusTx)
             val ret = cursor.getSearchBoth(keyRaw, valueRaw) && cursor.deleteCurrent()

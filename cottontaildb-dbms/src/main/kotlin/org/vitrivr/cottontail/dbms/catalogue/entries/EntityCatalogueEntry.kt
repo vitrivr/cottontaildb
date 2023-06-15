@@ -19,7 +19,7 @@ import java.io.ByteArrayInputStream
  * A [EntityCatalogueEntry] in the Cottontail DB [Catalogue]. Used to store metadata about [Entity]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 data class EntityCatalogueEntry(val name: Name.EntityName, val created: Long, val columns: List<Name.ColumnName>, val indexes: List<Name.IndexName>) {
 
@@ -110,7 +110,8 @@ data class EntityCatalogueEntry(val name: Name.EntityName, val created: Long, va
          * @return [EntityCatalogueEntry]
          */
         internal fun read(name: Name.EntityName, catalogue: DefaultCatalogue, transaction: Transaction): EntityCatalogueEntry? {
-            val rawEntry = store(catalogue, transaction).get(transaction, NameBinding.Entity.objectToEntry(name))
+            val rawEntry = store(catalogue, transaction).get(transaction, NameBinding.Entity.
+            toEntry(name))
             return if (rawEntry != null) {
                 (Serialized.entryToObject(rawEntry) as Serialized).toActual(name)
             } else {
@@ -127,7 +128,7 @@ data class EntityCatalogueEntry(val name: Name.EntityName, val created: Long, va
          * @return true of false
          */
         internal fun exists(name: Name.EntityName, catalogue: DefaultCatalogue, transaction: Transaction): Boolean =
-            store(catalogue, transaction).get(transaction, NameBinding.Entity.objectToEntry(name)) != null
+            store(catalogue, transaction).get(transaction, NameBinding.Entity.toEntry(name)) != null
 
         /**
          * Writes the given [EntityCatalogueEntry] to the given [DefaultCatalogue].
@@ -138,7 +139,7 @@ data class EntityCatalogueEntry(val name: Name.EntityName, val created: Long, va
          * @return True on success, false otherwise.
          */
         internal fun write(entry: EntityCatalogueEntry, catalogue: DefaultCatalogue, transaction: Transaction): Boolean =
-            store(catalogue, transaction).put(transaction, NameBinding.Entity.objectToEntry(entry.name), Serialized.objectToEntry(entry.toSerialized()))
+            store(catalogue, transaction).put(transaction, NameBinding.Entity.toEntry(entry.name), Serialized.objectToEntry(entry.toSerialized()))
 
         /**
          * Deletes the [EntityCatalogueEntry] for the given [Name.SchemaName] from the given [DefaultCatalogue].
@@ -149,6 +150,6 @@ data class EntityCatalogueEntry(val name: Name.EntityName, val created: Long, va
          * @return True on success, false otherwise.
          */
         internal fun delete(name: Name.EntityName, catalogue: DefaultCatalogue, transaction: Transaction): Boolean =
-            store(catalogue, transaction).delete(transaction, NameBinding.Entity.objectToEntry(name))
+            store(catalogue, transaction).delete(transaction, NameBinding.Entity.toEntry(name))
     }
 }

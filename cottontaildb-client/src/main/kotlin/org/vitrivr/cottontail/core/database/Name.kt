@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
  * A [Name] that identifies a DBO used within Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 sealed interface Name: Comparable<Name> {
 
@@ -102,8 +102,6 @@ sealed interface Name: Comparable<Name> {
      */
     @Serializable
     data class SchemaName(val schemaName: String): Name {
-
-
         companion object {
             /**
              * Parses a [String] to a [SchemaName].
@@ -143,6 +141,14 @@ sealed interface Name: Comparable<Name> {
          * @return [EntityName]
          */
         fun entity(name: String) = EntityName(this.schemaName, name)
+
+        /**
+         * Generates an [SequenceName] as child of this [SchemaName].
+         *
+         * @param name Name of the [SequenceName]
+         * @return [SequenceName]
+         */
+        fun sequence(name: String): SequenceName = SequenceName(this.schemaName, name)
 
         /**
          * Checks for a match with another [Name]. Only exact matches, i.e. equality, are possible for [SchemaName]s.
@@ -220,24 +226,6 @@ sealed interface Name: Comparable<Name> {
         fun column(name: String) = ColumnName(this.schemaName, this.entityName, name)
 
         /**
-         * Generates the special '__tid' [SequenceName] as child of this [EntityName].
-         *
-         * @return [SequenceName]
-         */
-        fun tid() = SequenceName(this.schemaName, this.entityName, "__tid")
-
-        /**
-         * Generates an [SequenceName] as child of this [EntityName].
-         *
-         * @param name Name of the [SequenceName]
-         * @return [SequenceName]
-         */
-        fun sequence(name: String): SequenceName {
-            require(name != "__tid") { "The name '__tid' is reserved and cannot be used as sequence name!" }
-            return SequenceName(this.schemaName, this.entityName, name)
-        }
-
-        /**
          * Checks for a match with another name. Only exact matches, i.e. equality, are possible for [EntityName]s.
          *
          * @param other [Name] to compare to.
@@ -252,20 +240,18 @@ sealed interface Name: Comparable<Name> {
      * A [Name] object used to identify a sequence.
      */
     @Serializable
-    data class SequenceName(val schemaName: String, val entityName: String, val sequenceName: String) : Name {
+    data class SequenceName(val schemaName: String, val sequenceName: String) : Name {
 
         init {
             require(!this.schemaName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
             require(!this.schemaName.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
-            require(!this.entityName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
-            require(!this.entityName.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
             require(!this.sequenceName.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
             require(!this.sequenceName.contains(WILDCARD)) { "Name component cannot contain ${WILDCARD}."}
         }
 
         /** The fully qualified name of this [Name.SequenceName]. */
         override val fqn: String
-            get() = "${ROOT}${DELIMITER}${this.schemaName}${DELIMITER}${this.entityName}${DELIMITER}${this.sequenceName}"
+            get() = "${ROOT}${DELIMITER}${this.schemaName}${DELIMITER}${DELIMITER}${this.sequenceName}"
 
         /** The fully qualified name of this [Name.SequenceName]. */
         override val simple: String
@@ -277,13 +263,6 @@ sealed interface Name: Comparable<Name> {
          * @return Parent [SchemaName]
          */
         fun schema(): SchemaName = SchemaName(this.schemaName)
-
-        /**
-         * Returns parent [EntityName] of this [SequenceName].
-         *
-         * @return Parent [EntityName]
-         */
-        fun entity(): EntityName = EntityName(this.schemaName, this.entityName)
 
         /**
          * Checks for a match with another name. Only exact matches, i.e. equality, are possible for [SequenceName]s.
@@ -432,6 +411,16 @@ sealed interface Name: Comparable<Name> {
         fun entity(): EntityName? {
             if (this.schemaName == WILDCARD || this.entityName == WILDCARD) return null
             return EntityName(this.schemaName, this.entityName)
+        }
+
+        /**
+         * Returns [SequenceName] of the sequence used to track an auto-increment value of this [ColumnName
+         *
+         * @return Auto-increment [SequenceName]
+         */
+        fun autoincrement(): SequenceName? {
+            if (this.schemaName == WILDCARD || this.entityName == WILDCARD) return null
+            return SequenceName(this.schemaName, "${this.entityName}_${this.columnName}_auto")
         }
 
         /**

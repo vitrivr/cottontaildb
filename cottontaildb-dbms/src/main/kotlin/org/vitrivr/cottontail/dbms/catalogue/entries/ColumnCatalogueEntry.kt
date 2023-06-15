@@ -21,12 +21,6 @@ import java.io.ByteArrayInputStream
  * @version 1.1.0
  */
 data class ColumnCatalogueEntry(val name: Name.ColumnName, val type: Types<*>, val nullable: Boolean, val primary: Boolean, val autoIncrement: Boolean) {
-    /**
-     * Creates a [ColumnCatalogueEntry] from the provided [ColumnDef].
-     *
-     * @param [ColumnDef] to convert.
-     */
-    constructor(def: ColumnDef<*>) : this(def.name, def.type, def.nullable, def.primary, def.autoIncrement)
 
     /**
      * Creates a [Serialized] version of this [ColumnCatalogueEntry].
@@ -112,7 +106,7 @@ data class ColumnCatalogueEntry(val name: Name.ColumnName, val type: Types<*>, v
          * @return [ColumnCatalogueEntry]
          */
         internal fun read(name: Name.ColumnName, catalogue: DefaultCatalogue, transaction: Transaction): ColumnCatalogueEntry? {
-            val rawName = NameBinding.Column.objectToEntry(name)
+            val rawName = NameBinding.Column.toEntry(name)
             val rawEntry = store(catalogue, transaction).get(transaction, rawName)
             return if (rawEntry != null) {
                 (Serialized.entryToObject(rawEntry) as Serialized).toActual(name)
@@ -130,7 +124,7 @@ data class ColumnCatalogueEntry(val name: Name.ColumnName, val type: Types<*>, v
          * @return True on success, false otherwise.
          */
         internal fun write(entry: ColumnCatalogueEntry, catalogue: DefaultCatalogue, transaction: Transaction): Boolean =
-            store(catalogue, transaction).put(transaction, NameBinding.Column.objectToEntry(entry.name), Serialized.objectToEntry(entry.toSerialized()))
+            store(catalogue, transaction).put(transaction, NameBinding.Column.toEntry(entry.name), Serialized.objectToEntry(entry.toSerialized()))
 
         /**
          * Deletes the [ColumnCatalogueEntry] for the given [Name.ColumnName] from the given [DefaultCatalogue].
@@ -141,7 +135,7 @@ data class ColumnCatalogueEntry(val name: Name.ColumnName, val type: Types<*>, v
          * @return True on success, false otherwise.
          */
         internal fun delete(name: Name.ColumnName, catalogue: DefaultCatalogue, transaction: Transaction): Boolean =
-            store(catalogue, transaction).delete(transaction, NameBinding.Column.objectToEntry(name))
+            store(catalogue, transaction).delete(transaction, NameBinding.Column.toEntry(name))
     }
 
     /**

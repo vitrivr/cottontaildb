@@ -4,7 +4,6 @@ import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.statistics.*
 import org.vitrivr.cottontail.dbms.statistics.values.*
-import org.vitrivr.cottontail.storage.serializers.statistics.xodus.MetricsXodusBinding
 
 /**
  * A [MetricsSerializerFactory] as used by Cottontail DB to create serializer implementations for its different storage engines.

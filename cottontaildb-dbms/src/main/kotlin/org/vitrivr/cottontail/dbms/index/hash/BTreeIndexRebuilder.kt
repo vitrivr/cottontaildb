@@ -6,8 +6,8 @@ import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
  import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
-import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
+import org.vitrivr.cottontail.storage.serializers.SerializerFactory
+import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
 
 /**
  * An [AbstractIndexRebuilder] for the [BTreeIndex].
@@ -26,13 +26,13 @@ class BTreeIndexRebuilder(index: BTreeIndex, context: QueryContext): AbstractInd
         /* Tx objects required for index rebuilding. */
         val entityTx = this.index.parent.newTx(this.context)
         val columnTx = entityTx.columnForName(column).newTx(this.context)
-        val binding: XodusBinding<Value> = ValueSerializerFactory.xodus(columnTx.columnDef.type, columnTx.columnDef.nullable) as XodusBinding<Value>
+        val binding: ValueSerializer<Value> = SerializerFactory.value(columnTx.columnDef.type, columnTx.columnDef.nullable) as ValueSerializer<Value>
         val dataStore = this.tryClearAndOpenStore() ?: return false
 
         /* Iterate over entity and update index with entries. */
         columnTx.cursor().use { cursor ->
             while (cursor.moveNext()) {
-                val keyRaw = binding.valueToEntry(cursor.value())
+                val keyRaw = binding.toEntry(cursor.value())
                 val tupleIdRaw = LongBinding.longToCompressedEntry(cursor.key())
                 if (!dataStore.put(this.context.txn.xodusTx, keyRaw, tupleIdRaw)) {
                     return false

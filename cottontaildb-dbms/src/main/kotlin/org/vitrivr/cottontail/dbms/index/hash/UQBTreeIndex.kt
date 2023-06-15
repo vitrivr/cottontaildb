@@ -33,8 +33,8 @@ import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
-import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
-import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
+import org.vitrivr.cottontail.storage.serializers.SerializerFactory
+import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
 import java.util.*
 import kotlin.concurrent.withLock
 import kotlin.math.log10
@@ -144,9 +144,9 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
      */
     private inner class Tx(context: QueryContext) : AbstractIndex.Tx(context) {
 
-        /** The internal [XodusBinding] reference used for de-/serialization. */
+        /** The internal [ValueSerializer] reference used for de-/serialization. */
         @Suppress("UNCHECKED_CAST")
-        private val binding: XodusBinding<Value> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable) as XodusBinding<Value>
+        private val binding: ValueSerializer<Value> = SerializerFactory.value(this.columns[0].type, this.columns[0].nullable) as ValueSerializer<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
         private var dataStore: Store = catalogue.transactionManager.environment.openStore(this@UQBTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
@@ -161,7 +161,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * This is an internal function and can be used safely with values o
          */
         private fun addMapping(key: Value, tupleId: TupleId) {
-            val keyRaw = this.binding.valueToEntry(key)
+            val keyRaw = this.binding.toEntry(key)
             val tupleIdRaw = LongBinding.longToCompressedEntry(tupleId)
             if (!this.dataStore.add(this.context.txn.xodusTx, keyRaw, tupleIdRaw)) {
                 throw DatabaseException.ValidationException("Mapping of $key to tuple $tupleId could be added to UniqueHashIndex, because value must be unique.")
@@ -176,7 +176,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * This is an internal function and can be used safely with values o
          */
         private fun removeMapping(key: Value): Boolean {
-            val keyRaw = this.binding.valueToEntry(key)
+            val keyRaw = this.binding.toEntry(key)
             return this.dataStore.delete(this.context.txn.xodusTx, keyRaw)
         }
 
@@ -326,7 +326,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
                 override fun moveNext(): Boolean {
                     var nextQueryValue = this.queryValueQueue.poll()
                     while (nextQueryValue != null) {
-                        if (this.cursor.getSearchKey(this@Tx.binding.valueToEntry(nextQueryValue)) != null) {
+                        if (this.cursor.getSearchKey(this@Tx.binding.toEntry(nextQueryValue)) != null) {
                             return true
                         }
                         nextQueryValue = this.queryValueQueue.poll()
@@ -336,7 +336,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
 
                 override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.value)
 
-                override fun value(): Tuple = StandaloneTuple(this.key(), this@Tx.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.key)))
+                override fun value(): Tuple = StandaloneTuple(this.key(), this@Tx.columns, arrayOf(this@Tx.binding.fromEntry(this.cursor.key)))
 
                 override fun close() {
                     this.cursor.close()

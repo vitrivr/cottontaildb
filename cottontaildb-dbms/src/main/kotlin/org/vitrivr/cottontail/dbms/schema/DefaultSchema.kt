@@ -1,18 +1,23 @@
 package org.vitrivr.cottontail.dbms.schema
 
+import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.catalogue.entries.*
+import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.catalogue.storeName
+import org.vitrivr.cottontail.dbms.column.ColumnMetadata
+import org.vitrivr.cottontail.dbms.column.VariableLengthColumn
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.events.EntityEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
-import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import org.vitrivr.cottontail.dbms.entity.EntityMetadata
+import org.vitrivr.cottontail.dbms.sequence.DefaultSequence
+import org.vitrivr.cottontail.dbms.sequence.Sequence
 import kotlin.concurrent.withLock
 
 /**
@@ -29,9 +34,6 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
     /** A [DefaultSchema] belongs to its parent [DefaultCatalogue]. */
     override val catalogue: DefaultCatalogue = this.parent
 
-    /** The [DBOVersion] of this [DefaultSchema]. */
-    override val version: DBOVersion
-        get() = DBOVersion.V3_0
     /**
      * Creates and returns a new [DefaultSchema.Tx] for the given [QueryContext].
      *
@@ -64,19 +66,52 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
          * @return [List] of all [Name.EntityName].
          */
         override fun listEntities(): List<Name.EntityName> = this.txLatch.withLock {
-            val store = EntityCatalogueEntry.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
+            val store = EntityMetadata.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
             val list = mutableListOf<Name.EntityName>()
-            val cursor = store.openCursor(this.context.txn.xodusTx)
-            val ret = cursor.getSearchKeyRange(NameBinding.Schema.objectToEntry(this@DefaultSchema.name)) /* Prefix matching. */
-            if (ret != null) {
-                do {
-                    val name = NameBinding.Entity.entryToObject(cursor.key) as Name.EntityName
-                    if (name.schema() != this@DefaultSchema.name) break
-                    list.add(name)
-                } while (cursor.next)
+            store.openCursor(this.context.txn.xodusTx).use { cursor ->
+                if (cursor.getSearchKeyRange(NameBinding.Schema.toEntry(this@DefaultSchema.name)) != null) {
+                    do {
+                        val name = NameBinding.Entity.fromEntry(cursor.key)
+                        if (name.schema() != this@DefaultSchema.name) break
+                        list.add(name)
+                    } while (cursor.next)
+                }
             }
-            cursor.close()
             list
+        }
+
+        /**
+         * Returns a list of all [Name.SequenceName]s held by this [DefaultSchema].
+         *
+         * @return [List] of all [Name.SequenceName].
+         */
+        override fun listSequence(): List<Name.SequenceName> {
+            val store = DefaultSequence.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
+            val list = mutableListOf<Name.SequenceName>()
+            store.openCursor(this.context.txn.xodusTx).use { cursor ->
+                if (cursor.getSearchKeyRange(NameBinding.Schema.toEntry(this@DefaultSchema.name)) != null) {
+                    do {
+                        val name = NameBinding.Sequence.fromEntry(cursor.key)
+                        if (name.schema() != this@DefaultSchema.name) break
+                        list.add(name)
+                    } while (cursor.next)
+                }
+            }
+            return list
+        }
+
+        /**
+         * Returns an [Entity] if such an instance exists.
+         *
+         * @param name Name of the [Entity] to access.
+         * @return [Entity]
+         */
+        override fun entityForName(name: Name.EntityName): Entity = this.txLatch.withLock {
+            val store = EntityMetadata.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
+            if (store.get(this.context.txn.xodusTx, NameBinding.Entity.toEntry(name)) == null) {
+                throw DatabaseException.EntityDoesNotExistException(name)
+            }
+            return DefaultEntity(name, this@DefaultSchema)
         }
 
         /**
@@ -85,11 +120,12 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
          * @param name Name of the [Entity] to access.
          * @return [Entity] or null.
          */
-        override fun entityForName(name: Name.EntityName): Entity = this.txLatch.withLock {
-            if (!EntityCatalogueEntry.exists(name, this@DefaultSchema.catalogue, this.context.txn.xodusTx)) {
-                throw DatabaseException.EntityDoesNotExistException(name)
+        override fun sequenceForName(name: Name.SequenceName): Sequence = this.txLatch.withLock {
+            val store = DefaultSequence.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
+            if (store.get(this.context.txn.xodusTx, NameBinding.Sequence.toEntry(name)) == null) {
+                throw DatabaseException.SequenceDoesNotExistException(name)
             }
-            return DefaultEntity(name, this@DefaultSchema)
+            return DefaultSequence(name, this@DefaultSchema)
         }
 
         /**
@@ -100,12 +136,11 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
          */
         override fun createEntity(name: Name.EntityName, vararg columns: ColumnDef<*>): Entity = this.txLatch.withLock {
             /* Check if there is at least one column. */
-            if (columns.isEmpty()) {
-                throw DatabaseException.NoColumnException(name)
-            }
+            if (columns.isEmpty()) {  throw DatabaseException.NoColumnException(name) }
 
             /* Check if entity already exists. */
-            if (EntityCatalogueEntry.exists(name, this@DefaultSchema.catalogue, this.context.txn.xodusTx)) {
+            val store = EntityMetadata.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
+            if (store.get(this.context.txn.xodusTx, NameBinding.Entity.toEntry(name)) != null) {
                 throw DatabaseException.EntityAlreadyExistsException(name)
             }
 
@@ -120,26 +155,28 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             }
 
             /* Write entity catalogue entry. */
-            if (!EntityCatalogueEntry.write(EntityCatalogueEntry(name, System.currentTimeMillis(), columns.map { it.name }, emptyList()), this@DefaultSchema.catalogue, this.context.txn.xodusTx)) {
-                throw DatabaseException.DataCorruptionException("CREATE entity $name failed: Failed to create catalogue entry.")
+            val entry = EntityMetadata(System.currentTimeMillis(), columns.map { it.name.columnName }, emptyList())
+            if (!store.add(this.context.txn.xodusTx, NameBinding.Entity.toEntry(name), EntityMetadata.toEntry(entry))) {
+                throw DatabaseException.EntityAlreadyExistsException(name)
             }
 
-            /* Write sequence catalogue entry. */
-            if (!SequenceCatalogueEntries.create(name.tid(), this@DefaultSchema.catalogue, this.context.txn.xodusTx)) {
-                throw DatabaseException.DataCorruptionException("CREATE entity $name failed: Failed to create sequence entry for tuple ID.")
-            }
+            /* Create store for entity. */
+            this@DefaultSchema.catalogue.transactionManager.environment.openBitmap(name.toString(), StoreConfig.WITHOUT_DUPLICATES, this.context.txn.xodusTx)
 
             /* Add catalogue entries and stores at column level. */
             columns.forEach {
-                if (!ColumnCatalogueEntry.write(ColumnCatalogueEntry(it), this@DefaultSchema.catalogue, this.context.txn.xodusTx)) {
-                    throw DatabaseException.DataCorruptionException("CREATE entity $name failed: Failed to create column entry for column $it.")
+                val metadataEntry = ColumnMetadata(it.type, it.nullable, it.primary, it.autoIncrement)
+                val metadataStore = ColumnMetadata.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
+                if (!metadataStore.add(this.context.txn.xodusTx, NameBinding.Column.toEntry(it.name), ColumnMetadata.toEntry(metadataEntry))) {
+                    throw DatabaseException.DuplicateColumnException(name, it.name)
                 }
 
-                /* Write sequence catalogue entry. */
-                if (it.autoIncrement && !SequenceCatalogueEntries.create(name.sequence(it.name.simple), this@DefaultSchema.catalogue, this.context.txn.xodusTx)) {
-                    throw DatabaseException.DataCorruptionException("CREATE entity $name failed: Failed to create sequence entry for column ${it.name}.")
+                /* Create sequence. */
+                if (it.autoIncrement) {
+                    this.createSequence(this@DefaultSchema.name.sequence("${it.name.entityName}_${it.name.columnName}_auto"))
                 }
 
+                /* Create store for column data. */
                 if (this@DefaultSchema.catalogue.transactionManager.environment.openStore(it.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.context.txn.xodusTx, true) == null) {
                     throw DatabaseException.DataCorruptionException("CREATE entity $name failed: Failed to create store for column $it.")
                 }
@@ -159,37 +196,36 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
          * @param name The name of the [DefaultEntity] that should be dropped.
          */
         override fun dropEntity(name: Name.EntityName) = this.txLatch.withLock {
-            /* Obtain entity entry and thereby check if it exists. */
-            val entry = EntityCatalogueEntry.read(name, this@DefaultSchema.catalogue, this.context.txn.xodusTx) ?: throw DatabaseException.EntityDoesNotExistException(name)
-
             /* Drop all indexes from entity. */
             val entityTx = DefaultEntity(name, this@DefaultSchema).newTx(this.context)
-            val columns = entityTx.listColumns().toTypedArray() // get columns for dropEntityEvent
-            entry.indexes.forEach { entityTx.dropIndex(it) }
+            entityTx.listIndexes().forEach { entityTx.dropIndex(it) }
 
             /* Drop all columns from entity. */
-            entry.columns.forEach {
-                if (!ColumnCatalogueEntry.delete(it, this@DefaultSchema.catalogue, this.context.txn.xodusTx)) {
+            val dropped = entityTx.listColumns().map {
+                val metadataStore = ColumnMetadata.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
+
+                if (!metadataStore.delete(this.context.txn.xodusTx, NameBinding.Column.toEntry(it.name))) {
                     throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to delete column entry for column $it.")
                 }
 
-                /* Delete column sequence catalogue entry (if exists). */
-                SequenceCatalogueEntries.delete(name.sequence(it.simple), this@DefaultSchema.catalogue, this.context.txn.xodusTx)
+                /* Drop sequence. */
+                if (it.autoIncrement) {
+                    this.dropSequence(this@DefaultSchema.name.sequence("${it.name.entityName}_${it.name.columnName}_auto"))
+                }
 
                 /* Remove store for column. */
-                this@DefaultSchema.catalogue.transactionManager.environment.removeStore(it.storeName(), this.context.txn.xodusTx)
+                this@DefaultSchema.catalogue.transactionManager.environment.removeStore(it.name.storeName(), this.context.txn.xodusTx)
+                it
             }
 
             /* Now remove all catalogue entries related to entity.  */
-            if (!EntityCatalogueEntry.delete(name, this@DefaultSchema.catalogue, this.context.txn.xodusTx)) {
+            val metadataStore = EntityMetadata.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
+            if (!metadataStore.delete(this.context.txn.xodusTx, NameBinding.Entity.toEntry(name))) {
                 throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to delete catalogue entry.")
-            }
-            if (!SequenceCatalogueEntries.delete(name.tid(), this@DefaultSchema.catalogue, this.context.txn.xodusTx)) {
-                throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to delete tuple ID sequence entry.")
             }
 
             /* Create Event and notify observers */
-            val event = EntityEvent.Drop(name, columns)
+            val event = EntityEvent.Drop(name, dropped.toTypedArray())
             this.context.txn.signalEvent(event)
         }
 
@@ -199,27 +235,50 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
          * @param name The name of the [Entity] that should be truncated.
          */
         override fun truncateEntity(name: Name.EntityName) = this.txLatch.withLock {
-            /* Obtain entity entry and thereby check if it exists. */
-            val entry = EntityCatalogueEntry.read(name, this@DefaultSchema.catalogue, this.context.txn.xodusTx) ?: throw DatabaseException.EntityDoesNotExistException(name)
-
-            /* Clears all indexes. */
-            entry.indexes.forEach {
-                val idx = IndexCatalogueEntry.read(it, this@DefaultSchema.catalogue, this.context.txn.xodusTx)  ?: throw DatabaseException.IndexDoesNotExistException(it)
-                idx.type.descriptor.deinitialize(it, this@DefaultSchema.catalogue, this.context.txn)
-                idx.type.descriptor.initialize(it, this@DefaultSchema.catalogue, this.context.txn)
-            }
-
-            /* Clears all columns. */
-            entry.columns.forEach {
-                this@DefaultSchema.catalogue.transactionManager.environment.truncateStore(it.storeName(), this.context.txn.xodusTx)
-            }
-
-            /* Resets the tuple ID counter. */
-            if (!SequenceCatalogueEntries.reset(name.tid(), this@DefaultSchema.catalogue, this.context.txn.xodusTx)) {
-                if (SequenceCatalogueEntries.read(name.tid(), this@DefaultSchema.catalogue, this.context.txn.xodusTx) == null) {
-                    throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to reset tuple ID sequence entry.")
+            /* Reset associated columns & sequences. */
+            val entityTx = this.entityForName(name).newTx(this.context)
+            entityTx.listColumns().forEach {
+                this@DefaultSchema.catalogue.transactionManager.environment.truncateStore(it.name.storeName(), this.context.txn.xodusTx)
+                if (it.autoIncrement) {
+                    val sequenceTx = this.sequenceForName(this@DefaultSchema.name.sequence("${it.name.entityName}_${it.name.columnName}_auto")).newTx(this.context)
+                    sequenceTx.reset()
                 }
             }
+
+            /* Reset associated indexes. */
+            entityTx.listIndexes().forEach {
+                val indexTx = entityTx.indexForName(it).newTx(this.context)
+                indexTx.dbo.type.descriptor.deinitialize(it, this@DefaultSchema.catalogue, this.context.txn)
+                indexTx.dbo.type.descriptor.initialize(it, this@DefaultSchema.catalogue, this.context.txn)
+            }
+        }
+
+        /**
+         * Creates a [DefaultSequence] in the [DefaultSchema] underlying this [DefaultSchema.Tx].
+         *
+         * @param name The name of the [DefaultSequence] that should be created.
+         * @return [DefaultSequence]
+         */
+        override fun createSequence(name: Name.SequenceName): Sequence = this.txLatch.withLock {
+            val store = DefaultSequence.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
+            if (!store.put(this.context.txn.xodusTx, NameBinding.Sequence.toEntry(name), LongBinding.longToCompressedEntry(0L))) {
+                throw DatabaseException.SequenceAlreadyExistsException(name)
+            }
+            DefaultSequence(name, this@DefaultSchema)
+        }
+
+        /**
+         * Drops a [DefaultSequence] from the [DefaultSchema] underlying this [DefaultSchema.Tx].
+         *
+         * @param name The name of the [DefaultSequence] that should be created.
+         * @return [DefaultSequence]
+         */
+        override fun dropSequence(name: Name.SequenceName) = this.txLatch.withLock {
+            val store = DefaultSequence.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
+            if (!store.delete(this.context.txn.xodusTx, NameBinding.Sequence.toEntry(name))) {
+                throw DatabaseException.SequenceDoesNotExistException(name)
+            }
+            Unit
         }
     }
 }

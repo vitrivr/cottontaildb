@@ -52,7 +52,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
     protected val boc = AtomicBoolean(false)
 
     /** Internal [ColumnTx] used to access actual values. */
-    protected val columnCursor: Cursor<RealVectorValue<*>?>
+    protected val columnTx: ColumnTx<RealVectorValue<*>>
 
     /** The [TupleId] to start with. */
     protected val startKey = this.partition.first.toKey()
@@ -91,12 +91,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
 
         /* Obtain Tx object for column. */
         val entityTx: EntityTx = this.index.dbo.parent.newTx(this.index.context)
-        this.columnCursor = entityTx.columnForName(this.index.columns[0].name).newTx(this.index.context).cursor(this.partition) as Cursor<RealVectorValue<*>?>
-
-        /* Move cursors to correct position. */
-        if (this.cursor.getSearchKeyRange(this.startKey) != null && this.columnCursor.moveTo(LongBinding.compressedEntryToLong(this.cursor.key))) {
-            this.boc.compareAndExchange(false, true)
-        }
+        this.columnTx = entityTx.columnForName(this.index.columns[0].name).newTx(this.index.context) as ColumnTx<RealVectorValue<*>>
     }
 
     /**
@@ -105,7 +100,6 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
     override fun close() {
         this.cursor.close()
         this.subTx.abort()
-        this.columnCursor.close()
     }
 
     /**
@@ -182,10 +176,9 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
             var threshold: Double
             for (i in 0 until localSelection.k) {
                 val tupleId = signatures[i].first
-                val value = this.columnCursor.value()
+                val value = this.columnTx.read(tupleId)
                 val distance = this.predicate.distance(this.query, value)!!
                 localSelection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))
-                this.columnCursor.moveNext()
             }
             threshold = (localSelection.peek()!![0] as DoubleValue).value
 
@@ -194,8 +187,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
                 val entry = signatures[i]
                 if (this.bounds.lb(entry.second, threshold) < threshold) {
                     val tupleId = entry.first
-                    require(this.columnCursor.moveTo(tupleId)) { "Column cursor failed to seek tuple with ID ${tupleId}." }
-                    val value = this.columnCursor.value()
+                    val value = this.columnTx.read(tupleId)
                     val distance = this.predicate.distance(this.query, value)!!
                     threshold = (localSelection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
                 }
@@ -222,10 +214,10 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
                     val signature = VAFSignature.fromEntry(cursor.value)
                     val tupleId = LongBinding.compressedEntryToLong(cursor.key)
                     signatures.add(tupleId to signature)
-                    val value = this.columnCursor.value()
+                    val value = this.columnTx.read(tupleId)
                     val distance = this.predicate.distance(this.query, value)!!
                     localSelection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))
-                } while (this.cursor.next && this.columnCursor.moveNext() && this.cursor.key < this.endKey && localSelection.size < localSelection.k)
+                } while (this.cursor.next && this.cursor.key < this.endKey && localSelection.size < localSelection.k)
 
                 /* Second phase: Use lower-bound to decide whether entry should be added. */
                 threshold = (localSelection.peek()!![0] as DoubleValue).value
@@ -234,8 +226,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
                     val signature = VAFSignature.fromEntry(cursor.value)
                     signatures.add(tupleId to signature)
                     if (this.bounds.lb(signature, threshold) < threshold) {
-                        require(this.columnCursor.moveTo(tupleId)) { "Column cursor failed to seek tuple with ID ${tupleId}." }
-                        val value = this.columnCursor.value()
+                        val value = this.columnTx.read(tupleId)
                         val distance = this.predicate.distance(this.query, value)!!
                         threshold = (localSelection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
                     }
@@ -268,10 +259,10 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
                 var threshold: Double
                 do {
                     val tupleId = LongBinding.compressedEntryToLong(cursor.key)
-                    val value = this.columnCursor.value()
+                    val value = this.columnTx.read(tupleId)
                     val distance = this.predicate.distance(this.query, value)!!
                     selection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))
-                } while (this.cursor.next  && this.columnCursor.moveNext() && this.cursor.key < this.endKey && selection.size < selection.k)
+                } while (this.cursor.next  && this.cursor.key < this.endKey && selection.size < selection.k)
 
                 /* Second phase: Use lower-bound to decide whether entry should be added. */
                 threshold = (selection.peek()!![0] as DoubleValue).value
@@ -279,8 +270,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
                     val signature = VAFSignature.fromEntry(cursor.value)
                     if (this.bounds.ub(signature, threshold) < threshold) {
                         val tupleId = LongBinding.compressedEntryToLong(cursor.key)
-                        require(this.columnCursor.moveTo(tupleId)) { "Column cursor failed to seek tuple with ID ${tupleId}." }
-                        val value = this.columnCursor.value()
+                        val value =  this.columnTx.read(tupleId)
                         val distance = this.predicate.distance(this.query, value)!!
                         threshold = (selection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
                     }
@@ -312,10 +302,10 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
             return false
         }
 
-        override fun key(): TupleId = this.columnCursor.key()
+        override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
         override fun value(): Tuple {
-            val tupleId = this.columnCursor.key()
-            val value = this.columnCursor.value()
+            val tupleId = LongBinding.compressedEntryToLong(this.cursor.key)
+            val value = this.columnTx.read(tupleId)
             val distance = this.predicate.distance(this.query, value)!!
             return StandaloneTuple(tupleId, this.produces, arrayOf(distance, value))
         }

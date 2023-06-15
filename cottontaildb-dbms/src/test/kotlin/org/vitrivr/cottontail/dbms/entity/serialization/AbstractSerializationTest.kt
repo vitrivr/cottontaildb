@@ -72,7 +72,7 @@ abstract class AbstractSerializationTest: AbstractEntityTest() {
             val entityTx = entity.newTx(ctx)
             repeat(TestConstants.TEST_COLLECTION_SIZE) {
                 val reference = this.nextRecord(it)
-                val retrieved = entityTx.read((it + 1).toLong(), this.columns)
+                val retrieved = entityTx.read(it.toLong(), this.columns)
                 for (i in 0 until retrieved.size) {
                     Assertions.assertTrue(reference[retrieved.columns[i]]!!.isEqual(retrieved[i]!!))
                 }

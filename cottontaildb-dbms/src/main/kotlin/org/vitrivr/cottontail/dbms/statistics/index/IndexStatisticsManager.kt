@@ -49,7 +49,7 @@ class IndexStatisticsManager(private val environment: Environment, transaction: 
     init {
         this.store.openCursor(transaction).use { cursor ->
             while (cursor.nextNoDup) {
-                val name = NameBinding.Index.entryToObject(cursor.key) as Name.IndexName
+                val name = NameBinding.Index.fromEntry(cursor.key)
                 val map = Object2ObjectLinkedOpenHashMap<String,IndexStatistic>()
                 do {
                     val item = IndexStatistic.entryToObject(cursor.value) as IndexStatistic
@@ -88,7 +88,7 @@ class IndexStatisticsManager(private val environment: Environment, transaction: 
      */
     fun update(index: Name.IndexName, item: IndexStatistic) = this.lock.write {
         this.dirty = true /* Update dirty flag. */
-        this.statistics.compute(index) { k, v ->
+        this.statistics.compute(index) { _, v ->
             val map = v ?: Object2ObjectLinkedOpenHashMap()
             map[item.key] = item
             map
@@ -103,12 +103,12 @@ class IndexStatisticsManager(private val environment: Environment, transaction: 
      */
     fun updatePersistently(index: Name.IndexName, item: IndexStatistic, transaction: Transaction) = this.lock.write {
         this.dirty = true /* Update dirty flag. */
-        this.statistics.compute(index) { k, v ->
+        this.statistics.compute(index) { _, v ->
             val map = v ?: Object2ObjectLinkedOpenHashMap()
             map[item.key] = item
             map
         }
-        this.store.put(transaction, NameBinding.Index.objectToEntry(index), IndexStatistic.objectToEntry(item))
+        this.store.put(transaction, NameBinding.Index.toEntry(index), IndexStatistic.objectToEntry(item))
         this.dirty = false
     }
 
@@ -120,7 +120,7 @@ class IndexStatisticsManager(private val environment: Environment, transaction: 
     fun deletePersistently(index: Name.IndexName, transaction: Transaction) {
         this.dirty = true
         this.statistics.remove(index)
-        this.store.delete(transaction, NameBinding.Index.objectToEntry(index))
+        this.store.delete(transaction, NameBinding.Index.toEntry(index))
         this.dirty = false
     }
 
@@ -148,7 +148,7 @@ class IndexStatisticsManager(private val environment: Environment, transaction: 
     fun persistInTransaction(transaction: Transaction) = this.lock.read {
         for ((index, statistics) in this.statistics) {
             for (item in statistics.values) {
-                this.store.put(transaction, NameBinding.Index.objectToEntry(index), IndexStatistic.objectToEntry(item))
+                this.store.put(transaction, NameBinding.Index.toEntry(index), IndexStatistic.objectToEntry(item))
             }
         }
         this.dirty = false

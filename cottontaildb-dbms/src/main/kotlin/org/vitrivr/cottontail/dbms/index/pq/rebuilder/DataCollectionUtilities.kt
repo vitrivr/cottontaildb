@@ -21,8 +21,6 @@ object DataCollectionUtilities {
      * @return List of [Tuple]s used for learning.
      */
     fun acquireLearningData(txn: ColumnTx<*>, fraction: Float, seed: Long): List<VectorValue<*>> {
-        val count = txn.count()
-        if (count == 0L) return emptyList()
         val random = SplittableRandom(seed)
         val learningData = LinkedList<VectorValue<*>>()
         txn.cursor().use { cursor ->

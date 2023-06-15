@@ -74,7 +74,7 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
         /* Tx objects required for index rebuilding. */
         val entityTx = this.index.parent.newTx(context)
         val columnTx = entityTx.columnForName(column).newTx(context)
-        val count = columnTx.count()
+        val count = entityTx.count()
 
         /* Iterate over entity and update index with entries. */
         var counter = 0
