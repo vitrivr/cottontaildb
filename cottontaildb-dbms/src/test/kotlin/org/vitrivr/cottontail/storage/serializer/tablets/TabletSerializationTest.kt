@@ -262,11 +262,7 @@ class TabletSerializationTest {
     fun testDoubleVectorTabletSerialization() {
         val type = Types.DoubleVector(this.random.nextInt(4, 2048))
         val list = Array<Value?>(TabletSerializer.DEFAULT_SIZE) {
-            if (this.random.nextBoolean()) {
-                DoubleVectorValueGenerator.random(type.logicalSize, this.random)
-            } else {
-                null
-            }
+            DoubleVectorValueGenerator.random(type.logicalSize, this.random)
         }
 
         /* Create tablet and serialize it. */

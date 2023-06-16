@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.storage.serializers.tablets
 
 import jetbrains.exodus.ByteIterable
+import net.jpountz.lz4.LZ4Factory
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.Tablet
@@ -16,6 +17,9 @@ interface TabletSerializer<T: Value> {
     companion object {
         /** The size of [Tablet]s that can be serialized. */
         const val DEFAULT_SIZE = Long.SIZE_BITS
+
+        /** The [LZ4Factory] instance used. */
+        val FACTORY: LZ4Factory = LZ4Factory.fastestInstance()
     }
 
     /** The [Types] converted by this [TabletSerializer]. */
