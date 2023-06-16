@@ -2,8 +2,6 @@ package org.vitrivr.cottontail.storage.serializers.tablets
 
 import jetbrains.exodus.ByteBufferByteIterable
 import jetbrains.exodus.ByteIterable
-import net.jpountz.lz4.LZ4Compressor
-import net.jpountz.lz4.LZ4FastDecompressor
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
