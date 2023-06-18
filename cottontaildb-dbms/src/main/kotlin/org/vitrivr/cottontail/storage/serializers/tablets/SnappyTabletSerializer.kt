@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.storage.serializers.tablets
 
-import jetbrains.exodus.ByteBufferByteIterable
+import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
@@ -96,6 +96,8 @@ class SnappyTabletSerializer<T: Value>(override val type: Types<T>, val size: In
         Snappy.compress(this.shuffleBuffer, this.compressBuffer.position(this.size shr 3))
         tablet.buffer.clear()
 
-        return ByteBufferByteIterable(this.compressBuffer.position(0))
+        return ArrayByteIterable(ByteArray(this.compressBuffer.position(0).limit()) {
+            this.compressBuffer.get()
+        })
     }
 }

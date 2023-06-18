@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.storage.serializers.tablets
 
-import jetbrains.exodus.ByteBufferByteIterable
+import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
@@ -40,5 +40,7 @@ class NoneTabletSerializer<T: Value>(override val type: Types<T>, val size: Int)
      * @param tablet The [AbstractTablet] to serialize.
      * @return The resulting [ByteIterable].
      */
-    override fun toEntry(tablet: Tablet<T>): ByteIterable = ByteBufferByteIterable(tablet.buffer.clear())
+    override fun toEntry(tablet: Tablet<T>): ByteIterable = ArrayByteIterable(ByteArray(tablet.buffer.clear().limit()) {
+        tablet.buffer.get()
+    })
 }
