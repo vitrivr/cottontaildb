@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.column.Column
+import org.vitrivr.cottontail.dbms.column.ColumnMetadata
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.execution.locking.LockMode
@@ -18,6 +19,7 @@ import org.vitrivr.cottontail.dbms.execution.transactions.*
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
+import org.vitrivr.cottontail.storage.serializers.tablets.Compression
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.BufferedWriter
 import java.lang.Math.floorDiv
@@ -159,7 +161,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
             for ((i, srcEntityName) in entities.withIndex()) {
                 this.log("-- Migrating entity $srcEntityName (${i + 1} / ${entities.size}):\n")
                 val srcEntityTx = srcSchemaTx.entityForName(srcEntityName).newTx(sourceContext)
-                val entity = dstSchemaTx.createEntity(srcEntityName, *srcEntityTx.listColumns().toTypedArray())
+                val entity = dstSchemaTx.createEntity(srcEntityName, srcEntityTx.listColumns().associate { it.name to ColumnMetadata(it.type, Compression.LZ4, it.nullable, it.primary, it.autoIncrement) })
 
                 /* Migrate indexes. */
                 for (indexName in srcEntityTx.listIndexes()) {

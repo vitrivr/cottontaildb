@@ -2,10 +2,10 @@ package org.vitrivr.cottontail.server.grpc.services
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.single
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
+import org.vitrivr.cottontail.dbms.column.ColumnMetadata
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
@@ -18,6 +18,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.InMemorySortP
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DDLGrpcKt
+import org.vitrivr.cottontail.storage.serializers.tablets.Compression
 import org.vitrivr.cottontail.utilities.extensions.fqn
 import kotlin.time.ExperimentalTime
 
@@ -25,7 +26,7 @@ import kotlin.time.ExperimentalTime
  * This is a gRPC service endpoint that handles DDL (= Data Definition Language) request for Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.7.0
+ * @version 2.7.1
  */
 @ExperimentalTime
 class DDLService(override val catalogue: DefaultCatalogue, val autoRebuilderService: AutoRebuilderService) : DDLGrpcKt.DDLCoroutineImplBase(), TransactionalGrpcService {
@@ -61,15 +62,15 @@ class DDLService(override val catalogue: DefaultCatalogue, val autoRebuilderServ
      */
     override suspend fun createEntity(request: CottontailGrpc.CreateEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val entityName = request.entity.fqn()
-        val columns = request.columnsList.map {
+        val columns = request.columnsList.associate {
             val type = Types.forName(it.type.name, it.length)
             val name = entityName.column(it.name.name) /* To make sure that columns belongs to entity. */
             try {
-                ColumnDef(name, type, it.nullable, it.primary, it.autoIncrement)
+                name to ColumnMetadata(type, Compression.valueOf(it.compression.name), it.nullable, it.primary, it.autoIncrement)
             } catch (e: IllegalArgumentException) {
                 throw DatabaseException.ValidationException(e.message ?: "Failed to validate query input.")
             }
-        }.toTypedArray()
+        }
         ctx.register(CreateEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName, request.mayExist, columns))
         ctx.toOperatorTree()
     }.single()

@@ -21,6 +21,7 @@ import java.io.ByteArrayInputStream
  * @version 1.0.0
  */
 data class ColumnMetadata(val type: Types<*>, val compression: Compression, val nullable: Boolean, val primary: Boolean, val autoIncrement: Boolean) {
+
     companion object {
         /** Name of the [ColumnMetadata] store in the Cottontail DB catalogue. */
         private const val CATALOGUE_COLUMN_STORE_NAME: String = "org.vitrivr.cottontail.columns"

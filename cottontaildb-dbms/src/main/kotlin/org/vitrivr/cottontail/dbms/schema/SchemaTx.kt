@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.schema
 
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.dbms.column.ColumnMetadata
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.dbms.sequence.Sequence
@@ -49,10 +49,10 @@ interface SchemaTx : Tx {
      * Creates a new [Entity] in this [DefaultSchema].
      *
      * @param name The name of the [Entity] that should be created.
-     * @param columns List of [ColumnDef] that specify the columns to create.
+     * @param columns Map of [Name.ColumnName] to [ColumnMetadata] that specify the columns to create.
      * @return Newly created [Entity] for use in context of this [Tx]
      */
-    fun createEntity(name: Name.EntityName, vararg columns: ColumnDef<*>): Entity
+    fun createEntity(name: Name.EntityName, columns: Map<Name.ColumnName, ColumnMetadata>): Entity
 
     /**
      * Drops an [Entity] in the [Schema] underlying this [SchemaTx].

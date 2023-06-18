@@ -17,7 +17,6 @@ import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.sequence.DefaultSequence
 import org.vitrivr.cottontail.dbms.sequence.Sequence
-import org.vitrivr.cottontail.storage.serializers.tablets.Compression
 import kotlin.concurrent.withLock
 
 /**
@@ -134,7 +133,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
          * @param name The name of the [DefaultEntity] that should be created.
          * @param columns The [ColumnDef] of the columns the new [DefaultEntity] should have
          */
-        override fun createEntity(name: Name.EntityName, vararg columns: ColumnDef<*>): Entity = this.txLatch.withLock {
+        override fun createEntity(name: Name.EntityName,columns: Map<Name.ColumnName,ColumnMetadata>): Entity = this.txLatch.withLock {
             /* Check if there is at least one column. */
             if (columns.isEmpty()) {  throw DatabaseException.NoColumnException(name) }
 
@@ -144,18 +143,8 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
                 throw DatabaseException.EntityAlreadyExistsException(name)
             }
 
-            /* Check if column names are distinct. */
-            val distinctSize = columns.map { it.name }.distinct().size
-            if (distinctSize != columns.size) {
-                columns.forEach { it1 ->
-                    if (columns.any { it2 -> it1.name == it2.name && it1 !== it2 }) {
-                        throw DatabaseException.DuplicateColumnException(name, it1.name)
-                    }
-                }
-            }
-
             /* Write entity catalogue entry. */
-            val entry = EntityMetadata(System.currentTimeMillis(), columns.map { it.name.columnName }, emptyList())
+            val entry = EntityMetadata(System.currentTimeMillis(), columns.keys.map { it.columnName }, emptyList())
             if (!store.add(this.context.txn.xodusTx, NameBinding.Entity.toEntry(name), EntityMetadata.toEntry(entry))) {
                 throw DatabaseException.EntityAlreadyExistsException(name)
             }
@@ -164,26 +153,27 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             this@DefaultSchema.catalogue.transactionManager.environment.openBitmap(name.toString(), StoreConfig.WITHOUT_DUPLICATES, this.context.txn.xodusTx)
 
             /* Add catalogue entries and stores at column level. */
-            columns.forEach {
-                val metadataEntry = ColumnMetadata(it.type, Compression.LZ4, it.nullable, it.primary, it.autoIncrement)
+            val definitions = columns.map {
                 val metadataStore = ColumnMetadata.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
-                if (!metadataStore.add(this.context.txn.xodusTx, NameBinding.Column.toEntry(it.name), ColumnMetadata.toEntry(metadataEntry))) {
-                    throw DatabaseException.DuplicateColumnException(name, it.name)
+                if (!metadataStore.add(this.context.txn.xodusTx, NameBinding.Column.toEntry(it.key), ColumnMetadata.toEntry(it.value))) {
+                    throw DatabaseException.DuplicateColumnException(name, it.key)
                 }
 
                 /* Create sequence. */
-                if (it.autoIncrement) {
-                    this.createSequence(this@DefaultSchema.name.sequence("${it.name.entityName}_${it.name.columnName}_auto"))
+                if (it.value.autoIncrement) {
+                    this.createSequence(this@DefaultSchema.name.sequence("${it.key.entityName}_${it.key.columnName}_auto"))
                 }
 
                 /* Create store for column data. */
-                if (this@DefaultSchema.catalogue.transactionManager.environment.openStore(it.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.context.txn.xodusTx, true) == null) {
+                if (this@DefaultSchema.catalogue.transactionManager.environment.openStore(it.key.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.context.txn.xodusTx, true) == null) {
                     throw DatabaseException.DataCorruptionException("CREATE entity $name failed: Failed to create store for column $it.")
                 }
-            }
+
+                ColumnDef(it.key, it.value.type, nullable = it.value.nullable, primary = it.value.primary, autoIncrement = it.value.autoIncrement)
+            }.toTypedArray()
 
             /* Create Event and notify observers */
-            val event = EntityEvent.Create(name, arrayOf(*columns))
+            val event = EntityEvent.Create(name, definitions)
             this.context.txn.signalEvent(event)
 
             /* Return a DefaultEntity instance. */
