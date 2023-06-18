@@ -104,24 +104,9 @@ object SerializerFactory {
      * @return [ValueSerializer]
      */
     @Suppress("UNCHECKED_CAST")
-    fun <T : Value> tablet(type: Types<T>): TabletSerializer<T> = when(type) {
-        Types.Boolean -> BooleanTabletSerializer()
-        Types.Byte -> ByteTabletSerializer()
-        Types.Date -> DateTabletSerializer()
-        Types.Complex32 -> Complex32TabletSerializer()
-        Types.Complex64 -> Complex64TabletSerializer()
-        Types.Double -> DoubleTabletSerializer()
-        Types.Float -> FloatTabletSerializer()
-        Types.Int -> IntTabletSerializer()
-        Types.Long -> LongTabletSerializer()
-        Types.Short -> ShortTabletSerializer()
-        is Types.BooleanVector -> BooleanVectorTabletSerializer(type.logicalSize)
-        is Types.Complex32Vector -> Complex32VectorTabletSerializer(type.logicalSize)
-        is Types.Complex64Vector -> Complex64VectorTabletSerializer(type.logicalSize)
-        is Types.DoubleVector -> DoubleVectorTabletSerializer(type.logicalSize)
-        is Types.FloatVector -> FloatVectorTabletSerializer(type.logicalSize)
-        is Types.IntVector -> IntVectorTabletSerializer(type.logicalSize)
-        is Types.LongVector -> LongVectorTabletSerializer(type.logicalSize)
-        else -> throw IllegalArgumentException("No table serializer for type $type found!")
-    } as TabletSerializer<T>
+    fun <T : Value> tablet(type: Types<T>, size: Int, compression: Compression = Compression.LZ4): TabletSerializer<T> = when(compression) {
+        Compression.NONE -> NoneTabletSerializer(type, size)
+        Compression.LZ4 -> LZ4TabletSerializer(type, size)
+        Compression.SNAPPY -> SnappyTabletSerializer(type, size)
+    }
 }

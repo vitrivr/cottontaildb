@@ -182,18 +182,8 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
         /** Map of all [Tx] that have been created as part of this [TransactionImpl]. */
         private val txns: MutableMap<Name, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
-        /** List of all [Tx.WithCommitFinalization] that must be notified before commit. */
-        private val notifyOnCommit: MutableList<Tx.WithCommitFinalization> = Collections.synchronizedList(LinkedList())
-
-        /** List of all [Tx.WithRollbackFinalization] that must be notified before rollback. */
-        private val notifyOnRollback: MutableList<Tx.WithRollbackFinalization> = Collections.synchronizedList(LinkedList())
-
         /** A [Mutex] data structure used for synchronisation on the [TransactionImpl]. */
         private val mutex = Mutex()
-
-        /** Number of [Tx] held by this [TransactionImpl]. */
-        val numberOfTxs: Int
-            get() = this.txns.size
 
         /** Timestamp of when this [TransactionImpl] was created. */
         override val created
@@ -330,9 +320,11 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
                 if (!this@TransactionImpl.state.canCommit)
                     throw TransactionException.Commit(this@TransactionImpl.txId, "Unable to COMMIT because transaction is in wrong state (s = ${this@TransactionImpl.state}).")
                 this@TransactionImpl.state = TransactionStatus.FINALIZING
+
                 var commit = false
                 try {
-                    for (txn in this@TransactionImpl.notifyOnCommit) {
+                    /* Execute commit finalization. */
+                    for (txn in this@TransactionImpl.txns.values.filterIsInstance<Tx.WithCommitFinalization>()) {
                         txn.beforeCommit()
                     }
                     if (this@TransactionImpl.xodusTx.isReadonly) {
@@ -387,7 +379,7 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
         private fun performRollback() {
             this@TransactionImpl.state = TransactionStatus.FINALIZING
             try {
-                for (txn in this@TransactionImpl.notifyOnRollback) {
+                for (txn in this@TransactionImpl.txns.values.filterIsInstance<Tx.WithRollbackFinalization>()) {
                     txn.beforeRollback()
                 }
             } finally {
@@ -406,8 +398,6 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
                 if (committed) this.notifyObservers()
             } finally {
                 this@TransactionImpl.txns.clear()
-                this@TransactionImpl.notifyOnCommit.clear()
-                this@TransactionImpl.notifyOnRollback.clear()
                 this@TransactionImpl.ended = System.currentTimeMillis()
                 this@TransactionManager.transactions.remove(this@TransactionImpl.txId)
                 this@TransactionImpl.state = if (committed) {

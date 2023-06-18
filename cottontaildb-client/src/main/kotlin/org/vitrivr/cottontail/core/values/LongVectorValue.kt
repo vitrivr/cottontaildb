@@ -4,6 +4,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.core.types.*
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import java.nio.ByteBuffer
+import java.nio.LongBuffer
 import java.util.*
 import kotlin.math.pow
 
@@ -11,7 +13,7 @@ import kotlin.math.pow
  * This is an abstraction over a [FloatArray] and it represents a vector of [Float]s.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 @Serializable
 @SerialName("LongVector")
@@ -22,7 +24,8 @@ value class LongVectorValue(val data: LongArray) : RealVectorValue<Long>, Public
     constructor(input: DoubleArray) : this(LongArray(input.size) { input[it].toLong() })
     constructor(input: FloatArray) : this(LongArray(input.size) { input[it].toLong() })
     constructor(input: IntArray) : this(LongArray(input.size) { input[it].toLong() })
-
+    constructor(input: LongBuffer) : this(LongArray(input.remaining()) { input[it] })
+    constructor(input: ByteBuffer) : this(input.asLongBuffer())
 
     /** The logical size of this [LongVectorValue]. */
     override val logicalSize: Int

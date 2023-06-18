@@ -17,6 +17,7 @@ dependencies {
 
     /* Snappy */
     implementation group: 'org.xerial.snappy', name: 'snappy-java', version: version_snappy
+    implementation group: 'org.lz4', name: 'lz4-java', version: '1.8.0'
 
     /* FastUtil */
     implementation group: 'it.unimi.dsi', name: 'fastutil', version: version_fastutil

@@ -4,6 +4,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.core.types.*
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import java.nio.ByteBuffer
+import java.nio.DoubleBuffer
 import java.util.*
 import kotlin.math.absoluteValue
 import kotlin.math.pow
@@ -12,7 +14,7 @@ import kotlin.math.pow
  * This is an abstraction over a [DoubleArray] and it represents a vector of [Double]s.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 @Serializable
 @SerialName("DoubleVector")
@@ -23,6 +25,8 @@ value class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double>, 
     constructor(input: FloatArray) : this(DoubleArray(input.size) { input[it].toDouble() })
     constructor(input: LongArray) : this(DoubleArray(input.size) { input[it].toDouble() })
     constructor(input: IntArray) : this(DoubleArray(input.size) { input[it].toDouble() })
+    constructor(input: DoubleBuffer) : this(DoubleArray(input.remaining()) { input[it] })
+    constructor(input: ByteBuffer) : this(input.asDoubleBuffer())
 
     /** The logical size of this [DoubleVectorValue]. */
     override val logicalSize: Int

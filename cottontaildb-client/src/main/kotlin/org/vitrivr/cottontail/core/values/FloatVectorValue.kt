@@ -4,6 +4,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.core.types.*
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import java.nio.ByteBuffer
+import java.nio.FloatBuffer
 import java.util.*
 import kotlin.math.absoluteValue
 import kotlin.math.pow
@@ -12,17 +14,20 @@ import kotlin.math.pow
  * This is an abstraction over a [FloatArray] and it represents a vector of [Float]s.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 @Serializable
 @SerialName("FloatVector")
 @JvmInline
 value class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float>, PublicValue {
+
     constructor(input: List<Number>) : this(FloatArray(input.size) { input[it].toFloat() })
     constructor(input: Array<Number>) : this(FloatArray(input.size) { input[it].toFloat() })
     constructor(input: DoubleArray) : this(FloatArray(input.size) { input[it].toFloat() })
     constructor(input: LongArray) : this(FloatArray(input.size) { input[it].toFloat() })
     constructor(input: IntArray) : this(FloatArray(input.size) { input[it].toFloat() })
+    constructor(input: FloatBuffer) : this(FloatArray(input.remaining()) { input[it] })
+    constructor(input: ByteBuffer) : this(input.asFloatBuffer())
 
 
     /** The logical size of this [FloatVectorValue]. */

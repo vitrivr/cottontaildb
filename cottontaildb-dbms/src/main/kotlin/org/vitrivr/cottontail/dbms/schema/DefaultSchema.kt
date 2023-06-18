@@ -8,16 +8,16 @@ import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.column.ColumnMetadata
-import org.vitrivr.cottontail.dbms.column.VariableLengthColumn
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.entity.EntityMetadata
 import org.vitrivr.cottontail.dbms.events.EntityEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.entity.EntityMetadata
 import org.vitrivr.cottontail.dbms.sequence.DefaultSequence
 import org.vitrivr.cottontail.dbms.sequence.Sequence
+import org.vitrivr.cottontail.storage.serializers.tablets.Compression
 import kotlin.concurrent.withLock
 
 /**
@@ -165,7 +165,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
 
             /* Add catalogue entries and stores at column level. */
             columns.forEach {
-                val metadataEntry = ColumnMetadata(it.type, it.nullable, it.primary, it.autoIncrement)
+                val metadataEntry = ColumnMetadata(it.type, Compression.LZ4, it.nullable, it.primary, it.autoIncrement)
                 val metadataStore = ColumnMetadata.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
                 if (!metadataStore.add(this.context.txn.xodusTx, NameBinding.Column.toEntry(it.name), ColumnMetadata.toEntry(metadataEntry))) {
                     throw DatabaseException.DuplicateColumnException(name, it.name)

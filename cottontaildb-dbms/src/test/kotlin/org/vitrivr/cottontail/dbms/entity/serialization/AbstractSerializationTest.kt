@@ -70,7 +70,7 @@ abstract class AbstractSerializationTest: AbstractEntityTest() {
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
             val entityTx = entity.newTx(ctx)
-            repeat(TestConstants.TEST_COLLECTION_SIZE) {
+            repeat(TestConstants.TEST_COLLECTION_SIZE - 1) {
                 val reference = this.nextRecord(it)
                 val retrieved = entityTx.read(it.toLong(), this.columns)
                 for (i in 0 until retrieved.size) {

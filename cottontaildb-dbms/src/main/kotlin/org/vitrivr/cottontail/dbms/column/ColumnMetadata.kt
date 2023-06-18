@@ -9,6 +9,7 @@ import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.vitrivr.cottontail.storage.serializers.tablets.Compression
 import org.vitrivr.cottontail.utilities.math.BitUtil.isBitSet
 import org.vitrivr.cottontail.utilities.math.BitUtil.setBit
 import java.io.ByteArrayInputStream
@@ -19,7 +20,7 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-data class ColumnMetadata(val type: Types<*>, val nullable: Boolean, val primary: Boolean, val autoIncrement: Boolean) {
+data class ColumnMetadata(val type: Types<*>, val compression: Compression, val nullable: Boolean, val primary: Boolean, val autoIncrement: Boolean) {
     companion object {
         /** Name of the [ColumnMetadata] store in the Cottontail DB catalogue. */
         private const val CATALOGUE_COLUMN_STORE_NAME: String = "org.vitrivr.cottontail.columns"
@@ -54,9 +55,10 @@ data class ColumnMetadata(val type: Types<*>, val nullable: Boolean, val primary
          */
         fun fromEntry(entry: ByteIterable): ColumnMetadata {
             val iterator = ByteArrayInputStream(entry.bytesUnsafe)
-            val type =  Types.forOrdinal(IntegerBinding.readCompressed(iterator), IntegerBinding.readCompressed(iterator))
+            val type = Types.forOrdinal(IntegerBinding.readCompressed(iterator), IntegerBinding.readCompressed(iterator))
+            val compression = Compression.values()[IntegerBinding.readCompressed(iterator)]
             val bitmap = IntegerBinding.BINDING.readObject(iterator)
-            return ColumnMetadata(type, bitmap.isBitSet(0), bitmap.isBitSet(1), bitmap.isBitSet(2))
+            return ColumnMetadata(type, compression,  bitmap.isBitSet(0), bitmap.isBitSet(1), bitmap.isBitSet(2))
         }
 
         /**
@@ -69,6 +71,7 @@ data class ColumnMetadata(val type: Types<*>, val nullable: Boolean, val primary
             val output = LightOutputStream()
             IntegerBinding.writeCompressed(output, entry.type.ordinal)
             IntegerBinding.writeCompressed(output, entry.type.logicalSize)
+            IntegerBinding.writeCompressed(output, entry.compression.ordinal)
 
             /* Encode flags in bitmap. */
             var bitmap = 0

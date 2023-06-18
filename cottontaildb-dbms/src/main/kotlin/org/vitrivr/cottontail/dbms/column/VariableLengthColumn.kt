@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.column
 
-import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.basics.Cursor

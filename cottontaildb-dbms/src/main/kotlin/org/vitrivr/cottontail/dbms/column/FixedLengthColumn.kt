@@ -9,7 +9,8 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.core.values.Tablet
+import org.vitrivr.cottontail.core.values.tablets.AbstractTablet
+import org.vitrivr.cottontail.core.values.tablets.Tablet
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
@@ -19,14 +20,14 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.defaultStatistics
 import org.vitrivr.cottontail.dbms.statistics.values.*
 import org.vitrivr.cottontail.storage.serializers.SerializerFactory
+import org.vitrivr.cottontail.storage.serializers.tablets.Compression
 import org.vitrivr.cottontail.storage.serializers.tablets.TabletSerializer
-import java.util.ArrayList
 import kotlin.concurrent.withLock
 
 typealias TabletId = Long
 
 /**
- * The default [Column] implementation for fixed-length columns based on JetBrains Xodus. [Value]s are stored in [Tablet]s of 64 entries.
+ * The default [Column] implementation for fixed-length columns based on JetBrains Xodus. [Value]s are stored in [AbstractTablet]s of 64 entries.
  *
  * Only works for fixed-length types.
  *
@@ -36,7 +37,7 @@ typealias TabletId = Long
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, override val parent: DefaultEntity) : Column<T> {
+class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, override val parent: DefaultEntity, private val compression: Compression) : Column<T> {
 
     /** The [Name.ColumnName] of this [VariableLengthColumn]. */
     override val name: Name.ColumnName
@@ -45,6 +46,9 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
     /** A [VariableLengthColumn] belongs to the same [DefaultCatalogue] as the [DefaultEntity] it belongs to. */
     override val catalogue: DefaultCatalogue
         get() = this.parent.catalogue
+
+    /** */
+    private val tabletSize: Int = 128
 
     init {
         require(type !is Types.String && this.columnDef.type !is Types.ByteString) {
@@ -80,7 +84,7 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
 
 
         /** The internal [TabletSerializer] reference used for de-/serialization. */
-        private val serializer: TabletSerializer<T> = SerializerFactory.tablet(this@FixedLengthColumn.columnDef.type)
+        private val serializer: TabletSerializer<T> = SerializerFactory.tablet(this@FixedLengthColumn.columnDef.type, this@FixedLengthColumn.tabletSize, this@FixedLengthColumn.compression)
 
         /** The [TabletId] of the currently loaded [Tablet]. -1 if no [Tablet] has been loaded. */
         private var tabletId: TabletId = -1
@@ -170,7 +174,7 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
         }
 
         /**
-         * Flushes in-memory [Tablet] to disk, if needed.
+         * Flushes in-memory [AbstractTablet] to disk, if needed.
          */
         override fun beforeCommit() {
             val tablet = this.tablet
@@ -181,9 +185,9 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
         }
 
         /**
-         * Loads the [Tablet] with the specified [TabletId] into memory.
+         * Loads the [AbstractTablet] with the specified [TabletId] into memory.
          *
-         * @param tabletId [TabletId] of the [Tablet] to load.
+         * @param tabletId [TabletId] of the [AbstractTablet] to load.
          */
         private fun loadTabletForTuple(tabletId: TabletId) {
             if (this.dirty && this.tablet != null) { /* Flush current tablet if needed. */
@@ -195,7 +199,7 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
             if (rawTablet != null) {
                 this.tablet = this.serializer.fromEntry(rawTablet)
             } else {
-                this.tablet = Tablet(this@FixedLengthColumn.type, arrayOfNulls<Value?>(Long.SIZE_BITS))
+                this.tablet = Tablet.of(this@FixedLengthColumn.tabletSize, this@FixedLengthColumn.type)
             }
         }
     }

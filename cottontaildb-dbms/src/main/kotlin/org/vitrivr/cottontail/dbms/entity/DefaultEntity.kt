@@ -12,7 +12,6 @@ import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.catalogue.entries.ColumnCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.EntityCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
@@ -107,7 +106,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                 if (def.type is Types.String || def.type is Types.ByteString) {
                     this.columns[name] = VariableLengthColumn(def, this@DefaultEntity)
                 } else {
-                    this.columns[name] = FixedLengthColumn(def, this@DefaultEntity)
+                    this.columns[name] = FixedLengthColumn(def, this@DefaultEntity, columnEntry.compression)
                 }
             }
 

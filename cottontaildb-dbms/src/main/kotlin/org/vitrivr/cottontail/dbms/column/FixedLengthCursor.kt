@@ -5,7 +5,7 @@ import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.core.values.Tablet
+import org.vitrivr.cottontail.core.values.tablets.Tablet
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
@@ -26,7 +26,7 @@ class FixedLengthCursor<T: Value>(private val column: Column<T>, private val tra
 
 
     /** The internal [TabletSerializer] reference used for de-/serialization. */
-    private val serializer: TabletSerializer<T> = SerializerFactory.tablet(this.column.columnDef.type)
+    private val serializer: TabletSerializer<T> = SerializerFactory.tablet(this.column.columnDef.type, 128)
 
     /** Internal Xodus cursor instance.  */
     private val cursor = this.dataStore.openCursor(this.transaction.xodusTx)

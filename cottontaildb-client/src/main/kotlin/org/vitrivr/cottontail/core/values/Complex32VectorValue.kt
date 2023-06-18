@@ -4,6 +4,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.core.types.*
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import java.nio.ByteBuffer
+import java.nio.FloatBuffer
 import kotlin.math.atan2
 import kotlin.math.pow
 import kotlin.math.withSign
@@ -11,13 +13,16 @@ import kotlin.math.withSign
 /**
  * This is an abstraction over an [Array] and it represents a vector of [Complex32Value]s.
  *
- * @version 2.0.0
- * @author Manuel Huerbin & Ralph Gasser
+ * @version 2.1.0
+ * @author Manuel Huerbin
+ * @author Ralph Gasser
  */
 @Serializable
 @SerialName("Complex32Vector")
 @JvmInline
 value class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Float>, PublicValue {
+    constructor(input: FloatBuffer) : this(FloatArray(input.remaining()) { input[it] })
+    constructor(input: ByteBuffer) : this(input.asFloatBuffer())
 
     /**
      * Constructor given an array of [Number]s
@@ -115,7 +120,7 @@ value class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Floa
      * @param other [Value] to compare to.
      * @return True if equal, false otherwise.
      */
-    override fun isEqual(other: Value): Boolean = (other is FloatVectorValue) && (this.data.contentEquals(other.data))
+    override fun isEqual(other: Value): Boolean = (other is Complex32VectorValue) && (this.data.contentEquals(other.data))
 
     /**
      * Converts this [Complex32VectorValue] to a [CottontailGrpc.Literal] gRCP representation.

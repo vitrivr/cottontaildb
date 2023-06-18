@@ -4,10 +4,11 @@ import jetbrains.exodus.ByteIterable
 import net.jpountz.lz4.LZ4Factory
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.core.values.Tablet
+import org.vitrivr.cottontail.core.values.tablets.AbstractTablet
+import org.vitrivr.cottontail.core.values.tablets.Tablet
 
 /**
- * A serializer for Xodus based [Value] [Tablet] serialization and deserialization.
+ * A serializer for Xodus based [Value] [AbstractTablet] serialization and deserialization.
  *
  * @author Ralph Gasser
  * @version 1.0.0
@@ -15,9 +16,6 @@ import org.vitrivr.cottontail.core.values.Tablet
 interface TabletSerializer<T: Value> {
 
     companion object {
-        /** The size of [Tablet]s that can be serialized. */
-        const val DEFAULT_SIZE = Long.SIZE_BITS
-
         /** The [LZ4Factory] instance used. */
         val FACTORY: LZ4Factory = LZ4Factory.fastestInstance()
     }
@@ -26,17 +24,17 @@ interface TabletSerializer<T: Value> {
     val type: Types<T>
 
     /**
-     * Deserializes a [Tablet] of type [T] from the provided [ByteIterable].
+     * Deserializes a [AbstractTablet] of type [T] from the provided [ByteIterable].
      *
      * @param entry The [ByteIterable] to deserialize from.
-     * @return The resulting [Tablet].
+     * @return The resulting [AbstractTablet].
      */
     fun fromEntry(entry: ByteIterable): Tablet<T>
 
     /**
-     * Serializes a [Tablet] of type [T] to create a [ByteIterable].
+     * Serializes a [AbstractTablet] of type [T] to create a [ByteIterable].
      *
-     * @param tablet The [Tablet] to serialize.
+     * @param tablet The [AbstractTablet] to serialize.
      * @return The resulting [ByteIterable].
      */
     fun toEntry(tablet: Tablet<T>): ByteIterable

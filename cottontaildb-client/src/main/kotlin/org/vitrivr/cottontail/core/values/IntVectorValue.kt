@@ -4,6 +4,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.core.types.*
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import java.nio.ByteBuffer
+import java.nio.IntBuffer
 import java.util.*
 import kotlin.math.pow
 
@@ -11,7 +13,7 @@ import kotlin.math.pow
  * This is an abstraction over an [IntArray] and it represents a vector of [Int]s.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 @Serializable
 @SerialName("IntegerVector")
@@ -22,6 +24,8 @@ value class IntVectorValue(val data: IntArray) : RealVectorValue<Int>, PublicVal
     constructor(input: DoubleArray) : this(IntArray(input.size) { input[it].toInt() })
     constructor(input: FloatArray) : this(IntArray(input.size) { input[it].toInt() })
     constructor(input: LongArray) : this(IntArray(input.size) { input[it].toInt() })
+    constructor(input: IntBuffer) : this(IntArray(input.remaining()) { input[it] })
+    constructor(input: ByteBuffer) : this(input.asIntBuffer())
 
     /** The logical size of this [IntVectorValue]. */
     override val logicalSize: Int
