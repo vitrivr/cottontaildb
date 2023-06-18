@@ -66,7 +66,7 @@ class SnappyTabletSerializer<T: Value>(override val type: Types<T>, val size: In
         for (b in entry) { this.compressBuffer.put(b) }
 
         /* Create new tablet and write prefix. */
-        val tablet = Tablet.of(this.size, this.type)
+        val tablet = Tablet.of(this.size, this.type, true)
         tablet.buffer.put(0, this.compressBuffer.flip(), 0, this.size shr 3)
 
         /* Uncompress payload. */

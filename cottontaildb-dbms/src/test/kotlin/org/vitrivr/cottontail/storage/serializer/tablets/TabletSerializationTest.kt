@@ -33,7 +33,7 @@ class TabletSerializationTest {
     @ParameterizedTest
     @EnumSource(Compression::class)
     fun testBooleanTabletSerialization(compression: Compression) {
-        val tablet = Tablet.of(this.tabletSize, Types.Boolean)
+        val tablet = Tablet.of(this.tabletSize, Types.Boolean, compression.direct)
         repeat(this.tabletSize) {
             if (this.random.nextBoolean()) {
                 tablet[it] = BooleanValueGenerator.random(this.random)
@@ -50,7 +50,7 @@ class TabletSerializationTest {
     @ParameterizedTest
     @EnumSource(Compression::class)
     fun testByteTabletSerialization(compression: Compression) {
-        val tablet = Tablet.of(this.tabletSize, Types.Byte)
+        val tablet = Tablet.of(this.tabletSize, Types.Byte, compression.direct)
         repeat(this.tabletSize) {
             if (this.random.nextBoolean()) {
                 tablet[it] = ByteValueGenerator.random(this.random)
@@ -67,7 +67,7 @@ class TabletSerializationTest {
     @ParameterizedTest
     @EnumSource(Compression::class)
     fun testShortTabletSerialization(compression: Compression) {
-        val tablet = Tablet.of(this.tabletSize, Types.Short)
+        val tablet = Tablet.of(this.tabletSize, Types.Short, compression.direct)
         repeat(this.tabletSize) {
             if (this.random.nextBoolean()) {
                 tablet[it] = ShortValueGenerator.random(this.random)
@@ -84,7 +84,7 @@ class TabletSerializationTest {
     @ParameterizedTest
     @EnumSource(Compression::class)
     fun testIntTabletSerialization(compression: Compression) {
-        val tablet = Tablet.of(this.tabletSize, Types.Int)
+        val tablet = Tablet.of(this.tabletSize, Types.Int, compression.direct)
         repeat(this.tabletSize) {
             if (this.random.nextBoolean()) {
                 tablet[it] = IntValueGenerator.random(this.random)
@@ -101,7 +101,7 @@ class TabletSerializationTest {
     @ParameterizedTest
     @EnumSource(Compression::class)
     fun testLongTabletSerialization(compression: Compression) {
-        val tablet = Tablet.of(this.tabletSize, Types.Long)
+        val tablet = Tablet.of(this.tabletSize, Types.Long, compression.direct)
         repeat(this.tabletSize) {
             if (this.random.nextBoolean()) {
                 tablet[it] = LongValueGenerator.random(this.random)
@@ -118,7 +118,7 @@ class TabletSerializationTest {
     @ParameterizedTest
     @EnumSource(Compression::class)
     fun testFloatTabletSerialization(compression: Compression) {
-        val tablet = Tablet.of(this.tabletSize, Types.Float)
+        val tablet = Tablet.of(this.tabletSize, Types.Float, compression.direct)
         repeat(this.tabletSize) {
             if (this.random.nextBoolean()) {
                 tablet[it] = FloatValueGenerator.random(this.random)
@@ -135,7 +135,7 @@ class TabletSerializationTest {
     @ParameterizedTest
     @EnumSource(Compression::class)
     fun testDoubleTabletSerialization(compression: Compression) {
-        val tablet = Tablet.of(this.tabletSize, Types.Double)
+        val tablet = Tablet.of(this.tabletSize, Types.Double, compression.direct)
         repeat(this.tabletSize) {
             if (this.random.nextBoolean()) {
                 tablet[it] = DoubleValueGenerator.random(this.random)
@@ -152,7 +152,7 @@ class TabletSerializationTest {
     @ParameterizedTest
     @EnumSource(Compression::class)
     fun testDateTabletSerialization(compression: Compression) {
-        val tablet = Tablet.of(this.tabletSize, Types.Date)
+        val tablet = Tablet.of(this.tabletSize, Types.Date, compression.direct)
         repeat(this.tabletSize) {
             if (this.random.nextBoolean()) {
                 tablet[it] = DateValueGenerator.random(this.random)
@@ -169,7 +169,7 @@ class TabletSerializationTest {
     @ParameterizedTest
     @EnumSource(Compression::class)
     fun testComplex32TabletSerialization(compression: Compression) {
-        val tablet = Tablet.of(this.tabletSize, Types.Complex32)
+        val tablet = Tablet.of(this.tabletSize, Types.Complex32, compression.direct)
         repeat(this.tabletSize) {
             if (this.random.nextBoolean()) {
                 tablet[it] = Complex32ValueGenerator.random(this.random)
@@ -186,7 +186,7 @@ class TabletSerializationTest {
     @ParameterizedTest
     @EnumSource(Compression::class)
     fun testComplex64TabletSerialization(compression: Compression) {
-        val tablet = Tablet.of(this.tabletSize, Types.Complex64)
+        val tablet = Tablet.of(this.tabletSize, Types.Complex64, compression.direct)
         repeat(this.tabletSize) {
             if (this.random.nextBoolean()) {
                 tablet[it] = Complex64ValueGenerator.random(this.random)
@@ -204,7 +204,7 @@ class TabletSerializationTest {
     @EnumSource(Compression::class)
     fun testBooleanVectorTabletSerialization(compression: Compression) {
         val type = Types.BooleanVector(this.random.nextInt(4, 2048))
-        val tablet = Tablet.of(this.tabletSize, type)
+        val tablet = Tablet.of(this.tabletSize, type, compression.direct)
         repeat(this.tabletSize) {
             if (this.random.nextBoolean()) {
                 tablet[it] = BooleanVectorValueGenerator.random(type.logicalSize, this.random)
@@ -222,7 +222,7 @@ class TabletSerializationTest {
     @EnumSource(Compression::class)
     fun testIntVectorTabletSerialization(compression: Compression) {
         val type = Types.IntVector(this.random.nextInt(4, 2048))
-        val tablet = Tablet.of(this.tabletSize, type)
+        val tablet = Tablet.of(this.tabletSize, type, compression.direct)
         repeat(this.tabletSize) {
             if (this.random.nextBoolean()) {
                 tablet[it] = IntVectorValueGenerator.random(type.logicalSize, this.random)
@@ -240,7 +240,7 @@ class TabletSerializationTest {
     @EnumSource(Compression::class)
     fun testLongVectorTabletSerialization(compression: Compression) {
         val type = Types.LongVector(this.random.nextInt(4, 2048))
-        val tablet = Tablet.of(this.tabletSize, type)
+        val tablet = Tablet.of(this.tabletSize, type, compression.direct)
         repeat(this.tabletSize) {
             if (this.random.nextBoolean()) {
                 tablet[it] = LongVectorValueGenerator.random(type.logicalSize, this.random)
@@ -258,7 +258,7 @@ class TabletSerializationTest {
     @EnumSource(Compression::class)
     fun testFloatVectorTabletSerialization(compression: Compression) {
         val type = Types.FloatVector(this.random.nextInt(4, 2048))
-        val tablet = Tablet.of(this.tabletSize, type)
+        val tablet = Tablet.of(this.tabletSize, type, compression.direct)
         repeat(this.tabletSize) {
             if (this.random.nextBoolean()) {
                 tablet[it] = FloatVectorValueGenerator.random(type.logicalSize, this.random)
@@ -276,7 +276,7 @@ class TabletSerializationTest {
     @EnumSource(Compression::class)
     fun testDoubleVectorTabletSerialization(compression: Compression) {
         val type = Types.DoubleVector(this.random.nextInt(4, 2048))
-        val tablet = Tablet.of(this.tabletSize, type)
+        val tablet = Tablet.of(this.tabletSize, type, compression.direct)
         repeat(this.tabletSize) {
             if (this.random.nextBoolean()) {
                 tablet[it] = DoubleVectorValueGenerator.random(type.logicalSize, this.random,)
