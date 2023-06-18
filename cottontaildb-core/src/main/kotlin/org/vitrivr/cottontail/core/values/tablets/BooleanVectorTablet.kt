@@ -14,6 +14,9 @@ import java.nio.ByteBuffer
  * @version 1.0.0
  */
 class BooleanVectorTablet(override val size: Int, logicalSize: Int, direct: Boolean): Tablet<BooleanVectorValue> {
+    init {
+        require(this.size % Int.SIZE_BITS == 0) { "Tablet size must be a multiple of 32." }
+    }
 
     /** The [Types] of a [BooleanTablet] is always [Types.Boolean]. */
     override val type: Types<BooleanVectorValue> = Types.BooleanVector(logicalSize)

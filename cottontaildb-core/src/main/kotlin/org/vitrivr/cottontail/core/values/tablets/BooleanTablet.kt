@@ -15,6 +15,10 @@ import java.nio.ByteBuffer
  */
 class BooleanTablet(override val size: Int, direct: Boolean): Tablet<BooleanValue> {
 
+    init {
+        require(this.size % Int.SIZE_BITS == 0) { "Tablet size must be a multiple of 32." }
+    }
+
     /** The [Types] of a [BooleanTablet] is always [Types.Boolean]. */
     override val type: Types<BooleanValue> = Types.Boolean
 
