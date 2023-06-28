@@ -39,7 +39,7 @@ import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
@@ -89,10 +89,10 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          *
          * @param name The [Name.IndexName] of the [LuceneIndex].
          * @param catalogue [Catalogue] reference.
-         * @param context The [TransactionContext] to perform the transaction with.
+         * @param context The [Transaction] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean {
+        override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean {
             return try {
                 val directory = XodusDirectory(catalogue.transactionManager.vfs, name.toString(), context.xodusTx)
                 val config = IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE).setMergeScheduler(SerialMergeScheduler())
@@ -111,10 +111,10 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          *
          * @param name The [Name.IndexName] of the [LuceneIndex].
          * @param catalogue [Catalogue] reference.
-         * @param context The [TransactionContext] to perform the transaction with.
+         * @param context The [Transaction] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
+        override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
             val directory = XodusDirectory(catalogue.transactionManager.vfs, name.toString(), context.xodusTx)
             for (file in directory.listAll()) {
                 directory.deleteFile(file)

@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.transform.SkipOperator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
@@ -58,7 +58,7 @@ class SkipPhysicalOperatorNode(input: Physical, val skip: Long) : UnaryPhysicalO
     /**
      * Converts this [SkipPhysicalOperatorNode] to a [SkipOperator].
      *
-     * @param ctx The [TransactionContext] used for the conversion (e.g. late binding).
+     * @param ctx The [Transaction] used for the conversion (e.g. late binding).
      */
     override fun toOperator(ctx: QueryContext) = SkipOperator(this.input.toOperator(ctx), this.skip, ctx)
 

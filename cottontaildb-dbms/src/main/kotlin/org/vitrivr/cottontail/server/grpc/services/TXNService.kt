@@ -32,7 +32,7 @@ class TXNService constructor(override val catalogue: Catalogue) : TXNGrpcKt.TXNC
                 CottontailGrpc.TransactionMode.READONLY -> this.manager.startTransaction(TransactionType.USER_READONLY)
                 else -> this.manager.startTransaction(TransactionType.USER_EXCLUSIVE)
             }
-            return CottontailGrpc.ResponseMetadata.newBuilder().setTransactionId(txn.txId).setTransactionMode(request.mode).build()
+            return CottontailGrpc.ResponseMetadata.newBuilder().setTransactionId(txn.transactionId).setTransactionMode(request.mode).build()
         } catch (e: ExodusException) {
             throw Status.RESOURCE_EXHAUSTED.withCause(e).withDescription("Could not start transaction. Please try again later!").asException()
         }
@@ -49,9 +49,9 @@ class TXNService constructor(override val catalogue: Catalogue) : TXNGrpcKt.TXNC
             ctx.txn.commit()
             return Empty.getDefaultInstance()
         } catch (e: TransactionException.InConflict) {
-            throw Status.ABORTED.withCause(e).withDescription("[${ctx.txn.txId}, ${ctx.queryId}] Failed to execute COMMIT because transaction is in conflict.").asException()
+            throw Status.ABORTED.withCause(e).withDescription("[${ctx.txn.transactionId}, ${ctx.queryId}] Failed to execute COMMIT because transaction is in conflict.").asException()
         } catch (e: Throwable) {
-            throw Status.INTERNAL.withDescription("[${ctx.txn.txId}, ${ctx.queryId}] Failed to execute COMMIT due to unexpected error: ${e.message}").asException()
+            throw Status.INTERNAL.withDescription("[${ctx.txn.transactionId}, ${ctx.queryId}] Failed to execute COMMIT due to unexpected error: ${e.message}").asException()
         }
     }
 

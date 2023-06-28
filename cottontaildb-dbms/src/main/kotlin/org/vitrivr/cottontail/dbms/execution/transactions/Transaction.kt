@@ -1,29 +1,29 @@
 package org.vitrivr.cottontail.dbms.execution.transactions
 
+import jetbrains.exodus.env.Transaction
 import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.dbms.events.Event
+import org.vitrivr.cottontail.dbms.execution.ExecutionContext
+import org.vitrivr.cottontail.dbms.execution.locking.Lock
+import org.vitrivr.cottontail.dbms.execution.locking.LockManager
+import org.vitrivr.cottontail.dbms.execution.locking.LockMode
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
+import org.vitrivr.cottontail.dbms.general.DBO
+import org.vitrivr.cottontail.dbms.general.Tx
 
 /**
- * A [Transaction] that can be used to execute [Operator]s in a given [DefaultQueryContext].
+ * A [Transaction] can be used to query and interact with a [Transaction].
+ *
+ * This is the view of a [Transaction] that is available to the operators that execute a query.
  *
  * @author Ralph Gasser
- * @version 1.20
+ * @version 2.0.0
  */
-interface Transaction: TransactionContext {
+interface Transaction: ExecutionContext, TransactionMetadata {
 
-    /** The [TransactionType] of this [Transaction]. */
-    val type: TransactionType
-
-    /** The [TransactionStatus] of this [Transaction]. */
-    val state: TransactionStatus
-
-    /** The timestamp at which this [Transaction] was created. */
-    val created: Long
-
-    /** The timestamp at which this [Transaction] has ended. May be null if it is still ongoing. */
-    val ended: Long?
+    /** The Xodus [Transaction] associated with this [Transaction]. */
+    val xodusTx: Transaction
 
     /** The [TransactionManager] this [Transaction] belongs to. */
     val manager: TransactionManager
@@ -53,4 +53,40 @@ interface Transaction: TransactionContext {
      * successfully, all changes made through it are rolled back.
      */
     fun kill()
+
+    /**
+     * Caches a [Tx] for later re-use.
+     *
+     * @param tx The [DBO] to create the [Tx] for.
+     * @return True on success, false otherwise.
+     */
+    fun cacheTx(tx: Tx): Boolean
+
+    /**
+     * Obtains a cached [Tx] for the given [DBO].
+     *
+     * @param dbo The [DBO] to create the [Tx] for.
+     * @return The resulting [Tx] or null
+     */
+    fun <T: Tx> getCachedTxForDBO(dbo: DBO): T?
+
+    /**
+     * Acquires a [Lock] on a [DBO] for the given [LockMode]. This call is delegated to the
+     * [LockManager] and really just a convenient way for [Tx] objects to obtain locks.
+     *
+     * @param dbo [DBO] The [DBO] to request the lock for.
+     * @param mode The desired [LockMode]
+     */
+    fun requestLock(dbo: DBO, mode: LockMode)
+
+    /**
+     * Signals an [Event] to this [Transaction].
+     *
+     * This method is a facility to communicate actions that take place within a
+     * [Transaction] to the 'outside' world. Usually, that communication
+     * must be withheld until the [Transaction] commits.
+     *
+     * @param event The [Event] that has been reported.
+     */
+    fun signalEvent(event: Event)
 }

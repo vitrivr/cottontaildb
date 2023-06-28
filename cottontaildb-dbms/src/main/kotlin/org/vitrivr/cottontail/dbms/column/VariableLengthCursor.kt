@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionMetadata
 import org.vitrivr.cottontail.storage.serializers.SerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
 

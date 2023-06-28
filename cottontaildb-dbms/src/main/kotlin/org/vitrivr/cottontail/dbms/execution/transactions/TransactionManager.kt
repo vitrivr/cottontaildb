@@ -44,11 +44,14 @@ import kotlin.coroutines.CoroutineContext
  * create and execute queries within different [TransactionImpl]s.
  *
  * @author Ralph Gasser
- * @version 1.8.0
+ * @version 1.9.0
  */
 class TransactionManager(val executionManager: ExecutionManager, val config: Config) {
     /** Map of [TransactionImpl]s that are currently PENDING or RUNNING. */
-    private val transactions = Collections.synchronizedMap(Long2ObjectOpenHashMap<TransactionImpl>(config.execution.transactionTableSize, VERY_FAST_LOAD_FACTOR))
+    private val transactions = Collections.synchronizedMap(Long2ObjectOpenHashMap<TransactionImpl>(this.config.execution.transactionTableSize, VERY_FAST_LOAD_FACTOR))
+
+    /** List of past [TransactionMetadata] objects. */
+    private val transactionHistory: MutableList<TransactionMetadata> = Collections.synchronizedList(ArrayList(this.config.execution.transactionHistorySize))
 
     /** Set of [TransactionObserver]s registered with this [TransactionManager]. */
     private val observers = Collections.synchronizedSet(ObjectOpenHashSet<TransactionObserver>())
@@ -61,9 +64,6 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
 
     /** The [LockManager] instance used by this [TransactionManager]. */
     internal val lockManager = LockManager<DBO>()
-
-    /** List of ongoing or past transactions. */
-    internal val transactionHistory: MutableList<Transaction> = Collections.synchronizedList(ArrayList(config.execution.transactionHistorySize))
 
     /** The main Xodus [Environment] used by Cottontail DB. This is an internal variable and not part of the official interface. */
     internal val environment: Environment = Environments.newInstance(
@@ -96,6 +96,15 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
      * @return [Transaction] or null
      */
     operator fun get(txId: TransactionId): Transaction? = this.transactions[txId]
+
+    /**
+     * Returns a list of [TransactionMetadata] of all ongoing and past transactions.
+     *
+     * @return [List] of [TransactionMetadata]
+     */
+    fun history(): List<TransactionMetadata> {
+        return this.transactionHistory + this.transactions.values.toList()
+    }
 
     /**
      * Registers a [TransactionObserver] with this [TransactionManager].
@@ -134,8 +143,8 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
     /**
      * Starts a new [Transaction] through this [TransactionManager].
      *
-     * @param type The [TransactionType] of the [Transaction] to start.
-     * @return [TransactionImpl]
+     * @param type The [TransactionType] of the [TransactionMetadata] to start.
+     * @return [Transaction]
      */
     fun startTransaction(type: TransactionType): Transaction = TransactionImpl(type)
 
@@ -154,9 +163,9 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
      * A [TransactionImpl] can be of different [TransactionType]s. Their execution semantics may differ slightly.
      *
      * @author Ralph Gasser
-     * @version 1.6.0
+     * @version 2.0.0
      */
-    private inner class TransactionImpl constructor(override val type: TransactionType) : LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()), Transaction, TransactionContext {
+    private inner class TransactionImpl(override val type: TransactionType): LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()), Transaction {
 
         /** The [TransactionStatus] of this [TransactionImpl]. */
         @Volatile
@@ -167,13 +176,13 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
         override val manager: TransactionManager
             get() = this@TransactionManager
 
-        /** The Xodus [Transaction] associated with this [TransactionContext]. */
+        /** The Xodus [TransactionMetadata] associated with this [Transaction]. */
         override val xodusTx: jetbrains.exodus.env.Transaction
 
         /**
          * A [MutableMap] of all [TransactionObserver] and the [Event]s that were collected for them.
          *
-         * Since a lot of [Event]s can build-up during a [Transaction], the [MutableList] is wrapped in a [SoftReference],
+         * Since a lot of [Event]s can build-up during a [TransactionMetadata], the [MutableList] is wrapped in a [SoftReference],
          * which can be claimed by the garbage collector. Such a situation will result in failure to notify observers. Consequently,
          * the channel provided by this facility must be considered unreliable!
          */
@@ -226,12 +235,8 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
                 this.xodusTx = this@TransactionManager.environment.beginReadonlyTransaction()
             }
 
-            /** Add this to transaction history and transaction table. */
-            this@TransactionManager.transactions[this.txId] = this
-            this@TransactionManager.transactionHistory.add(this)
-            if (this@TransactionManager.transactionHistory.size >= this@TransactionManager.config.execution.transactionHistorySize) {
-                this@TransactionManager.transactionHistory.removeAt(0)
-            }
+            /** Add this transaction to the manager's transaction table. */
+            this@TransactionManager.transactions[this.transactionId] = this
 
             /**
              * Create transaction, local snapshot of the registered transaction observers.
@@ -292,7 +297,7 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
         override fun execute(operator: Operator): Flow<Tuple>  = operator.toFlow().flowOn(this@TransactionManager.executionManager.queryDispatcher).onStart {
             this@TransactionImpl.mutex.withLock {  /* Update transaction state; synchronise with ongoing COMMITS or ROLLBACKS. */
                 check(this@TransactionImpl.state.canExecute) {
-                    "Cannot start execution of transaction ${this@TransactionImpl.txId} because it is in the wrong state (s = ${this@TransactionImpl.state})."
+                    "Cannot start execution of transaction ${this@TransactionImpl.transactionId} because it is in the wrong state (s = ${this@TransactionImpl.state})."
                 }
                 this@TransactionImpl.state = TransactionStatus.RUNNING
                 this@TransactionImpl.activeContexts.add(currentCoroutineContext())
@@ -318,29 +323,28 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
         override fun commit() = runBlocking {
             this@TransactionImpl.mutex.withLock { /* Synchronise with ongoing COMMITS, ROLLBACKS or queries that are being scheduled. */
                 if (!this@TransactionImpl.state.canCommit)
-                    throw TransactionException.Commit(this@TransactionImpl.txId, "Unable to COMMIT because transaction is in wrong state (s = ${this@TransactionImpl.state}).")
+                    throw TransactionException.Commit(this@TransactionImpl.transactionId, "Unable to COMMIT because transaction is in wrong state (s = ${this@TransactionImpl.state}).")
                 this@TransactionImpl.state = TransactionStatus.FINALIZING
 
-                var commit = false
                 try {
                     /* Execute commit finalization. */
                     for (txn in this@TransactionImpl.txns.values.filterIsInstance<Tx.WithCommitFinalization>()) {
                         txn.beforeCommit()
                     }
                     if (this@TransactionImpl.xodusTx.isReadonly) {
-                        commit = true /* Xodus read-only transaction cannot be committed. */
                         this@TransactionImpl.xodusTx.abort()
                     } else {
-                        commit = this@TransactionImpl.xodusTx.commit()
-                        if (!commit) {
-                            throw TransactionException.InConflict(this@TransactionImpl.txId)
-                        }
+                        if (!this@TransactionImpl.xodusTx.commit())
+                            throw TransactionException.InConflict(this@TransactionImpl.transactionId)
                     }
+                    this@TransactionImpl.state = TransactionStatus.COMMIT
+                    this@TransactionImpl.notifyObservers()
                 } catch (e: Throwable) {
                     this@TransactionImpl.xodusTx.abort()
+                    this@TransactionImpl.state = TransactionStatus.ROLLBACK
                     throw e
                 } finally {
-                    this@TransactionImpl.finalize(commit)
+                    this@TransactionImpl.finalize()
                 }
             }
         }
@@ -351,7 +355,7 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
         override fun rollback() = runBlocking {
             this@TransactionImpl.mutex.withLock {
                 if (!this@TransactionImpl.state.canRollback)
-                    throw TransactionException.Rollback(this@TransactionImpl.txId, "Unable to ROLLBACK because transaction is in wrong state (s = ${this@TransactionImpl.state}).")
+                    throw TransactionException.Rollback(this@TransactionImpl.transactionId, "Unable to ROLLBACK because transaction is in wrong state (s = ${this@TransactionImpl.state}).")
                 this@TransactionImpl.performRollback()
             }
         }
@@ -363,12 +367,12 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
             this@TransactionImpl.mutex.withLock {
                 if (this@TransactionImpl.state === TransactionStatus.RUNNING) {
                     this@TransactionImpl.activeContexts.forEach {
-                        it.cancel(CancellationException("Transaction ${this@TransactionImpl.txId} was killed by user."))
+                        it.cancel(CancellationException("Transaction ${this@TransactionImpl.transactionId} was killed by user."))
                     }
                 } else if (this@TransactionImpl.state.canRollback) {
                     this@TransactionImpl.performRollback()
                 } else {
-                    throw IllegalStateException( "Unable to kill transaction ${this@TransactionImpl.txId} because it is in wrong state (s = ${this@TransactionImpl.state}).")
+                    throw IllegalStateException( "Unable to kill transaction ${this@TransactionImpl.transactionId} because it is in wrong state (s = ${this@TransactionImpl.state}).")
                 }
             }
         }
@@ -382,43 +386,38 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
                 for (txn in this@TransactionImpl.txns.values.filterIsInstance<Tx.WithRollbackFinalization>()) {
                     txn.beforeRollback()
                 }
-            } finally {
                 this.xodusTx.abort()
-                this@TransactionImpl.finalize(false)
+                this.state = TransactionStatus.ROLLBACK
+            } finally {
+                this@TransactionImpl.finalize()
             }
         }
 
         /**
          * Finalizes the state of this [TransactionImpl].
-         *
-         * @param committed True if [TransactionImpl] was committed, false otherwise.
          */
-        private fun finalize(committed: Boolean) {
-            try {
-                if (committed) this.notifyObservers()
-            } finally {
-                this@TransactionImpl.txns.clear()
-                this@TransactionImpl.ended = System.currentTimeMillis()
-                this@TransactionManager.transactions.remove(this@TransactionImpl.txId)
-                this@TransactionImpl.state = if (committed) {
-                     TransactionStatus.COMMIT
-                } else {
-                    TransactionStatus.ROLLBACK
-                }
-                this@TransactionImpl.allLocks().forEach { this@TransactionManager.lockManager.unlock(this@TransactionImpl, it.obj) }
+        private fun finalize() {
+            this@TransactionImpl.txns.clear()
+            this@TransactionImpl.ended = System.currentTimeMillis()
+            this@TransactionManager.transactions.remove(this@TransactionImpl.transactionId)
+
+            /* Add this transaction to the transaction history. */
+            this@TransactionManager.transactionHistory.add(FinishedTransaction(this))
+            if (this@TransactionManager.transactionHistory.size >= this@TransactionManager.config.execution.transactionHistorySize) {
+                this@TransactionManager.transactionHistory.removeAt(0)
             }
         }
 
         /**
-         * Notifies all [TransactionObserver]s about a successfull commit.
+         * Notifies all [TransactionObserver]s about a successful commit.
          */
         private fun notifyObservers(){
             for ((observer, listRef) in this.localObservers) {
                 val list = listRef.get()
                 if (list != null) {
-                    observer.onCommit(this.txId, list)    /* Signal COMMIT to local observers. */
+                    observer.onCommit(this.transactionId, list)    /* Signal COMMIT to local observers. */
                 } else {
-                    observer.onDeliveryFailure(this.txId) /* Signal DELIVERY FAILURE to local observers. */
+                    observer.onDeliveryFailure(this.transactionId) /* Signal DELIVERY FAILURE to local observers. */
                 }
             }
 

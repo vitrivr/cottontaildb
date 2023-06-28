@@ -26,7 +26,7 @@ class ListLocksOperator(val manager: LockManager<DBO>, override val context: Que
         var row = 0L
         val columns = this@ListLocksOperator.columns.toTypedArray()
         for (lock in  this@ListLocksOperator.manager.allLocks()) {
-            val owners = lock.second.getOwners().map { it.txId }
+            val owners = lock.second.getOwners().map { it.transactionId }
             val values = arrayOf<Value?>(
                 StringValue(lock.first.name.toString()),
                 StringValue(lock.second.getMode().toString()),

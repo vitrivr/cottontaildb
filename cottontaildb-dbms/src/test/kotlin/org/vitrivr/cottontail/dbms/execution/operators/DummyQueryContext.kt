@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionMetadata
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.DBOVersion
@@ -46,7 +46,7 @@ object DummyQueryContext: QueryContext {
         override fun newTx(context: QueryContext): CatalogueTx = throw UnsupportedOperationException("Operation not supported for dummy catalogue.")
         override fun close() {}
     }
-    override val txn: Transaction
+    override val txn: TransactionMetadata
         get() = throw UnsupportedOperationException("Operation not supported for dummy query context.")
     override val bindings: BindingContext
         get() = throw UnsupportedOperationException("Operation not supported for dummy query context.")

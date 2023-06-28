@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 
 /**
  * An abstract description of an [Index].
@@ -38,20 +38,20 @@ interface IndexDescriptor<T: Index> {
      *
      * @param name The [Name.IndexName] of the [Index].
      * @param catalogue: [Catalogue] reference.
-     * @param context The [TransactionContext] to perform the transaction with.
+     * @param context The [Transaction] to perform the transaction with.
      * @return true on success, false otherwise.
      */
-    fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean
+    fun initialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean
 
     /**
      * De-initializes the data structures associated with an [Index] with the given [Name.IndexName] and the given [DefaultEntity.Tx].
      *
      * @param name The [Name.IndexName] of the [Index].
      * @param catalogue: [Catalogue] reference.
-     * @param context The [TransactionContext] to perform the transaction with.
+     * @param context The [Transaction] to perform the transaction with.
      * @return true on success, false otherwise.
      */
-    fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean
+    fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean
 
     /**
      * Creates and returns a default [IndexConfig], optionally, initialized with the provided [parameters].

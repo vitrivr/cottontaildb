@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionMetadata
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
@@ -21,7 +22,7 @@ import java.util.*
  * and isolates different strands of execution within a query from one another.
  *
  * @author Ralph Gasser
- * @version 3.0.0
+ * @version 3.1.0
  */
 class DefaultQueryContext(override val queryId: String, override val catalogue: Catalogue, override val txn: Transaction, override val hints: Set<QueryHint> = emptySet()): QueryContext {
 

@@ -1,12 +1,12 @@
 package org.vitrivr.cottontail.dbms.exceptions
 
 import org.vitrivr.cottontail.core.database.TransactionId
-import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionMetadata
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
 
 /**
- * These [Exception]s are thrown whenever a [Transaction] or a [Tx] making up a [Transaction] fails for some reason.
+ * These [Exception]s are thrown whenever a [TransactionMetadata] or a [Tx] making up a [TransactionMetadata] fails for some reason.
  *
  * @author Ralph Gasser
  * @version 1.1.0
@@ -36,7 +36,7 @@ sealed class TransactionException(message: String) : DatabaseException(message) 
     class Rollback(tid: TransactionId, override val message: String?) : TransactionException("Transaction $tid could not be rolled back: $message")
 
     /**
-     * Thrown if a [Transaction] could not be committed, because it is in conflict with another [Transaction].
+     * Thrown if a [TransactionMetadata] could not be committed, because it is in conflict with another [TransactionMetadata].
      *
      * @param tid The [TransactionId] of the [Tx] in which this error occurred.
      */

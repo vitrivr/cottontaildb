@@ -27,7 +27,7 @@ import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignature
@@ -82,10 +82,10 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          *
          * @param name The [Name.IndexName] of the [LSHIndex].
          * @param catalogue [Catalogue] reference.
-         * @param context The [TransactionContext] to perform the transaction with.
+         * @param context The [Transaction] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
+        override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
             val store = catalogue.transactionManager.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
@@ -98,10 +98,10 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          *
          * @param name The [Name.IndexName] of the [LSHIndex].
          * @param catalogue [Catalogue] reference.
-         * @param context The [TransactionContext] to perform the transaction with.
+         * @param context The [Transaction] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
+        override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
             catalogue.transactionManager.environment.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {

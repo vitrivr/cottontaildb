@@ -28,9 +28,9 @@ class ListTransactionsOperator(val manager: TransactionManager, override val con
     override fun toFlow(): Flow<Tuple> = flow {
         val columns = this@ListTransactionsOperator.columns.toTypedArray()
         var row = 0L
-        this@ListTransactionsOperator.manager.transactionHistory.forEach {
+        this@ListTransactionsOperator.manager.history().forEach {
             val values = arrayOf<Value?>(
-                LongValue(it.txId),
+                LongValue(it.transactionId),
                 StringValue(it.type.toString()),
                 StringValue(it.state.toString()),
                 DateValue(it.created),

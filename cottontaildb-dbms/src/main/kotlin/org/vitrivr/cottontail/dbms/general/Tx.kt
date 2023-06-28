@@ -1,13 +1,13 @@
 package org.vitrivr.cottontail.dbms.general
 
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * An object that acts as unit of isolation for accesses (read/write) to the underlying [DBO].
  * [Tx] can be closed, committed and rolled back.
  *
- * [Tx] objects are bound to a specific [TransactionContext] which is a proxy for the global,
+ * [Tx] objects are bound to a specific [Transaction] which is a proxy for the global,
  * ongoing transaction and which manages shared resources (e.g. multiple, concurrent [Tx] objects)
  * and locks to the [DBO]s.
  *

@@ -7,19 +7,19 @@ import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionMetadata
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
 
 /**
  * A context for query binding, planning and execution. The [QueryContext] bundles all the
- * relevant aspects of a query such as  the logical and physical plans, [TransactionContext]
+ * relevant aspects of a query such as  the logical and physical plans, [Transaction]
  * and [BindingContext]
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 interface QueryContext {
 

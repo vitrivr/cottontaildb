@@ -1,11 +1,11 @@
 package org.vitrivr.cottontail.dbms.index.basic.rebuilder
 
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
- * A [IndexRebuilder] is a helper class that can be used to rebuild [Index] structures as part of a [TransactionContext].
+ * A [IndexRebuilder] is a helper class that can be used to rebuild [Index] structures as part of a [Transaction].
  *
  * @author Ralph Gasser
  * @version 1.0.0

@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
@@ -29,8 +29,8 @@ import java.util.concurrent.atomic.AtomicLong
  * A [AbstractAsyncIndexRebuilder] de-couples the step uf building-up and merging the changes with the actual [Index] structure.
  *
  * This can be advantageous for [Index] structures, that require a long time to rebuild. The first (long) step can be
- * executed in a read-only [TransactionContext], using non-blocking reads while the second (shorter) step is executed
- * in a separate [TransactionContext] thereafter.
+ * executed in a read-only [Transaction], using non-blocking reads while the second (shorter) step is executed
+ * in a separate [Transaction] thereafter.
  *
  * In order to be informed about changes that happen in the meanwhile, the [AbstractAsyncIndexRebuilder] implements the
  * [TransactionObserver], which it uses to be informed about changes to the data.
@@ -60,7 +60,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     protected val tmpEnvironment: Environment = Environments.newInstance(this.tmpPath.toFile(), this.index.catalogue.config.xodus.toEnvironmentConfig().setGcUtilizationFromScratch(false).setGcEnabled(false))
 
     /** The Xodus [Transaction] object of the temporary environment. */
-    protected val tmpTx: Transaction = this.tmpEnvironment.beginExclusiveTransaction()
+    protected val tmpTx: jetbrains.exodus.env.Transaction = this.tmpEnvironment.beginExclusiveTransaction()
 
     /**
      * The [Name.EntityName] the [Index] rebuilt by this [AbstractAsyncIndexRebuilder] works with.
@@ -269,10 +269,10 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     /**
      * Clears and opens the data store associated with this [AbstractIndexRebuilder].
      *
-     * @param context The [TransactionContext] to execute operation in.
+     * @param context The [Transaction] to execute operation in.
      * @return [Store]
      */
-    private fun clearAndOpenStore(context: TransactionContext): Store {
+    private fun clearAndOpenStore(context: Transaction): Store {
         val storeName = this.index.name.storeName()
         this.index.catalogue.transactionManager.environment.truncateStore(storeName, context.xodusTx)
         return this.index.catalogue.transactionManager.environment.openStore(storeName, StoreConfig.USE_EXISTING, context.xodusTx, false)

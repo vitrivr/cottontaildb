@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.execution.operators.projection.ExistsProjectionOperator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
@@ -59,7 +59,7 @@ class ExistsProjectionPhysicalOperatorNode(input: Physical, val out: Binding.Col
     /**
      * Converts this [ExistsProjectionPhysicalOperatorNode] to a [ExistsProjectionOperator].
      *
-     * @param ctx The [TransactionContext] used for the conversion (e.g. late binding).
+     * @param ctx The [Transaction] used for the conversion (e.g. late binding).
      */
     override fun toOperator(ctx: QueryContext) = ExistsProjectionOperator(this.input.toOperator(ctx), this.out, ctx)
 

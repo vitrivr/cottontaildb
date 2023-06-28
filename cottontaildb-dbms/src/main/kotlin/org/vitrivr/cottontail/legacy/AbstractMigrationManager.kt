@@ -261,14 +261,14 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
     }
 
     /**
-     * A [MigrationContext] is a special type of [TransactionContext] used during data migration.
+     * A [MigrationContext] is a special type of [Transaction] used during data migration.
      *
      * @author Ralph Gasser
      * @version 2.0.1
      */
-    inner class LegacyMigrationContext : TransactionContext, Transaction {
+    inner class LegacyMigrationContext : Transaction {
         /** The [TransactionId] of the [MigrationContext]. */
-        override val txId: TransactionId = transactionIdCounter.getAndIncrement()
+        override val transactionId: TransactionId = transactionIdCounter.getAndIncrement()
 
         /** The [LegacyMigrationContext] does not hold a [jetbrains.exodus.env.Transaction] reference. */
         override val xodusTx: jetbrains.exodus.env.Transaction
@@ -292,10 +292,10 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         override var state: TransactionStatus = TransactionStatus.IDLE
             private set
 
-        /** The timestamp at which this [Transaction] was created. */
+        /** The timestamp at which this [TransactionMetadata] was created. */
         override val created: Long = System.currentTimeMillis()
 
-        /** The timestamp at which this [Transaction] has ended created. */
+        /** The timestamp at which this [TransactionMetadata] has ended created. */
         override var ended: Long? = null
             private set
 
@@ -314,7 +314,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
 
         /**
          * Returns the [Tx] for the provided [DBO]. Creating [Tx] through this method makes sure,
-         * that only on [Tx] per [DBO] and [Transaction] is created.
+         * that only on [Tx] per [DBO] and [TransactionMetadata] is created.
          *
          * @param dbo [DBO] to return the [Tx] for.
          * @return entity [Tx]
@@ -335,10 +335,10 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         }
 
         /**
-         * Commits this [Transaction] thus finalizing and persisting all operations executed so far.
+         * Commits this [TransactionMetadata] thus finalizing and persisting all operations executed so far.
          */
         override fun commit() {
-            check(this.state === TransactionStatus.IDLE) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
+            check(this.state === TransactionStatus.IDLE) { "Cannot commit transaction ${this.transactionId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             this.txns.clear()
             this.ended = System.currentTimeMillis()
@@ -346,10 +346,10 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         }
 
         /**
-         * Rolls back this [Transaction] thus reverting all operations executed so far.
+         * Rolls back this [TransactionMetadata] thus reverting all operations executed so far.
          */
         override fun rollback() {
-            check(this.state === TransactionStatus.IDLE || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
+            check(this.state === TransactionStatus.IDLE || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.transactionId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             this.txns.clear()
             this.ended = System.currentTimeMillis()
@@ -365,14 +365,14 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
     }
 
     /**
-     * A [MigrationContext] is a special type of [TransactionContext] used during data migration.
+     * A [MigrationContext] is a special type of [Transaction] used during data migration.
      *
      * @author Ralph Gasser
      * @version 2.1.0
      */
-    inner class MigrationContext(override val xodusTx: jetbrains.exodus.env.Transaction) : TransactionContext, Transaction {
+    inner class MigrationContext(override val xodusTx: jetbrains.exodus.env.Transaction) : Transaction, TransactionMetadata {
         /** The [TransactionId] of the [MigrationContext]. */
-        override val txId: TransactionId = transactionIdCounter.getAndIncrement()
+        override val transactionId: TransactionId = transactionIdCounter.getAndIncrement()
 
         /** The [TransactionType] of a [MigrationManager] is always [TransactionType.SYSTEM_EXCLUSIVE]. */
         override val type: TransactionType = TransactionType.SYSTEM_EXCLUSIVE
@@ -414,7 +414,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
 
         /**
          * Returns the [Tx] for the provided [DBO]. Creating [Tx] through this method makes sure,
-         * that only on [Tx] per [DBO] and [Transaction] is created.
+         * that only on [Tx] per [DBO] and [TransactionMetadata] is created.
          *
          * @param dbo [DBO] to return the [Tx] for.
          * @return entity [Tx]
@@ -440,7 +440,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
          * Commits this [MigrationContext] thus finalizing and persisting all operations executed so far.
          */
         override fun commit() {
-            check(this.state === TransactionStatus.IDLE) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
+            check(this.state === TransactionStatus.IDLE) { "Cannot commit transaction ${this.transactionId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
                 for (txn in this.notifyOnCommit) {
@@ -463,7 +463,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
          * Rolls back this [MigrationContext] thus reverting all operations executed so far.
          */
         override fun rollback() {
-            check(this.state === TransactionStatus.IDLE || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
+            check(this.state === TransactionStatus.IDLE || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.transactionId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
                 try {

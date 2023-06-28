@@ -26,7 +26,7 @@ import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
@@ -75,10 +75,10 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * Initializes the [Store] for a [BTreeIndex].
          *
          * @param catalogue [Catalogue] reference.
-         * @param context The [TransactionContext] to perform the transaction with.
+         * @param context The [Transaction] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
+        override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
             val store = catalogue.transactionManager.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
@@ -91,10 +91,10 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          *
          * @param name The [Name.IndexName] of the [BTreeIndex].
          * @param catalogue [Catalogue] reference.
-         * @param context The [TransactionContext] to perform the transaction with.
+         * @param context The [Transaction] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: TransactionContext): Boolean = try {
+        override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
             catalogue.transactionManager.environment.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {
@@ -119,7 +119,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [BTreeIndex].
      *
-     * @param context If the [TransactionContext] to create the [IndexTx] for.
+     * @param context If the [Transaction] to create the [IndexTx] for.
      * @return [Tx]
      */
     override fun newTx(context: QueryContext)
@@ -128,7 +128,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
     /**
      * Opens and returns a new [QueryContext] object that can be used to rebuild with this [BTreeIndex].
      *
-     * @param context If the [TransactionContext] to create the [BTreeIndexRebuilder] for.
+     * @param context If the [Transaction] to create the [BTreeIndexRebuilder] for.
      * @return [QueryContext]
      */
     override fun newRebuilder(context: QueryContext) = BTreeIndexRebuilder(this, context)

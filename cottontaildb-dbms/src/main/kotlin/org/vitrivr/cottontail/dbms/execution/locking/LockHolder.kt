@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.dbms.execution.locking
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import org.vitrivr.cottontail.core.database.TransactionId
-import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionMetadata
 
 /**
  * Represents a holder of one or multiple [Lock]s.
@@ -10,10 +10,10 @@ import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
  * Inspired by: https://github.com/dstibrany/LockManager
  *
  * @author Ralph Gasser
- * @version 1.1.2
+ * @version 1.2.0
  */
-open class LockHolder<T>(val txId: TransactionId) : Comparable<LockHolder<*>> {
-    /** The [Lock]s held by this [Transaction]. */
+open class LockHolder<T>(val transactionId: TransactionId) : Comparable<LockHolder<*>> {
+    /** The [Lock]s held by this [TransactionMetadata]. */
     private val locks = ObjectOpenHashSet<Lock<T>>()
 
     /** Returns the number of [Lock]s held by this [LockHolder]. */
@@ -50,10 +50,10 @@ open class LockHolder<T>(val txId: TransactionId) : Comparable<LockHolder<*>> {
     /**
      * Compares this [LockHolder] to the other [LockHolder].
      */
-    override operator fun compareTo(other: LockHolder<*>): Int = (this.txId - other.txId).toInt()
+    override operator fun compareTo(other: LockHolder<*>): Int = (this.transactionId - other.transactionId).toInt()
 
     /**
      * String representation of this [LockHolder].
      */
-    override fun toString(): String = "tx${this.txId}"
+    override fun toString(): String = "tx${this.transactionId}"
 }

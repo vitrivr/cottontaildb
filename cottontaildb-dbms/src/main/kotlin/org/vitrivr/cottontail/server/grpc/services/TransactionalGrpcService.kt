@@ -132,7 +132,7 @@ internal interface TransactionalGrpcService {
         val (operator, planDuration) = try {
             val p = prepare(context)
             val d = m1.elapsedNow()
-            LOGGER.debug("[${context.txn.txId}, ${context.queryId}] Preparation of ${context.physical.firstOrNull()?.name} completed successfully in $d.")
+            LOGGER.debug("[${context.txn.transactionId}, ${context.queryId}] Preparation of ${context.physical.firstOrNull()?.name} completed successfully in $d.")
             p to d
         }  catch (e: Throwable) {
             throw context.handleError(e, false)
@@ -143,7 +143,7 @@ internal interface TransactionalGrpcService {
         val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder()
             .setMetadata(CottontailGrpc.ResponseMetadata.newBuilder()
                 .setQueryId(context.queryId)
-                .setTransactionId(context.txn.txId)
+                .setTransactionId(context.txn.transactionId)
                 .setQueryDuration(0L)
                 .setPlanDuration(planDuration.toLong(DurationUnit.MILLISECONDS))
             )
@@ -211,9 +211,9 @@ internal interface TransactionalGrpcService {
      */
     fun DefaultQueryContext.handleError(e: Throwable, execution: Boolean): StatusException {
         val text = if (execution) {
-            "[${this.txn.txId}, ${this.queryId}] Execution of ${this.physical.firstOrNull()?.name} query failed: ${e.message}"
+            "[${this.txn.transactionId}, ${this.queryId}] Execution of ${this.physical.firstOrNull()?.name} query failed: ${e.message}"
         } else {
-            "[${this.txn.txId}, ${this.queryId}] Preparation of query failed: ${e.message}"
+            "[${this.txn.transactionId}, ${this.queryId}] Preparation of query failed: ${e.message}"
         }
 
         /* Log error. */
