@@ -71,15 +71,6 @@ interface Transaction: ExecutionContext, TransactionMetadata {
     fun <T: Tx> getCachedTxForDBO(dbo: DBO): T?
 
     /**
-     * Acquires a [Lock] on a [DBO] for the given [LockMode]. This call is delegated to the
-     * [LockManager] and really just a convenient way for [Tx] objects to obtain locks.
-     *
-     * @param dbo [DBO] The [DBO] to request the lock for.
-     * @param mode The desired [LockMode]
-     */
-    fun requestLock(dbo: DBO, mode: LockMode)
-
-    /**
      * Signals an [Event] to this [Transaction].
      *
      * This method is a facility to communicate actions that take place within a

@@ -12,7 +12,6 @@ import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.column.ColumnMetadata
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.events.Event
-import org.vitrivr.cottontail.dbms.execution.locking.LockMode
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.sources.partitionFor
 import org.vitrivr.cottontail.dbms.execution.transactions.*
@@ -322,10 +321,6 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         @Suppress("UNCHECKED_CAST")
         override fun <T: Tx>getCachedTxForDBO(dbo: DBO): T = this.txns[dbo] as T
 
-        override fun requestLock(dbo: DBO, mode: LockMode) {
-            /* No op. */
-        }
-
         override fun signalEvent(event: Event) {
             throw UnsupportedOperationException("Operation signalEvent() not supported for LegacyMigrationContext.")
         }
@@ -422,10 +417,6 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         @Suppress("UNCHECKED_CAST")
         override fun <T: Tx>getCachedTxForDBO(dbo: DBO): T? {
             return this.txns[dbo] as T?
-        }
-
-        override fun requestLock(dbo: DBO, mode: LockMode) {
-            /* No op. */
         }
 
         override fun signalEvent(event: Event) {

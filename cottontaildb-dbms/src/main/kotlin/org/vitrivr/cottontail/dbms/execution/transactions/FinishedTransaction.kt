@@ -13,7 +13,10 @@ data class FinishedTransaction(
     override val type: TransactionType,
     override val state: TransactionStatus,
     override val created: Long,
-    override val ended: Long
+    override val ended: Long,
+    override val numberOfSuccess: Int,
+    override val numberOfError: Int,
+    override val numberOfOngoing: Int
 ): TransactionMetadata  {
-    constructor(tx: Transaction): this(tx.transactionId, tx.type, tx.state, tx.created, tx.ended ?: System.currentTimeMillis())
+    constructor(tx: Transaction): this(tx.transactionId, tx.type, tx.state, tx.created, tx.ended ?: System.currentTimeMillis(), tx.numberOfSuccess, tx.numberOfError, tx.numberOfOngoing)
 }

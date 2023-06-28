@@ -26,4 +26,13 @@ interface TransactionMetadata {
 
     /** The timestamp at which this [TransactionMetadata] has ended. May be null if it is still ongoing. */
     val ended: Long?
+
+    /** Number of queries executed successfully in this [TransactionMetadata]. */
+    val numberOfSuccess: Int
+
+    /** Number of queries executed with an error in this [TransactionMetadata]. */
+    val numberOfError: Int
+
+    /** Number of ongoing queries in this [TransactionMetadata]. */
+    val numberOfOngoing: Int
 }

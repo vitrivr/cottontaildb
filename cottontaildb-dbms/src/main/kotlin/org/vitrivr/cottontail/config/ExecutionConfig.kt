@@ -13,6 +13,7 @@ data class ExecutionConfig(
     val coreThreads: Int = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1),
     val maxThreads: Int = Runtime.getRuntime().availableProcessors().coerceAtLeast(1) * 2,
     val keepAliveMs: Long = 10000L,
+    val transactionTimeoutMs: Long = 5000L,
     val queueSize: Int = 100,
     val transactionTableSize: Int = 100,
     val transactionHistorySize: Int = 500,

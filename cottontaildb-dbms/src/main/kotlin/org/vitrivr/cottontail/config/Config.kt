@@ -22,9 +22,6 @@ data class Config(
         @Serializable(with = PathSerializer::class)
         val logConfig: Path? = null,
 
-        /** Flag indicating whether Cottontail DB should be allowed to start even in the presence of broken indexes.*/
-        val allowBrokenIndex: Boolean = true,
-
         /** Reference to [XodusConfig], which contains configuration regarding Xodus. */
         val xodus: XodusConfig = XodusConfig(),
 
