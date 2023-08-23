@@ -298,6 +298,15 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         override var ended: Long? = null
             private set
 
+        /** [LegacyMigrationContext] does not track transaction statistics. */
+        override val numberOfSuccess: Int = 0
+
+        /** [LegacyMigrationContext] does not track transaction statistics. */
+        override val numberOfError: Int = 0
+
+        /** [LegacyMigrationContext] does not track transaction statistics. */
+        override val numberOfOngoing: Int = 0
+
         /** Map of all [Tx] that have been created as part of this [MigrationManager]. Used for final COMMIT or ROLLBACK. */
         private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
@@ -383,6 +392,15 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         /** The timestamp at which this [MigrationContext] has ended created. */
         override var ended: Long? = null
             private set
+
+        /** [MigrationContext] does not track transaction statistics. */
+        override val numberOfSuccess: Int = 0
+
+        /** [MigrationContext] does not track transaction statistics. */
+        override val numberOfError: Int = 0
+
+        /** [MigrationContext] does not track transaction statistics. */
+        override val numberOfOngoing: Int = 0
 
         /** A [MigrationContext] does not have a reference to a [TransactionManager]. */
         override val manager: TransactionManager
