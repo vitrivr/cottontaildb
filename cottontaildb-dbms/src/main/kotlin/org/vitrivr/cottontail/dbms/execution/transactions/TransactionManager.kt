@@ -23,6 +23,7 @@ import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
 import org.vitrivr.cottontail.dbms.execution.locking.LockManager
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager.AbstractTransaction
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.utilities.extensions.write
@@ -312,14 +313,17 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
                 this@AbstractTransaction.state = TransactionStatus.FINALIZING
 
                 try {
-                    /* Execute commit finalization. */
-                    for (txn in this@AbstractTransaction.txns.values.filterIsInstance<Tx.WithCommitFinalization>()) {
-                        txn.beforeCommit()
-                    }
+                    if (!this@AbstractTransaction.xodusTx.isIdempotent) {
+                        /* Execute commit finalization. */
+                        for (txn in this@AbstractTransaction.txns.values.filterIsInstance<Tx.WithCommitFinalization>()) {
+                            txn.beforeCommit()
+                        }
 
-                    /* Execute actual commit. */
-                    if (!this@AbstractTransaction.xodusTx.commit()) {
-                        throw TransactionException.InConflict(this@AbstractTransaction.transactionId)
+                        /* Execute actual commit. */
+
+                        if (!this@AbstractTransaction.xodusTx.commit()) {
+                            throw TransactionException.InConflict(this@AbstractTransaction.transactionId)
+                        }
                     }
                     this@AbstractTransaction.state = TransactionStatus.COMMIT
                 } catch (e: Throwable) {
