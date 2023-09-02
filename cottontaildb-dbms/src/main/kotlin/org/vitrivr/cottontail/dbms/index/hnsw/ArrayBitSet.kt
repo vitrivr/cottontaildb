@@ -24,7 +24,7 @@ class ArrayBitSet : Serializable {
      * @param count The number of items in the set.
      */
     constructor(other: ArrayBitSet, count: Int) {
-        buffer = Arrays.copyOf(other.buffer, (count shr 5) + 1)
+        buffer = other.buffer.copyOf((count shr 5) + 1)
     }
 
     /**

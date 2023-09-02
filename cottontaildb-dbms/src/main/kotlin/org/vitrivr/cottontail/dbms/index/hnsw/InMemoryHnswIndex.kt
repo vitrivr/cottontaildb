@@ -27,7 +27,7 @@ import kotlin.math.ln
  * Implementation adapted from https://github.com/jelmerk/hnswlib
  *
  */
-open class HnswIndexKt(
+class InMemoryHnswIndex(
     /**
      * Returns the maximum number of items the index can hold.
      */
@@ -146,7 +146,7 @@ open class HnswIndexKt(
         }
     }
 
-    open fun findNeighbors(id: TupleId, k: Int): List<SearchResult<Pair<TupleId, VectorValue<*>>, DoubleValue>> {
+    fun findNeighbors(id: TupleId, k: Int): List<SearchResult<Pair<TupleId, VectorValue<*>>, DoubleValue>> {
         return get(id)?.let { item: Pair<TupleId, VectorValue<*>> ->
             findNearest(
                 item.second, k + 1
@@ -414,7 +414,7 @@ open class HnswIndexKt(
     /**
      * {@inheritDoc}
      */
-    open fun findNearest(
+    fun findNearest(
         vector: VectorValue<*>,
         k: Int
     ): List<SearchResult<Pair<TupleId, VectorValue<*>>, DoubleValue>> {
@@ -622,14 +622,12 @@ open class HnswIndexKt(
         }
     }
 
-    internal class MaxValueComparator<Double>(private val delegate: Comparator<Double>) : Comparator<Double>,
-        Serializable {
+    internal class MaxValueComparator<Double>(private val delegate: Comparator<Double>) : Comparator<Double>{
         override fun compare(o1: Double?, o2: Double?): Int {
             return if (o1 == null) if (o2 == null) 0 else 1 else if (o2 == null) -1 else delegate.compare(o1, o2)
         }
 
         companion object {
-            private const val serialVersionUID = 1L
             fun <Double> maxValue(): Double? {
                 return null
             }
