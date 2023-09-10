@@ -30,9 +30,11 @@ class ListEntityOperator(private val tx: CatalogueTx, private val schema: Name.S
         val columns = this@ListEntityOperator.columns.toTypedArray()
         var i = 0L
         for (schema in schemas) {
-            val schemaTxn = schema.newTx(this@ListEntityOperator.context)
-            for (entity in schemaTxn.listEntities()) {
-                emit(StandaloneTuple(i++, columns, arrayOf(StringValue(entity.fqn),StringValue("ENTITY"))))
+            if (this@ListEntityOperator.schema == null || schema.name == this@ListEntityOperator.schema) {
+                val schemaTxn = schema.newTx(this@ListEntityOperator.context)
+                for (entity in schemaTxn.listEntities()) {
+                    emit(StandaloneTuple(i++, columns, arrayOf(StringValue(entity.fqn),StringValue("ENTITY"))))
+                }
             }
         }
     }
