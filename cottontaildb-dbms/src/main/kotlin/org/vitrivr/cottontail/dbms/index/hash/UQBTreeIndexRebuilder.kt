@@ -26,7 +26,7 @@ class UQBTreeIndexRebuilder(index: UQBTreeIndex, context: QueryContext): Abstrac
         /* Tx objects required for index rebuilding. */
         val entityTx = this.index.parent.newTx(this.context)
         val columnTx = entityTx.columnForName(column).newTx(this.context)
-        val binding: ValueSerializer<Value> = SerializerFactory.value(columnTx.columnDef.type, columnTx.columnDef.nullable) as ValueSerializer<Value>
+        val binding: ValueSerializer<Value> = SerializerFactory.value(columnTx.columnDef.type) as ValueSerializer<Value>
         val dataStore = this.tryClearAndOpenStore() ?: return false
 
         /* Iterate over entity and update index with entries. */

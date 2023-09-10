@@ -20,6 +20,7 @@ fun PublicValue.toDescription(vectorSeparator: String = ";", max: Int = 4): Stri
     is DoubleValue -> this.value.toString()
     is FloatValue -> this.toString()
     is StringValue -> this.value
+    is UuidValue -> this.value.toString()
     is DateValue -> this.toDate().toString()
     is ByteStringValue -> this.toBase64()
     is Complex32Value -> this.toDescription()

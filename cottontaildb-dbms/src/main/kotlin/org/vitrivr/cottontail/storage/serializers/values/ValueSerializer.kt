@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.core.types.Value
  * A serializer for Xodus based [Value] serialization and deserialization.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 sealed interface ValueSerializer<T: Value> {
 
@@ -29,5 +29,5 @@ sealed interface ValueSerializer<T: Value> {
      * @param value The [Value] to convert.
      * @return The resulting [ByteIterable].
      */
-    fun toEntry(value: T?): ByteIterable
+    fun toEntry(value: T): ByteIterable
 }

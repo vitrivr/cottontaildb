@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.statistics.values.*
-import org.vitrivr.cottontail.storage.serializers.statistics.MetricsSerializerFactory
+import org.vitrivr.cottontail.storage.serializers.SerializerFactory
 import org.vitrivr.cottontail.storage.serializers.statistics.MetricsXodusBinding
 
 /**
@@ -30,7 +30,7 @@ data class ColumnStatistic(val type: Types<*>, val statistics: ValueStatistics<*
         fun entryToObject(entry: ByteIterable): ColumnStatistic{
             val stream = ByteArraySizedInputStream(entry.bytesUnsafe, 0, entry.length)
             val type = Types.forOrdinal(IntegerBinding.readCompressed(stream), IntegerBinding.readCompressed(stream))
-            val serializer = MetricsSerializerFactory.xodus(type)
+            val serializer = SerializerFactory.metrics(type)
             return ColumnStatistic(type, serializer.read(stream))
         }
         /**
@@ -44,7 +44,7 @@ data class ColumnStatistic(val type: Types<*>, val statistics: ValueStatistics<*
             val output = LightOutputStream()
             IntegerBinding.writeCompressed(output, `object`.type.ordinal)
             IntegerBinding.writeCompressed(output, `object`.type.logicalSize)
-            val serializer = MetricsSerializerFactory.xodus(`object`.type) as MetricsXodusBinding<ValueStatistics<*>>
+            val serializer = SerializerFactory.metrics(`object`.type) as MetricsXodusBinding<ValueStatistics<*>>
             serializer.write(output, `object`.statistics)
             return output.asArrayByteIterable()
         }
@@ -68,6 +68,7 @@ data class ColumnStatistic(val type: Types<*>, val statistics: ValueStatistics<*
             Types.ByteString -> ByteStringValueStatistics()
             Types.Complex32 -> Complex32ValueStatistics()
             Types.Complex64 -> Complex64ValueStatistics()
+            Types.Uuid -> UuidValueStatistics()
             is Types.BooleanVector -> BooleanVectorValueStatistics(def.type.logicalSize)
             is Types.DoubleVector -> DoubleVectorValueStatistics(def.type.logicalSize)
             is Types.FloatVector -> FloatVectorValueStatistics(def.type.logicalSize)

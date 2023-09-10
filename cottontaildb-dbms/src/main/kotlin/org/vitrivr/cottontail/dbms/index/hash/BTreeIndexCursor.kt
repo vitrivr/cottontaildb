@@ -58,7 +58,7 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
      */
     class Equals(operator: ComparisonOperator.Equal, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.Equal>(operator, index) {
         context(BindingContext, Tuple)
-        override fun initialize(): Boolean = this@Equals.cursor.getSearchKey(this@Equals.index.binding.toEntry(this.operator.right.getValue())) != null
+        override fun initialize(): Boolean = this@Equals.cursor.getSearchKey(this@Equals.index.binding.toEntry(this.operator.right.getValue()!!)) != null
         override fun moveNext(): Boolean = !this.empty && (this.boc.compareAndExchange(true, false) || (this.cursor.nextDup))
     }
 
@@ -97,7 +97,7 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
      */
     class GreaterEqual(operator: ComparisonOperator.GreaterEqual, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.GreaterEqual>(operator, index) {
         context(BindingContext, Tuple)
-        override fun initialize(): Boolean = this.cursor.getSearchKeyRange(this.index.binding.toEntry(this.operator.right.getValue())) != null
+        override fun initialize(): Boolean = this.cursor.getSearchKeyRange(this.index.binding.toEntry(this.operator.right.getValue()!!)) != null
         override fun moveNext(): Boolean = !this.empty && (this.boc.compareAndExchange(true, false) || (this.cursor.next))
     }
 
@@ -107,7 +107,7 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
     class Greater(operator: ComparisonOperator.Greater, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.Greater>(operator, index) {
         context(BindingContext, Tuple)
         override fun initialize(): Boolean {
-            val value = this.index.binding.toEntry(this.operator.right.getValue())
+            val value = this.index.binding.toEntry(this.operator.right.getValue()!!)
             if (this.cursor.getSearchKeyRange(value) != null) {
                 while (this.cursor.key == value) {
                     if (!this.cursor.next) {
@@ -127,7 +127,7 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
      */
     class LessEqual(operator: ComparisonOperator.LessEqual, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.LessEqual>(operator, index) {
         context(BindingContext, Tuple)
-        override fun initialize(): Boolean = this.cursor.getSearchKeyRange(this.index.binding.toEntry(this.operator.right.getValue())) != null
+        override fun initialize(): Boolean = this.cursor.getSearchKeyRange(this.index.binding.toEntry(this.operator.right.getValue()!!)) != null
 
         override fun moveNext(): Boolean = !this.empty && (this.boc.compareAndExchange(true, false) || (this.cursor.prev))
     }
@@ -138,7 +138,7 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
     class Less(operator: ComparisonOperator.Less, index: BTreeIndex.Tx): BTreeIndexCursor<ComparisonOperator.Less>(operator, index) {
         context(BindingContext, Tuple)
         override fun initialize(): Boolean {
-            val value = this.index.binding.toEntry(this.operator.right.getValue())
+            val value = this.index.binding.toEntry(this.operator.right.getValue()!!)
             if (this.cursor.getSearchKeyRange(value) != null) {
                 while (this.cursor.key == value) {
                     if (!this.cursor.prev) {

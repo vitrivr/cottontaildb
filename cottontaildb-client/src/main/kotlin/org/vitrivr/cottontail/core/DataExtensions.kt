@@ -78,6 +78,7 @@ fun CottontailGrpc.Literal.toValue(type: Types<*>): PublicValue? = when (type) {
     is Types.Long -> this.toLongValue()
     is Types.Date -> this.toDateValue()
     is Types.String -> this.toStringValue()
+    is Types.Uuid -> this.toUuidValue()
     is Types.Complex32 -> this.toComplex32Value()
     is Types.Complex64 -> this.toComplex64Value()
     is Types.IntVector -> this.toIntVectorValue()
@@ -202,6 +203,7 @@ fun Types<*>.proto(): CottontailGrpc.Type = when(this) {
     Types.Long -> CottontailGrpc.Type.LONG
     Types.Short -> CottontailGrpc.Type.SHORT
     Types.String -> CottontailGrpc.Type.STRING
+    Types.Uuid -> CottontailGrpc.Type.UUID
     is Types.BooleanVector -> CottontailGrpc.Type.BOOL_VECTOR
     is Types.IntVector -> CottontailGrpc.Type.INT_VECTOR
     is Types.LongVector -> CottontailGrpc.Type.LONG_VECTOR
@@ -229,6 +231,19 @@ fun CottontailGrpc.Literal.toStringValue(): StringValue? = when (this.dataCase) 
     CottontailGrpc.Literal.DataCase.COMPLEX32DATA -> StringValue("${this.complex32Data.real}+i*${this.complex32Data.imaginary}")
     CottontailGrpc.Literal.DataCase.COMPLEX64DATA -> StringValue("${this.complex64Data.real}+i*${this.complex64Data.imaginary}")
     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
+    CottontailGrpc.Literal.DataCase.NULLDATA -> null
+    else -> throw throw IllegalArgumentException("A value of ${this.dataCase} cannot be cast to STRING.")
+}
+
+/**
+ * Returns the value of [CottontailGrpc.Literal] as [UuidValue] .
+ *
+ * @return [UuidValue] or nzll
+ * @throws IllegalArgumentException If cast is not possible.
+ */
+fun CottontailGrpc.Literal.toUuidValue(): UuidValue? = when (this.dataCase) {
+    CottontailGrpc.Literal.DataCase.STRINGDATA -> UuidValue(UUID.fromString(this.stringData))
+    CottontailGrpc.Literal.DataCase.UUIDDATA -> UuidValue(UUID(this.uuidData.leastSignificant, this.uuidData.mostSignificant))
     CottontailGrpc.Literal.DataCase.NULLDATA -> null
     else -> throw throw IllegalArgumentException("A value of ${this.dataCase} cannot be cast to STRING.")
 }

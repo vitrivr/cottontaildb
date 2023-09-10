@@ -146,7 +146,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
 
         /** The internal [ValueSerializer] reference used for de-/serialization. */
         @Suppress("UNCHECKED_CAST")
-        internal val binding: ValueSerializer<Value> = SerializerFactory.value(this.columns[0].type, this.columns[0].nullable) as ValueSerializer<Value>
+        internal val binding: ValueSerializer<Value> = SerializerFactory.value(this.columns[0].type) as ValueSerializer<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
         internal val dataStore: Store = this@BTreeIndex.catalogue.transactionManager.environment.openStore(this@BTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)

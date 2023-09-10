@@ -17,8 +17,6 @@ import java.nio.charset.Charset
  * @version 1.0.0
  */
 class TupleSerializer(val schema: Array<ColumnDef<*>>) {
-
-
     /**
      * Calculates the size of the [ByteBuffer] required to hold the provided [Tuple]
      *
@@ -48,6 +46,7 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
                 is ShortValue -> Short.SIZE_BYTES
                 is ByteStringValue -> value.logicalSize
                 is StringValue -> value.value.length * Char.SIZE_BYTES
+                is UuidValue -> 2 * Long.SIZE_BYTES
                 null -> when(this.schema[i].type) {
                     Types.Boolean,
                     Types.Byte -> Byte.SIZE_BYTES
@@ -65,6 +64,7 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
                     Types.Short -> Short.SIZE_BYTES
                     Types.ByteString,
                     Types.String,
+                    Types.Uuid,
                     Types.Int,
                     is Types.IntVector -> Int.SIZE_BYTES
                     is Types.BooleanVector -> TODO()
@@ -155,6 +155,10 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
                 buffer.putInt(bytes.size)
                 buffer.put(bytes)
             }
+            is UuidValue -> {
+                buffer.putLong(value.value.leastSignificantBits)
+                buffer.putLong(value.value.mostSignificantBits)
+            }
 
             is Complex32VectorValue -> value.data.forEach { buffer.putFloat(it) }
             is Complex64VectorValue -> value.data.forEach { buffer.putDouble(it) }
@@ -195,7 +199,8 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
                 }
 
                 Types.ByteString,
-                Types.String -> buffer.putInt(-1)
+                Types.String,
+                Types.Uuid -> buffer.putInt(-1)
             }
         }
     }
@@ -257,6 +262,11 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
         Types.String -> {
             val length = buffer.int /* Variable length. */
             if (length == -1) { null } else {  StringValue(ByteArray(length) { buffer.get() }.toString(Charset.defaultCharset())) }
+        }
+        Types.Uuid -> {
+            val leastSignificant = buffer.long
+            val mostSignificant = buffer.long
+            UuidValue(leastSignificant, mostSignificant)
         }
         is Types.BooleanVector -> TODO()
         is Types.Complex32Vector -> {
@@ -341,6 +351,7 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
             val length = buffer.int /* Variable length. */
             StringValue(ByteArray(length) { buffer.get() }.toString(Charset.defaultCharset()))
         }
+        Types.Uuid -> UuidValue(buffer.long, buffer.long)
         is Types.BooleanVector -> TODO()
         is Types.Complex32Vector -> Complex32VectorValue(FloatArray(2*type.logicalSize) { buffer.float })
         is Types.Complex64Vector -> Complex64VectorValue(DoubleArray(2*type.logicalSize) { buffer.double })

@@ -26,6 +26,7 @@ fun Types<*>.valueSerializer(): KSerializer<PublicValue?> = when (this) {
     Types.Long -> LongValue.serializer()
     Types.Short -> ShortValue.serializer()
     Types.String -> StringValue.serializer()
+    Types.Uuid -> UuidValue.serializer()
     is Types.BooleanVector -> BooleanVectorValue.serializer()
     is Types.Complex32Vector -> Complex32VectorValue.serializer()
     is Types.Complex64Vector -> Complex64VectorValue.serializer()

@@ -146,7 +146,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
 
         /** The internal [ValueSerializer] reference used for de-/serialization. */
         @Suppress("UNCHECKED_CAST")
-        private val binding: ValueSerializer<Value> = SerializerFactory.value(this.columns[0].type, this.columns[0].nullable) as ValueSerializer<Value>
+        private val binding: ValueSerializer<Value> = SerializerFactory.value(this.columns[0].type) as ValueSerializer<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
         private var dataStore: Store = catalogue.transactionManager.environment.openStore(this@UQBTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)

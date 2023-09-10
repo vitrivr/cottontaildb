@@ -39,6 +39,7 @@ fun <T: Value> Types<*>.defaultStatistics(): ValueStatistics<T> = when(this) {
     Types.Date -> DateValueStatistics()
     Types.ByteString -> ByteValueStatistics()
     Types.String -> StringValueStatistics()
+    Types.Uuid -> UuidValueStatistics()
     is Types.BooleanVector -> BooleanVectorValueStatistics(this.logicalSize)
     is Types.IntVector -> IntVectorValueStatistics(this.logicalSize)
     is Types.LongVector -> LongVectorValueStatistics(this.logicalSize)

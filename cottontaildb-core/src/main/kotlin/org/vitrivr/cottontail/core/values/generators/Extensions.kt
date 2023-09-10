@@ -22,6 +22,7 @@ fun Types<*>.defaultValue(): PublicValue = when(this) {
     Types.Long -> LongValueGenerator.zero()
     Types.Short -> ShortValueGenerator.zero()
     Types.String -> StringValueGenerator.empty()
+    Types.Uuid -> UuidValueGenerator.NIL
     is Types.BooleanVector -> BooleanVectorValueGenerator.zero(this.logicalSize)
     is Types.Complex32Vector -> Complex32VectorValueGenerator.zero(this.logicalSize)
     is Types.Complex64Vector -> Complex64VectorValueGenerator.zero(this.logicalSize)

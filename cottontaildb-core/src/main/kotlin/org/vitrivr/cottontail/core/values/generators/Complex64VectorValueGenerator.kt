@@ -10,7 +10,7 @@ import java.util.random.RandomGenerator
  * @author Ralph Gasser
  * @version 1.0.0
  */
-object Complex64VectorValueGenerator: VectorValueGenerator<Complex64VectorValue>  {
+object Complex64VectorValueGenerator: VectorValueGenerator<Complex64VectorValue> {
     /**
      * Generates a [Complex64VectorValue] of the given size initialized with random numbers.
      *

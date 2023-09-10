@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.defaultStatistics
-import org.vitrivr.cottontail.dbms.statistics.values.*
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import org.vitrivr.cottontail.storage.serializers.SerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
 import kotlin.concurrent.withLock
@@ -79,7 +79,7 @@ class VariableLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, over
         ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@VariableLengthColumn.name} is missing.")
 
         /** The internal [ValueSerializer] reference used for de-/serialization. */
-        internal val binding: ValueSerializer<T> = SerializerFactory.value(this@VariableLengthColumn.columnDef.type, this@VariableLengthColumn.nullable)
+        internal val binding: ValueSerializer<T> = SerializerFactory.value(this@VariableLengthColumn.columnDef.type)
 
         /** Reference to [Column] this [Tx] belongs to. */
         override val dbo: VariableLengthColumn<T>

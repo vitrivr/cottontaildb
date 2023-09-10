@@ -214,39 +214,47 @@ enum Type {
     DOUBLE = 6;
     DATE = 7;
     STRING = 8;
+    UUID = 9;
 
-    /* Complex types. */
-    COMPLEX32 = 9;
-    COMPLEX64 = 10;
+    /* Struct types. */
+    COMPLEX32 = 20;
+    COMPLEX64 = 21;
 
     /* Vector types. */
-    DOUBLE_VECTOR = 11;
-    FLOAT_VECTOR = 12;
-    LONG_VECTOR = 13;
-    INT_VECTOR = 14;
-    BOOL_VECTOR = 15;
-    COMPLEX32_VECTOR = 16;
-    COMPLEX64_VECTOR = 17;
+    DOUBLE_VECTOR = 30;
+    FLOAT_VECTOR = 31;
+    LONG_VECTOR = 32;
+    INT_VECTOR = 33;
+    BOOL_VECTOR = 34;
+    COMPLEX32_VECTOR = 35;
+    COMPLEX64_VECTOR = 36;
 
-    /* Binary */
-    BYTESTRING = 18;
+    /* BLOB types */
+    BYTESTRING = 50;
 }
 
 /** Literal data, i.e., field that actually contains information. */
 message Literal {
     oneof data {
-        bool booleanData = 1;
-        int32 intData = 2;
-        int64 longData = 3;
-        float floatData = 4;
-        double doubleData = 5;
-        string stringData = 6;
-        int64 dateData = 7;
-        Complex32 complex32Data = 8;
-        Complex64 complex64Data = 9;
-        Vector vectorData = 10;
-        bytes byteStringData = 11;
-        Null nullData = 12;
+        Null nullData = 1;
+        bool booleanData = 2;
+        int32 intData = 3;
+        int64 longData = 4;
+        float floatData = 5;
+        double doubleData = 6;
+        string stringData = 7;
+        int64 dateData = 8;
+        Uuid uuidData = 9;
+
+        /* Struct types. */
+        Complex32 complex32Data = 20;
+        Complex64 complex64Data = 21;
+
+        /* Vector types. */
+        Vector vectorData = 30;
+
+        /* Blob types. */
+        bytes byteStringData = 50;
     }
 }
 
@@ -294,6 +302,12 @@ message Vector {
 message Null {
     Type type = 1;
     int32 size = 2;
+}
+
+/** A UUID entry using longs to represent bits. */
+message Uuid {
+    int64 leastSignificant = 1;
+    int64 mostSignificant = 2;
 }
 
 /** A complex number entry using floats.*/

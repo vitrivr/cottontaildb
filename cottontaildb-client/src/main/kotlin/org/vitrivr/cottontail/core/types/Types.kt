@@ -37,6 +37,7 @@ sealed class Types<T : Value> {
             "FLOAT" -> Float
             "DOUBLE" -> Double
             "STRING" -> String
+            "UUID" -> Uuid
             "COMPLEX32" -> Complex32
             "COMPLEX64" -> Complex64
             "INTEGER_VECTOR" -> IntVector(logicalSize)
@@ -66,16 +67,17 @@ sealed class Types<T : Value> {
             6 -> Float
             7 -> Double
             8 -> String
-            9 -> Complex32
-            10 -> Complex64
-            11 -> IntVector(logicalSize)
-            12 -> LongVector(logicalSize)
-            13 -> FloatVector(logicalSize)
-            14 -> DoubleVector(logicalSize)
-            15 -> BooleanVector(logicalSize)
-            16 -> Complex32Vector(logicalSize)
-            17 -> Complex64Vector(logicalSize)
-            18 -> ByteString
+            9 -> Uuid
+            10 -> Complex32
+            11 -> Complex64
+            12 -> IntVector(logicalSize)
+            13 -> LongVector(logicalSize)
+            14 -> FloatVector(logicalSize)
+            15 -> DoubleVector(logicalSize)
+            16 -> BooleanVector(logicalSize)
+            17 -> Complex32Vector(logicalSize)
+            18 -> Complex64Vector(logicalSize)
+            19 -> ByteString
             else -> throw java.lang.IllegalArgumentException("The column type for ordinal $ordinal does not exists!")
         }
     }
@@ -204,10 +206,18 @@ sealed class Types<T : Value> {
     }
 
     @Serializable
+    @SerialName("UUID")
+    object Uuid: Scalar<UuidValue>() {
+        override val name = "UUID"
+        override val ordinal: kotlin.Int = 9
+        override val physicalSize = 2 * kotlin.Long.SIZE_BYTES
+    }
+
+    @Serializable
     @SerialName("COMPLEX32")
     object Complex32: Complex<Complex32Value>() {
         override val name = "COMPLEX32"
-        override val ordinal: kotlin.Int = 9
+        override val ordinal: kotlin.Int = 10
         override val logicalSize = 1
         override val physicalSize = 2 * kotlin.Int.SIZE_BYTES
     }
@@ -216,7 +226,7 @@ sealed class Types<T : Value> {
     @SerialName("COMPLEX64")
     object Complex64: Complex<Complex64Value>() {
         override val name = "COMPLEX64"
-        override val ordinal: kotlin.Int = 10
+        override val ordinal: kotlin.Int = 11
         override val logicalSize = 1
         override val physicalSize = 2 * kotlin.Long.SIZE_BYTES
     }
@@ -225,7 +235,7 @@ sealed class Types<T : Value> {
     @SerialName("INTEGER_VECTOR")
     class IntVector(override val logicalSize: kotlin.Int): Vector<IntVectorValue, IntValue>() {
         override val name = "INTEGER_VECTOR"
-        override val ordinal: kotlin.Int = 11
+        override val ordinal: kotlin.Int = 12
         override val physicalSize = this.logicalSize * kotlin.Int.SIZE_BYTES
         override val elementType = Int
     }
@@ -234,7 +244,7 @@ sealed class Types<T : Value> {
     @SerialName("LONG_VECTOR")
     class LongVector(override val logicalSize: kotlin.Int): Vector<LongVectorValue, LongValue>() {
         override val name = "LONG_VECTOR"
-        override val ordinal: kotlin.Int = 12
+        override val ordinal: kotlin.Int = 13
         override val physicalSize = this.logicalSize * kotlin.Long.SIZE_BYTES
         override val elementType = Long
     }
@@ -243,7 +253,7 @@ sealed class Types<T : Value> {
     @SerialName("FLOAT_VECTOR")
     class FloatVector(override val logicalSize: kotlin.Int): Vector<FloatVectorValue, FloatValue>() {
         override val name = "FLOAT_VECTOR"
-        override val ordinal: kotlin.Int = 13
+        override val ordinal: kotlin.Int = 14
         override val physicalSize = this.logicalSize * kotlin.Int.SIZE_BYTES
         override val elementType = Float
     }
@@ -252,7 +262,7 @@ sealed class Types<T : Value> {
     @SerialName("DOUBLE_VECTOR")
     class DoubleVector(override val logicalSize: kotlin.Int): Vector<DoubleVectorValue, DoubleValue>() {
         override val name = "DOUBLE_VECTOR"
-        override val ordinal: kotlin.Int = 14
+        override val ordinal: kotlin.Int = 15
         override val physicalSize = this.logicalSize * kotlin.Long.SIZE_BYTES
         override val elementType = Double
     }
@@ -261,7 +271,7 @@ sealed class Types<T : Value> {
     @SerialName("BOOLEAN_VECTOR")
     class BooleanVector(override val logicalSize: kotlin.Int): Vector<BooleanVectorValue, BooleanValue>() {
         override val name = "BOOLEAN_VECTOR"
-        override val ordinal: kotlin.Int = 15
+        override val ordinal: kotlin.Int = 16
         override val physicalSize = this.logicalSize * kotlin.Byte.SIZE_BYTES
         override val elementType = Boolean
     }
@@ -270,7 +280,7 @@ sealed class Types<T : Value> {
     @SerialName("COMPLEX32_VECTOR")
     class Complex32Vector(override val logicalSize: kotlin.Int): Vector<Complex32VectorValue, Complex32Value>() {
         override val name = "COMPLEX32_VECTOR"
-        override val ordinal: kotlin.Int = 16
+        override val ordinal: kotlin.Int = 17
         override val physicalSize = this.logicalSize * 2 * kotlin.Int.SIZE_BYTES
         override val elementType = Complex32
     }
@@ -279,7 +289,7 @@ sealed class Types<T : Value> {
     @SerialName("COMPLEX64_VECTOR")
     class Complex64Vector(override val logicalSize: kotlin.Int): Vector<Complex64VectorValue, Complex32Value>() {
         override val name = "COMPLEX64_VECTOR"
-        override val ordinal: kotlin.Int = 17
+        override val ordinal: kotlin.Int = 18
         override val elementType = Complex32
         override val physicalSize = this.logicalSize * 2 * kotlin.Long.SIZE_BYTES
     }
@@ -288,7 +298,7 @@ sealed class Types<T : Value> {
     @SerialName("BYTESTRING")
     object ByteString: Scalar<ByteStringValue>() {
         override val name = "BYTESTRING"
-        override val ordinal: kotlin.Int = 18
+        override val ordinal: kotlin.Int = 19
         override val logicalSize = LOGICAL_SIZE_UNKNOWN
         override val physicalSize = LOGICAL_SIZE_UNKNOWN * Char.SIZE_BYTES
     }

@@ -14,6 +14,7 @@ import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.*
+import java.util.*
 
 /** A [KSerializer] for a [List] of [PublicValue]s (= a tuple).
  *
@@ -63,6 +64,7 @@ class TupleSimpleSerializer(val columns: Array<ColumnDef<*>>): KSerializer<Tuple
                 Types.Long -> LongValue(dec.decodeLongElement(this.descriptor, index))
                 Types.Short -> ShortValue(dec.decodeShortElement(this.descriptor, index))
                 Types.String -> StringValue(dec.decodeStringElement(this.descriptor, index))
+                Types.Uuid -> UuidValue(UUID.fromString(dec.decodeStringElement(this.descriptor, index)))
                 Types.ByteString -> ByteStringValue.fromBase64(dec.decodeStringElement(this.descriptor, index))
                 Types.Date -> DateValue(dec.decodeLongElement(this.descriptor, index))
                 Types.Complex32 -> parseComplex32Description(dec.decodeStringElement(this.descriptor, index))

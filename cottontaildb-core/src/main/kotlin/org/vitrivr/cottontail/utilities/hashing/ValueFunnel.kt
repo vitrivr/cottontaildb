@@ -49,6 +49,10 @@ object ValueFunnel: Funnel<Value?> {
                 into.putDouble(value.data[1])
             }
             is StringValue -> into.putString(value.value, Charset.forName("UTF-8"))
+            is UuidValue -> {
+                into.putLong(value.value.leastSignificantBits)
+                into.putLong(value.value.mostSignificantBits)
+            }
             is ByteStringValue -> into.putBytes(value.value)
             is BooleanVectorValue -> {
                 into.putInt(value.logicalSize)

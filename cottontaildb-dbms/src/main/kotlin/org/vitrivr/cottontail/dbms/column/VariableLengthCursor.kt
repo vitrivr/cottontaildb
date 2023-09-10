@@ -9,7 +9,6 @@ import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionMetadata
 import org.vitrivr.cottontail.storage.serializers.SerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
 
@@ -26,7 +25,7 @@ class VariableLengthCursor<T: Value>(private val column: Column<T>, private val 
     ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this.column.name} is missing.")
 
     /** The internal [ValueSerializer] reference used for de-/serialization. */
-    private val binding: ValueSerializer<T> = SerializerFactory.value(this.column.columnDef.type, this.column.nullable)
+    private val binding: ValueSerializer<T> = SerializerFactory.value(this.column.columnDef.type)
 
     /** Internal Xodus cursor instance.  */
     private val cursor = this.dataStore.openCursor(this.transaction.xodusTx)
