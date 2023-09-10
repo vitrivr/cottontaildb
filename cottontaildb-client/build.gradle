@@ -54,7 +54,7 @@ publishing {
             artifactId = 'cottontaildb-client'
             version = System.getenv().getOrDefault("MAVEN_PUBLICATION_VERSION", version.toString())
             pom {
-                name = 'Cottontail DB Cliebt'
+                name = 'Cottontail DB Client'
                 description = 'The gRPC and ProtoBuf definitions and the client library for Cottontail DB.'
                 url = 'https://github.com/vitrivr/cottontaildb/'
                 licenses {
