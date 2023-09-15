@@ -43,6 +43,7 @@ object SerializerFactory {
         is Types.FloatVector -> FloatVectorValueStatistics.Binding(type.logicalSize)
         is Types.IntVector -> IntVectorValueStatistics.Binding(type.logicalSize)
         is Types.LongVector -> LongVectorValueStatistics.Binding(type.logicalSize)
+        is Types.ShortVector -> ShortVectorValueStatistics(type.logicalSize)
     } as MetricsXodusBinding<ValueStatistics<T>>
 
     /**
@@ -73,6 +74,7 @@ object SerializerFactory {
         is Types.IntVector -> IntVectorValueValueSerializer(type.logicalSize)
         is Types.LongVector -> LongVectorValueValueSerializer(type.logicalSize)
         is Types.ByteString -> ByteStringValueValueSerializer
+        is Types.ShortVector -> ShortVectorValueValueSerializer(type.logicalSize)
     } as ValueSerializer<T>
 
     /**

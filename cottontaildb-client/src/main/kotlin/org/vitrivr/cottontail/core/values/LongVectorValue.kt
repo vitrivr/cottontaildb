@@ -10,7 +10,7 @@ import java.util.*
 import kotlin.math.pow
 
 /**
- * This is an abstraction over a [FloatArray] and it represents a vector of [Float]s.
+ * This is an abstraction over a [LongArray] and it represents a vector of [Long]s.
  *
  * @author Ralph Gasser
  * @version 2.1.0

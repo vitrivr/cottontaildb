@@ -88,6 +88,7 @@ fun CottontailGrpc.Literal.toValue(type: Types<*>): PublicValue? = when (type) {
     is Types.BooleanVector -> this.toBooleanVectorValue()
     is Types.Complex32Vector -> this.toComplex32VectorValue()
     is Types.Complex64Vector -> this.toComplex64VectorValue()
+    is Types.ShortVector -> this.toShortVectorValue()
     is Types.ByteString -> this.toByteStringValue()
 }
 
@@ -211,6 +212,7 @@ fun Types<*>.proto(): CottontailGrpc.Type = when(this) {
     is Types.DoubleVector -> CottontailGrpc.Type.DOUBLE_VECTOR
     is Types.Complex32Vector -> CottontailGrpc.Type.COMPLEX32_VECTOR
     is Types.Complex64Vector -> CottontailGrpc.Type.COMPLEX64_VECTOR
+    is Types.ShortVector -> CottontailGrpc.Type.SHORT_VECTOR
     Types.ByteString -> CottontailGrpc.Type.BYTESTRING
 }
 
@@ -521,6 +523,23 @@ fun CottontailGrpc.Literal.toLongVectorValue(): LongVectorValue? = when (this.da
 
 }
 
+fun CottontailGrpc.Literal.toShortVectorValue(): ShortVectorValue? = when (this.dataCase) {
+    CottontailGrpc.Literal.DataCase.BOOLEANDATA -> ShortVectorValue(ShortArray(1) { this.booleanData.toShort() })
+    CottontailGrpc.Literal.DataCase.INTDATA -> ShortVectorValue(ShortArray(1) { this.intData.toShort() })
+    CottontailGrpc.Literal.DataCase.LONGDATA -> ShortVectorValue(ShortArray(1) { this.longData.toShort() })
+    CottontailGrpc.Literal.DataCase.FLOATDATA -> ShortVectorValue(ShortArray(1) { this.floatData.toInt().toShort() })
+    CottontailGrpc.Literal.DataCase.DOUBLEDATA -> ShortVectorValue(ShortArray(1) { this.doubleData.toInt().toShort() })
+    CottontailGrpc.Literal.DataCase.DATEDATA -> ShortVectorValue(ShortArray(1) { this.dateData.toShort() })
+    CottontailGrpc.Literal.DataCase.STRINGDATA -> ShortVectorValue(ShortArray(1) {
+        this.stringData.toShortOrNull()
+            ?: throw IllegalArgumentException("A value of type STRING (v='${this.stringData}') cannot be cast to VECTOR[SHORT].")
+    })
+    CottontailGrpc.Literal.DataCase.VECTORDATA -> this.vectorData.toShortVectorValue()
+    CottontailGrpc.Literal.DataCase.NULLDATA -> null
+    else -> throw IllegalArgumentException("Malformed literal: ${this.dataCase} cannot be cast to VECTOR[LONG].")
+
+}
+
 /**
  * Returns the value of [CottontailGrpc.Literal] as [IntVectorValue].
  *
@@ -657,6 +676,15 @@ fun CottontailGrpc.Vector.toIntVectorValue(): IntVectorValue = when (this.vector
     CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> IntVectorValue(this.intVector.vectorList.toTypedArray())
     CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> IntVectorValue(this.boolVector.vectorList.map { if (it) 1 else 0 })
     else -> throw IllegalArgumentException("${this.vectorDataCase} cannot be cast to VECTOR[INT].")
+}
+
+fun CottontailGrpc.Vector.toShortVectorValue(): ShortVectorValue = when (this.vectorDataCase) {
+    CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> ShortVectorValue(this.doubleVector.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> ShortVectorValue(this.floatVector.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> ShortVectorValue(this.longVector.vectorList.toTypedArray())
+    CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> ShortVectorValue(this.intVector.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> ShortVectorValue(this.boolVector.vectorList.map { if (it) 1 else 0 })
+    else -> throw IllegalArgumentException("${this.vectorDataCase} cannot be cast to VECTOR[SHORT].")
 }
 
 /**

@@ -44,6 +44,7 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
                 is LongValue -> Long.SIZE_BYTES
                 is LongVectorValue -> value.logicalSize * Long.SIZE_BYTES
                 is ShortValue -> Short.SIZE_BYTES
+                is ShortVectorValue -> value.logicalSize * Short.SIZE_BYTES
                 is ByteStringValue -> value.logicalSize
                 is StringValue -> value.value.length * Char.SIZE_BYTES
                 is UuidValue -> 2 * Long.SIZE_BYTES
@@ -67,6 +68,7 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
                     Types.Uuid,
                     Types.Int,
                     is Types.IntVector -> Int.SIZE_BYTES
+                    is Types.ShortVector -> Short.SIZE_BYTES
                     is Types.BooleanVector -> TODO()
                 }
             }
@@ -167,12 +169,14 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
             is FloatVectorValue -> value.data.forEach { buffer.putFloat(it) }
             is IntVectorValue -> value.data.forEach { buffer.putInt(it) }
             is LongVectorValue -> value.data.forEach { buffer.putLong(it) }
+            is ShortVectorValue -> value.data.forEach { buffer.putShort(it) }
             null -> when (type) {
                 Types.Boolean,
                 is Types.BooleanVector,
                 Types.Byte -> buffer.put(Byte.MIN_VALUE)
 
-                Types.Short -> buffer.putShort(Short.MIN_VALUE)
+                Types.Short,
+                is Types.ShortVector -> buffer.putShort(Short.MIN_VALUE)
                 Types.Int,
                 is Types.IntVector -> buffer.putInt(Int.MIN_VALUE)
 
@@ -201,7 +205,10 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
                 Types.ByteString,
                 Types.String,
                 Types.Uuid -> buffer.putInt(-1)
+
             }
+
+
         }
     }
 
@@ -323,6 +330,16 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
                 LongVectorValue(LongArray(type.logicalSize) { buffer.long })
             }
         }
+
+        is Types.ShortVector -> {
+            buffer.mark()
+            if (buffer.short == Short.MIN_VALUE) {
+                null
+            } else {
+                buffer.reset()
+                ShortVectorValue(ShortArray(type.logicalSize) { buffer.short })
+            }
+        }
     }
 
     /**
@@ -359,5 +376,6 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
         is Types.FloatVector -> FloatVectorValue(FloatArray(type.logicalSize) { buffer.float })
         is Types.IntVector -> IntVectorValue(IntArray(type.logicalSize) { buffer.int })
         is Types.LongVector -> LongVectorValue(LongArray(type.logicalSize) { buffer.long })
+        is Types.ShortVector -> ShortVectorValue(ShortArray(type.logicalSize) { buffer.short })
     }
 }

@@ -76,6 +76,7 @@ class TupleSimpleSerializer(val columns: Array<ColumnDef<*>>): KSerializer<Tuple
                 is Types.LongVector -> parseLongVectorValue(dec.decodeStringElement(this.descriptor, index))
                 is Types.Complex32Vector -> parseComplex32VectorValue(dec.decodeStringElement(this.descriptor, index))
                 is Types.Complex64Vector -> parseComplex64VectorValue(dec.decodeStringElement(this.descriptor, index))
+                is Types.ShortVector -> parseShortVectorValue(dec.decodeStringElement(this.descriptor, index))
             }
             list.add(value)
         }

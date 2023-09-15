@@ -47,4 +47,5 @@ fun <T: Value> Types<*>.defaultStatistics(): ValueStatistics<T> = when(this) {
     is Types.DoubleVector -> DoubleVectorValueStatistics(this.logicalSize)
     is Types.Complex32Vector -> Complex32VectorValueStatistics(this.logicalSize)
     is Types.Complex64Vector -> Complex64VectorValueStatistics(this.logicalSize)
+    is Types.ShortVector -> ShortVectorValueStatistics(this.logicalSize)
 } as ValueStatistics<T>

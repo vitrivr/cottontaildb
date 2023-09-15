@@ -66,6 +66,10 @@ object ValueFunnel: Funnel<Value?> {
                 into.putInt(value.logicalSize)
                 value.data.forEach { into.putLong(it) }
             }
+            is ShortVectorValue -> {
+                into.putInt(value.logicalSize)
+                value.data.forEach { into.putShort(it) }
+            }
             is FloatVectorValue -> {
                 into.putInt(value.logicalSize)
                 value.data.forEach { into.putFloat(it) }

@@ -76,6 +76,7 @@ data class ColumnStatistic(val type: Types<*>, val statistics: ValueStatistics<*
             is Types.LongVector -> LongVectorValueStatistics(def.type.logicalSize)
             is Types.Complex32Vector -> Complex32VectorValueStatistics(def.type.logicalSize)
             is Types.Complex64Vector -> Complex64VectorValueStatistics(def.type.logicalSize)
+            is Types.ShortVector -> ShortVectorValueStatistics(def.type.logicalSize)
         }
     )
 }

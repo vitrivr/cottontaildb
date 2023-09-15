@@ -32,6 +32,7 @@ fun PublicValue.toDescription(vectorSeparator: String = ";", max: Int = 4): Stri
     is LongVectorValue -> this.toDescription(vectorSeparator, max)
     is Complex32VectorValue -> this.toDescription(vectorSeparator, max)
     is Complex64VectorValue -> this.toDescription(vectorSeparator, max)
+    is ShortVectorValue -> this.toDescription(vectorSeparator, max)
 }
 
 /**
@@ -185,6 +186,12 @@ fun IntVectorValue.toDescription(vectorSeparator: String = ";", max: Int = 4) : 
  * @return [IntVectorValue]
  */
 fun parseIntVectorValue(string: String, vectorSeparator: String = ";") = IntVectorValue(
+    string.substring(1 until string.length - 1).split(vectorSeparator).map {
+        it.toInt()
+    }.toTypedArray()
+)
+
+fun parseShortVectorValue(string: String, vectorSeparator: String = ";") = ShortVectorValue(
     string.substring(1 until string.length - 1).split(vectorSeparator).map {
         it.toInt()
     }.toTypedArray()

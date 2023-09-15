@@ -48,6 +48,7 @@ sealed class Types<T : Value> {
             "COMPLEX32_VECTOR" -> Complex32Vector(logicalSize)
             "COMPLEX64_VECTOR" -> Complex64Vector(logicalSize)
             "BYTESTRING" -> ByteString
+            "SHORT_VECTOR" -> ShortVector(logicalSize)
             else -> throw java.lang.IllegalArgumentException("The column type $name does not exists!")
         }
 
@@ -78,6 +79,7 @@ sealed class Types<T : Value> {
             17 -> Complex32Vector(logicalSize)
             18 -> Complex64Vector(logicalSize)
             19 -> ByteString
+            20 -> ShortVector(logicalSize)
             else -> throw java.lang.IllegalArgumentException("The column type for ordinal $ordinal does not exists!")
         }
     }
@@ -301,5 +303,14 @@ sealed class Types<T : Value> {
         override val ordinal: kotlin.Int = 19
         override val logicalSize = LOGICAL_SIZE_UNKNOWN
         override val physicalSize = LOGICAL_SIZE_UNKNOWN * Char.SIZE_BYTES
+    }
+
+    @Serializable
+    @SerialName("SHORT_VECTOR")
+    class ShortVector(override val logicalSize: kotlin.Int): Vector<ShortVectorValue, ShortValue>() {
+        override val name = "SHORT_VECTOR"
+        override val ordinal: kotlin.Int = 20
+        override val physicalSize = this.logicalSize * kotlin.Short.SIZE_BYTES
+        override val elementType = Short
     }
 }

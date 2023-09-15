@@ -228,6 +228,7 @@ enum Type {
     BOOL_VECTOR = 34;
     COMPLEX32_VECTOR = 35;
     COMPLEX64_VECTOR = 36;
+    SHORT_VECTOR = 37;
 
     /* BLOB types */
     BYTESTRING = 50;
