@@ -71,6 +71,7 @@ data class ColumnStatistic(val type: Types<*>, val statistics: ValueStatistics<*
             Types.Uuid -> UuidValueStatistics()
             is Types.BooleanVector -> BooleanVectorValueStatistics(def.type.logicalSize)
             is Types.DoubleVector -> DoubleVectorValueStatistics(def.type.logicalSize)
+            is Types.HalfVector,
             is Types.FloatVector -> FloatVectorValueStatistics(def.type.logicalSize)
             is Types.IntVector -> IntVectorValueStatistics(def.type.logicalSize)
             is Types.LongVector -> LongVectorValueStatistics(def.type.logicalSize)

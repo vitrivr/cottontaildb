@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.*
+import org.vitrivr.cottontail.utilities.math.Half
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
 
@@ -69,6 +70,7 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
                     Types.Int,
                     is Types.IntVector -> Int.SIZE_BYTES
                     is Types.ShortVector -> Short.SIZE_BYTES
+                    is Types.HalfVector -> Short.SIZE_BYTES
                     is Types.BooleanVector -> TODO()
                 }
             }
@@ -201,6 +203,8 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
                     buffer.putDouble(Double.MIN_VALUE)
                     buffer.putDouble(Double.MIN_VALUE)
                 }
+
+                is Types.HalfVector -> buffer.putShort(Half.MIN_VALUE.toShort())
 
                 Types.ByteString,
                 Types.String,
@@ -340,6 +344,16 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
                 ShortVectorValue(ShortArray(type.logicalSize) { buffer.short })
             }
         }
+
+        is Types.HalfVector -> {
+            buffer.mark()
+            if (buffer.short == Half.MIN_VALUE.toShort()) {
+                null
+            } else {
+                buffer.reset()
+                FloatVectorValue(FloatArray(type.logicalSize) { Half(buffer.short.toUShort()).toFloat() })
+            }
+        }
     }
 
     /**
@@ -377,5 +391,6 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
         is Types.IntVector -> IntVectorValue(IntArray(type.logicalSize) { buffer.int })
         is Types.LongVector -> LongVectorValue(LongArray(type.logicalSize) { buffer.long })
         is Types.ShortVector -> ShortVectorValue(ShortArray(type.logicalSize) { buffer.short })
+        is Types.HalfVector -> FloatVectorValue(FloatArray(type.logicalSize) { Half(buffer.short.toUShort()).toFloat() })
     }
 }

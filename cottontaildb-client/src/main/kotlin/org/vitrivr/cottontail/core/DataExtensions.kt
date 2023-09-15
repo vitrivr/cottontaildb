@@ -90,6 +90,7 @@ fun CottontailGrpc.Literal.toValue(type: Types<*>): PublicValue? = when (type) {
     is Types.Complex64Vector -> this.toComplex64VectorValue()
     is Types.ShortVector -> this.toShortVectorValue()
     is Types.ByteString -> this.toByteStringValue()
+    is Types.HalfVector -> this.toFloatVectorValue()
 }
 
 /**
@@ -184,6 +185,8 @@ fun CottontailGrpc.Type.toType(size: Int = 0): Types<*> = when(this) {
     CottontailGrpc.Type.BOOL_VECTOR -> Types.BooleanVector(size)
     CottontailGrpc.Type.COMPLEX32_VECTOR -> Types.Complex32Vector(size)
     CottontailGrpc.Type.COMPLEX64_VECTOR -> Types.Complex64Vector(size)
+    CottontailGrpc.Type.SHORT_VECTOR -> Types.ShortVector(size)
+    CottontailGrpc.Type.HALF_VECTOR -> Types.HalfVector(size)
     else -> throw IllegalArgumentException("gRPC type $this is unsupported and cannot be converted to Cottontail DB equivalent.")
 }
 
@@ -213,6 +216,7 @@ fun Types<*>.proto(): CottontailGrpc.Type = when(this) {
     is Types.Complex32Vector -> CottontailGrpc.Type.COMPLEX32_VECTOR
     is Types.Complex64Vector -> CottontailGrpc.Type.COMPLEX64_VECTOR
     is Types.ShortVector -> CottontailGrpc.Type.SHORT_VECTOR
+    is Types.HalfVector -> CottontailGrpc.Type.HALF_VECTOR
     Types.ByteString -> CottontailGrpc.Type.BYTESTRING
 }
 

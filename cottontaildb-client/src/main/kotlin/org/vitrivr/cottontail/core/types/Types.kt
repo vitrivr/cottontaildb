@@ -49,6 +49,7 @@ sealed class Types<T : Value> {
             "COMPLEX64_VECTOR" -> Complex64Vector(logicalSize)
             "BYTESTRING" -> ByteString
             "SHORT_VECTOR" -> ShortVector(logicalSize)
+            "HALF_VECTOR" -> HalfVector(logicalSize)
             else -> throw java.lang.IllegalArgumentException("The column type $name does not exists!")
         }
 
@@ -80,6 +81,7 @@ sealed class Types<T : Value> {
             18 -> Complex64Vector(logicalSize)
             19 -> ByteString
             20 -> ShortVector(logicalSize)
+            21 -> HalfVector(logicalSize)
             else -> throw java.lang.IllegalArgumentException("The column type for ordinal $ordinal does not exists!")
         }
     }
@@ -312,5 +314,14 @@ sealed class Types<T : Value> {
         override val ordinal: kotlin.Int = 20
         override val physicalSize = this.logicalSize * kotlin.Short.SIZE_BYTES
         override val elementType = Short
+    }
+
+    @Serializable
+    @SerialName("HALF_VECTOR")
+    class HalfVector(override val logicalSize: kotlin.Int): Vector<FloatVectorValue, FloatValue>() {
+        override val name = "HALF_VECTOR"
+        override val ordinal: kotlin.Int = 21
+        override val physicalSize = this.logicalSize * kotlin.Short.SIZE_BYTES
+        override val elementType = Float
     }
 }

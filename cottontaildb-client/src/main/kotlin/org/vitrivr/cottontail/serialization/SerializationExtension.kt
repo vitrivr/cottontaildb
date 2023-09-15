@@ -31,6 +31,7 @@ fun Types<*>.valueSerializer(): KSerializer<PublicValue?> = when (this) {
     is Types.Complex32Vector -> Complex32VectorValue.serializer()
     is Types.Complex64Vector -> Complex64VectorValue.serializer()
     is Types.DoubleVector -> DoubleVectorValue.serializer()
+    is Types.HalfVector,
     is Types.FloatVector -> FloatVectorValue.serializer()
     is Types.IntVector -> IntVectorValue.serializer()
     is Types.LongVector -> LongVectorValue.serializer()
