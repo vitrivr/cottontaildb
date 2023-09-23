@@ -2,10 +2,7 @@ package org.vitrivr.cottontail.core.values
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.NumericValue
-import org.vitrivr.cottontail.core.types.RealValue
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -17,7 +14,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 @Serializable
 @SerialName("Byte")
 @JvmInline
-value class ByteValue(override val value: Byte): RealValue<Byte>, PublicValue {
+value class ByteValue(override val value: Byte): RealValue<Byte>, Value {
 
     companion object {
         /**
@@ -43,10 +40,6 @@ value class ByteValue(override val value: Byte): RealValue<Byte>, PublicValue {
      * @param number The [Number] that should be converted to a [ShortValue]
      */
     constructor(number: Number) : this(number.toByte())
-
-    /** The logical size of this [ByteValue]. */
-    override val logicalSize: Int
-        get() = 1
 
     /** The [Types] of this [ByteValue]. */
     override val type: Types<*>
@@ -87,12 +80,12 @@ value class ByteValue(override val value: Byte): RealValue<Byte>, PublicValue {
     override fun isEqual(other: Value): Boolean = (other is ByteValue) && (other.value == this.value)
 
     /**
-     * Converts this [ByteValue] to a [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [ByteValue] to a [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setIntData(this.value.toInt()).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setIntData(this.value.toInt())
 
     override fun asDouble(): DoubleValue = DoubleValue(this.value.toDouble())
     override fun asFloat(): FloatValue = FloatValue(this.value.toFloat())

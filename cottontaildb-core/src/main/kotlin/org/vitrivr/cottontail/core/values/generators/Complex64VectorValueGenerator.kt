@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.core.values.generators
 
-import org.vitrivr.cottontail.core.types.VectorValue
+import org.vitrivr.cottontail.core.values.VectorValue
 import org.vitrivr.cottontail.core.values.Complex64VectorValue
 import java.util.random.RandomGenerator
 

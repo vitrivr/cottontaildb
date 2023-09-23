@@ -9,9 +9,9 @@ import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.core.types.RealVectorValue
-import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.DoubleValue
+import org.vitrivr.cottontail.core.values.RealVectorValue
+import org.vitrivr.cottontail.core.values.VectorValue
 import org.vitrivr.cottontail.dbms.index.pq.quantizer.PQCodebook
 import org.vitrivr.cottontail.dbms.index.pq.signature.IVFPQSignature
 import org.vitrivr.cottontail.dbms.index.pq.signature.PQLookupTable

@@ -7,7 +7,7 @@ import io.javalin.openapi.*
 import org.vitrivr.cottontail.client.iterators.TupleIterator
 import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.dql.Query
-import org.vitrivr.cottontail.core.values.PublicValue
+import org.vitrivr.cottontail.core.types.PublicValue
 import org.vitrivr.cottontail.ui.api.database.drainToList
 import org.vitrivr.cottontail.ui.api.database.obtainClientForContext
 import org.vitrivr.cottontail.ui.model.results.Column

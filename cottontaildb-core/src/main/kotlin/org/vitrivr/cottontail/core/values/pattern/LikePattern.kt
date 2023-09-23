@@ -3,13 +3,13 @@ package org.vitrivr.cottontail.core.values.pattern
 import org.vitrivr.cottontail.core.values.StringValue
 
 /**
- * A [PatternValue] that corresponds to a LIKE expression, i.e., uses SQL wildcards. It can either
- * be converted to a [LucenePatternValue] or matched directly through regular expressions.
+ * A [Pattern] that corresponds to a LIKE expression, i.e., uses SQL wildcards. It can either
+ * be converted to a [LucenePattern] or matched directly through regular expressions.
  *
  * @author Ralph Gasser
  * @version 1.1.2
  */
-sealed class LikePatternValue(value: String) : PatternValue(value) {
+sealed class LikePattern(pattern: String) : Pattern(pattern) {
 
     companion object {
         /** Wildcard used to match zero, one or multiple characters. */
@@ -19,10 +19,10 @@ sealed class LikePatternValue(value: String) : PatternValue(value) {
         const val SINGLE_WILDCARD = '_'
 
         /**
-         * Converts an expression to a [LikePatternValue].
+         * Converts an expression to a [LikePattern].
          *
          * @param exp The expression to convert.
-         * @return [LikePatternValue]
+         * @return [LikePattern]
          */
         fun forValue(exp: String) = when {
             exp.endsWith(ZERO_ONE_MULTIPLE_WILDCARD) && exp.count { it == ZERO_ONE_MULTIPLE_WILDCARD } == 1 ||
@@ -34,9 +34,9 @@ sealed class LikePatternValue(value: String) : PatternValue(value) {
     }
 
     /**
-     * A [LikePatternValue] for LIKE patterns that can be expressed with a regular expression.
+     * A [LikePattern] for LIKE patterns that can be expressed with a regular expression.
      */
-    class Regex(value: String) : LikePatternValue(value) {
+    class Regex(value: String) : LikePattern(value) {
         /** The [Regex] expression used for matching; created lazily */
         private val regex by lazy {
             val cleaned = value.replace("\\", "\\\\")
@@ -59,7 +59,7 @@ sealed class LikePatternValue(value: String) : PatternValue(value) {
         }
 
         /**
-         * Checks if the given [StringValue] matches this [LikePatternValue].
+         * Checks if the given [StringValue] matches this [LikePattern].
          *
          * @param value [StringValue] to match.
          * @return True on match, false otherwise.
@@ -68,24 +68,24 @@ sealed class LikePatternValue(value: String) : PatternValue(value) {
     }
 
     /**
-     * A [LikePatternValue] for LIKE patterns that are equivalent to a 'startsWith' semantic, i.e., LIKE 'XYZ%'.
+     * A [LikePattern] for LIKE patterns that are equivalent to a 'startsWith' semantic, i.e., LIKE 'XYZ%'.
      *
-     * Supposed to be faster than [LikePatternValue.Regex]
+     * Supposed to be faster than [LikePattern.Regex]
      */
-    class StartsWith(value: String) : LikePatternValue(value) {
+    class StartsWith(value: String) : LikePattern(value) {
 
         init {
-            val wildcardCount = this.value.count { it == ZERO_ONE_MULTIPLE_WILDCARD || it == SINGLE_WILDCARD }
-            require(this.value[this.value.length - 1] == ZERO_ONE_MULTIPLE_WILDCARD && wildcardCount == 1) {
+            val wildcardCount = this.pattern.count { it == ZERO_ONE_MULTIPLE_WILDCARD || it == SINGLE_WILDCARD }
+            require(this.pattern[this.pattern.length - 1] == ZERO_ONE_MULTIPLE_WILDCARD && wildcardCount == 1) {
                 "StartsWith LIKE patterns must only contain a single wildcard % at the end."
             }
         }
 
         /** String used for comparison. */
-        val startsWith = this.value.subSequence(0, value.length - 1)
+        val startsWith = this.pattern.subSequence(0, value.length - 1)
 
         /**
-         * Checks if the given [StringValue] matches this [LikePatternValue].
+         * Checks if the given [StringValue] matches this [LikePattern].
          *
          * @param value [StringValue] to match.
          * @return True on match, false otherwise.
@@ -94,22 +94,22 @@ sealed class LikePatternValue(value: String) : PatternValue(value) {
     }
 
     /**
-     * A [LikePatternValue] for LIKE patterns that are equivalent to a 'endsWith' semantic, i.e., LIKE '%XYZ'.
+     * A [LikePattern] for LIKE patterns that are equivalent to a 'endsWith' semantic, i.e., LIKE '%XYZ'.
      *
-     * Supposed to be faster than [LikePatternValue.Regex]
+     * Supposed to be faster than [LikePattern.Regex]
      */
-    class EndsWith(value: String) : LikePatternValue(value) {
+    class EndsWith(value: String) : LikePattern(value) {
 
         init {
-            val wildcardCount = this.value.count { it == ZERO_ONE_MULTIPLE_WILDCARD || it == SINGLE_WILDCARD }
-            require(this.value[0] == ZERO_ONE_MULTIPLE_WILDCARD && wildcardCount == 1) { "EndsWith LIKE patterns must only contain a single wildcard % at the beginning." }
+            val wildcardCount = this.pattern.count { it == ZERO_ONE_MULTIPLE_WILDCARD || it == SINGLE_WILDCARD }
+            require(this.pattern[0] == ZERO_ONE_MULTIPLE_WILDCARD && wildcardCount == 1) { "EndsWith LIKE patterns must only contain a single wildcard % at the beginning." }
         }
 
         /** String used for comparison. */
-        val endsWith = this.value.substring(1, value.length)
+        val endsWith = this.pattern.substring(1, value.length)
 
         /**
-         * Checks if the given [StringValue] matches this [LikePatternValue].
+         * Checks if the given [StringValue] matches this [LikePattern].
          *
          * @param value [StringValue] to match.
          * @return True on match, false otherwise.
@@ -118,14 +118,14 @@ sealed class LikePatternValue(value: String) : PatternValue(value) {
     }
 
     /**
-     * Converts this [LikePatternValue] to a [LucenePatternValue] and returns it.
+     * Converts this [LikePattern] to a [LucenePattern] and returns it.
      *
-     * @return [LucenePatternValue] that corresponds to this [LikePatternValue]
+     * @return [LucenePattern] that corresponds to this [LikePattern]
      */
-    fun toLucene(): LucenePatternValue {
-        val cleaned = this.value
+    fun toLucene(): LucenePattern {
+        val cleaned = this.pattern
             .replace(ZERO_ONE_MULTIPLE_WILDCARD, '*') /* LIKE syntax to match multiple characters: % --> * */
             .replace(SINGLE_WILDCARD, '?') /* LIKE syntax to match single character: _ --> ? */
-        return LucenePatternValue(cleaned)
+        return LucenePattern(cleaned)
     }
 }

@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.storage.serializers.tablets
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.core.values.tablets.bytebuffer.AbstractByteBufferTablet
 import org.xerial.snappy.BitShuffle
 import org.xerial.snappy.BitShuffleType

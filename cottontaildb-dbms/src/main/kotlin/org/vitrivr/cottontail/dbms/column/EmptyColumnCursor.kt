@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.dbms.column
 
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.Value
 
 /**
  * An empty [Cursor] implementation that can be used as placeholder for empty [Column]s.

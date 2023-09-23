@@ -3,9 +3,9 @@ package org.vitrivr.cottontail.core.queries.functions.math.distance.ternary
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.queries.functions.Signature
-import org.vitrivr.cottontail.core.types.NumericValue
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.VectorValue
+import org.vitrivr.cottontail.core.values.NumericValue
+import org.vitrivr.cottontail.core.values.VectorValue
 
 /**
  * A ternary, [Function] used for weighted, distance calculations between a query [VectorValue] and other vector values.

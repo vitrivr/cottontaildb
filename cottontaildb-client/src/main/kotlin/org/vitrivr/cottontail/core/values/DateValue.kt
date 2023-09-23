@@ -2,9 +2,7 @@ package org.vitrivr.cottontail.core.values
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.ScalarValue
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.time.Instant
 import java.util.*
@@ -18,7 +16,7 @@ import java.util.*
 @Serializable
 @SerialName("Date")
 @JvmInline
-value class DateValue(override val value: Long) : ScalarValue<Long>, PublicValue {
+value class DateValue(override val value: Long) : ScalarValue<Long>, Value {
 
     /**
      * Converts a [Date] to a [DateValue].
@@ -26,10 +24,6 @@ value class DateValue(override val value: Long) : ScalarValue<Long>, PublicValue
      * @param date The [Date] to convert.
      */
     constructor(date: Date) : this(date.time)
-
-    /** The logical size of this [DateValue]. */
-    override val logicalSize: Int
-        get() = 1
 
     /** The [Types] of this [DateValue]. */
     override val type: Types<*>
@@ -65,10 +59,10 @@ value class DateValue(override val value: Long) : ScalarValue<Long>, PublicValue
     fun toDate() = Date.from(Instant.ofEpochMilli(this.value))
 
     /**
-     * Converts this [DateValue] to a  [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [DateValue] to a  [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setDateData(this.value).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setDateData(this.value)
 }

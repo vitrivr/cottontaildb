@@ -5,9 +5,9 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.LongValue
+import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.core.values.generators.*
 import java.util.random.RandomGenerator
 

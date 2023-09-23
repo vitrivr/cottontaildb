@@ -4,7 +4,7 @@ import org.vitrivr.cottontail.client.language.basics.LanguageFeature
 import org.vitrivr.cottontail.client.language.extensions.proto
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tryConvertToValue
-import org.vitrivr.cottontail.core.values.PublicValue
+import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -69,7 +69,7 @@ class Insert(entity: Name.EntityName): LanguageFeature() {
      * @param value The value or null.
      * @return This [Insert]
      */
-    fun value(column: String, value: PublicValue?): Insert {
+    fun value(column: String, value: Value?): Insert {
         this.builder.addElements(
             CottontailGrpc.InsertMessage.InsertElement.newBuilder()
                 .setColumn(Name.ColumnName.parse(column).proto())
@@ -96,7 +96,7 @@ class Insert(entity: Name.EntityName): LanguageFeature() {
      * @param assignments The value assignments for the [Insert]
      * @return This [Insert]
      */
-    fun values(vararg assignments: Pair<String, PublicValue?>): Insert {
+    fun values(vararg assignments: Pair<String, Value?>): Insert {
         for (assignment in assignments) {
             this.value(assignment.first, assignment.second)
         }

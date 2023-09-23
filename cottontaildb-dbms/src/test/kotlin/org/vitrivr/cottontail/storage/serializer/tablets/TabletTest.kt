@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.storage.serializer.tablets
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.core.values.generators.*
 import org.vitrivr.cottontail.core.values.tablets.AbstractTablet
 import org.vitrivr.cottontail.core.values.tablets.Tablet

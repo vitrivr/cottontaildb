@@ -7,11 +7,7 @@ import org.apache.commons.math3.linear.ArrayRealVector
 import org.apache.commons.math3.linear.FieldVector
 import org.apache.commons.math3.linear.FieldVectorPreservingVisitor
 import org.junit.jupiter.api.Assertions
-import org.vitrivr.cottontail.core.values.Complex32Value
-import org.vitrivr.cottontail.core.values.Complex32VectorValue
-import org.vitrivr.cottontail.core.values.Complex64Value
-import org.vitrivr.cottontail.core.values.Complex64VectorValue
-import org.vitrivr.cottontail.core.types.VectorValue
+import org.vitrivr.cottontail.core.values.*
 import kotlin.math.abs
 
 const val DELTA_COARSE = 5e-5

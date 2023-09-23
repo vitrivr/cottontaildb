@@ -2,9 +2,7 @@ package org.vitrivr.cottontail.core.values
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.ScalarValue
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -16,7 +14,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 @Serializable
 @SerialName("Boolean")
 @JvmInline
-value class BooleanValue(override val value: Boolean): ScalarValue<Boolean>, PublicValue {
+value class BooleanValue(override val value: Boolean): ScalarValue<Boolean>, Value {
 
     companion object {
         /** The true [BooleanValue]. */
@@ -25,9 +23,6 @@ value class BooleanValue(override val value: Boolean): ScalarValue<Boolean>, Pub
         /** The false [BooleanValue]. */
         val FALSE = BooleanValue(false)
     }
-    /** The logical size of this [BooleanValue]. */
-    override val logicalSize: Int
-        get() = 1
 
     /** The [Types] size of this [BooleanValue]. */
     override val type: Types<*>
@@ -59,10 +54,10 @@ value class BooleanValue(override val value: Boolean): ScalarValue<Boolean>, Pub
     override fun isEqual(other: Value): Boolean = (other is BooleanValue) && (other.value == this.value)
 
     /**
-     * Converts this [ByteValue] to a [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [ByteValue] to a [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setBooleanData(this.value).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setBooleanData(this.value)
 }

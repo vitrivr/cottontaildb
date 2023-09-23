@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.utilities.math.clustering
 
-import org.vitrivr.cottontail.core.types.VectorValue
+import org.vitrivr.cottontail.core.values.VectorValue
 
 /**
  * A [Cluster], identified by a center and the points it contains.

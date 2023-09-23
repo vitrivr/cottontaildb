@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.utilities.hashing
 import com.google.common.hash.Funnel
 import com.google.common.hash.PrimitiveSink
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.*
 import java.nio.charset.Charset
 
@@ -25,7 +24,7 @@ object ValueFunnel: Funnel<Value?> {
      * @param into The [PrimitiveSink]
      */
     override fun funnel(from: Value?, into: PrimitiveSink) {
-        val value = from as? PublicValue
+        val value = from as? Value
         if (value == null) {
             into.putBoolean(true)
             return

@@ -6,7 +6,6 @@ import com.jakewharton.picnic.table
 import org.vitrivr.cottontail.client.iterators.TupleIterator
 import org.vitrivr.cottontail.core.toDescription
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -77,7 +76,7 @@ object TabulationUtilities {
      */
     private fun tupleToRow(table: TableSectionDsl, tuple: Tuple) = table.row {
         (0 until tuple.size).forEach {
-            cell((tuple[it] as? PublicValue)?.toDescription())
+            cell((tuple[it])?.toDescription())
         }
     }
 }

@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.core.types
+package org.vitrivr.cottontail.core.values
 /**
  * Represents a real valued vector value of any primitive type, i.e. [Short], [Int], [Long], [Float]
  * or [Double]. This  is an abstraction over the existing primitive array types provided by Kotlin.
@@ -7,7 +7,7 @@ package org.vitrivr.cottontail.core.types
  * @version 2.0.0
  * @author Ralph Gasser
  */
-interface RealVectorValue<T: Number>: VectorValue<T>, Iterable<RealValue<T>> {
+sealed interface RealVectorValue<T: Number>: VectorValue<T>, Iterable<RealValue<T>> {
     /**
      * Returns the i-th entry of this [RealVectorValue].
      *

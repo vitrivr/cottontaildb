@@ -15,7 +15,6 @@ import org.vitrivr.cottontail.core.toValue
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.StringValue
-import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
@@ -383,12 +382,10 @@ object GrpcQueryBinder {
         CottontailGrpc.Predicate.Comparison.Operator.LIKE -> {
             with(MissingTuple) {
                 with(this@QueryContext.bindings) {
-                    if (right is Binding.Literal && right.getValue() is StringValue) {
-                        right.update(LikePatternValue.forValue((right.getValue() as StringValue).value))
-                        ComparisonOperator.Like(left, right)
-                    } else {
+                    if (!(right is Binding.Literal && right.getValue() is StringValue)) {
                         throw QueryException.QuerySyntaxException("LIKE operator expects a literal, parseable string value as right operand.")
                     }
+                    ComparisonOperator.Like(left, right)
                 }
             }
         }

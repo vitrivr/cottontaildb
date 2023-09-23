@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.storage.serializers
 
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.dbms.statistics.values.*
 import org.vitrivr.cottontail.storage.serializers.statistics.MetricsXodusBinding
 import org.vitrivr.cottontail.storage.serializers.tablets.*

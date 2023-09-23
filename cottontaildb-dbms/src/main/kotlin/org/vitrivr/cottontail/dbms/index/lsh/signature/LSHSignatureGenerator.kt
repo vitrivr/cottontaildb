@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.index.lsh.signature
 
-import org.vitrivr.cottontail.core.types.VectorValue
+import org.vitrivr.cottontail.core.values.VectorValue
 
 /**
  * A helper class that generates a [LSHSignature] from a [VectorValue] after training.

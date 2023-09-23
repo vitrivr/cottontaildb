@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.core.values
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.*
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 @Serializable
 @SerialName("Complex32")
 @JvmInline
-value class Complex32Value(val data: FloatArray): ComplexValue<Float>, PublicValue {
+value class Complex32Value(val data: FloatArray): ComplexValue<Float>, Value {
 
     companion object {
         val I = Complex32Value(floatArrayOf(0.0f, 1.0f))
@@ -106,12 +106,12 @@ value class Complex32Value(val data: FloatArray): ComplexValue<Float>, PublicVal
     override fun isEqual(other: Value): Boolean = (other is Complex32Value) && (this.data.contentEquals(other.data))
 
     /**
-     * Converts this [Complex32Value] to a [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [Complex32Value] to a [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setComplex32Data(CottontailGrpc.Complex32.newBuilder().setReal(this.data[0]).setImaginary(this.data[1])).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setComplex32Data(CottontailGrpc.Complex32.newBuilder().setReal(this.data[0]).setImaginary(this.data[1]))
 
     override fun asComplex32(): Complex32Value = this
     override fun asComplex64(): Complex64Value = Complex64Value(this.data[0], data[1])

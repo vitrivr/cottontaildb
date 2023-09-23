@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.statistics.values
 
-import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.values.RealVectorValue
 
 /**
  * A [ValueStatistics] for [VectorValue]s

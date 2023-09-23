@@ -6,7 +6,7 @@ import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.tuple.MutableTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.Value
 
 /**
  * A [Tuple] implementation that depends on the existence of [Binding]s for the [Value]s it contains. Used for inserts.
@@ -27,7 +27,7 @@ class TupleBinding(override var tupleId: TupleId, override val columns: Array<Co
      * @return [List] of [Value]
      */
     override fun values(): List<Value?> = with(this.context) {
-        return this@TupleBinding.values.map { it.getValue() }
+        return this@TupleBinding.values.map { it.getValue() as Value }
     }
 
     /**
@@ -38,7 +38,7 @@ class TupleBinding(override var tupleId: TupleId, override val columns: Array<Co
      */
     override fun get(index: Int): Value? = with(this.context) {
         require(index in (0 until this@TupleBinding.size)) { "The specified column $index is out of bounds." }
-        return this@TupleBinding.values[index].getValue()
+        return this@TupleBinding.values[index].getValue() as Value
     }
 
     /**

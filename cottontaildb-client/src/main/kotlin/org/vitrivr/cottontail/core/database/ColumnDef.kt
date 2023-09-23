@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.core.database
 
 import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.Value
 
 /**
  * A definition class for a Cottontail DB column be it in a persistent or in-memory context. Specifies all the properties

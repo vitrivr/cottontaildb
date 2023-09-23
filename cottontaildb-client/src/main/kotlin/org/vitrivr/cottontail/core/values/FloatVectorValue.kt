@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.core.values
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.*
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
@@ -19,7 +19,7 @@ import kotlin.math.pow
 @Serializable
 @SerialName("FloatVector")
 @JvmInline
-value class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float>, PublicValue {
+value class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float>, Value {
 
     constructor(input: List<Number>) : this(FloatArray(input.size) { input[it].toFloat() })
     constructor(input: Array<Number>) : this(FloatArray(input.size) { input[it].toFloat() })
@@ -29,14 +29,9 @@ value class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float>, Pub
     constructor(input: FloatBuffer) : this(FloatArray(input.remaining()) { input[it] })
     constructor(input: ByteBuffer) : this(input.asFloatBuffer())
 
-
-    /** The logical size of this [FloatVectorValue]. */
-    override val logicalSize: Int
-        get() = this.data.size
-
     /** The [Types] of this [FloatVectorValue]. */
     override val type: Types<*>
-        get() = Types.FloatVector(this.logicalSize)
+        get() = Types.FloatVector(this.data.size)
 
     /**
      * Compares this [FloatVectorValue] to another [FloatVectorValue]. The comparison is done lexicographically.
@@ -59,12 +54,12 @@ value class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float>, Pub
     override fun isEqual(other: Value): Boolean = (other is FloatVectorValue) && (this.data.contentEquals(other.data))
 
     /**
-     * Converts this [FloatVectorValue] to a [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [FloatVectorValue] to a [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setFloatVector(CottontailGrpc.FloatVector.newBuilder().addAllVector(this.map { it.value }))).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setFloatVector(CottontailGrpc.FloatVector.newBuilder().addAllVector(this.map { it.value })))
 
     /**
      * Returns the indices of this [FloatVectorValue].

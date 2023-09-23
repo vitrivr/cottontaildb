@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.core.toDouble
 import org.vitrivr.cottontail.core.toInt
-import org.vitrivr.cottontail.core.types.*
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.util.*
 import kotlin.math.pow
@@ -18,18 +18,14 @@ import kotlin.math.pow
 @Serializable
 @SerialName("BooleanVector")
 @JvmInline
-value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int>, PublicValue {
+value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int>, Value {
     constructor(input: List<Number>) : this(BooleanArray(input.size) { input[it].toInt() == 1 })
     constructor(input: Array<Number>) : this(BooleanArray(input.size) { input[it].toInt() == 1 })
     constructor(input: Array<Boolean>) : this(BooleanArray(input.size) { input[it] })
 
-    /** The logical size of this [BooleanVectorValue]. */
-    override val logicalSize: Int
-        get() = this.data.size
-
     /** The [Types] size of this [BooleanVectorValue]. */
     override val type: Types.Vector<BooleanVectorValue, BooleanValue>
-        get() = Types.BooleanVector(this.logicalSize)
+        get() = Types.BooleanVector(this.data.size)
 
     /**
      * Compares this [BooleanVectorValue] to another [BooleanVectorValue]. The comparison is done lexicographically.
@@ -52,12 +48,12 @@ value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int>, P
     override fun isEqual(other: Value): Boolean = (other is BooleanVectorValue) && (this.data.contentEquals(other.data))
 
     /**
-     * Converts this [BooleanVectorValue] to a  [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [BooleanVectorValue] to a  [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setBoolVector(CottontailGrpc.BoolVector.newBuilder().addAllVector(this.data.toList()))).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setBoolVector(CottontailGrpc.BoolVector.newBuilder().addAllVector(this.data.toList())))
 
 
     /**

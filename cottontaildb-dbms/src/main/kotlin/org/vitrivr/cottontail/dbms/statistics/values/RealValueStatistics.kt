@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.dbms.statistics.values
 
-import org.vitrivr.cottontail.core.types.RealValue
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.DoubleValue
+import org.vitrivr.cottontail.core.values.RealValue
 
 /**
  * A [ValueStatistics] implementation for [RealValue]s.

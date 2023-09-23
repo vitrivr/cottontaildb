@@ -2,10 +2,7 @@ package org.vitrivr.cottontail.core.values
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.NumericValue
-import org.vitrivr.cottontail.core.types.RealValue
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -17,7 +14,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 @Serializable
 @SerialName("Integer")
 @JvmInline
-value class IntValue(override val value: Int): RealValue<Int>, PublicValue {
+value class IntValue(override val value: Int): RealValue<Int>, Value {
 
     companion object {
         /**
@@ -50,10 +47,6 @@ value class IntValue(override val value: Int): RealValue<Int>, PublicValue {
      * @param number The [NumericValue] that should be converted to a [IntValue]
      */
     constructor(number: NumericValue<*>) : this(number.value.toInt())
-
-    /** The logical size of this [IntValue]*/
-    override val logicalSize: Int
-        get() = 1
 
     /** The [Types] of this [IntValue]. */
     override val type: Types<*>
@@ -94,12 +87,12 @@ value class IntValue(override val value: Int): RealValue<Int>, PublicValue {
     override fun isEqual(other: Value): Boolean = (other is IntValue) && (other.value == this.value)
 
     /**
-     * Converts this [IntValue] to a [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [IntValue] to a [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setIntData(this.value).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setIntData(this.value)
 
     override fun asDouble(): DoubleValue = DoubleValue(this.value.toDouble())
     override fun asFloat(): FloatValue = FloatValue(this.value.toFloat())

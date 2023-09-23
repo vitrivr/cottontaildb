@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.core.values
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.*
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
@@ -20,7 +20,7 @@ import kotlin.math.withSign
 @Serializable
 @SerialName("Complex32Vector")
 @JvmInline
-value class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Float>, PublicValue {
+value class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Float>, Value {
     constructor(input: FloatBuffer) : this(FloatArray(input.remaining()) { input[it] })
     constructor(input: ByteBuffer) : this(input.asFloatBuffer())
 
@@ -63,13 +63,9 @@ value class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Floa
         }
     })
 
-    /** Logical size of the [Complex32VectorValue]. */
-    override val logicalSize: Int
-        get() = this.data.size / 2
-
     /** The [Types] of this [Complex32VectorValue]. */
     override val type: Types<*>
-        get() = Types.Complex32Vector(this.logicalSize)
+        get() = Types.Complex32Vector(this.data.size / 2)
 
     /**
      * Returns the i-th entry of  this [Complex32VectorValue].
@@ -123,14 +119,14 @@ value class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Floa
     override fun isEqual(other: Value): Boolean = (other is Complex32VectorValue) && (this.data.contentEquals(other.data))
 
     /**
-     * Converts this [Complex32VectorValue] to a [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [Complex32VectorValue] to a [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    override fun toGrpc(): CottontailGrpc.Literal =
+    override fun toGrpc(): CottontailGrpc.Literal.Builder =
         CottontailGrpc.Literal.newBuilder().setVectorData(
-            CottontailGrpc.Vector.newBuilder().setComplex32Vector(CottontailGrpc.Complex32Vector.newBuilder().addAllVector(this.map { CottontailGrpc.Complex32.newBuilder().setReal(it.real.value).setImaginary(it.imaginary.value).build() }))
-        ).build()
+            CottontailGrpc.Vector.newBuilder().setComplex32Vector(CottontailGrpc.Complex32Vector.newBuilder().addAllVector(this.map { CottontailGrpc.Complex32.newBuilder().setReal(it.real.value).setImaginary(it.imaginary.value) }))
+        )
 
     /**
      * Returns the indices of this [Complex32VectorValue].

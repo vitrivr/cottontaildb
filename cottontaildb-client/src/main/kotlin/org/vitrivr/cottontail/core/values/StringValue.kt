@@ -2,9 +2,7 @@ package org.vitrivr.cottontail.core.values
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.ScalarValue
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -16,20 +14,23 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 @Serializable
 @SerialName("String")
 @JvmInline
-value class StringValue(override val value: String) : ScalarValue<String>, PublicValue {
+value class StringValue(override val value: String) : ScalarValue<String>, Value {
 
     companion object {
         /** The empty [StringValue]. */
         val EMPTY = StringValue("")
     }
 
+    /** The [Types] of this [StringValue]. */
+    override val type: Types<*>
+        get() = Types.String
+
     /** The logical size of this [StringValue]. */
     override val logicalSize: Int
         get() = this.value.length
 
-    /** The [Types] of this [StringValue]. */
-    override val type: Types<*>
-        get() = Types.String
+    override val physicalSize: Int
+        get() = this.value.length * 8
 
     /**
      * Compares this [StringValue] to another [Value]. Returns -1, 0 or 1 of other value is smaller,
@@ -54,12 +55,12 @@ value class StringValue(override val value: String) : ScalarValue<String>, Publi
         = (other is StringValue) && (other.value == this.value)
 
     /**
-     * Converts this [StringValue] to a [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [StringValue] to a [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setStringData(this.value).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setStringData(this.value)
 
     /**
      * Returns the [value] held by this [StringValue].

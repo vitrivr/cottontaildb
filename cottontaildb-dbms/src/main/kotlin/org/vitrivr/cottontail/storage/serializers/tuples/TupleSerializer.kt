@@ -5,7 +5,6 @@ import org.vitrivr.cottontail.core.toByte
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.*
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
@@ -26,7 +25,7 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
     fun sizeOf(tuple: Tuple): Int {
         var size = Long.SIZE_BYTES /* Size of tupleId ID + number of columns */
         for (i in 0 until this.schema.size) {
-            size += when(val value = tuple[i] as? PublicValue) {
+            size += when(val value = tuple[i] as? Value) {
                 is BooleanValue,
                 is ByteValue -> Byte.SIZE_BYTES
                 is BooleanVectorValue -> TODO()
@@ -93,7 +92,7 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
         require(schema.contentDeepEquals(tuple.columns)) { "Tuple is not compatible with provided schema." }
         buffer.putLong(tuple.tupleId)
         for (i in 0 until this.schema.size) {
-            val value = tuple[i] as? PublicValue
+            val value = tuple[i] as? Value
             this.writeValue(value, this.schema[i].type, buffer)
         }
         return buffer.reset()
@@ -107,7 +106,7 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
      */
     fun fromByteBuffer(buffer: ByteBuffer): Tuple {
         val tupleId = buffer.long
-        val values = Array<Value?>(this.schema.size) {
+        val values = Array(this.schema.size) {
             val column = this.schema[it]
             if (column.nullable) {
                 this.readNullableValue(column.type, buffer)
@@ -119,13 +118,13 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
     }
 
     /**
-     * Writs a [PublicValue] (or null) of the given [Types] to the [ByteBuffer].
+     * Writs a [Value] (or null) of the given [Types] to the [ByteBuffer].
      *
-     * @param value The [PublicValue] to write.
-     * @param type The [Types] of the [PublicValue] (in case it is null).
+     * @param value The [Value] to write.
+     * @param type The [Types] of the [Value] (in case it is null).
      * @param buffer The [ByteBuffer] to write to.
      */
-    private fun writeValue(value: PublicValue?, type: Types<*>, buffer: ByteBuffer) {
+    private fun writeValue(value: Value?, type: Types<*>, buffer: ByteBuffer) {
         when (value) {
             is BooleanValue -> buffer.put(value.value.toByte())
             is ByteValue -> buffer.put(value.value)

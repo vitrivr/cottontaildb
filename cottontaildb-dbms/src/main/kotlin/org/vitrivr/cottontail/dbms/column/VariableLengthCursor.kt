@@ -5,7 +5,7 @@ import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
@@ -30,6 +30,7 @@ class VariableLengthCursor<T: Value>(private val column: Column<T>, private val 
     /** Internal Xodus cursor instance.  */
     private val cursor = this.dataStore.openCursor(this.transaction.xodusTx)
     override fun moveNext(): Boolean = this.cursor.next
+    override fun moveTo(tupleId: TupleId): Boolean = this.cursor.getSearchKey(LongBinding.longToCompressedEntry(tupleId)) != null
     override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
     override fun value(): T = this.binding.fromEntry(this.cursor.value)!!
     override fun close() = this.cursor.close()

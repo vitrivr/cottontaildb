@@ -7,6 +7,7 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import kotlinx.serialization.serializer
+import org.vitrivr.cottontail.core.types.PublicValue
 import org.vitrivr.cottontail.core.values.*
 import java.io.InputStream
 import java.lang.reflect.Type

@@ -9,10 +9,10 @@ import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
 import org.vitrivr.cottontail.core.queries.nodes.PreparableNode
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.generators.defaultValue
-import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
+import org.vitrivr.cottontail.core.values.pattern.LikePattern
 
 /**
  * A [ComparisonOperator] is used as part of a [BooleanPredicate] to
@@ -143,8 +143,24 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
      * A [ComparisonOperator] that expresses a LIKE comparison, i.e., left LIKE right.
      */
     class Like(override val left: Binding, override val right: Binding) : ComparisonOperator {
+        private var pattern = LikePattern.forValue("")
         context(BindingContext, Tuple)
-        override fun match() = this.left.getValue() is StringValue && this.right.getValue() is LikePatternValue && (this.right.getValue() as LikePatternValue).matches(this.left.getValue() as StringValue)
+        override fun match(): Boolean {
+            val value = this.left.getValue()
+            return value is StringValue && this.pattern.matches(value)
+        }
+
+        /**
+         * Prepares this [Like] for query execution by parsing the [StringValue] into a [LikePattern].
+         */
+        context(BindingContext)
+        override fun prepare() {
+            with (MissingTuple) {
+                val value = this@Like.right.getValue()
+                require(value is StringValue) { "A LIKE comparison operator can only be prepared from a string value." }
+                this@Like.pattern = LikePattern.forValue(value.value)
+            }
+        }
         override fun copy() = Like(this.left, this.right)
         override fun toString(): String = "$left LIKE $right"
         override fun digest(): Digest = this.hashCode().toLong()

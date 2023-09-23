@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  */
 @Serializable
 @SerialName("Literal")
-data class Literal(val value: PublicValue): Expression() {
+data class Literal(val value: Value): Expression() {
     constructor(value: Boolean): this(BooleanValue(value))
     constructor(value: Byte): this(ByteValue(value))
     constructor(value: Short): this(ShortValue(value))

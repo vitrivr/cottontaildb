@@ -6,9 +6,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.core.types.NumericValue
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
 import org.vitrivr.cottontail.dbms.execution.exceptions.OperatorSetupException
@@ -78,7 +76,7 @@ class MeanProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, ov
         }
 
         /** Emit record. */
-        val results = Array<Value?>(sum.size) { sum[it] / LongValue(count[it]) }
+        val results = Array<Value?>(sum.size) { (sum[it] / LongValue(count[it])) as Value }
         emit(StandaloneTuple(0L, columns, results))
     }
 }

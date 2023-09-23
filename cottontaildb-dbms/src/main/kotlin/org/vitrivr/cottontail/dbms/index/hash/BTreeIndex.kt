@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
@@ -259,7 +259,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          */
         override fun tryApply(event: DataEvent.Insert): Boolean {
             val value = event.data[this.columns[0]] ?: return true
-            return this.addMapping(value, event.tupleId)
+            return this.addMapping(value as Value, event.tupleId)
         }
 
         /**
@@ -270,8 +270,8 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         override fun tryApply(event: DataEvent.Update): Boolean {
             val old = event.data[this.columns[0]]?.first
             val new = event.data[this.columns[0]]?.second
-            val removed = (old == null || this.removeMapping(old, event.tupleId))
-            val added = (new == null || this.addMapping(new, event.tupleId))
+            val removed = (old == null || this.removeMapping(old as Value, event.tupleId))
+            val added = (new == null || this.addMapping(new as Value, event.tupleId))
             return removed && added
         }
 
@@ -282,7 +282,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          */
         override fun tryApply(event: DataEvent.Delete): Boolean {
             val old = event.data[this.columns[0]] ?: return true
-            return this.removeMapping(old, event.tupleId)
+            return this.removeMapping(old as Value, event.tupleId)
         }
 
         /**

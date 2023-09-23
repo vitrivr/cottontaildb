@@ -6,12 +6,12 @@ import org.vitrivr.cottontail.core.values.*
 private val COMPLEXREGEX = Regex("([-+]?\\d+(?:\\.\\d+)?)\\s*([+-])\\s*i\\s*([-+]?\\d+(?:\\.\\d+)?)")
 
 /**
- * Converts this [PublicValue] to a [String] description.
+ * Converts this [Value] to a [String] description.
  *
  * @param vectorSeparator The character used to separate vector components.
  * @param max The maximum number of components to visualize.
  */
-fun PublicValue.toDescription(vectorSeparator: String = ";", max: Int = 4): String = when(this) {
+fun Value.toDescription(vectorSeparator: String = ";", max: Int = 4): String = when(this) {
     is BooleanValue -> this.value.toString()
     is ByteValue -> this.value.toString()
     is ShortValue -> this.value.toString()

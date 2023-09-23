@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.core.queries.functions
 
-import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.Value
 
 /**
  * This decorator is part of Cottontail DB's vectorisation feature.

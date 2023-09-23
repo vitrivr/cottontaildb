@@ -2,10 +2,7 @@ package org.vitrivr.cottontail.core.values
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.NumericValue
-import org.vitrivr.cottontail.core.types.RealValue
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import kotlin.math.pow
 
@@ -18,7 +15,7 @@ import kotlin.math.pow
 @Serializable
 @SerialName("Float")
 @JvmInline
-value class FloatValue(override val value: Float): RealValue<Float>, PublicValue {
+value class FloatValue(override val value: Float): RealValue<Float>, Value {
 
     companion object {
         /**
@@ -66,10 +63,6 @@ value class FloatValue(override val value: Float): RealValue<Float>, PublicValue
      */
     constructor(number: NumericValue<*>) : this(number.value.toFloat())
 
-    /** The logical size of this [FloatValue]. */
-    override val logicalSize: Int
-        get() = 1
-
     /** The [Types] of this [FloatValue]. */
     override val type: Types<*>
         get() = Types.Float
@@ -109,12 +102,12 @@ value class FloatValue(override val value: Float): RealValue<Float>, PublicValue
     override fun isEqual(other: Value): Boolean = (other is FloatValue) && (other.value == this.value)
 
     /**
-     * Converts this [FloatValue] to a [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [FloatValue] to a [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setFloatData(this.value).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setFloatData(this.value)
 
     override fun asDouble(): DoubleValue = DoubleValue(this.value.toDouble())
     override fun asFloat(): FloatValue = this

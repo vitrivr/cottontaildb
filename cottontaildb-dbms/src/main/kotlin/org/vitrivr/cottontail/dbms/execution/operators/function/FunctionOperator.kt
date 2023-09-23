@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
@@ -40,7 +41,7 @@ class FunctionOperator(parent: Operator, private val function: Binding.Function,
                         if (it < outColumns.size - 1) {
                             this[it]
                         } else {
-                            this@FunctionOperator.function.getValue()
+                            this@FunctionOperator.function.getValue() as Value
                         }
                     }
                     emit(StandaloneTuple(record.tupleId, outColumns, outValues))

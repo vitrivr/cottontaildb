@@ -9,9 +9,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.core.types.NumericValue
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
 import org.vitrivr.cottontail.dbms.execution.exceptions.OperatorSetupException
@@ -116,7 +114,7 @@ class MergeMeanProjectionOperator(parents: List<Operator>, fields: List<Name.Col
         jobs.forEach { it.join() } /* Wait for jobs to complete. */
 
         /** Emit record. */
-        val results = Array<Value?>(globalSum.size) { globalSum[it] / LongValue(globalCount[it]) }
+        val results = Array<Value?>(globalSum.size) { (globalSum[it] / LongValue(globalCount[it])) as Value }
         send(StandaloneTuple(0L, columns, results))
     }
 }

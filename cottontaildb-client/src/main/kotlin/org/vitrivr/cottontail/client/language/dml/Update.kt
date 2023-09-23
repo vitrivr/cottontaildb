@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.client.language.basics.predicate.Predicate
 import org.vitrivr.cottontail.client.language.extensions.proto
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tryConvertToValue
-import org.vitrivr.cottontail.core.values.PublicValue
+import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -87,7 +87,7 @@ class Update(entity: Name.EntityName): LanguageFeature() {
      * @param assignments The value assignments for the [Update]
      * @return This [Update]
      */
-    fun values(vararg assignments: Pair<String, PublicValue?>): Update {
+    fun values(vararg assignments: Pair<String, Value?>): Update {
         for (assignment in assignments) {
             this.builder.addUpdates(
                 CottontailGrpc.UpdateMessage.UpdateElement.newBuilder()

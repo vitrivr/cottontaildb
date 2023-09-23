@@ -11,9 +11,10 @@ import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.core.types.RealVectorValue
-import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.DoubleValue
+import org.vitrivr.cottontail.core.values.RealVectorValue
+import org.vitrivr.cottontail.core.values.Value
+import org.vitrivr.cottontail.core.values.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
@@ -52,7 +53,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
     protected val boc = AtomicBoolean(false)
 
     /** Internal [ColumnTx] used to access actual values. */
-    protected val columnTx: ColumnTx<RealVectorValue<*>>
+    protected val columnTx: ColumnTx<Value>
 
     /** The [TupleId] to start with. */
     protected val startKey = this.partition.first.toKey()
@@ -91,7 +92,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
 
         /* Obtain Tx object for column. */
         val entityTx: EntityTx = this.index.dbo.parent.newTx(this.index.context)
-        this.columnTx = entityTx.columnForName(this.index.columns[0].name).newTx(this.index.context) as ColumnTx<RealVectorValue<*>>
+        this.columnTx = entityTx.columnForName(this.index.columns[0].name).newTx(this.index.context) as ColumnTx<Value>
     }
 
     /**

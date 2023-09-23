@@ -1,15 +1,15 @@
 package org.vitrivr.cottontail.core.values.generators
 
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.values.PublicValue
+import org.vitrivr.cottontail.core.values.Value
 
 /**
- * Generates and returns the default [PublicValue] for the given [Types].
+ * Generates and returns the default [Value] for the given [Types].
  *
  * @author Ralph Gasser
  * @version 1.0
  */
-fun Types<*>.defaultValue(): PublicValue = when(this) {
+fun Types<*>.defaultValue(): Value = when(this) {
     Types.Boolean -> BooleanValueGenerator.ofFalse()
     Types.ByteString -> ByteStringValueGenerator.empty()
     Types.Date -> DateValueGenerator.now()

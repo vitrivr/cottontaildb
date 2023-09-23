@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.storage.serializers.values
 
 import jetbrains.exodus.ByteIterable
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.Value
 
 /**
  * A serializer for Xodus based [Value] serialization and deserialization.

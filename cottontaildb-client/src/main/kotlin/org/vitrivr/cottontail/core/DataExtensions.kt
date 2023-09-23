@@ -5,7 +5,6 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.util.*
@@ -27,7 +26,7 @@ fun CottontailGrpc.QueryResponseMessage.Tuple.toTuple(tupleId: TupleId, schema: 
 fun Tuple.toTuple(): CottontailGrpc.QueryResponseMessage.Tuple {
     val tuple = CottontailGrpc.QueryResponseMessage.Tuple.newBuilder()
     for (i in 0 until this.size) {
-        tuple.addData((this[i] as? PublicValue?)?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(
+        tuple.addData((this[i])?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(
             CottontailGrpc.Null.newBuilder().setType(this.columns[i].type.proto()).setSize(this.columns[i].type.logicalSize)
         ).build())
     }
@@ -35,15 +34,15 @@ fun Tuple.toTuple(): CottontailGrpc.QueryResponseMessage.Tuple {
 }
 
 /**
- * Tries to convert an [Any] to a [PublicValue].
+ * Tries to convert an [Any] to a [Value].
  *
  * This is an internal function since its use is exclusively
  * restricted to the SimpleClient API.
  *
- * @return [PublicValue]
+ * @return [Value]
  */
-internal fun Any.tryConvertToValue(): PublicValue = when(this) {
-    is PublicValue -> this
+internal fun Any.tryConvertToValue(): Value = when(this) {
+    is Value -> this
     is String -> StringValue(this)
     is Boolean -> BooleanValue(this)
     is Byte -> ByteValue(this)
@@ -66,9 +65,9 @@ internal fun Any.tryConvertToValue(): PublicValue = when(this) {
  * conversion if necessary.
  *
  * @param type The desired [Types].
- * @return [PublicValue] or null
+ * @return [Value] or null
  */
-fun CottontailGrpc.Literal.toValue(type: Types<*>): PublicValue? = when (type) {
+fun CottontailGrpc.Literal.toValue(type: Types<*>): Value? = when (type) {
     is Types.Double -> this.toDoubleValue()
     is Types.Float -> this.toFloatValue()
     is Types.Boolean -> this.toBooleanValue()
@@ -94,10 +93,10 @@ fun CottontailGrpc.Literal.toValue(type: Types<*>): PublicValue? = when (type) {
 /**
  * Returns the value of [CottontailGrpc.Literal] as [Value].
  *
- * @return [PublicValue] or null
+ * @return [Value] or null
  * @throws IllegalArgumentException If cast is not possible.
  */
-fun CottontailGrpc.Literal.toValue(): PublicValue? = when(this.dataCase) {
+fun CottontailGrpc.Literal.toValue(): Value? = when(this.dataCase) {
     CottontailGrpc.Literal.DataCase.BOOLEANDATA -> BooleanValue(this.booleanData)
     CottontailGrpc.Literal.DataCase.INTDATA -> IntValue(this.intData)
     CottontailGrpc.Literal.DataCase.LONGDATA -> LongValue(this.longData)

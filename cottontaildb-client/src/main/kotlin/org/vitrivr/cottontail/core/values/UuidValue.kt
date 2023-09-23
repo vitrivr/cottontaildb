@@ -2,16 +2,14 @@ package org.vitrivr.cottontail.core.values
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.ScalarValue
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc.Uuid
 import org.vitrivr.cottontail.serialization.UUIDSerializer
 import java.util.*
 
 /**
- * A [PublicValue] that holds a [UUID].
+ * A [Value] that holds a [UUID].
  *
  * @author Ralph Gasser
  * @version 1.0.0
@@ -19,7 +17,7 @@ import java.util.*
 @Serializable(with = UUIDSerializer::class)
 @SerialName("UUID")
 @JvmInline
-value class UuidValue(override val value: UUID) : ScalarValue<UUID>, PublicValue {
+value class UuidValue(override val value: UUID) : ScalarValue<UUID>, Value {
     /**
      * Constructs a [UuidValue] from a [String].
      *
@@ -38,10 +36,6 @@ value class UuidValue(override val value: UUID) : ScalarValue<UUID>, PublicValue
     /** The [Types] of this [StringValue]. */
     override val type: Types<*>
         get() = Types.Uuid
-
-    /** The logical size of this [UuidValue] .*/
-    override val logicalSize: Int
-        get() = this.type.logicalSize
 
     /**
      * Compares this [UuidValue] to another [Value]. Returns -1, 0 or 1 of other value is smaller,
@@ -65,11 +59,11 @@ value class UuidValue(override val value: UUID) : ScalarValue<UUID>, PublicValue
     override fun isEqual(other: Value): Boolean = (other is UuidValue) && (other.value == this.value)
 
     /**
-     * Converts this [StringValue] to a [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [StringValue] to a [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    override fun toGrpc(): CottontailGrpc.Literal = CottontailGrpc.Literal.newBuilder().setUuidData(Uuid.newBuilder().setLeastSignificant(this.value.leastSignificantBits).setMostSignificant(this.value.mostSignificantBits)).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder = CottontailGrpc.Literal.newBuilder().setUuidData(Uuid.newBuilder().setLeastSignificant(this.value.leastSignificantBits).setMostSignificant(this.value.mostSignificantBits))
 
     /**
      * Returns the [value] held by this [StringValue].

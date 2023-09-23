@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.core.tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.Value
 
 /**
  * A [Tuple] implementation as returned and processed by Cottontail DB.

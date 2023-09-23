@@ -2,10 +2,7 @@ package org.vitrivr.cottontail.core.values
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.NumericValue
-import org.vitrivr.cottontail.core.types.RealValue
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -17,7 +14,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 @Serializable
 @SerialName("Short")
 @JvmInline
-value class ShortValue(override val value: Short): RealValue<Short>, PublicValue {
+value class ShortValue(override val value: Short): RealValue<Short>, Value {
     companion object {
         /**
          * The minimum value that can be held by a [ShortValue].
@@ -49,10 +46,6 @@ value class ShortValue(override val value: Short): RealValue<Short>, PublicValue
      * @param number The [NumericValue] that should be converted to a [ShortValue]
      */
     constructor(number: NumericValue<*>) : this(number.value.toShort())
-
-    /** The logical size of this [ShortValue]. */
-    override val logicalSize: Int
-        get() = 1
 
     /** The [Types] of this [ShortValue]. */
     override val type: Types<*>
@@ -93,12 +86,12 @@ value class ShortValue(override val value: Short): RealValue<Short>, PublicValue
     override fun isEqual(other: Value): Boolean = (other is ShortValue) && (other.value == this.value)
 
     /**
-     * Converts this [ShortValue] to a [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [ShortValue] to a [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setIntData(this.value.toInt()).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setIntData(this.value.toInt())
 
     override fun asDouble(): DoubleValue = DoubleValue(this.value.toDouble())
     override fun asFloat(): FloatValue = FloatValue(this.value.toFloat())

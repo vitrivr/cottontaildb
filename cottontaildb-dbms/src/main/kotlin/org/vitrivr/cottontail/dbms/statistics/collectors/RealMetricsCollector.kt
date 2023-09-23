@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.statistics.collectors
 
-import org.vitrivr.cottontail.core.types.RealValue
 import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.values.RealValue
 import java.lang.Double.max
 import java.lang.Double.min
 import kotlin.math.pow

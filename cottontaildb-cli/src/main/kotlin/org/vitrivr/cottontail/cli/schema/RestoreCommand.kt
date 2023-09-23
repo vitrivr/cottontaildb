@@ -41,7 +41,7 @@ class RestoreCommand(client: SimpleClient) : AbstractSchemaCommand(
                         val duration = measureTime {
                             it.restore(e)
                         }
-                        println("Restoring $e took $duration.")
+                        println("Restoring ${e.name} took $duration.")
                     } catch (e: Throwable) {
                         System.err.println("Failed to restore $e due to error: ${e.message}")
                     }

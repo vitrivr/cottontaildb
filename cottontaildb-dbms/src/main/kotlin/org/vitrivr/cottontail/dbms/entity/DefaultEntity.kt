@@ -10,7 +10,8 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.UuidValue
+import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.EntityCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
@@ -25,6 +26,7 @@ import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
+import java.util.*
 import kotlin.concurrent.withLock
 
 /**
@@ -358,6 +360,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                         when (column.type) {
                             Types.Int -> sequenceTx.next().asInt()
                             Types.Long -> sequenceTx.next()
+                            Types.Uuid -> UuidValue(UUID.randomUUID())
                             else -> throw IllegalStateException("Columns of types ${column.type} do not allow for serial values. This is a programmer's error!")
                         }
                     }

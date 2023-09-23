@@ -9,10 +9,9 @@ import kotlinx.serialization.encoding.Encoder
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.core.values.PublicValue
+import org.vitrivr.cottontail.core.values.Value
 
-/** A [KSerializer] for a [List] of [PublicValue]s (= a tuple).
+/** A [KSerializer] for a [List] of [Value]s (= a tuple).
  *
  * @author Ralph Gasser
  * @version 1.0.0
@@ -32,7 +31,7 @@ class TupleSerializer(val columns: Array<ColumnDef<*>>): KSerializer<Tuple> {
     }
 
     /**
-     * Decodes a [List] of nullable [PublicValue]s
+     * Decodes a [List] of nullable [Value]s
      *
      * @param decoder The [Decoder] instance.
      * @return The decoded [Tuple].
@@ -51,7 +50,7 @@ class TupleSerializer(val columns: Array<ColumnDef<*>>): KSerializer<Tuple> {
     }
 
     /**
-     * Encodes a [List] of nullable [PublicValue]s
+     * Encodes a [List] of nullable [Value]s
      *
      * @param encoder The [Encoder] instance.
      * @param value The [Tuple] to encode.
@@ -60,7 +59,7 @@ class TupleSerializer(val columns: Array<ColumnDef<*>>): KSerializer<Tuple> {
         val enc = encoder.beginStructure(this.descriptor)
         var index = 0
         for ((s, v) in this@TupleSerializer.elementSerializers.zip(value.values())) {
-            enc.encodeNullableSerializableElement(this@TupleSerializer.descriptor, index++, s, v as? PublicValue)
+            enc.encodeNullableSerializableElement(this@TupleSerializer.descriptor, index++, s, v as? Value)
         }
         enc.endStructure(this.descriptor)
     }

@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.core.tuple
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.Value
 
 /**
  * A mutable version of a [Tuple] as returned and processed by Cottontail DB.

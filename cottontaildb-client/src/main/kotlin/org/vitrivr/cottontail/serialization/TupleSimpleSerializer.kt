@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.*
 import java.util.*
 
-/** A [KSerializer] for a [List] of [PublicValue]s (= a tuple).
+/** A [KSerializer] for a [List] of [Value]s (= a tuple).
  *
  * Uses a simple format, that encode complex structures to text (i.e. needed for CSV exports).
  *
@@ -24,7 +24,7 @@ import java.util.*
  * @version 1.0.0
  */
 class TupleSimpleSerializer(val columns: Array<ColumnDef<*>>): KSerializer<Tuple> {
-    /** The [TupleSerializer] returns a [List] of [PublicValue] types. */
+    /** The [TupleSerializer] returns a [List] of [Value] types. */
     override val descriptor: SerialDescriptor = buildClassSerialDescriptor("SimpleTuple[${columns.map { it.type }.joinToString(",")}]") {
         for (c in this@TupleSimpleSerializer.columns) {
             element(c.name.simple, when(c.type) {
@@ -44,13 +44,13 @@ class TupleSimpleSerializer(val columns: Array<ColumnDef<*>>): KSerializer<Tuple
     private val types = this.columns.map { it.type }
 
     /**
-     * Decodes a [List] of nullable [PublicValue]s
+     * Decodes a [List] of nullable [Value]s
      *
      * @param decoder The [Encoder] instance.
      * @return The decoded [Tuple].
      */
     override fun deserialize(decoder: Decoder): Tuple {
-        val list = ArrayList<PublicValue?>(this.columns.size)
+        val list = ArrayList<Value?>(this.columns.size)
         val dec = decoder.beginStructure(this.descriptor)
         while (true) {
             val index = dec.decodeElementIndex(this.descriptor)
@@ -84,7 +84,7 @@ class TupleSimpleSerializer(val columns: Array<ColumnDef<*>>): KSerializer<Tuple
     }
 
     /**
-     * Encodes a [List] of nullable [PublicValue]s
+     * Encodes a [List] of nullable [Value]s
      *
      * @param encoder The [Encoder] instance.
      * @param value The [Tuple] to encode.
@@ -93,7 +93,7 @@ class TupleSimpleSerializer(val columns: Array<ColumnDef<*>>): KSerializer<Tuple
         encoder.encodeStructure(this.descriptor) {
             var index = 0
             for (v in value.values()) {
-                when(val cast = v as? PublicValue) {
+                when(val cast = v as? Value) {
                     null -> {}
                     is BooleanValue -> encodeBooleanElement(this@TupleSimpleSerializer.descriptor, index++, cast.value)
                     is ByteValue -> encodeByteElement(this@TupleSimpleSerializer.descriptor, index++, cast.value)

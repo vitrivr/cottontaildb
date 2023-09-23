@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.core.values
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.*
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.nio.ByteBuffer
 import java.nio.DoubleBuffer
@@ -19,7 +19,7 @@ import kotlin.math.pow
 @Serializable
 @SerialName("DoubleVector")
 @JvmInline
-value class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double>, PublicValue {
+value class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double>, Value {
     constructor(input: List<Number>) : this(DoubleArray(input.size) { input[it].toDouble() })
     constructor(input: Array<Number>) : this(DoubleArray(input.size) { input[it].toDouble() })
     constructor(input: FloatArray) : this(DoubleArray(input.size) { input[it].toDouble() })
@@ -28,13 +28,9 @@ value class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double>, 
     constructor(input: DoubleBuffer) : this(DoubleArray(input.remaining()) { input[it] })
     constructor(input: ByteBuffer) : this(input.asDoubleBuffer())
 
-    /** The logical size of this [DoubleVectorValue]. */
-    override val logicalSize: Int
-        get() = this.data.size
-
     /** The [Types] of this [DoubleVectorValue]. */
     override val type: Types<*>
-        get() = Types.DoubleVector(this.logicalSize)
+        get() = Types.DoubleVector(this.data.size)
 
     /**
      * Compares this [DoubleVectorValue] to another [DoubleVectorValue]. The comparison is done lexicographically.
@@ -57,12 +53,12 @@ value class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double>, 
     override fun isEqual(other: Value): Boolean = (other is DoubleVectorValue) && (this.data.contentEquals(other.data))
 
     /**
-     * Converts this [FloatVectorValue] to a [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [FloatVectorValue] to a [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setDoubleVector(CottontailGrpc.DoubleVector.newBuilder().addAllVector(this.map { it.value }))).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setDoubleVector(CottontailGrpc.DoubleVector.newBuilder().addAllVector(this.map { it.value })))
 
     /**
      * Returns the indices of this [DoubleVectorValue].

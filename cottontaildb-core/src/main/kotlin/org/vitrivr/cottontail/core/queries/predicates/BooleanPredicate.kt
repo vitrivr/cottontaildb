@@ -78,9 +78,10 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
         override fun isMatch() = this.binding.getValue() == null
         context(BindingContext, Tuple)
         override fun score(): Double = (this.binding.getValue() == null).toDouble()
+        context(BindingContext)
+        override fun prepare() { /* No op. */ }
         override fun copy() = IsNull(this.binding)
         override fun digest(): Digest = 5L * this.hashCode().toLong()
-        context(BindingContext) override fun prepare() { /* No op. */ }
     }
 
     /**

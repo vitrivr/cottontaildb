@@ -2,11 +2,10 @@ package org.vitrivr.cottontail.core.values
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.*
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.nio.ByteBuffer
 import java.nio.DoubleBuffer
-import java.util.*
 import kotlin.math.atan2
 import kotlin.math.pow
 import kotlin.math.withSign
@@ -21,7 +20,7 @@ import kotlin.math.withSign
 @Serializable
 @SerialName("Complex64Vector")
 @JvmInline
-value class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Double>, PublicValue {
+value class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Double>, Value {
     constructor(input: DoubleBuffer) : this(DoubleArray(input.remaining()) { input[it] })
     constructor(input: ByteBuffer) : this(input.asDoubleBuffer())
 
@@ -64,13 +63,9 @@ value class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Dou
         }
     })
 
-    /** Logical size of the [Complex64VectorValue]. */
-    override val logicalSize: Int
-        get() = this.data.size / 2
-
     /** The [Types] of this [Complex64VectorValue]. */
     override val type: Types<*>
-        get() = Types.Complex64Vector(this.logicalSize)
+        get() = Types.Complex64Vector(this.data.size / 2)
 
     /**
      * Returns the i-th entry of  this [Complex64VectorValue]. All entries with i % 2 == 0 correspond
@@ -113,14 +108,14 @@ value class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Dou
     override fun isEqual(other: Value): Boolean = (other is Complex64VectorValue) && (this.data.contentEquals(other.data))
 
     /**
-     * Converts this [Complex64VectorValue] to a [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [Complex64VectorValue] to a [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    override fun toGrpc(): CottontailGrpc.Literal =
+    override fun toGrpc(): CottontailGrpc.Literal.Builder =
         CottontailGrpc.Literal.newBuilder().setVectorData(
-            CottontailGrpc.Vector.newBuilder().setComplex64Vector(CottontailGrpc.Complex64Vector.newBuilder().addAllVector(this.map { CottontailGrpc.Complex64.newBuilder().setReal(it.real.value).setImaginary(it.imaginary.value).build() }))
-        ).build()
+            CottontailGrpc.Vector.newBuilder().setComplex64Vector(CottontailGrpc.Complex64Vector.newBuilder().addAllVector(this.map { CottontailGrpc.Complex64.newBuilder().setReal(it.real.value).setImaginary(it.imaginary.value) }))
+        )
 
     /**
      * Returns the indices of this [Complex64VectorValue].

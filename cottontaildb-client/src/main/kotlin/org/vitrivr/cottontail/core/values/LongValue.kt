@@ -2,10 +2,7 @@ package org.vitrivr.cottontail.core.values
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.NumericValue
-import org.vitrivr.cottontail.core.types.RealValue
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -17,7 +14,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 @Serializable
 @SerialName("Long")
 @JvmInline
-value class LongValue(override val value: Long): RealValue<Long>, PublicValue {
+value class LongValue(override val value: Long): RealValue<Long>, Value {
 
     companion object {
         /**
@@ -50,10 +47,6 @@ value class LongValue(override val value: Long): RealValue<Long>, PublicValue {
      * @param number The [NumericValue] that should be converted to a [LongValue]
      */
     constructor(number: NumericValue<*>) : this(number.value.toLong())
-
-    /** The logical size of this [LongValue]. */
-    override val logicalSize: Int
-        get() = 1
 
     /** The [Types] of this [LongValue]. */
     override val type: Types<*>
@@ -94,12 +87,12 @@ value class LongValue(override val value: Long): RealValue<Long>, PublicValue {
     override fun isEqual(other: Value): Boolean = (other is LongValue) && (other.value == this.value)
 
     /**
-     * Converts this [LongValue] to a [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [LongValue] to a [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setLongData(this.value).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setLongData(this.value)
 
 
     override fun asDouble(): DoubleValue = DoubleValue(this.value.toDouble())

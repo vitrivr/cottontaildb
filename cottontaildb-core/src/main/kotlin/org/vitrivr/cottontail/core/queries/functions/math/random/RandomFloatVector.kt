@@ -6,9 +6,9 @@ import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.IntValue
+import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.core.values.generators.FloatVectorValueGenerator
 
 /**

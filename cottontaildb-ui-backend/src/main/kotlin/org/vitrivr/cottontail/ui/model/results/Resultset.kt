@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.ui.model.results
 
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.values.PublicValue
+import org.vitrivr.cottontail.core.types.PublicValue
 
 /**
  * A generic [Resultset] as returned by the Thumper API.

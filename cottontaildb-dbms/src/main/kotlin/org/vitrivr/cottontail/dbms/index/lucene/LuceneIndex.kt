@@ -30,10 +30,10 @@ import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.StringValue
-import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
+import org.vitrivr.cottontail.core.values.Value
+import org.vitrivr.cottontail.core.values.pattern.LikePattern
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
@@ -223,8 +223,8 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                                         arrayOf("${column.name}_txt"),
                                         StandardAnalyzer()
                                     )
-                                    is LikePatternValue -> QueryParserUtil.parse(
-                                        arrayOf(literal.toLucene().value),
+                                    is LikePattern -> QueryParserUtil.parse(
+                                        arrayOf(literal.toLucene().pattern),
                                         arrayOf("${column.name}_txt"),
                                         StandardAnalyzer()
                                     )

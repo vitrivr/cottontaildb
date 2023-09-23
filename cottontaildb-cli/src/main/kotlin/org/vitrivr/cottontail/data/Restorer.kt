@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.data
 
 import kotlinx.serialization.BinaryFormat
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.StringFormat
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -8,8 +9,8 @@ import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.CreateEntity
 import org.vitrivr.cottontail.client.language.dml.BatchInsert
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.serialization.valueSerializer
 import java.io.Closeable
 import java.io.InputStream
@@ -40,6 +41,10 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
     /** A flag indicating, whether this [Dumper] was closed.*/
     protected var closed = false
 
+    /** A [Map] of all [KSerializer] used by this [Restorer] instance. */
+    private val serializers by lazy {
+        this.manifest.entites.associateWith { ListSerializer(it.columns.toTypedArray().valueSerializer()) }
+    }
 
     /**
      * Creates an [Iterator] of [Tuple] for the [Name.EntityName] held by this [Restorer].
@@ -82,7 +87,7 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
             /* Insert the data. */
             val insert = BatchInsert(entity.name).columns(*entity.columns.map { it.name }.toTypedArray()).txId(txId)
             for (t in tuples) {
-                if (!insert.values(*t.values().mapNotNull { it as? PublicValue }.toTypedArray())) {
+                if (!insert.values(*(t as StandaloneTuple).values)) {
                     this.client.insert(insert)
                     insert.clear()
                 }
@@ -107,12 +112,12 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
      * @return [List] of [Tuple]
      */
     protected fun read(e: Manifest.Entity, input: InputStream): List<Tuple> {
-        val serializer = e.columns.toTypedArray().valueSerializer()
+        val serializer = this.serializers[e] ?: throw IllegalStateException("Could not find serializer for entry $e")
         val bytes = input.readAllBytes()
         if (bytes.isEmpty()) return emptyList()
         return when (val format = this.manifest.format.format) {
-            is StringFormat -> format.decodeFromString(ListSerializer(serializer), bytes.toString(Charset.defaultCharset()))
-            is BinaryFormat -> format.decodeFromByteArray(ListSerializer(serializer), bytes)
+            is StringFormat -> format.decodeFromString(serializer, bytes.toString(Charset.defaultCharset()))
+            is BinaryFormat -> format.decodeFromByteArray(serializer, bytes)
             else -> throw IllegalArgumentException("Unsupported format $format.")
         }
     }

@@ -3,9 +3,7 @@ package org.vitrivr.cottontail.core.values
 import com.google.protobuf.ByteString
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.ScalarValue
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.util.*
 
@@ -18,7 +16,7 @@ import java.util.*
 @Serializable
 @SerialName("ByteString")
 @JvmInline
-value class ByteStringValue(override val value: ByteArray) : ScalarValue<ByteArray>, PublicValue {
+value class ByteStringValue(override val value: ByteArray) : ScalarValue<ByteArray>, Value {
 
     companion object {
         val EMPTY = ByteStringValue(ByteArray(0))
@@ -31,12 +29,14 @@ value class ByteStringValue(override val value: ByteArray) : ScalarValue<ByteArr
          */
         fun fromBase64(string: String) = ByteStringValue(Base64.getDecoder().decode(string))
     }
+    override val type: Types<*>
+        get() = Types.ByteString
 
     override val logicalSize: Int
         get() = this.value.size
 
-    override val type: Types<*>
-        get() = Types.ByteString
+    override val physicalSize: Int
+        get() = this.value.size * 8
 
     /**
      * Compares this [ByteStringValue] to another [Value]. Returns -1, 0 or 1 of other value is smaller,
@@ -69,10 +69,10 @@ value class ByteStringValue(override val value: ByteArray) : ScalarValue<ByteArr
     fun toBase64() = Base64.getEncoder().encodeToString(this.value)
 
     /**
-     * Converts this [ByteValue] to a [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [ByteValue] to a [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setByteStringData(ByteString.copyFrom(this.value)).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setByteStringData(ByteString.copyFrom(this.value))
 }

@@ -8,12 +8,12 @@ import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.*
 
 /**
- * Returns the [KSerializer] to encode/decode [PublicValue] of this [Types].
+ * Returns the [KSerializer] to encode/decode [Value] of this [Types].
  *
  * @return [KSerializer]
  */
 @Suppress("UNCHECKED_CAST")
-fun Types<*>.valueSerializer(): KSerializer<PublicValue?> = when (this) {
+fun Types<*>.valueSerializer(): KSerializer<Value?> = when (this) {
     Types.Boolean -> BooleanValue.serializer()
     Types.ByteString -> ByteStringValue.serializer()
     Types.Date -> DateValue.serializer()
@@ -34,7 +34,7 @@ fun Types<*>.valueSerializer(): KSerializer<PublicValue?> = when (this) {
     is Types.FloatVector -> FloatVectorValue.serializer()
     is Types.IntVector -> IntVectorValue.serializer()
     is Types.LongVector -> LongVectorValue.serializer()
-} as KSerializer<PublicValue?>
+} as KSerializer<Value?>
 
 
 /**

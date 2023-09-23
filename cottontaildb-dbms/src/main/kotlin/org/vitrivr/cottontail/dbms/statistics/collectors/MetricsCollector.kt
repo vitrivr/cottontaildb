@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.statistics.collectors
 
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**

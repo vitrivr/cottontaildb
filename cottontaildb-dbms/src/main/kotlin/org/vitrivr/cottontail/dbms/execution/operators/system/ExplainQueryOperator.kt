@@ -9,11 +9,7 @@ import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.core.values.FloatValue
-import org.vitrivr.cottontail.core.values.IntValue
-import org.vitrivr.cottontail.core.values.LongValue
-import org.vitrivr.cottontail.core.values.StringValue
+import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.*

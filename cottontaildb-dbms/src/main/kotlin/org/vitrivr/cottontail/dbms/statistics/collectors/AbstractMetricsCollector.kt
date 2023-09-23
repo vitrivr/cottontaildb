@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.dbms.statistics.collectors
 
 import com.google.common.hash.BloomFilter
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import org.vitrivr.cottontail.utilities.hashing.ValueFunnel
 import kotlin.math.max

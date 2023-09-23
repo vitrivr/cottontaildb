@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.statistics.collectors
 
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.VectorValue
+import org.vitrivr.cottontail.core.values.VectorValue
 
 /**
  * A basic implementation of a [MetricsCollector] object, which is used by Cottontail DB to collect

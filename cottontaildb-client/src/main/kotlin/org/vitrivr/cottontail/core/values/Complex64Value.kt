@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.core.values
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.core.types.*
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import kotlin.math.atan2
 
@@ -15,7 +15,7 @@ import kotlin.math.atan2
 @Serializable
 @SerialName("Complex64")
 @JvmInline
-value class Complex64Value(val data: DoubleArray): ComplexValue<Double>, PublicValue {
+value class Complex64Value(val data: DoubleArray): ComplexValue<Double>, Value {
     companion object {
         val I = Complex64Value(doubleArrayOf(0.0, 1.0))
         val ZERO = Complex64Value(doubleArrayOf(0.0, 0.0))
@@ -81,10 +81,6 @@ value class Complex64Value(val data: DoubleArray): ComplexValue<Double>, PublicV
     override val imaginary: DoubleValue
         get() = DoubleValue(this.data[1])
 
-    /** The logical size of this [Complex64Value]. */
-    override val logicalSize: Int
-        get() = 1
-
     /** The [Types] of this [Complex64Value]. */
     override val type: Types<*>
         get() = Types.Complex64
@@ -106,12 +102,12 @@ value class Complex64Value(val data: DoubleArray): ComplexValue<Double>, PublicV
     override fun isEqual(other: Value): Boolean = (other is Complex64Value) && (this.data.contentEquals(other.data))
 
     /**
-     * Converts this [Complex64Value] to a [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [Complex64Value] to a [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setComplex64Data(CottontailGrpc.Complex64.newBuilder().setReal(this.data[0]).setImaginary(this.data[1])).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setComplex64Data(CottontailGrpc.Complex64.newBuilder().setReal(this.data[0]).setImaginary(this.data[1]))
 
 
     override fun asComplex32(): Complex32Value = Complex32Value(this.data[0].toFloat(), this.data[1].toFloat())

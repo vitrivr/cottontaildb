@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.core.values.generators
 
-import org.vitrivr.cottontail.core.types.NumericValue
+import org.vitrivr.cottontail.core.values.NumericValue
 
 /**
  * A [ValueGenerator] for [NumericValue]s.

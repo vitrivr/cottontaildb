@@ -16,7 +16,6 @@ import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.dml.BatchInsert
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.data.Format
 import org.vitrivr.cottontail.serialization.descriptionSerializer
 import org.vitrivr.cottontail.serialization.valueSerializer
@@ -102,13 +101,13 @@ class ImportDataCommand(client: SimpleClient) : AbstractEntityCommand(client, na
             var count = 0L
             val duration = measureTime {
                 for (t in data) {
-                    if (!batchedInsert.values(*t.values().mapNotNull { it as? PublicValue }.toTypedArray())) {
+                    if (!batchedInsert.values(t.values())) {
                         /* Execute insert... */
                         client.insert(batchedInsert)
 
                         /* ... now clear and append. */
                         batchedInsert.clear()
-                        if (!batchedInsert.any(*t.values().mapNotNull { it as? PublicValue }.toTypedArray())) {
+                        if (!batchedInsert.any(t.values())) {
                             throw IllegalArgumentException("The appended data is too large for a single message.")
                         }
                     }
