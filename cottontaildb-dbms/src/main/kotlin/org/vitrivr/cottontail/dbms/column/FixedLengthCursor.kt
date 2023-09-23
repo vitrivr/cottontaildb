@@ -6,10 +6,10 @@ import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.tablets.Tablet
+import org.vitrivr.cottontail.core.values.tablets.bytebuffer.AbstractByteBufferTablet
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionMetadata
 import org.vitrivr.cottontail.storage.serializers.SerializerFactory
 import org.vitrivr.cottontail.storage.serializers.tablets.TabletSerializer
 
@@ -38,8 +38,8 @@ class FixedLengthCursor<T: Value>(private val column: Column<T>, private val tra
     /** The [TabletId] of the currently loaded [Tablet]. -1 if no [Tablet] has been loaded. */
     private var tabletIndex: Int = -1
 
-    /** The currently loaded [Tablet]. */
-    private var tablet: Tablet<T>? = null
+    /** The currently loaded [AbstractByteBufferTablet]. */
+    private var tablet: AbstractByteBufferTablet<T>? = null
 
 
     override fun moveNext(): Boolean {

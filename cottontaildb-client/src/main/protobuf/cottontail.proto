@@ -453,10 +453,11 @@ message ColumnDefinition {
     ColumnName name = 1;
     Type type = 2;
     uint32 length = 3;
-    bool primary = 4;
-    bool nullable = 5;
-    bool autoIncrement = 6;
-    Compression compression = 7;
+    bool fixed =  4;
+    bool primary = 5;
+    bool nullable = 6;
+    bool autoIncrement = 7;
+    Compression compression = 8;
     enum Compression {
         NONE = 0;
         LZ4 = 1;

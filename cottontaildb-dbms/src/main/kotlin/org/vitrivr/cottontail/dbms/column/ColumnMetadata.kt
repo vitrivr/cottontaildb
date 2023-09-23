@@ -20,7 +20,7 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-data class ColumnMetadata(val type: Types<*>, val compression: Compression, val nullable: Boolean, val primary: Boolean, val autoIncrement: Boolean) {
+data class ColumnMetadata(val type: Types<*>, val compression: Compression, val fixed: Boolean, val nullable: Boolean, val primary: Boolean, val autoIncrement: Boolean) {
 
     companion object {
         /** Name of the [ColumnMetadata] store in the Cottontail DB catalogue. */
@@ -59,7 +59,7 @@ data class ColumnMetadata(val type: Types<*>, val compression: Compression, val 
             val type = Types.forOrdinal(IntegerBinding.readCompressed(iterator), IntegerBinding.readCompressed(iterator))
             val compression = Compression.values()[IntegerBinding.readCompressed(iterator)]
             val bitmap = IntegerBinding.BINDING.readObject(iterator)
-            return ColumnMetadata(type, compression,  bitmap.isBitSet(0), bitmap.isBitSet(1), bitmap.isBitSet(2))
+            return ColumnMetadata(type, compression,  bitmap.isBitSet(0), bitmap.isBitSet(1), bitmap.isBitSet(2), bitmap.isBitSet(3))
         }
 
         /**
@@ -76,9 +76,10 @@ data class ColumnMetadata(val type: Types<*>, val compression: Compression, val 
 
             /* Encode flags in bitmap. */
             var bitmap = 0
-            if (entry.nullable) bitmap = bitmap.setBit(0)
-            if (entry.primary) bitmap = bitmap.setBit(1)
-            if (entry.autoIncrement) bitmap = bitmap.setBit(2)
+            if (entry.fixed) bitmap = bitmap.setBit(0)
+            if (entry.nullable) bitmap = bitmap.setBit(1)
+            if (entry.primary) bitmap = bitmap.setBit(2)
+            if (entry.autoIncrement) bitmap = bitmap.setBit(3)
             IntegerBinding.BINDING.writeObject(output, bitmap)
             return output.asArrayByteIterable()
         }

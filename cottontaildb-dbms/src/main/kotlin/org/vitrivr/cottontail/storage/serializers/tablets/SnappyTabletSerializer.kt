@@ -4,8 +4,7 @@ import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.core.values.tablets.AbstractTablet
-import org.vitrivr.cottontail.core.values.tablets.Tablet
+import org.vitrivr.cottontail.core.values.tablets.bytebuffer.AbstractByteBufferTablet
 import org.xerial.snappy.BitShuffle
 import org.xerial.snappy.BitShuffleType
 import org.xerial.snappy.Snappy
@@ -55,18 +54,18 @@ class SnappyTabletSerializer<T: Value>(override val type: Types<T>, val size: In
     }
 
     /**
-     * Deserializes a [Tablet] from the provided [ByteIterable].
+     * Deserializes a [AbstractByteBufferTablet] from the provided [ByteIterable].
      *
      * @param entry The [ByteIterable] to deserialize from.
-     * @return The resulting [AbstractTablet].
+     * @return The resulting [AbstractByteBufferTablet].
      */
-    override fun fromEntry(entry: ByteIterable): Tablet<T> {
+    override fun fromEntry(entry: ByteIterable): AbstractByteBufferTablet<T> {
         /* Transfer data into buffer. */
         this.compressBuffer.clear()
         for (b in entry) { this.compressBuffer.put(b) }
 
         /* Create new tablet and write prefix. */
-        val tablet = Tablet.of(this.size, this.type, true)
+        val tablet = AbstractByteBufferTablet.of(this.size, this.type, true)
         tablet.buffer.put(0, this.compressBuffer.flip(), 0, this.size shr 3)
 
         /* Uncompress payload. */
@@ -80,12 +79,12 @@ class SnappyTabletSerializer<T: Value>(override val type: Types<T>, val size: In
     }
 
     /**
-     * Serializes a [Tablet] to create a [ByteIterable].
+     * Serializes a [AbstractByteBufferTablet] to create a [ByteIterable].
      *
-     * @param tablet The [Tablet] to serialize.
+     * @param tablet The [AbstractByteBufferTablet] to serialize.
      * @return The resulting [ByteIterable].
      */
-    override fun toEntry(tablet: Tablet<T>): ByteIterable {
+    override fun toEntry(tablet: AbstractByteBufferTablet<T>): ByteIterable {
         /* Write prefix to buffer. */
         this.compressBuffer.clear().put(0, tablet.buffer.clear(), 0, this.size shr 3)
 

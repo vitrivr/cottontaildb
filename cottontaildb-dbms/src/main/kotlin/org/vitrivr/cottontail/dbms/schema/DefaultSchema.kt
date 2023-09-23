@@ -4,6 +4,7 @@ import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.catalogue.storeName
@@ -14,6 +15,8 @@ import org.vitrivr.cottontail.dbms.entity.EntityMetadata
 import org.vitrivr.cottontail.dbms.events.EntityEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
+import org.vitrivr.cottontail.dbms.index.hash.BTreeIndexConfig
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.sequence.DefaultSequence
 import org.vitrivr.cottontail.dbms.sequence.Sequence
@@ -159,11 +162,11 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
                     throw DatabaseException.DuplicateColumnException(name, it.key)
                 }
 
-                /* Create sequence. */
-                if (it.value.autoIncrement) {
+                /* Create sequence for auto-increment columns. */
+                if (it.value.autoIncrement && (it.value.type == Types.Int || it.value.type == Types.Long)) {
                     this.createSequence(this@DefaultSchema.name.sequence("${it.key.entityName}_${it.key.columnName}_auto"))
                 }
-
+                
                 /* Create store for column data. */
                 if (this@DefaultSchema.catalogue.transactionManager.environment.openStore(it.key.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.context.txn.xodusTx, true) == null) {
                     throw DatabaseException.DataCorruptionException("CREATE entity $name failed: Failed to create store for column $it.")
@@ -176,8 +179,16 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             val event = EntityEvent.Create(name, definitions)
             this.context.txn.signalEvent(event)
 
-            /* Return a DefaultEntity instance. */
-            return DefaultEntity(name, this@DefaultSchema)
+            /* Create index for primary key (if defined). */
+            val entity = DefaultEntity(name, this@DefaultSchema)
+            val primary = definitions.filter { it.primary }.map { it.name }
+            if (primary.isNotEmpty()) {
+                val entityTx = entity.newTx(this@Tx.context)
+                entityTx.createIndex(entity.name.index("primary"), IndexType.BTREE_UQ, primary, BTreeIndexConfig)
+            }
+
+            /* Return entity. */
+            entity
         }
 
         /**

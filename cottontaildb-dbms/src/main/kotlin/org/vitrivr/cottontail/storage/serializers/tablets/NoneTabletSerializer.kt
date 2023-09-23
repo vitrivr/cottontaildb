@@ -6,8 +6,7 @@ import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
-import org.vitrivr.cottontail.core.values.tablets.AbstractTablet
-import org.vitrivr.cottontail.core.values.tablets.Tablet
+import org.vitrivr.cottontail.core.values.tablets.bytebuffer.AbstractByteBufferTablet
 
 /**
  * An implementation of a [TabletSerializer] that uses no compression of values.
@@ -20,14 +19,14 @@ import org.vitrivr.cottontail.core.values.tablets.Tablet
 class NoneTabletSerializer<T: Value>(override val type: Types<T>, val size: Int): TabletSerializer<T> {
 
     /**
-     * Deserializes a [AbstractTablet] of type [FloatVectorValue] from the provided [ByteIterable].
+     * Deserializes a [AbstractByteBufferTablet] of type [FloatVectorValue] from the provided [ByteIterable].
      *
      * @param entry The [ByteIterable] to deserialize from.
-     * @return The resulting [AbstractTablet].
+     * @return The resulting [AbstractByteBufferTablet].
      */
-    override fun fromEntry(entry: ByteIterable): Tablet<T> {
+    override fun fromEntry(entry: ByteIterable): AbstractByteBufferTablet<T> {
         /* Transfer data into buffer. */
-        val tablet = Tablet.of(this.size, this.type)
+        val tablet = AbstractByteBufferTablet.of(this.size, this.type)
         for (b in entry) {
             tablet.buffer.put(b)
         }
@@ -35,12 +34,12 @@ class NoneTabletSerializer<T: Value>(override val type: Types<T>, val size: Int)
     }
 
     /**
-     * Serializes a [AbstractTablet] of type [DoubleVectorValue] to create a [ByteIterable].
+     * Serializes a [AbstractByteBufferTablet] of type [DoubleVectorValue] to create a [ByteIterable].
      *
-     * @param tablet The [AbstractTablet] to serialize.
+     * @param tablet The [AbstractByteBufferTablet] to serialize.
      * @return The resulting [ByteIterable].
      */
-    override fun toEntry(tablet: Tablet<T>): ByteIterable = ArrayByteIterable(ByteArray(tablet.buffer.clear().limit()) {
+    override fun toEntry(tablet: AbstractByteBufferTablet<T>): ByteIterable = ArrayByteIterable(ByteArray(tablet.buffer.clear().limit()) {
         tablet.buffer.get()
     })
 }

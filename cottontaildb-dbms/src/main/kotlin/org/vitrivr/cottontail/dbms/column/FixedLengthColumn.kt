@@ -9,8 +9,8 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.core.values.tablets.AbstractTablet
 import org.vitrivr.cottontail.core.values.tablets.Tablet
+import org.vitrivr.cottontail.core.values.tablets.bytebuffer.AbstractByteBufferTablet
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.defaultStatistics
-import org.vitrivr.cottontail.dbms.statistics.values.*
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import org.vitrivr.cottontail.storage.serializers.SerializerFactory
 import org.vitrivr.cottontail.storage.serializers.tablets.Compression
 import org.vitrivr.cottontail.storage.serializers.tablets.TabletSerializer
@@ -27,9 +27,9 @@ import kotlin.concurrent.withLock
 typealias TabletId = Long
 
 /**
- * The default [Column] implementation for fixed-length columns based on JetBrains Xodus. [Value]s are stored in [AbstractTablet]s of 64 entries.
+ * The default [Column] implementation for fixed-length columns based on JetBrains Xodus.
  *
- * Only works for fixed-length types.
+ * [Value]s are stored in [AbstractByteBufferTablet]s. Only works for fixed-length types.
  *
  * @see Column
  * @see ColumnTx
@@ -47,7 +47,7 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
     override val catalogue: DefaultCatalogue
         get() = this.parent.catalogue
 
-    /** */
+    /** The size (i.e., the number of entries) per [AbstractByteBufferTablet]. */
     private val tabletSize: Int = 128
 
     init {
@@ -90,7 +90,7 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
         private var tabletId: TabletId = -1
 
         /** The currently loaded [Tablet]. */
-        private var tablet: Tablet<T>? = null
+        private var tablet: AbstractByteBufferTablet<T>? = null
 
         /** Flag indicating, that the currently loaded [Tablet] has been changed. */
         private var dirty: Boolean = false
@@ -174,7 +174,7 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
         }
 
         /**
-         * Flushes in-memory [AbstractTablet] to disk, if needed.
+         * Flushes in-memory [AbstractByteBufferTablet] to disk, if needed.
          */
         override fun beforeCommit() {
             val tablet = this.tablet
@@ -185,9 +185,9 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
         }
 
         /**
-         * Loads the [AbstractTablet] with the specified [TabletId] into memory.
+         * Loads the [AbstractByteBufferTablet] with the specified [TabletId] into memory.
          *
-         * @param tabletId [TabletId] of the [AbstractTablet] to load.
+         * @param tabletId [TabletId] of the [AbstractByteBufferTablet] to load.
          */
         private fun loadTabletForTuple(tabletId: TabletId) {
             if (this.dirty && this.tablet != null) { /* Flush current tablet if needed. */
@@ -199,7 +199,7 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
             if (rawTablet != null) {
                 this.tablet = this.serializer.fromEntry(rawTablet)
             } else {
-                this.tablet = Tablet.of(this@FixedLengthColumn.tabletSize, this@FixedLengthColumn.type)
+                this.tablet = AbstractByteBufferTablet.of(this@FixedLengthColumn.tabletSize, this@FixedLengthColumn.type)
             }
         }
     }

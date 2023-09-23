@@ -7,8 +7,7 @@ import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
-import org.vitrivr.cottontail.core.values.tablets.AbstractTablet
-import org.vitrivr.cottontail.core.values.tablets.Tablet
+import org.vitrivr.cottontail.core.values.tablets.bytebuffer.AbstractByteBufferTablet
 import java.nio.ByteBuffer
 
 /**
@@ -35,30 +34,30 @@ class LZ4TabletSerializer<T: Value>(override val type: Types<T>, val size: Int):
     }))
 
     /**
-     * Deserializes a [AbstractTablet] of type [FloatVectorValue] from the provided [ByteIterable].
+     * Deserializes a [AbstractByteBufferTablet] of type [FloatVectorValue] from the provided [ByteIterable].
      *
      * @param entry The [ByteIterable] to deserialize from.
-     * @return The resulting [AbstractTablet].
+     * @return The resulting [AbstractByteBufferTablet].
      */
-    override fun fromEntry(entry: ByteIterable): Tablet<T> {
+    override fun fromEntry(entry: ByteIterable): AbstractByteBufferTablet<T> {
         /* Transfer data into buffer. */
         this.compressBuffer.clear()
         for (b in entry) { this.compressBuffer.put(b) }
 
         /* Decompress payload using LZ4. */
-        val tablet = Tablet.of(this.size, this.type)
+        val tablet = AbstractByteBufferTablet.of(this.size, this.type)
         this.decompressor.decompress(this.compressBuffer.flip(), tablet.buffer.clear())
         tablet.buffer.clear()
         return tablet
     }
 
     /**
-     * Serializes a [AbstractTablet] of type [DoubleVectorValue] to create a [ByteIterable].
+     * Serializes a [AbstractByteBufferTablet] of type [DoubleVectorValue] to create a [ByteIterable].
      *
-     * @param tablet The [AbstractTablet] to serialize.
+     * @param tablet The [AbstractByteBufferTablet] to serialize.
      * @return The resulting [ByteIterable].
      */
-    override fun toEntry(tablet: Tablet<T>): ByteIterable {
+    override fun toEntry(tablet: AbstractByteBufferTablet<T>): ByteIterable {
        /* Compress shuffled data and return it as byte array. */
         this.compressor.compress(tablet.buffer.clear(), this.compressBuffer.clear())
         tablet.buffer.clear()

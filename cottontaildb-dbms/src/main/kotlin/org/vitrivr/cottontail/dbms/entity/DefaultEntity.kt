@@ -103,10 +103,10 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                     columnMetadataStore.get(this.context.txn.xodusTx, NameBinding.Column.toEntry(name)) ?: throw DatabaseException.DataCorruptionException("Catalogue entry for column $name is missing.")
                 )
                 val def = ColumnDef(name, columnEntry.type, columnEntry.nullable, columnEntry.primary, columnEntry.primary)
-                if (def.type is Types.String || def.type is Types.ByteString) {
-                    this.columns[name] = VariableLengthColumn(def, this@DefaultEntity)
-                } else {
+                if (columnEntry.fixed && def.type != Types.String && def.type != Types.ByteString) {
                     this.columns[name] = FixedLengthColumn(def, this@DefaultEntity, columnEntry.compression)
+                } else {
+                    this.columns[name] = VariableLengthColumn(def, this@DefaultEntity)
                 }
             }
 

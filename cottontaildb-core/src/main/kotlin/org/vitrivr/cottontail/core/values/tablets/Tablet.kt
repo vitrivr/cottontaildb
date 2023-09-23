@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.core.values.tablets
 
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
-import java.nio.ByteBuffer
+import org.vitrivr.cottontail.core.values.*
 
 /**
  * A [Tablet] of [Value]s. Used to group [Value]s, so that they can be processed and serialized in batches.
@@ -10,48 +10,12 @@ import java.nio.ByteBuffer
  * @author Ralph Gasser
  * @version 1.0.0
  */
-sealed interface Tablet<T: Value> {
-    companion object {
-
-        /**
-         * Generates and returns a [Tablet] of the provided [size] and [Types]
-         *
-         * @param size The [size] of the [Tablet]. Must be a power of two.
-         * @param types The [Types] held by the [Tablet].
-         * @param direct Flag indicating, whether a direct [ByteBuffer] should be used.
-         * @return [Tablet]
-         */
-        @Suppress("UNCHECKED_CAST")
-        fun <T: Value> of (size: Int, types: Types<T>, direct: Boolean = false): Tablet<T> = when(types) {
-            Types.Boolean -> BooleanTablet(size, direct)
-            Types.Date -> DateTablet(size, direct)
-            Types.Byte -> ByteTablet(size, direct)
-            Types.Complex32 -> Complex32Tablet(size, direct)
-            Types.Complex64 -> Complex64Tablet(size, direct)
-            Types.Double -> DoubleTablet(size, direct)
-            Types.Float -> FloatTablet(size, direct)
-            Types.Int -> IntTablet(size, direct)
-            Types.Long -> LongTablet(size, direct)
-            Types.Short -> ShortTablet(size, direct)
-            is Types.BooleanVector -> BooleanVectorTablet(size, types.logicalSize, direct)
-            is Types.Complex32Vector -> Complex32VectorTablet(size, types.logicalSize, direct)
-            is Types.Complex64Vector -> Complex64VectorTablet(size, types.logicalSize, direct)
-            is Types.DoubleVector -> DoubleVectorTablet(size, types.logicalSize, direct)
-            is Types.FloatVector ->  FloatVectorTablet(size, types.logicalSize, direct)
-            is Types.IntVector ->  IntVectorTablet(size, types.logicalSize, direct)
-            is Types.LongVector ->  LongVectorTablet(size, types.logicalSize, direct)
-            else -> throw UnsupportedOperationException("The type $types cannot be represented in a tablet.")
-        } as Tablet<T>
-    }
-
+interface Tablet<T: Value> {
     /** The size of this [Tablet], i.e., the number of elements. */
-    val size: Int
+    val size: kotlin.Int
 
     /** The [Types] of the [Value] held by this [Tablet]. */
     val type: Types<T>
-
-    /** The raw [ByteBuffer] backing this [Tablet]. */
-    val buffer: ByteBuffer
 
     /**
      * Checks if the value at position [index] is set (or not).
@@ -59,7 +23,7 @@ sealed interface Tablet<T: Value> {
      * @param index The index to check.
      * @return True if index is set, false otherwise.
      */
-    fun isNull(index: Int): Boolean
+    fun isNull(index: kotlin.Int): kotlin.Boolean
 
     /**
      * Gets and returns a [Value] held in this [Tablet].
@@ -67,7 +31,7 @@ sealed interface Tablet<T: Value> {
      * @param index The index of the [Value] to return.
      * @return [Value] or null
      */
-    operator fun get(index: Int): T?
+    operator fun get(index: kotlin.Int): T?
 
     /**
      * Set a [Value] in this [Tablet].
@@ -75,5 +39,95 @@ sealed interface Tablet<T: Value> {
      * @param index The index of the [Value] to set.
      * @param value The new [Value] or null
      */
-    operator fun set(index: Int, value: T?)
+    operator fun set(index: kotlin.Int, value: T?)
+
+    /**
+     * A [Tablet] for [BooleanValue]s
+     */
+    interface Boolean: Tablet<BooleanValue>
+
+    /**
+     * A [Tablet] for [ByteValue]s
+     */
+    interface Byte: Tablet<ByteValue>
+
+    /**
+     * A [Tablet] for [ShortValue]s
+     */
+    interface Short: Tablet<ShortValue>
+
+    /**
+     * A [Tablet] for [IntValue]s
+     */
+    interface Int: Tablet<IntValue>
+
+    /**
+     * A [Tablet] for [LongValue]s
+     */
+    interface Long: Tablet<LongValue>
+
+    /**
+     * A [Tablet] for [FloatValue]s
+     */
+    interface Float: Tablet<FloatValue>
+
+    /**
+     * A [Tablet] for [DoubleValue]s
+     */
+    interface Double: Tablet<DoubleValue>
+
+    /**
+     * A [Tablet] for [DateValue]s
+     */
+    interface Date: Tablet<DateValue>
+
+    /**
+     * A [Tablet] for [UuidValue]s
+     */
+    interface Uuid: Tablet<UuidValue>
+
+    /**
+     * A [Tablet] for [Complex32Value]s
+     */
+    interface Complex32: Tablet<Complex32Value>
+
+    /**
+     * A [Tablet] for [Complex64Value]s
+     */
+    interface Complex64: Tablet<Complex64Value>
+
+    /**
+     * A [Tablet] for [BooleanVectorValue]s
+     */
+    interface BooleanVector: Tablet<BooleanVectorValue>
+
+    /**
+     * A [Tablet] for [IntVectorValue]s
+     */
+    interface IntVector: Tablet<IntVectorValue>
+
+    /**
+     * A [Tablet] for [LongVectorValue]s
+     */
+    interface LongVector: Tablet<LongVectorValue>
+
+    /**
+     * A [Tablet] for [FloatVectorValue]s
+     */
+    interface FloatVector: Tablet<FloatVectorValue>
+
+    /**
+     * A [Tablet] for [DoubleVectorValue]s
+     */
+    interface DoubleVector: Tablet<DoubleVectorValue>
+
+    /**
+     * A [Tablet] for [Complex32VectorValue]s
+     */
+    interface Complex32Vector: Tablet<Complex32VectorValue>
+
+    /**
+     * A [Tablet] for [Complex64VectorValue]s
+     */
+    interface Complex64Vector: Tablet<Complex64VectorValue>
 }

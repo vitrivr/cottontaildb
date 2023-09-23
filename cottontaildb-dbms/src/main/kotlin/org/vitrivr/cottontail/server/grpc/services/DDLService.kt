@@ -66,7 +66,7 @@ class DDLService(override val catalogue: DefaultCatalogue, val autoRebuilderServ
             val type = Types.forName(it.type.name, it.length)
             val name = entityName.column(it.name.name) /* To make sure that columns belongs to entity. */
             try {
-                name to ColumnMetadata(type, Compression.valueOf(it.compression.name), it.nullable, it.primary, it.autoIncrement)
+                name to ColumnMetadata(type, Compression.valueOf(it.compression.name), it.fixed, it.nullable, it.primary, it.autoIncrement)
             } catch (e: IllegalArgumentException) {
                 throw DatabaseException.ValidationException(e.message ?: "Failed to validate query input.")
             }
