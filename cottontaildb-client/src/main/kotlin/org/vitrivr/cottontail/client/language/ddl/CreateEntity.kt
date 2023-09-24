@@ -45,18 +45,17 @@ class CreateEntity(val name: Name.EntityName): LanguageFeature() {
      * Adds a column to this [CreateEntity].
      *
      * @param def The [ColumnDef] to add.
+     * @param fixed Flag indicating, that a fixed-length columns should be created if possible. Defaults to true.
      * @return this [CreateEntity]
      */
-    fun column(def: ColumnDef<*>): CreateEntity {
+    fun column(def: ColumnDef<*>, fixed: Boolean): CreateEntity {
         val addBuilder = builder.addColumnsBuilder()
         addBuilder.name = def.name.proto()
         addBuilder.type = Type.valueOf(def.type.name)
         addBuilder.length = def.type.logicalSize
         addBuilder.nullable = def.nullable
-        if (def.autoIncrement) {
-            require(def.type == Types.Int || def.type == Types.Long) { "Auto-increment option is only supported by INTEGER and LONG columns."}
-            addBuilder.autoIncrement = true
-        }
+        addBuilder.fixed = fixed && def.type != Types.String && def.type != Types.ByteString
+        addBuilder.autoIncrement = def.autoIncrement && (def.type == Types.Int || def.type == Types.Long || def.type == Types.Uuid)
         return this
     }
 
@@ -68,10 +67,11 @@ class CreateEntity(val name: Name.EntityName): LanguageFeature() {
      * @param nullable Flag indicating whether column should be nullable.
      * @param primaryKey Flag indicating whether column should act as primary key-
      * @param autoIncrement Flag indicating whether column should be auto incremented. Only works for [Type.INTEGER] or [Type.LONG]
+     * @param fixed Flag indicating, that a fixed-length columns should be created if possible. Defaults to true.
      * @return this [CreateEntity]
      */
-    fun column(name: Name.ColumnName, type: Types<*>, nullable: Boolean = false, primaryKey: Boolean = false, autoIncrement: Boolean = false): CreateEntity
-        = this.column(ColumnDef(name, type, nullable, primaryKey, autoIncrement))
+    fun column(name: Name.ColumnName, type: Types<*>, nullable: Boolean = false, primaryKey: Boolean = false, autoIncrement: Boolean = false, fixed: Boolean = true): CreateEntity
+        = this.column(ColumnDef(name, type, nullable, primaryKey, autoIncrement), fixed)
 
     /**
      * Adds a column to this [CreateEntity].
