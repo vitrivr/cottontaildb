@@ -4,9 +4,9 @@ import io.grpc.Context
 import org.vitrivr.cottontail.client.language.extensions.parse
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.toTuple
 import org.vitrivr.cottontail.core.toType
 import org.vitrivr.cottontail.core.toValue
-import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.grpc.CottontailGrpc
@@ -26,8 +26,8 @@ class TupleIteratorImpl internal constructor(private val results: Iterator<Cotto
     /** Constructor for single [CottontailGrpc.QueryResponseMessage]. */
     constructor(result: CottontailGrpc.QueryResponseMessage, context: Context.CancellableContext): this(sequenceOf(result).iterator(), context)
 
-    /** Internal buffer with pre-loaded [Tuple]s. */
-    private val buffer = LinkedList<Tuple>()
+    /** Internal buffer of pre-loaded [CottontailGrpc.QueryResponseMessage.Tuple]s. */
+    private var buffer = LinkedList<CottontailGrpc.QueryResponseMessage.Tuple>()
 
     /** The ID of the Cottontail DB transaction this [TupleIterator] is associated with. */
     override val transactionId: Long
@@ -68,9 +68,7 @@ class TupleIteratorImpl internal constructor(private val results: Iterator<Cotto
         }
 
         /* Parse first batch of tuples. */
-        next.tuplesList.forEach { t->
-            this.buffer.add(IteratorTuple(Array(this.numberOfColumns) { t.dataList[it].toValue() }))
-        }
+        this.buffer.addAll(next.tuplesList)
 
         /** Call finalizer if no more data is available. */
         if (!this.results.hasNext()) {
@@ -100,11 +98,9 @@ class TupleIteratorImpl internal constructor(private val results: Iterator<Cotto
                 this.context.close()
                 throw IllegalArgumentException("TupleIterator has been drained and no more elements can be loaded. Call hasNext() to ensure that elements are available before calling next().")
             }
-            this.results.next().tuplesList.map { t ->
-                this.buffer.add(IteratorTuple(Array(this.numberOfColumns) { t.dataList[it].toValue() }))
-            }
+            this.buffer.addAll(this.results.next().tuplesList)
         }
-        return this.buffer.poll()!!
+        return IteratorTuple(this.buffer.poll()!!)
     }
 
     /**
@@ -117,12 +113,21 @@ class TupleIteratorImpl internal constructor(private val results: Iterator<Cotto
     /**
      * Internal [Tuple] implementation.
      */
-    inner class IteratorTuple(val values: Array<Value?>): Tuple {
+    inner class IteratorTuple(private val tuple: CottontailGrpc.QueryResponseMessage.Tuple): Tuple {
+
+        /** [Array] of lazily evaluated [Value]s. */
+        private val values = Array(this@TupleIteratorImpl.columns.size) { index ->
+            lazy { this.tuple.dataList[index].toValue() }
+        }
         override val tupleId: TupleId = this@TupleIteratorImpl.rowIndex++
         override val columns: Array<ColumnDef<*>>
             get() = this@TupleIteratorImpl.columns
-        override fun copy(): Tuple = StandaloneTuple(this.tupleId, this.columns, this.values.copyOf())
-        override fun get(index: Int): Value? = this.values[index]
-        override fun values(): List<Value?> = this.values.toList()
+        override val logicalSize: Int
+            get() = this.values.sumOf { it.value?.logicalSize ?: 0 }
+        override val physicalSize: Int
+            get() = this.values.sumOf { it.value?.physicalSize ?: 0 }
+        override fun copy(): Tuple = this.tuple.toTuple(this.tupleId, this.columns)
+        override fun get(index: Int): Value? = this.values[index].value
+        override fun values(): List<Value?> = this.values.map { it.value }
     }
 }
