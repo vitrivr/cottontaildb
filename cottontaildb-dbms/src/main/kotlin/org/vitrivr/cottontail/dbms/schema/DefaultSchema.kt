@@ -199,7 +199,12 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
         override fun dropEntity(name: Name.EntityName) = this.txLatch.withLock {
             /* Drop all indexes from entity. */
             val entityTx = DefaultEntity(name, this@DefaultSchema).newTx(this.context)
+
+            /* Drop all index structures from entity. */
             entityTx.listIndexes().forEach { entityTx.dropIndex(it) }
+
+            /* Create store for entity (bitmap). */
+            this@DefaultSchema.catalogue.transactionManager.environment.removeStore(name.toString(), this.context.txn.xodusTx)
 
             /* Drop all columns from entity. */
             val dropped = entityTx.listColumns().map {
