@@ -80,7 +80,7 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
             /* Create entity. */
             val create = CreateEntity(entity.name).txId(txId)
             for (c in entity.columns) {
-                create.column(c)
+                create.column(c, true)
             }
             this.client.create(create)
 

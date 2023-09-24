@@ -48,7 +48,7 @@ class CreateEntity(val name: Name.EntityName): LanguageFeature() {
      * @param fixed Flag indicating, that a fixed-length columns should be created if possible. Defaults to true.
      * @return this [CreateEntity]
      */
-    fun column(def: ColumnDef<*>, fixed: Boolean): CreateEntity {
+    fun column(def: ColumnDef<*>, fixed: Boolean = true): CreateEntity {
         val addBuilder = builder.addColumnsBuilder()
         addBuilder.name = def.name.proto()
         addBuilder.type = Type.valueOf(def.type.name)
