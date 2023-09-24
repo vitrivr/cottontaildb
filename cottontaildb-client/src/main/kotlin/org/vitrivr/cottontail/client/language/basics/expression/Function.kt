@@ -18,11 +18,11 @@ class Function(val name: Name.FunctionName, vararg val args: Expression): Expres
 
     constructor(name: String, vararg args: Expression): this(Name.FunctionName.parse(name), *args)
 
-    override fun toGrpc(): CottontailGrpc.Expression {
+    override fun toGrpc(): CottontailGrpc.Expression.Builder {
         val function = CottontailGrpc.Function.newBuilder().setName(this.name.proto())
         for (exp in this.args) {
             function.addArguments(exp.toGrpc())
         }
-        return CottontailGrpc.Expression.newBuilder().setFunction(function).build()
+        return CottontailGrpc.Expression.newBuilder().setFunction(function)
     }
 }

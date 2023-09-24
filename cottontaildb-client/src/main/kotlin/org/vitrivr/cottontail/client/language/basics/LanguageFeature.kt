@@ -20,12 +20,4 @@ abstract class LanguageFeature {
      * @param queryId The new query ID.
      */
     abstract fun queryId(queryId: String): LanguageFeature
-
-
-    /**
-     * Returns the serialized message size of this [LanguageFeature].
-     *
-     * @return Serialized message size in bytes.
-     */
-    abstract fun serializedSize(): Int
 }

@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 @Serializable
 sealed class Expression {
     /**
-     * Converts this [Expression] into a [CottontailGrpc.Expression]
+     * Converts this [Expression] into a [CottontailGrpc.Expression.Builder]
      */
-    abstract fun toGrpc(): CottontailGrpc.Expression
+    abstract fun toGrpc(): CottontailGrpc.Expression.Builder
 }

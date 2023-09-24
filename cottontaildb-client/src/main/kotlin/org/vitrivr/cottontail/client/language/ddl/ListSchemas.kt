@@ -32,11 +32,4 @@ class ListSchemas: LanguageFeature() {
         this.builder.metadataBuilder.queryId = queryId
         return this
     }
-
-    /**
-     * Returns the serialized message size in bytes of this [ListSchemas]
-     *
-     * @return The size in bytes of this [ListSchemas].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
 }

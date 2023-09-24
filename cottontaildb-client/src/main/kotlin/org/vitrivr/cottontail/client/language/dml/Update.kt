@@ -46,13 +46,6 @@ class Update(entity: Name.EntityName): LanguageFeature() {
     }
 
     /**
-     * Returns the serialized message size in bytes of this [Update]
-     *
-     * @return The size in bytes of this [Update].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
-
-    /**
      * Adds a WHERE-clause to this [Update].
      *
      * @param predicate The [Predicate] that specifies the conditions that need to be met for an [Update].
@@ -75,7 +68,7 @@ class Update(entity: Name.EntityName): LanguageFeature() {
             this.builder.addUpdates(
                 CottontailGrpc.UpdateMessage.UpdateElement.newBuilder()
                     .setColumn(Name.ColumnName.parse(assignment.first).proto())
-                    .setValue(CottontailGrpc.Expression.newBuilder().setLiteral(assignment.second?.tryConvertToValue()?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder()).build()))
+                    .setValue(CottontailGrpc.Expression.newBuilder().setLiteral(assignment.second?.tryConvertToValue()?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder())))
             )
         }
         return this
@@ -92,7 +85,24 @@ class Update(entity: Name.EntityName): LanguageFeature() {
             this.builder.addUpdates(
                 CottontailGrpc.UpdateMessage.UpdateElement.newBuilder()
                     .setColumn(Name.ColumnName.parse(assignment.first).proto())
-                .setValue(CottontailGrpc.Expression.newBuilder().setLiteral(assignment.second?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder()).build()))
+                .setValue(CottontailGrpc.Expression.newBuilder().setLiteral(assignment.second?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder())))
+            )
+        }
+        return this
+    }
+
+    /**
+     * Adds value assignments this [Update]
+     *
+     * @param assignments The value assignments for the [Update]
+     * @return This [Update]
+     */
+    fun values(assignments: Iterable<Pair<String, Value?>>): Update {
+        for (assignment in assignments) {
+            this.builder.addUpdates(
+                CottontailGrpc.UpdateMessage.UpdateElement.newBuilder()
+                    .setColumn(Name.ColumnName.parse(assignment.first).proto())
+                    .setValue(CottontailGrpc.Expression.newBuilder().setLiteral(assignment.second?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder())))
             )
         }
         return this

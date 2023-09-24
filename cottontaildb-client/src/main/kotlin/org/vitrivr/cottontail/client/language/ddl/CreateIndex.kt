@@ -43,13 +43,6 @@ class CreateIndex(name: Name.EntityName, type: CottontailGrpc.IndexType): Langua
     }
 
     /**
-     * Returns the serialized message size in bytes of this [CreateIndex]
-     *
-     * @return The size in bytes of this [CreateIndex].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
-
-    /**
      * Adds a column to this [CreateIndex].
      *
      * @param column The name of the column

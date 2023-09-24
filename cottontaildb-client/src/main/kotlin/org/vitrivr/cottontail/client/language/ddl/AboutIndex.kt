@@ -37,11 +37,4 @@ class AboutIndex(name: Name.IndexName): LanguageFeature() {
         this.builder.metadataBuilder.queryId = queryId
         return this
     }
-
-    /**
-     * Returns the serialized message size in bytes of this [AboutIndex]
-     *
-     * @return The size in bytes of this [AboutIndex].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
 }

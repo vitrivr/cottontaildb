@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 @Serializable
 @SerialName("IsNull")
 data class IsNull(val p: Expression): Predicate() {
-    override fun toGrpc(): CottontailGrpc.Predicate = CottontailGrpc.Predicate.newBuilder().setIsnull(
+    override fun toGrpc(): CottontailGrpc.Predicate.Builder = CottontailGrpc.Predicate.newBuilder().setIsnull(
         CottontailGrpc.Predicate.IsNull.newBuilder().setExp(this.p.toGrpc())
-    ).build()
+    )
 }

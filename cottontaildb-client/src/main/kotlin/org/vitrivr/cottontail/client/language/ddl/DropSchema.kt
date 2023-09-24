@@ -37,11 +37,4 @@ class DropSchema(name: Name.SchemaName): LanguageFeature() {
         this.builder.metadataBuilder.queryId = queryId
         return this
     }
-
-    /**
-     * Returns the serialized message size in bytes of this [DropSchema]
-     *
-     * @return The size in bytes of this [DropSchema].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
 }

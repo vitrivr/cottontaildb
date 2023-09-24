@@ -14,11 +14,11 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 @Serializable
 @SerialName("List")
 class List(val value: Array<Value>): Expression() {
-    override fun toGrpc(): CottontailGrpc.Expression {
+    override fun toGrpc(): CottontailGrpc.Expression.Builder {
         val builder = CottontailGrpc.Expression.newBuilder()
         for (data in this.value) {
             builder.literalListBuilder.addLiteral(data.toGrpc())
         }
-        return builder.build()
+        return builder
     }
 }

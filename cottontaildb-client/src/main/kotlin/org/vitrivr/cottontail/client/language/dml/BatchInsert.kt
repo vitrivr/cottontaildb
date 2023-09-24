@@ -49,13 +49,6 @@ class BatchInsert(entity: Name.EntityName): LanguageFeature() {
     }
 
     /**
-     * Returns the serialized message size in bytes of this [BatchInsert]
-     *
-     * @return The size in bytes of this [BatchInsert].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
-
-    /**
      * Adds a column to this [BatchInsert].
      *
      * @param columns The name of the columns this [BatchInsert] should insert into.
@@ -108,7 +101,7 @@ class BatchInsert(entity: Name.EntityName): LanguageFeature() {
     fun values(vararg values: Value?): Boolean {
         val insert = CottontailGrpc.BatchInsertMessage.Insert.newBuilder()
         for (value in values) {
-            insert.addValues(value?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder()).build())
+            insert.addValues(value?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder()))
             this.payloadSize += value?.physicalSize ?: 0
         }
         return if (this.payloadSize < Constants.MAX_PAGE_SIZE_BYTES) {
@@ -128,7 +121,7 @@ class BatchInsert(entity: Name.EntityName): LanguageFeature() {
     fun values(values: Iterable<Value?>): Boolean {
         val insert = CottontailGrpc.BatchInsertMessage.Insert.newBuilder()
         for (value in values) {
-            insert.addValues(value?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder()).build())
+            insert.addValues(value?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder()))
             this.payloadSize += value?.physicalSize ?: 0
         }
         return if (this.payloadSize < Constants.MAX_PAGE_SIZE_BYTES) {

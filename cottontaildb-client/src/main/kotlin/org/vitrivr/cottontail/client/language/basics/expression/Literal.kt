@@ -28,9 +28,5 @@ data class Literal(val value: Value): Expression() {
     constructor(value: FloatArray): this(FloatVectorValue(value))
     constructor(value: DoubleArray): this(DoubleVectorValue(value))
 
-    override fun toGrpc(): CottontailGrpc.Expression {
-        val expression = CottontailGrpc.Expression.newBuilder()
-        expression.literal = this.value.toGrpc()
-        return expression.build()
-    }
+    override fun toGrpc(): CottontailGrpc.Expression.Builder = CottontailGrpc.Expression.newBuilder().setLiteral(this.value.toGrpc())
 }

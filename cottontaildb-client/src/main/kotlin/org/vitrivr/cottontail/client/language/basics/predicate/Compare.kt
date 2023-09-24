@@ -5,7 +5,6 @@ import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.client.language.basics.expression.Column
 import org.vitrivr.cottontail.client.language.basics.expression.Expression
 import org.vitrivr.cottontail.client.language.basics.expression.Literal
-import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
@@ -28,9 +27,9 @@ data class Compare(val lexp: Expression, val operator: Operator, val rexp: Expre
     constructor(column: String, operator: String, literal: FloatArray): this(Column(column), Operator.parse(operator), Literal(literal))
     constructor(column: String, operator: String, literal: DoubleArray): this(Column(column), Operator.parse(operator), Literal(literal))
 
-    override fun toGrpc(): CottontailGrpc.Predicate = CottontailGrpc.Predicate.newBuilder().setComparison(
+    override fun toGrpc(): CottontailGrpc.Predicate.Builder = CottontailGrpc.Predicate.newBuilder().setComparison(
         CottontailGrpc.Predicate.Comparison.newBuilder().setLexp(this.lexp.toGrpc()).setRexp(this.rexp.toGrpc()).setOperator(this.operator.grpc)
-    ).build()
+    )
 
     /**
      * Enumeration of supported [Compare] operators.

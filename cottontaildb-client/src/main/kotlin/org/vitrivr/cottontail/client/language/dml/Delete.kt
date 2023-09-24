@@ -44,13 +44,6 @@ class Delete(entity: Name.EntityName): LanguageFeature() {
     }
 
     /**
-     * Returns the serialized message size in bytes of this [Delete]
-     *
-     * @return The size in bytes of this [Delete].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
-
-    /**
      * Adds a WHERE-clause to this [Delete].
      *
      * @return This [Delete]

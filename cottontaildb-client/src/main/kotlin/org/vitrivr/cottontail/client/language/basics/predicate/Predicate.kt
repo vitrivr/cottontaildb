@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 @Serializable
 sealed class Predicate {
     /**
-     * Converts this [Predicate] to a gRPC representation.
+     * Converts this [Predicate] to a gRPC [CottontailGrpc.Predicate.Builder] representation.
      */
-    abstract fun toGrpc(): CottontailGrpc.Predicate
+    abstract fun toGrpc(): CottontailGrpc.Predicate.Builder
 }

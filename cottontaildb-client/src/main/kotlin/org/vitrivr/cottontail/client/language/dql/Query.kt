@@ -50,13 +50,6 @@ class Query(entity: Name.EntityName): LanguageFeature() {
     }
 
     /**
-     * Returns the serialized message size in bytes of this [Query]
-     *
-     * @return The size in bytes of this [Query].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
-
-    /**
      * Adds a SELECT projection for a column to this [Query]. Call this method repeatedly to add multiple projections.
      *
      * @param column The name of the column to select.
@@ -81,7 +74,7 @@ class Query(entity: Name.EntityName): LanguageFeature() {
             builder.op = CottontailGrpc.Projection.ProjectionOperation.SELECT
         }
         val element = builder.addElementsBuilder()
-        element.expression = expression.toGrpc()
+        element.setExpression(expression.toGrpc())
         if (alias != null) {
             element.alias = Name.ColumnName.parse(alias).proto()
         }
@@ -115,7 +108,7 @@ class Query(entity: Name.EntityName): LanguageFeature() {
             builder.op = CottontailGrpc.Projection.ProjectionOperation.SELECT_DISTINCT
         }
         val element = builder.addElementsBuilder()
-        element.expression = expression.toGrpc()
+        element.setExpression(expression.toGrpc())
         if (alias != null) {
             element.alias = Name.ColumnName.parse(alias).proto()
         }
