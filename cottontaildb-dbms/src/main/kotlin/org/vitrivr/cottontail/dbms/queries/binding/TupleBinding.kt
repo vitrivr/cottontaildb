@@ -16,6 +16,18 @@ import org.vitrivr.cottontail.core.values.Value
  */
 class TupleBinding(override var tupleId: TupleId, override val columns: Array<ColumnDef<*>>, private val values: Array<Binding.Literal>, private val context: BindingContext) : MutableTuple {
 
+    /** Logical size of this [Tuple]. Can only be accessed in a [BindingContext]. */
+    override val logicalSize: Int
+        get() = with(this.context) {
+            return this@TupleBinding.values.sumOf { it.getValue()?.logicalSize ?: 0 }
+        }
+
+    /** Logical size of this [Tuple]. Can only be accessed in a [BindingContext]. */
+    override val physicalSize: Int
+        get() = with(this.context) {
+            return this@TupleBinding.values.sumOf { it.getValue()?.physicalSize ?: 0 }
+        }
+
     /**
      * Creates a copy of this [TupleBinding]
      */
@@ -27,7 +39,7 @@ class TupleBinding(override var tupleId: TupleId, override val columns: Array<Co
      * @return [List] of [Value]
      */
     override fun values(): List<Value?> = with(this.context) {
-        return this@TupleBinding.values.map { it.getValue() as Value }
+        return this@TupleBinding.values.map { it.getValue() }
     }
 
     /**
@@ -38,7 +50,7 @@ class TupleBinding(override var tupleId: TupleId, override val columns: Array<Co
      */
     override fun get(index: Int): Value? = with(this.context) {
         require(index in (0 until this@TupleBinding.size)) { "The specified column $index is out of bounds." }
-        return this@TupleBinding.values[index].getValue() as Value
+        return this@TupleBinding.values[index].getValue()
     }
 
     /**

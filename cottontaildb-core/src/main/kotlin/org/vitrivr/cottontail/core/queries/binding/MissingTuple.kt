@@ -6,7 +6,6 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.values.Value
 
-
 /**
  * This is a placeholder [Tuple] used for context receiver only.
  *
@@ -17,6 +16,10 @@ object MissingTuple: Tuple {
     override val tupleId: TupleId
         get() = throw IllegalStateException("Contextual access to missing tuple is not allowed! This is a programmer's error!")
     override val columns: Array<ColumnDef<*>>
+        get() = throw IllegalStateException("Contextual access to missing tuple is not allowed! This is a programmer's error!")
+    override val logicalSize: Int
+        get() = throw IllegalStateException("Contextual access to missing tuple is not allowed! This is a programmer's error!")
+    override val physicalSize: Int
         get() = throw IllegalStateException("Contextual access to missing tuple is not allowed! This is a programmer's error!")
     override fun copy(): Tuple = this
     override fun has(column: ColumnDef<*>): Boolean = false

@@ -23,9 +23,15 @@ interface Tuple {
     /** [Array] of [ColumnDef]s contained in this [Tuple]. */
     val columns: Array<ColumnDef<*>>
 
-    /** Size of this [Tuple] in terms of [ColumnDef] it encompasses. */
+    /** Number of columns contained in this [Tuple]. */
     val size: Int
         get() = this.columns.size
+
+    /** Logical size of this [Tuple]. */
+    val logicalSize: Int
+
+    /** Physical size of this [Tuple] in bytes. */
+    val physicalSize: Int
 
     /**
      * Creates and returns a copy of this [Tuple].

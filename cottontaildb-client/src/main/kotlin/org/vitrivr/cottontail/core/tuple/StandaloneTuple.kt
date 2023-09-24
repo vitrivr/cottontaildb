@@ -28,6 +28,15 @@ class StandaloneTuple(override var tupleId: TupleId, override val columns: Array
      */
     constructor(tupleId: TupleId, column: ColumnDef<*>, value: Value?) : this(tupleId, arrayOf(column), arrayOf(value))
 
+    /** The logical size of this [StandaloneTuple]. */
+    override val logicalSize: Int
+        get() = this.values.sumOf { it?.logicalSize ?: 0}
+
+
+    /** The physical size in bytes of this [StandaloneTuple]. */
+    override val physicalSize: Int
+        get() = this.values.sumOf { it?.physicalSize ?: 0}
+
     init {
         require(this.columns.size == this.values.size) { "Number of values and number of columns must be the same." }
         for ((i, c) in this.columns.withIndex()) {
