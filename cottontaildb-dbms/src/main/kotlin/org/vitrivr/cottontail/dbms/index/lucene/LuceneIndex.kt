@@ -157,7 +157,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
      * @return [IndexTx]
      */
     override fun newTx(context: QueryContext): IndexTx
-        = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
+        = context.transaction.cachedTxForName(this) ?: this.Tx(context)
 
     /**
      * Returns a new [LuceneIndexRebuilder] instance.
@@ -177,7 +177,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
     inner class Tx(context: QueryContext) : AbstractIndex.Tx(context), org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization, org.vitrivr.cottontail.dbms.general.Tx.WithRollbackFinalization  {
 
         /** The [LuceneIndexDataStore] backing this [LuceneIndex]. */
-        private val store = LuceneIndexDataStore(XodusDirectory(this@LuceneIndex.catalogue.transactionManager.vfs, this@LuceneIndex.name.toString(), this.context.txn.xodusTx), this.columns[0].name)
+        private val store = LuceneIndexDataStore(XodusDirectory(this@LuceneIndex.catalogue.transactionManager.vfs, this@LuceneIndex.name.toString(), this.context.transaction.xodusTx), this.columns[0].name)
 
         /**
          * Converts a [BooleanPredicate] to a [Query] supported by Apache Lucene.

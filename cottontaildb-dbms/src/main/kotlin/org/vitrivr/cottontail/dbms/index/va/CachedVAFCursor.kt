@@ -44,7 +44,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
     protected val bounds: Bounds
 
     /** The sub-transaction used by this [VAFCursor]. */
-    protected val subTx = this.index.context.txn.xodusTx.readonlySnapshot
+    protected val subTx = this.index.context.transaction.xodusTx.readonlySnapshot
 
     /** Cursor backing this [VAFCursor]. */
     protected val cursor = this.index.dataStore.openCursor(this.subTx)

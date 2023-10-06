@@ -29,7 +29,7 @@ data class SchemaCatalogueEntry(val name: Name.SchemaName): Comparable<SchemaCat
          * @param transaction The [Transaction] to use.
          */
         internal fun init(catalogue: DefaultCatalogue, transaction: Transaction) {
-            catalogue.transactionManager.environment.openStore(CATALOGUE_SCHEMA_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
+            catalogue.transactionManager.catalogue.openStore(CATALOGUE_SCHEMA_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
                 ?: throw DatabaseException.DataCorruptionException("Failed to create schema catalogue store.")
         }
 
@@ -41,7 +41,7 @@ data class SchemaCatalogueEntry(val name: Name.SchemaName): Comparable<SchemaCat
          * @return [Store]
          */
         internal fun store(catalogue: DefaultCatalogue, transaction: Transaction): Store {
-            return catalogue.transactionManager.environment.openStore(CATALOGUE_SCHEMA_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
+            return catalogue.transactionManager.catalogue.openStore(CATALOGUE_SCHEMA_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
                 ?: throw DatabaseException.DataCorruptionException("Failed to open store for schema catalogue.")
         }
 

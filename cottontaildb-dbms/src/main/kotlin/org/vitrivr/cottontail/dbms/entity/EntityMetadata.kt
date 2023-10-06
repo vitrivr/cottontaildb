@@ -9,13 +9,11 @@ import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.LightOutputStream
-import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import java.io.ByteArrayInputStream
+import java.util.*
 
 /**
  * A [EntityMetadata] in the Cottontail DB [Catalogue]. Used to store metadata about [Entity]s.
@@ -23,7 +21,7 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-data class EntityMetadata(val created: Long, val columns: List<String>, val indexes: List<String>) {
+data class EntityMetadata(val handle: UUID = UUID.randomUUID(), val created: Long, val columns: List<String>, val indexes: List<String>) {
 
     companion object {
         /** Name of the Xodus [Store] used to store [EntityMetadata]. */
@@ -36,7 +34,7 @@ data class EntityMetadata(val created: Long, val columns: List<String>, val inde
          * @param transaction The [Transaction] to use.
          */
         fun init(catalogue: DefaultCatalogue, transaction: Transaction) {
-            catalogue.transactionManager.environment.openStore(CATALOGUE_ENTITY_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
+            catalogue.transactionManager.catalogue.openStore(CATALOGUE_ENTITY_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
                 ?: throw DatabaseException.DataCorruptionException("Failed to create entity catalogue.")
         }
 
@@ -48,7 +46,7 @@ data class EntityMetadata(val created: Long, val columns: List<String>, val inde
          * @return [Store]
          */
         fun store(catalogue: DefaultCatalogue, transaction: Transaction): Store =
-            catalogue.transactionManager.environment.openStore(CATALOGUE_ENTITY_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
+            catalogue.transactionManager.catalogue.openStore(CATALOGUE_ENTITY_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
                 ?: throw DatabaseException.DataCorruptionException("Failed to open store for entity catalogue.")
 
         /**
@@ -56,6 +54,7 @@ data class EntityMetadata(val created: Long, val columns: List<String>, val inde
          */
         fun fromEntry(entry: ByteIterable): EntityMetadata {
             val stream = ByteArraySizedInputStream(entry.bytesUnsafe, 0, entry.length)
+            val handle = UUID(LongBinding.readCompressed(stream), LongBinding.readCompressed(stream))
             val created = LongBinding.readCompressed(stream)
             val columns = (0 until IntegerBinding.readCompressed(stream)).map {
                 StringBinding.BINDING.readObject(stream)
@@ -63,7 +62,7 @@ data class EntityMetadata(val created: Long, val columns: List<String>, val inde
             val indexes = (0 until IntegerBinding.readCompressed(stream)).map {
                 StringBinding.BINDING.readObject(stream)
             }
-            return EntityMetadata(created, columns, indexes)
+            return EntityMetadata(handle, created, columns, indexes)
         }
 
         /**
@@ -74,7 +73,9 @@ data class EntityMetadata(val created: Long, val columns: List<String>, val inde
          */
         fun toEntry(entry: EntityMetadata): ByteIterable {
             val output = LightOutputStream()
-            LongBinding.writeCompressed(output,  entry.created)
+            LongBinding.writeCompressed(output, entry.handle.mostSignificantBits)
+            LongBinding.writeCompressed(output, entry.handle.leastSignificantBits)
+            LongBinding.writeCompressed(output, entry.created)
             IntegerBinding.writeCompressed(output,entry.columns.size)
             for (columnName in entry.columns) {
                 StringBinding.BINDING.writeObject(output, columnName)

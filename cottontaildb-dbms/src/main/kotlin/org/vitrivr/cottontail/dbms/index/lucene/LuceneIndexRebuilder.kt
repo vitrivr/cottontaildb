@@ -21,7 +21,7 @@ class LuceneIndexRebuilder(index: LuceneIndex, context: QueryContext): AbstractI
      */
     override fun rebuildInternal(): Boolean {
         /* Read basic index properties. */
-        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.txn.xodusTx)
+        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.transaction.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
         val column = entry.columns[0]
 
@@ -31,7 +31,7 @@ class LuceneIndexRebuilder(index: LuceneIndex, context: QueryContext): AbstractI
         val columnTx = entityTx.columnForName(column).newTx(this.context)
 
         /* The [Directory] containing the data for this [LuceneIndex]. */
-        LuceneIndexDataStore(XodusDirectory(this.index.catalogue.transactionManager.vfs, this.index.name.toString(), this.context.txn.xodusTx), column).use { store ->
+        LuceneIndexDataStore(XodusDirectory(this.index.catalogue.transactionManager.vfs, this.index.name.toString(), this.context.transaction.xodusTx), column).use { store ->
             /* Delete all entries. */
             store.indexWriter.deleteAll()
 
@@ -41,7 +41,7 @@ class LuceneIndexRebuilder(index: LuceneIndex, context: QueryContext): AbstractI
                     val value = cursor.value()
                     if (value is StringValue) {
                         store.addDocument(cursor.key(), value)
-                        if (!this.context.txn.xodusTx.flush()) {
+                        if (!this.context.transaction.xodusTx.flush()) {
                             return false
                         }
                     }

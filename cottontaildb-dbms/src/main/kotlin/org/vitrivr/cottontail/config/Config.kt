@@ -46,6 +46,9 @@ data class Config(
         /** Returns a path to the main data folder used by Cottontail DB. */
         fun dataFolder(): Path = this.root.resolve("xodus")
 
+        /** Returns a path to the main data folder used by Cottontail DB. */
+        fun catalogueFolder(): Path = this.root.resolve("xodus")
+
         /** Returns a path to the statistics data folder used by Cottontail DB. */
         fun statisticsFolder(): Path = this.root.resolve("statistics")
 

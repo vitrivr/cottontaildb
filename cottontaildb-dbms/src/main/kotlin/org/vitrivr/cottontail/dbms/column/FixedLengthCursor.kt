@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.storage.serializers.tablets.TabletSerializer
  */
 class FixedLengthCursor<T: Value>(private val column: Column<T>, private val transaction: Transaction): Cursor<T> {
     /** Internal data [Store] reference. */
-    private val dataStore: Store = this.column.catalogue.transactionManager.environment.openStore(
+    private val dataStore: Store = this.column.catalogue.transactionManager.catalogue.openStore(
         this.column.name.storeName(),
         StoreConfig.USE_EXISTING,
         this.transaction.xodusTx,

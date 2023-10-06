@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index: BTreeIndex.Tx) : Cursor<Tuple> {
     /** Internal cursor used for navigation. */
-    protected val subTransaction = this.index.context.txn.xodusTx.readonlySnapshot
+    protected val subTransaction = this.index.context.transaction.xodusTx.readonlySnapshot
 
     /** Internal cursor used for navigation. */
     protected val cursor: jetbrains.exodus.env.Cursor

@@ -23,7 +23,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 3.1.0
  */
-class DefaultQueryContext(override val queryId: String, override val catalogue: Catalogue, override val txn: Transaction, override val hints: Set<QueryHint> = emptySet()): QueryContext {
+class DefaultQueryContext(override val queryId: String, override val catalogue: Catalogue, override val transaction: Transaction, override val hints: Set<QueryHint> = emptySet()): QueryContext {
 
     /** List of bound [Value]s for this [DefaultQueryContext]. */
     override val bindings: BindingContext = DefaultBindingContext()
@@ -124,7 +124,7 @@ class DefaultQueryContext(override val queryId: String, override val catalogue: 
             0 -> throw IllegalStateException("Cannot generate an operator tree without a valid, physical node expression tree.")
             1 -> { /* Case: Simple query (no sub-queries). */
                 val local = this.physical.first()
-                val maxParallelism = this.hints.filterIsInstance<QueryHint.Parallelism>().firstOrNull()?.max?.coerceAtMost(this.txn.availableIntraQueryWorkers) ?: this.txn.availableIntraQueryWorkers
+                val maxParallelism = this.hints.filterIsInstance<QueryHint.Parallelism>().firstOrNull()?.max?.coerceAtMost(this.transaction.availableIntraQueryWorkers) ?: this.transaction.availableIntraQueryWorkers
                 if (maxParallelism > 1) {
                     val partitioned = local.tryPartition(this, maxParallelism)?.root
                     if (partitioned != null) {
@@ -149,8 +149,8 @@ class DefaultQueryContext(override val queryId: String, override val catalogue: 
             get() = this@DefaultQueryContext.queryId
         override val catalogue: Catalogue
             get() = this@DefaultQueryContext.catalogue
-        override val txn: Transaction
-            get() = this@DefaultQueryContext.txn
+        override val transaction: Transaction
+            get() = this@DefaultQueryContext.transaction
         override val hints: Set<QueryHint>
             get() = this@DefaultQueryContext.hints
         override val costPolicy: CostPolicy

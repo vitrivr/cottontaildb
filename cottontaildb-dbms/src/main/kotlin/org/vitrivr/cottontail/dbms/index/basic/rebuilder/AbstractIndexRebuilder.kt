@@ -34,12 +34,12 @@ abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
     @Synchronized
     override fun rebuild(): Boolean {
         /* Sanity check. */
-        require(this.context.txn.xodusTx.isExclusive) { "Failed to rebuild index ${this.index.name} (${this.index.type}); rebuild operation requires exclusive transaction."}
+        require(this.context.transaction.xodusTx.isExclusive) { "Failed to rebuild index ${this.index.name} (${this.index.type}); rebuild operation requires exclusive transaction."}
 
         LOGGER.debug("Rebuilding index ${this.index.name} (${this.index.type}).")
 
         /* Clear store and update state of index (* ---> DIRTY). */
-        if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.DIRTY, this.context.txn.xodusTx)) {
+        if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.DIRTY, this.context.transaction.xodusTx)) {
             LOGGER.error("Rebuilding index ${this.index.name} (${this.index.type}) failed because index state could not be changed to CLEAN!")
             return false
         }
@@ -51,7 +51,7 @@ abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
         }
 
         /* Update state of index (DIRTY ---> CLEAN). */
-        if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.CLEAN, this.context.txn.xodusTx)) {
+        if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.CLEAN, this.context.transaction.xodusTx)) {
             LOGGER.error("Rebuilding index ${this.index.name} (${this.index.type}) failed because index state could not be changed to CLEAN!")
             return false
         }
@@ -74,9 +74,9 @@ abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
      */
     protected fun tryClearAndOpenStore(): Store? {
         val storeName = this.index.name.storeName()
-        if (this.index.catalogue.transactionManager.environment.storeExists(storeName, this.context.txn.xodusTx)) {
-            this.index.catalogue.transactionManager.environment.truncateStore(storeName, this.context.txn.xodusTx)
-            return this.index.catalogue.transactionManager.environment.openStore(storeName, StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
+        if (this.index.catalogue.transactionManager.catalogue.storeExists(storeName, this.context.transaction.xodusTx)) {
+            this.index.catalogue.transactionManager.catalogue.truncateStore(storeName, this.context.transaction.xodusTx)
+            return this.index.catalogue.transactionManager.catalogue.openStore(storeName, StoreConfig.USE_EXISTING, this.context.transaction.xodusTx, false)
         }
         return null
     }

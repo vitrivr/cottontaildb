@@ -19,7 +19,7 @@ class BTreeIndexRebuilder(index: BTreeIndex, context: QueryContext): AbstractInd
     @Suppress("UNCHECKED_CAST")
     override fun rebuildInternal(): Boolean {
         /* Read basic index properties. */
-        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.txn.xodusTx)
+        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.transaction.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name} (${this.index.type}). Could not read catalogue entry for index.")
         val column = entry.columns[0]
 
@@ -34,7 +34,7 @@ class BTreeIndexRebuilder(index: BTreeIndex, context: QueryContext): AbstractInd
             while (cursor.moveNext()) {
                 val keyRaw = binding.toEntry(cursor.value())
                 val tupleIdRaw = LongBinding.longToCompressedEntry(cursor.key())
-                if (!dataStore.put(this.context.txn.xodusTx, keyRaw, tupleIdRaw)) {
+                if (!dataStore.put(this.context.transaction.xodusTx, keyRaw, tupleIdRaw)) {
                     return false
                 }
             }

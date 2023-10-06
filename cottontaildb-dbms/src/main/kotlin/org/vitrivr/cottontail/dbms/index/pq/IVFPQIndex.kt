@@ -83,7 +83,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          * @return True on success, false otherwise.
          */
         override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
-            val store = catalogue.transactionManager.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES, context.xodusTx, true)
+            val store = catalogue.transactionManager.catalogue.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize IVFPQ index $name due to an exception: ${e.message}.")
@@ -99,7 +99,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          * @return True on success, false otherwise.
          */
         override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
-            catalogue.transactionManager.environment.removeStore(name.storeName(), context.xodusTx)
+            catalogue.transactionManager.catalogue.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {
             LOGGER.error("Failed to de-initialize IVFPQ index $name due to an exception: ${e.message}.")
@@ -129,7 +129,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
 
     override val type: IndexType = IndexType.IVFPQ
     override fun newTx(context: QueryContext): IndexTx
-        = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
+        = context.transaction.cachedTxForName(this) ?: this.Tx(context)
 
     override fun newRebuilder(context: QueryContext): IndexRebuilder<*> = IVFPQIndexRebuilder(this, context)
 
@@ -150,13 +150,13 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
 
         /** The coarse [MultiStageQuantizer] used by this [IVFPQIndex.Tx] instance. */
         internal val quantizer: MultiStageQuantizer by lazy {
-            val serializable = IndexStructCatalogueEntry.read<SerializableMultiStageProductQuantizer>(this@IVFPQIndex.name, this@IVFPQIndex.catalogue, this.context.txn.xodusTx, SerializableMultiStageProductQuantizer.Binding)?:
+            val serializable = IndexStructCatalogueEntry.read<SerializableMultiStageProductQuantizer>(this@IVFPQIndex.name, this@IVFPQIndex.catalogue, this.context.transaction.xodusTx, SerializableMultiStageProductQuantizer.Binding)?:
             throw DatabaseException.DataCorruptionException("ProductQuantizer for IVFPQ index ${this@IVFPQIndex.name} is missing.")
             serializable.toProductQuantizer(this.distanceFunction)
         }
 
         /** The Xodus [Store] used to store [SPQSignature]s. */
-        internal val dataStore: Store = this@IVFPQIndex.catalogue.transactionManager.environment.openStore(this@IVFPQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
+        internal val dataStore: Store = this@IVFPQIndex.catalogue.transactionManager.catalogue.openStore(this@IVFPQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.transaction.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for IVFPQ index ${this@IVFPQIndex.name} is missing.")
 
         /**
@@ -216,7 +216,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          * @return Number of entries in this [VAFIndex]
          */
         override fun count(): Long  = this.txLatch.withLock {
-            this.dataStore.count(this.context.txn.xodusTx)
+            this.dataStore.count(this.context.transaction.xodusTx)
         }
 
         /**
@@ -230,7 +230,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
             /* Extract value and return true if value is NULL (since NULL values are ignored). */
             val value = event.data[this@Tx.columns[0]] ?: return true
             val sig = this.quantizer.quantize(event.tupleId, value as VectorValue<*>)
-            return this.dataStore.put(this.context.txn.xodusTx, ShortBinding.shortToEntry(sig.first), sig.second.toEntry())
+            return this.dataStore.put(this.context.transaction.xodusTx, ShortBinding.shortToEntry(sig.first), sig.second.toEntry())
         }
 
         /**
@@ -248,7 +248,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
             /* Remove signature to tuple ID mapping. */
             if (oldValue != null) {
                 val oldSig = this.quantizer.quantize(event.tupleId, oldValue as VectorValue<*>)
-                val cursor = this.dataStore.openCursor(this.context.txn.xodusTx)
+                val cursor = this.dataStore.openCursor(this.context.transaction.xodusTx)
                 if (cursor.getSearchBoth(ShortBinding.shortToEntry(oldSig.first), oldSig.second.toEntry())) {
                     cursor.deleteCurrent()
                 }
@@ -258,7 +258,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
             /* Generate signature and store it. */
             if (newValue != null) {
                 val newSig = this.quantizer.quantize(event.tupleId, newValue as VectorValue<*>)
-                return this.dataStore.put(this.context.txn.xodusTx, ShortBinding.shortToEntry(newSig.first), newSig.second.toEntry())
+                return this.dataStore.put(this.context.transaction.xodusTx, ShortBinding.shortToEntry(newSig.first), newSig.second.toEntry())
             }
             return true
         }
@@ -273,7 +273,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
         override fun tryApply(event: DataEvent.Delete): Boolean {
             val oldValue = event.data[this.columns[0]] ?: return true
             val sig = this.quantizer.quantize(event.tupleId, oldValue as VectorValue<*>)
-            val cursor = this.dataStore.openCursor(this.context.txn.xodusTx)
+            val cursor = this.dataStore.openCursor(this.context.transaction.xodusTx)
             if (cursor.getSearchBoth(ShortBinding.shortToEntry(sig.first), sig.second.toEntry())) {
                 cursor.deleteCurrent()
             }

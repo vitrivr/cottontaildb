@@ -14,7 +14,9 @@ import org.vitrivr.cottontail.core.values.tablets.bytebuffer.AbstractByteBufferT
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.vitrivr.cottontail.dbms.execution.transactions.xodus.RefCountedEnvironment
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.defaultStatistics
@@ -51,9 +53,7 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
     private val tabletSize: Int = 128
 
     init {
-        require(type !is Types.String && this.columnDef.type !is Types.ByteString) {
-            "FixedLengthColumn can only be used for fixed-length types."
-        }
+        require(type !is Types.String && this.columnDef.type !is Types.ByteString) { "FixedLengthColumn can only be used for fixed-length types." }
     }
 
     /**
@@ -62,29 +62,22 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
      * @param context The [QueryContext] to create the [VariableLengthColumn.Tx] for.
      * @return New [VariableLengthColumn.Tx]
      */
-    override fun newTx(context: QueryContext): ColumnTx<T> = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
+    override fun newTx(context: QueryContext): ColumnTx<T> = this.Tx(context)
 
     /**
      * A [Tx] that affects this [VariableLengthColumn].
      */
     inner class Tx constructor(context: QueryContext) : AbstractTx(context), ColumnTx<T>, org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization {
 
-        init {
-            /* Cache this Tx for future use. */
-            context.txn.cacheTx(this)
-        }
+        /** The [RefCountedEnvironment.Tx] backing this [EntityTx]. */
+        private val tx = context.transaction.requestEnvironment(this@FixedLengthColumn.parent.handle)
 
         /** Internal data [Store] reference. */
-        private val dataStore: Store = this@FixedLengthColumn.catalogue.transactionManager.environment.openStore(
-            this@FixedLengthColumn.name.storeName(),
-            StoreConfig.USE_EXISTING,
-            this.context.txn.xodusTx,
-            false
-        ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@FixedLengthColumn.name} is missing.")
-
+        private val store: Store = this.tx.environment.openStore(this@FixedLengthColumn.name.storeName(), StoreConfig.USE_EXISTING, this.tx.xodusTx, false)
+            ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@FixedLengthColumn.name} is missing.")
 
         /** The internal [TabletSerializer] reference used for de-/serialization. */
-        private val serializer: TabletSerializer<T> = SerializerFactory.tablet(this@FixedLengthColumn.columnDef.type, this@FixedLengthColumn.tabletSize, this@FixedLengthColumn.compression)
+        private val serializer: TabletSerializer<T> = SerializerFactory.tablet(this@FixedLengthColumn.columnDef.type, this@FixedLengthColumn.tabletSize)
 
         /** The [TabletId] of the currently loaded [Tablet]. -1 if no [Tablet] has been loaded. */
         private var tabletId: TabletId = -1
@@ -104,9 +97,12 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
          *
          * @return [ValueStatistics].
          */
+        @Suppress("UNCHECKED_CAST")
         override fun statistics(): ValueStatistics<T> = this.txLatch.withLock {
-            val statistics = this@FixedLengthColumn.catalogue.statisticsManager[this@FixedLengthColumn.name]?.statistics as? ValueStatistics<T>
-            if (statistics != null) return statistics
+            val statistics = this@FixedLengthColumn.catalogue.statisticsManager[this@FixedLengthColumn.name]?.statistics
+            if (statistics != null) {
+                return statistics as ValueStatistics<T>
+            }
             return this.columnDef.type.defaultStatistics()
         }
 
@@ -117,10 +113,10 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
          * @return The desired [Value] or null.
          */
         override fun read(tupleId: TupleId): T? = this.txLatch.withLock {
-            val tabletId = tupleId ushr 6
+            val tabletId = tupleId / this@FixedLengthColumn.tabletSize
             val position = (tupleId % Long.SIZE_BITS).toInt()
             if (this.tabletId != tabletId) {
-                loadTabletForTuple(tabletId)
+                loadTablet(tabletId)
             }
             return this.tablet!![position]
         }
@@ -133,10 +129,10 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
          * @return The desired entry.
          */
         override fun write(tupleId: TupleId, value: T) = this.txLatch.withLock {
-            val tabletId = tupleId ushr 6
+            val tabletId = tupleId / this@FixedLengthColumn.tabletSize
             val position = (tupleId % Long.SIZE_BITS).toInt()
             if (this.tabletId != tabletId) {
-                loadTabletForTuple(tabletId)
+                loadTablet(tabletId)
             }
             val old = this.tablet!![position]
             this.tablet!![position] = value
@@ -154,7 +150,7 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
             val tabletId = tupleId ushr 6
             val position = (tupleId % tabletId).toInt()
             if (this.tabletId != tabletId) {
-                loadTabletForTuple(tabletId)
+                loadTablet(tabletId)
             }
             val old = this.tablet!![position]
             this.tablet!![position] = null
@@ -169,8 +165,8 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
          */
         @Suppress("UNCHECKED_CAST")
         override fun cursor(): Cursor<T> {
-            if (this.dataStore.count(this.context.txn.xodusTx) == 0L) return EmptyColumnCursor as Cursor<T>
-            return VariableLengthCursor(this@FixedLengthColumn, this.context.txn)
+            if (this.store.count(this.tx.xodusTx) == 0L) return EmptyColumnCursor as Cursor<T>
+            return FixedLengthCursor(this@FixedLengthColumn, this.context.transaction)
         }
 
         /**
@@ -179,7 +175,7 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
         override fun beforeCommit() {
             val tablet = this.tablet
             if (this.dirty && tablet != null) {
-                this.dataStore.put(this.context.txn.xodusTx, LongBinding.longToCompressedEntry(this.tabletId), this.serializer.toEntry(tablet))
+                this.store.put(this.tx.xodusTx, LongBinding.longToCompressedEntry(this.tabletId), this.serializer.toEntry(tablet))
                 this.dirty = false
             }
         }
@@ -189,13 +185,13 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
          *
          * @param tabletId [TabletId] of the [AbstractByteBufferTablet] to load.
          */
-        private fun loadTabletForTuple(tabletId: TabletId) {
+        private fun loadTablet(tabletId: TabletId) {
             if (this.dirty && this.tablet != null) { /* Flush current tablet if needed. */
-                this.dataStore.put(this.context.txn.xodusTx, LongBinding.longToCompressedEntry(this.tabletId), this.serializer.toEntry(this.tablet!!))
+                this.store.put(this.tx.xodusTx, LongBinding.longToCompressedEntry(this.tabletId), this.serializer.toEntry(this.tablet!!))
                 this.dirty = false
             }
             this.tabletId = tabletId
-            val rawTablet = this.dataStore.get(this.context.txn.xodusTx, LongBinding.longToCompressedEntry(tabletId))
+            val rawTablet = this.store.get(this.tx.xodusTx, LongBinding.longToCompressedEntry(tabletId))
             if (rawTablet != null) {
                 this.tablet = this.serializer.fromEntry(rawTablet)
             } else {

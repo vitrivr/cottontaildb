@@ -29,7 +29,7 @@ data class IndexMetadata(val type: IndexType, val state: IndexState, val columns
          * @param transaction The [Transaction] to use.
          */
         internal fun init(catalogue: DefaultCatalogue, transaction: Transaction) {
-            catalogue.transactionManager.environment.openStore(CATALOGUE_INDEX_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
+            catalogue.transactionManager.catalogue.openStore(CATALOGUE_INDEX_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
                 ?: throw DatabaseException.DataCorruptionException("Failed to create store for index catalogue.")
         }
 
@@ -41,7 +41,7 @@ data class IndexMetadata(val type: IndexType, val state: IndexState, val columns
          * @return [Store]
          */
         internal fun store(catalogue: DefaultCatalogue, transaction: Transaction): Store =
-            catalogue.transactionManager.environment.openStore(CATALOGUE_INDEX_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
+            catalogue.transactionManager.catalogue.openStore(CATALOGUE_INDEX_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
                 ?: throw DatabaseException.DataCorruptionException("Failed to open store for index catalogue.")
 
         /**

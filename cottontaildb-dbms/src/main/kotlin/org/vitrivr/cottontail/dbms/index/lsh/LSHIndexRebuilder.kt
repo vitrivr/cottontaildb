@@ -21,7 +21,7 @@ class LSHIndexRebuilder(index: LSHIndex, context: QueryContext): AbstractIndexRe
      */
     override fun rebuildInternal(): Boolean {
         /* Read basic index properties. */
-        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.txn.xodusTx)
+        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.transaction.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
         val config = entry.config as LSHIndexConfig
         val column = entry.columns[0]
@@ -39,7 +39,7 @@ class LSHIndexRebuilder(index: LSHIndex, context: QueryContext): AbstractIndexRe
             val tupleId = cursor.key()
             val value = cursor.next()
             if (value is VectorValue<*>) {
-                wrappedStore.addMapping(this.context.txn.xodusTx, generator.generate(value), tupleId)
+                wrappedStore.addMapping(this.context.transaction.xodusTx, generator.generate(value), tupleId)
             }
         }
 

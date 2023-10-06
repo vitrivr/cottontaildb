@@ -46,7 +46,7 @@ class VariableLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, over
      * @return New [VariableLengthColumn.Tx]
      */
     override fun newTx(context: QueryContext): ColumnTx<T>
-        = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
+        = context.transaction.cachedTxForName(this) ?: this.Tx(context)
 
     override fun equals(other: Any?): Boolean {
         if (other !is VariableLengthColumn<*>) return false
@@ -67,14 +67,14 @@ class VariableLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, over
     inner class Tx constructor(context: QueryContext) : AbstractTx(context), ColumnTx<T>  {
         init {
             /* Cache this Tx for future use. */
-            context.txn.cacheTx(this)
+            context.transaction.cacheTx(this)
         }
 
         /** Internal data [Store] reference. */
-        private val dataStore: Store = this@VariableLengthColumn.catalogue.transactionManager.environment.openStore(
+        private val dataStore: Store = this@VariableLengthColumn.catalogue.transactionManager.catalogue.openStore(
             this@VariableLengthColumn.name.storeName(),
             StoreConfig.USE_EXISTING,
-            this.context.txn.xodusTx,
+            this.context.transaction.xodusTx,
             false
         ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@VariableLengthColumn.name} is missing.")
 
@@ -106,7 +106,7 @@ class VariableLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, over
          * @throws DatabaseException If the tuple with the desired ID is invalid.
          */
         override fun read(tupleId: TupleId): T? = this.txLatch.withLock {
-            val ret = this.dataStore.get(this.context.txn.xodusTx, tupleId.toKey()) ?: return@withLock null
+            val ret = this.dataStore.get(this.context.transaction.xodusTx, tupleId.toKey()) ?: return@withLock null
             return this.binding.fromEntry(ret)
         }
 
@@ -120,10 +120,10 @@ class VariableLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, over
         override fun write(tupleId: TupleId, value: T): T? = this.txLatch.withLock {
             val rawTuple = tupleId.toKey()
             val valueRaw = this.binding.toEntry(value)
-            val oldRaw = this.dataStore.get(this.context.txn.xodusTx, tupleId.toKey())
+            val oldRaw = this.dataStore.get(this.context.transaction.xodusTx, tupleId.toKey())
 
             /* Update value. */
-            this.dataStore.put(this.context.txn.xodusTx, rawTuple, valueRaw)
+            this.dataStore.put(this.context.transaction.xodusTx, rawTuple, valueRaw)
 
             /* Return previous value. */
             if (oldRaw != null) {
@@ -141,10 +141,10 @@ class VariableLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, over
          */
         override fun delete(tupleId: TupleId): T? = this.txLatch.withLock {
             val rawTupleId = tupleId.toKey()
-            val oldRaw = this.dataStore.get(this.context.txn.xodusTx, tupleId.toKey())
+            val oldRaw = this.dataStore.get(this.context.transaction.xodusTx, tupleId.toKey())
 
             /* Delete value. */
-            this.dataStore.delete(this.context.txn.xodusTx, rawTupleId)
+            this.dataStore.delete(this.context.transaction.xodusTx, rawTupleId)
 
             /* Return previous value. */
             if (oldRaw != null) {
@@ -161,8 +161,8 @@ class VariableLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, over
          */
         @Suppress("UNCHECKED_CAST")
         override fun cursor(): Cursor<T> {
-            if (this.dataStore.count(this.context.txn.xodusTx) == 0L) return EmptyColumnCursor as Cursor<T>
-            return VariableLengthCursor(this@VariableLengthColumn, this.context.txn)
+            if (this.dataStore.count(this.context.transaction.xodusTx) == 0L) return EmptyColumnCursor as Cursor<T>
+            return VariableLengthCursor(this@VariableLengthColumn, this.context.transaction)
         }
     }
 }

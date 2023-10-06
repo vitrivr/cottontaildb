@@ -21,14 +21,18 @@ import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
+import org.vitrivr.cottontail.dbms.execution.locking.LockHolder
 import org.vitrivr.cottontail.dbms.execution.locking.LockManager
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager.AbstractTransaction
+import org.vitrivr.cottontail.dbms.execution.transactions.xodus.RefCountedEnvironment
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.lang.ref.SoftReference
+import java.nio.file.Files
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.StampedLock
@@ -58,25 +62,28 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
     private val exclusiveLock = StampedLock()
 
     /** The [LockManager] instance used by this [TransactionManager]. */
-    internal val lockManager = LockManager<DBO>()
+    private val lockManager = LockManager<Environment>()
 
-    /** The main Xodus [Environment] used by Cottontail DB. This is an internal variable and not part of the official interface. */
-    internal val environment: Environment = Environments.newInstance(
-        this.config.dataFolder().toFile(),
+    /** The catalogue [Environment] used by Cottontail DB. */
+    private val catalogue: Environment = Environments.newInstance(
+        this.config.catalogueFolder().toFile(),
         this.config.xodus.toEnvironmentConfig()
     )
+
+    /** A map of open data [Environment]s. These [RefCountedEnvironment]s belong to Cottontail DB [DBO]s. */
+    private val data: ConcurrentHashMap<UUID, Environment> = ConcurrentHashMap()
 
     /** The [VirtualFileSystem] used by this [TransactionManager]. */
     internal val vfs: VirtualFileSystem
 
     init {
-        val tx = this.environment.beginExclusiveTransaction()
+        val tx = this.catalogue.beginExclusiveTransaction()
         try {
             /** Initialize virtual file system. */
             val config = VfsConfig()
             config.clusteringStrategy = ClusteringStrategy.QuadraticClusteringStrategy(65536)
             config.clusteringStrategy.maxClusterSize = 65536 * 16
-            this.vfs = VirtualFileSystem(this.environment, config, tx)
+            this.vfs = VirtualFileSystem(this.catalogue, config, tx)
             tx.commit()
         } catch (e: Throwable) {
             tx.abort()
@@ -90,7 +97,7 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
      * @param txId [TransactionId] to return the [AbstractTransaction] for.
      * @return [AbstractTransaction] or null
      */
-    operator fun get(txId: TransactionId): org.vitrivr.cottontail.dbms.execution.transactions.Transaction? = this.transactions[txId]
+    operator fun get(txId: TransactionId): Transaction? = this.transactions[txId]
 
     /**
      * Returns a list of [TransactionMetadata] of all ongoing and past transactions.
@@ -152,7 +159,14 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
      */
     fun shutdown() {
         this.vfs.shutdown()
-        this.environment.close()
+        this.catalogue.close()
+    }
+
+    /**
+     *
+     */
+    private fun getOrOpenDataEnvironment(handle: UUID) = this.data.computeIfAbsent(handle) {
+        Environments.newInstance(this@TransactionManager.config.catalogueFolder().toFile(), this@TransactionManager.config.xodus.toEnvironmentConfig())
     }
 
     /**
@@ -163,10 +177,7 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
      * @author Ralph Gasser
      * @version 2.0.0
      */
-    private abstract inner class AbstractTransaction(override val type: TransactionType): Transaction {
-
-        /** The [TransactionId] assigned to this [AbstractTransaction]*/
-        final override val transactionId = this@TransactionManager.tidCounter.getAndIncrement()
+    private abstract inner class AbstractTransaction(override val type: TransactionType): Transaction, LockHolder<Environment>(this@TransactionManager.tidCounter.getAndIncrement()) {
 
         /** The [TransactionStatus] of this [AbstractTransaction]. */
         @Volatile
@@ -195,9 +206,11 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
         /** A [HashSet] containing ALL [CoroutineContext] instances associated with execution in this [AbstractTransaction], */
         private val activeContexts = HashSet<CoroutineContext>()
 
+        /** */
+        private val environments = LinkedList<RefCountedEnvironment>()
+
         /** Timestamp of when this [AbstractTransaction] was created. */
-        final override val created: Long
-            get() = this.xodusTx.startTime
+        final override val created: Long = System.currentTimeMillis()
 
         /** Timestamp of when this [AbstractTransaction] was either COMMITTED or ABORTED. */
         final override var ended: Long? = null
@@ -238,6 +251,28 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
                 this.localObservers[observer] = SoftReference(LinkedList<Event>())
             }
         }
+
+
+        /**
+         *
+         */
+        fun createEnvironment(handle: UUID) {
+            val handlePath =  this@TransactionManager.config.dataFolder().resolve(handle.toString())
+            if (Files.notExists(handlePath)) {
+                Files.createDirectories(handlePath)
+            }
+            val environment: Environment =
+        }
+
+        /**
+         *
+         */
+        override fun requestEnvironment(handle: UUID): Environment {
+            val environment = this@TransactionManager.getOrOpenDataEnvironment(handle)
+
+
+        }
+
         /**
          * Caches a [Tx] in this [TransactionManager.AbstractTransaction]s cache.
          *
@@ -249,11 +284,10 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
         /**
          * Tries to retrieve a cached [Tx] from this [TransactionManager.AbstractTransaction]s cache.
          *
-         * @param dbo The [DBO] to obtain the [Tx] for.
+         * @param name The [DBO]'s [Name] to obtain the [Tx] for.
          * @return The [Tx] or null
          */
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : Tx> getCachedTxForDBO(dbo: DBO): T? = this.txns[dbo.name] as T?
+        fun getCachedTxForDBO(name: Name): Tx? = this.txns[name]
 
         /**
          * Signals an [Event] to this [AbstractTransaction].
@@ -433,7 +467,12 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
         }
 
         /** The Xodus [Transaction] backing this [ReadonlyTransaction]. */
-        override val xodusTx = this@TransactionManager.environment.beginReadonlyTransaction()
+        override val xodusTx = this@TransactionManager.catalogue.beginReadonlyTransaction()
+
+        override fun requestEnvironment(handle: UUID): Environment {
+            val environment = this@ReadonlyTransaction.requestEnvironment(handle)
+
+        }
     }
 
     /**
@@ -455,7 +494,7 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
         }
 
         /** The Xodus [Transaction] backing this [ExclusiveTransaction]. */
-        override val xodusTx = this@TransactionManager.environment.beginExclusiveTransaction()
+        override val xodusTx = this@TransactionManager.catalogue.beginExclusiveTransaction()
 
         /**
          * The [ExclusiveTransaction] relinquishes its exclusive lock when it is finalized.

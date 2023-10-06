@@ -28,7 +28,7 @@ class VAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractIndexRe
      */
     override fun rebuildInternal(): Boolean {
         /* Read basic index properties. */
-        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.txn.xodusTx)
+        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.transaction.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
         val config = entry.config as VAFIndexConfig
         val column = entry.columns[0]
@@ -48,14 +48,14 @@ class VAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractIndexRe
             while (cursor.hasNext()) {
                 val value = cursor.value()
                 if (value is RealVectorValue<*>) {
-                    if (!dataStore.put(this.context.txn.xodusTx, cursor.key().toKey(), marks.getSignature(value).toEntry())) {
+                    if (!dataStore.put(this.context.transaction.xodusTx, cursor.key().toKey(), marks.getSignature(value).toEntry())) {
                         return false
                     }
 
                     /* Data is flushed every once in a while. */
                     if ((counter ++) % 1_000_000 == 0) {
                         LOGGER.debug("Rebuilding index ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
-                        if (!this.context.txn.xodusTx.flush()) {
+                        if (!this.context.transaction.xodusTx.flush()) {
                             return false
                         }
                     }
@@ -64,7 +64,7 @@ class VAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractIndexRe
         }
 
         /* Update stored VAFMarks. */
-        IndexStructCatalogueEntry.write(this.index.name, marks, this.index.catalogue, this.context.txn.xodusTx, EquidistantVAFMarks.Binding)
+        IndexStructCatalogueEntry.write(this.index.name, marks, this.index.catalogue, this.context.transaction.xodusTx, EquidistantVAFMarks.Binding)
         return true
     }
 }

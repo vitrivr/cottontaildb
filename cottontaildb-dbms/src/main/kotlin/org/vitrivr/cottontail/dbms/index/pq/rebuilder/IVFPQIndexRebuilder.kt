@@ -31,7 +31,7 @@ class IVFPQIndexRebuilder(index: IVFPQIndex, context: QueryContext): AbstractInd
      */
     override fun rebuildInternal(): Boolean {
         /* Read basic index properties. */
-        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.txn.xodusTx)
+        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.transaction.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
         val config = entry.config as IVFPQIndexConfig
         val column = entry.columns[0]
@@ -57,14 +57,14 @@ class IVFPQIndexRebuilder(index: IVFPQIndex, context: QueryContext): AbstractInd
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
                     val signature = quantizer.quantize(cursor.key(), value)
-                    if (!dataStore.put(this.context.txn.xodusTx, ShortBinding.shortToEntry(signature.first), signature.second.toEntry())) {
+                    if (!dataStore.put(this.context.transaction.xodusTx, ShortBinding.shortToEntry(signature.first), signature.second.toEntry())) {
                         return false
                     }
 
                     /* Data is flushed every once in a while. */
                     if ((++counter) % 1_000_000 == 0) {
                         LOGGER.debug("Rebuilding index ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
-                        if (!this.context.txn.xodusTx.flush()) {
+                        if (!this.context.transaction.xodusTx.flush()) {
                             return false
                         }
                     }
@@ -73,7 +73,7 @@ class IVFPQIndexRebuilder(index: IVFPQIndex, context: QueryContext): AbstractInd
         }
 
         /* Update stored ProductQuantizer. */
-        IndexStructCatalogueEntry.write(this.index.name, quantizer.toSerializableProductQuantizer(), this.index.catalogue, this.context.txn.xodusTx, SerializableMultiStageProductQuantizer.Binding)
+        IndexStructCatalogueEntry.write(this.index.name, quantizer.toSerializableProductQuantizer(), this.index.catalogue, this.context.transaction.xodusTx, SerializableMultiStageProductQuantizer.Binding)
         return true
     }
 }

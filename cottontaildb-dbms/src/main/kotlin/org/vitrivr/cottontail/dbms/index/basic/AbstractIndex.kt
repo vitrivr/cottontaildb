@@ -62,7 +62,7 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
 
         init {
             /* Cache this Tx for future use. */
-            context.txn.cacheTx(this)
+            context.transaction.cacheTx(this)
         }
 
         /** Reference to the [AbstractIndex] */
@@ -96,10 +96,10 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
             private set
 
         init {
-            val entry = IndexCatalogueEntry.read(this@AbstractIndex.name, this@AbstractIndex.catalogue, this.context.txn.xodusTx) ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
+            val entry = IndexCatalogueEntry.read(this@AbstractIndex.name, this@AbstractIndex.catalogue, this.context.transaction.xodusTx) ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
             this.state = entry.state
             this.columns = entry.columns.map {
-                ColumnCatalogueEntry.read(it, this@AbstractIndex.catalogue, this.context.txn.xodusTx)?.toColumnDef() ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name} because catalogue entry for column could not be read ${it}.")
+                ColumnCatalogueEntry.read(it, this@AbstractIndex.catalogue, this.context.transaction.xodusTx)?.toColumnDef() ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name} because catalogue entry for column could not be read ${it}.")
             }.toTypedArray()
             this.config = entry.config
         }
@@ -158,8 +158,8 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
          * @param state The new [IndexState].
          */
         private fun updateState(state: IndexState) {
-            if (state != this.state && IndexCatalogueEntry.updateState(this@AbstractIndex.name, this@AbstractIndex.catalogue, state, this.context.txn.xodusTx)) {
-                this.context.txn.signalEvent(IndexEvent.State(this@AbstractIndex.name, this@AbstractIndex.type, state))
+            if (state != this.state && IndexCatalogueEntry.updateState(this@AbstractIndex.name, this@AbstractIndex.catalogue, state, this.context.transaction.xodusTx)) {
+                this.context.transaction.signalEvent(IndexEvent.State(this@AbstractIndex.name, this@AbstractIndex.type, state))
             }
         }
     }

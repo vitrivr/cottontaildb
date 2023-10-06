@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAsyncIndexRebuilder<VAFIndex>(index, context.catalogue, context.txn.manager) {
+class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAsyncIndexRebuilder<VAFIndex>(index, context.catalogue, context.transaction.manager) {
 
     /** A temporary [Store] used to */
     private val tmpDataStore: Store = this.tmpEnvironment.openStore(this.index.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.tmpTx, true)
@@ -45,7 +45,7 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
 
     init {
         /* Read basic index properties. */
-        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, context.txn.xodusTx)
+        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, context.transaction.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
         val config = entry.config as VAFIndexConfig
         val column = entry.columns[0]
@@ -67,7 +67,7 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
      */
     override fun internalBuild(context: QueryContext): Boolean {
         /* Read basic index properties. */
-        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, context.txn.xodusTx)
+        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, context.transaction.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
         val column = entry.columns[0]
 
@@ -113,14 +113,14 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
             var counter = 0
             while (cursor.next) {
                 if (this.state != IndexRebuilderState.REPLACING) return false
-                if (!store.add(context.txn.xodusTx, cursor.key, cursor.value)) {
+                if (!store.add(context.transaction.xodusTx, cursor.key, cursor.value)) {
                     return false
                 }
 
                 /* Data is flushed every once in a while. */
                 if ((++counter) % 1_000_000 == 0) {
                     LOGGER.debug("Rebuilding index (MERGE) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
-                    if (!context.txn.xodusTx.flush()) {
+                    if (!context.transaction.xodusTx.flush()) {
                         return false
                     }
                 }
@@ -128,10 +128,10 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
         }
 
         /* Update stored VAFMarks. */
-        IndexStructCatalogueEntry.write(this.index.name, this.newMarks, this.index.catalogue, context.txn.xodusTx, EquidistantVAFMarks.Binding)
+        IndexStructCatalogueEntry.write(this.index.name, this.newMarks, this.index.catalogue, context.transaction.xodusTx, EquidistantVAFMarks.Binding)
 
         /* Reset to default efficiency of VAF after rebuild. */
-        this.index.catalogue.indexStatistics.updatePersistently(this.index.name, IndexStatistic(VAFIndex.FILTER_EFFICIENCY_CACHE_KEY, VAFIndex.DEFAULT_FILTER_EFFICIENCY.toString()), context.txn.xodusTx)
+        this.index.catalogue.indexStatistics.updatePersistently(this.index.name, IndexStatistic(VAFIndex.FILTER_EFFICIENCY_CACHE_KEY, VAFIndex.DEFAULT_FILTER_EFFICIENCY.toString()), context.transaction.xodusTx)
         return true
     }
 

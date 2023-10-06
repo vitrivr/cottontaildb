@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.dbms.catalogue.entries
 
-import jetbrains.exodus.bindings.*
+import jetbrains.exodus.bindings.BooleanBinding
+import jetbrains.exodus.bindings.ComparableBinding
+import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.env.Transaction
@@ -82,7 +84,7 @@ data class ColumnCatalogueEntry(val name: Name.ColumnName, val type: Types<*>, v
          * @param transaction The [Transaction] to use.
          */
         internal fun init(catalogue: DefaultCatalogue, transaction: Transaction) {
-            catalogue.transactionManager.environment.openStore(CATALOGUE_COLUMN_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
+            catalogue.transactionManager.catalogue.openStore(CATALOGUE_COLUMN_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
                 ?: throw DatabaseException.DataCorruptionException("Failed to create entity catalogue store.")
         }
 
@@ -94,7 +96,7 @@ data class ColumnCatalogueEntry(val name: Name.ColumnName, val type: Types<*>, v
          * @return [Store]
          */
         internal fun store(catalogue: DefaultCatalogue, transaction: Transaction ): Store =
-            catalogue.transactionManager.environment.openStore(CATALOGUE_COLUMN_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
+            catalogue.transactionManager.catalogue.openStore(CATALOGUE_COLUMN_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
                 ?: throw DatabaseException.DataCorruptionException("Failed to open store for column catalogue.")
 
         /**

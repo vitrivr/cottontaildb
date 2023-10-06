@@ -75,32 +75,23 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
      */
     fun restore(entity: Manifest.Entity) {
         val tuples = this.iterator(entity)
-        val txId = this.client.begin(false)
-        try {
-            /* Create entity. */
-            val create = CreateEntity(entity.name).txId(txId)
-            for (c in entity.columns) {
-                create.column(c, true)
-            }
-            this.client.create(create)
+        /* Create entity. */
+        val create = CreateEntity(entity.name)
+        for (c in entity.columns) {
+            create.column(c, true)
+        }
+        this.client.create(create)
 
-            /* Insert the data. */
-            val insert = BatchInsert(entity.name).columns(*entity.columns.map { it.name }.toTypedArray()).txId(txId)
-            for (t in tuples) {
-                if (!insert.values(*(t as StandaloneTuple).values)) {
-                    this.client.insert(insert)
-                    insert.clear()
-                }
-            }
-            if (insert.count() > 0) {
+        /* Insert the data. */
+        val insert = BatchInsert(entity.name).columns(*entity.columns.map { it.name }.toTypedArray())
+        for (t in tuples) {
+            if (!insert.values(*(t as StandaloneTuple).values)) {
                 this.client.insert(insert)
+                insert.clear()
             }
-
-            /* Commit. */
-            this.client.commit(txId)
-        } catch (e: Throwable) {
-            this.client.rollback(txId)
-            throw e
+        }
+        if (insert.count() > 0) {
+            this.client.insert(insert)
         }
     }
 

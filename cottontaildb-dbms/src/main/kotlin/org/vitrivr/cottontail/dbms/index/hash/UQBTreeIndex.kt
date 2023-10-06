@@ -79,7 +79,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @return True on success, false otherwise.
          */
         override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
-            val store = catalogue.transactionManager.environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
+            val store = catalogue.transactionManager.catalogue.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize BTREE index $name due to an exception: ${e.message}.")
@@ -95,7 +95,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @return True on success, false otherwise.
          */
         override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
-            catalogue.transactionManager.environment.removeStore(name.storeName(), context.xodusTx)
+            catalogue.transactionManager.catalogue.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {
             LOGGER.error("Failed to de-initialize BTREE index $name due to an exception: ${e.message}.")
@@ -123,7 +123,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
      * @return [Tx]
      */
     override fun newTx(context: QueryContext): IndexTx
-        = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
+        = context.transaction.cachedTxForName(this) ?: this.Tx(context)
 
     /**
      * Opens and returns a new [UQBTreeIndexRebuilder] object that can be used to rebuild with this [UQBTreeIndex].
@@ -149,7 +149,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
         private val binding: ValueSerializer<Value> = SerializerFactory.value(this.columns[0].type) as ValueSerializer<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
-        private var dataStore: Store = catalogue.transactionManager.environment.openStore(this@UQBTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
+        private var dataStore: Store = catalogue.transactionManager.catalogue.openStore(this@UQBTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.transaction.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@UQBTreeIndex.name} is missing.")
 
         /**
@@ -163,7 +163,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
         private fun addMapping(key: Value, tupleId: TupleId) {
             val keyRaw = this.binding.toEntry(key)
             val tupleIdRaw = LongBinding.longToCompressedEntry(tupleId)
-            if (!this.dataStore.add(this.context.txn.xodusTx, keyRaw, tupleIdRaw)) {
+            if (!this.dataStore.add(this.context.transaction.xodusTx, keyRaw, tupleIdRaw)) {
                 throw DatabaseException.ValidationException("Mapping of $key to tuple $tupleId could be added to UniqueHashIndex, because value must be unique.")
             }
         }
@@ -177,7 +177,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          */
         private fun removeMapping(key: Value): Boolean {
             val keyRaw = this.binding.toEntry(key)
-            return this.dataStore.delete(this.context.txn.xodusTx, keyRaw)
+            return this.dataStore.delete(this.context.transaction.xodusTx, keyRaw)
         }
 
         /**
@@ -282,7 +282,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @return Number of entries in this [UQBTreeIndex]
          */
         override fun count(): Long  = this.txLatch.withLock {
-            this.dataStore.count(this.context.txn.xodusTx)
+            this.dataStore.count(this.context.transaction.xodusTx)
         }
 
         /**
@@ -301,7 +301,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
                 private val queryValueQueue: Queue<Value> = LinkedList()
 
                 /** Internal cursor used for navigation. */
-                private val subTransaction = this@Tx.context.txn.xodusTx.readonlySnapshot
+                private val subTransaction = this@Tx.context.transaction.xodusTx.readonlySnapshot
 
                 /** Internal cursor used for navigation. */
                 private var cursor: jetbrains.exodus.env.Cursor

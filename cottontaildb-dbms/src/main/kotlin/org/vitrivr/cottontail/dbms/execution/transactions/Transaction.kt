@@ -2,15 +2,15 @@ package org.vitrivr.cottontail.dbms.execution.transactions
 
 import jetbrains.exodus.env.Transaction
 import kotlinx.coroutines.flow.Flow
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.execution.ExecutionContext
-import org.vitrivr.cottontail.dbms.execution.locking.Lock
-import org.vitrivr.cottontail.dbms.execution.locking.LockManager
-import org.vitrivr.cottontail.dbms.execution.locking.LockMode
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.xodus.RefCountedEnvironment
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
+import java.util.*
 
 /**
  * A [Transaction] can be used to query and interact with a [Transaction].
@@ -27,6 +27,9 @@ interface Transaction: ExecutionContext, TransactionMetadata {
 
     /** The [TransactionManager] this [Transaction] belongs to. */
     val manager: TransactionManager
+
+    /** */
+    fun requestEnvironment(handle: UUID): RefCountedEnvironment.Tx
 
     /**
      * Schedules an [Operator] in the context of this [Transaction] and blocks, until execution has completed.
@@ -65,10 +68,10 @@ interface Transaction: ExecutionContext, TransactionMetadata {
     /**
      * Obtains a cached [Tx] for the given [DBO].
      *
-     * @param dbo The [DBO] to create the [Tx] for.
+     * @param name The [DBO] to create the [Tx] for.
      * @return The resulting [Tx] or null
      */
-    fun <T: Tx> getCachedTxForDBO(dbo: DBO): T?
+    fun cachedTxForName(name: Name): Tx?
 
     /**
      * Signals an [Event] to this [Transaction].

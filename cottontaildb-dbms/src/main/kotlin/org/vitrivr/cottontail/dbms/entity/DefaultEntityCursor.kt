@@ -33,7 +33,7 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
     }.toTypedArray()
 
     /** The [LongIterator] backing this [DefaultEntityCursor]. */
-    private val iterator = entity.bitmap.iterator(entity.context.txn.xodusTx) as BitmapIterator
+    private val iterator = entity.bitmap.iterator(entity.context.transaction.xodusTx) as BitmapIterator
 
     /** The [TupleId] this [DefaultEntityCursor] is currently pointing to. */
     private var current: TupleId = -1
@@ -56,7 +56,9 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
     /**
      * Returns the [Tuple] this [Cursor] is currently pointing to.
      */
-    override fun value(): Tuple = StandaloneTuple(this.current, this.columns, Array(this.columns.size) { this.cursors[it].read(this.current) })
+    override fun value(): Tuple = StandaloneTuple(this.current, this.columns, Array(this.columns.size) {
+        this.cursors[it].read(this.current)
+    })
 
     /**
      * Tries to move this [DefaultEntityCursor]. Returns true on success and false otherwise.

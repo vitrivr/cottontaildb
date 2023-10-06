@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionMetadata
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
@@ -30,7 +29,7 @@ interface QueryContext {
     val catalogue: Catalogue
 
     /** The [Transaction] the query held by this [QueryContext] is associated with. */
-    val txn: Transaction
+    val transaction: Transaction
 
     /** The [BindingContext] exposed by this [QueryContext]. */
     val bindings: BindingContext

@@ -12,7 +12,6 @@ import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBO
-import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import java.util.concurrent.atomic.AtomicLong
@@ -38,7 +37,7 @@ class DefaultSequence(override val name: Name.SequenceName, override val parent:
          * @param transaction The Xodus [Transaction] to use.
          */
         fun init(catalogue: DefaultCatalogue, transaction: Transaction) {
-            catalogue.transactionManager.environment.openStore(CATALOGUE_SEQUENCE_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
+            catalogue.transactionManager.catalogue.openStore(CATALOGUE_SEQUENCE_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
                 ?: throw DatabaseException.DataCorruptionException("Failed to create store for sequence catalogue.")
         }
 
@@ -50,7 +49,7 @@ class DefaultSequence(override val name: Name.SequenceName, override val parent:
          * @return [Store]
          */
         fun store(catalogue: DefaultCatalogue, transaction: Transaction): Store {
-            return catalogue.transactionManager.environment.openStore(CATALOGUE_SEQUENCE_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
+            return catalogue.transactionManager.catalogue.openStore(CATALOGUE_SEQUENCE_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
                 ?: throw DatabaseException.DataCorruptionException("Data store for sequences is missing.")
         }
     }
@@ -66,7 +65,7 @@ class DefaultSequence(override val name: Name.SequenceName, override val parent:
      * @return New or cached [DefaultSequence.Tx].
      */
     override fun newTx(context: QueryContext): SequenceTx
-        = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
+        = context.transaction.cachedTxForName(this) ?: this.Tx(context)
 
     /**
      * A [Tx] that affects this [DefaultEntity].
@@ -81,11 +80,11 @@ class DefaultSequence(override val name: Name.SequenceName, override val parent:
         private val cache = AtomicLong(0L)
 
         /** Data [Store] used by this [DefaultSequence]. */
-        private val store: Store = store(this@DefaultSequence.catalogue, this.context.txn.xodusTx)
+        private val store: Store = store(this@DefaultSequence.catalogue, this.context.transaction.xodusTx)
 
         init {
             /* Load current sequence value from data store. */
-            val raw = this.store.get(this.context.txn.xodusTx, NameBinding.Sequence.toEntry(this@DefaultSequence.name))
+            val raw = this.store.get(this.context.transaction.xodusTx, NameBinding.Sequence.toEntry(this@DefaultSequence.name))
             if (raw != null) {
                 this.cache.set(LongBinding.compressedEntryToLong(raw))
             }
@@ -118,7 +117,7 @@ class DefaultSequence(override val name: Name.SequenceName, override val parent:
         override fun beforeCommit() {
             /* Load current sequence value from data store. */
             val raw = LongBinding.longToCompressedEntry(this.cache.get())
-            this.store.put(this.context.txn.xodusTx, NameBinding.Sequence.toEntry(this@DefaultSequence.name), raw)
+            this.store.put(this.context.transaction.xodusTx, NameBinding.Sequence.toEntry(this@DefaultSequence.name), raw)
         }
     }
 }

@@ -35,7 +35,7 @@ class IVFPQIndexCursor(val predicate: ProximityPredicate.Scan, val index: IVFPQI
     private val lookupTable: PQLookupTable
 
     /** The sub-transaction this [Cursor] operates upon.  */
-    private val subTx = this.index.context.txn.xodusTx.readonlySnapshot
+    private val subTx = this.index.context.transaction.xodusTx.readonlySnapshot
 
     /** The internal cursor used by this index. */
     private val cursor = this.index.dataStore.openCursor(this.subTx)

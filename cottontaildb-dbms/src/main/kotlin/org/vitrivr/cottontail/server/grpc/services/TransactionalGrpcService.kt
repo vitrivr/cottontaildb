@@ -132,7 +132,7 @@ internal interface TransactionalGrpcService {
         val (operator, planDuration) = try {
             val p = prepare(context)
             val d = m1.elapsedNow()
-            LOGGER.debug("[${context.txn.transactionId}, ${context.queryId}] Preparation of ${context.physical.firstOrNull()?.name} completed successfully in $d.")
+            LOGGER.debug("[${context.transaction.transactionId}, ${context.queryId}] Preparation of ${context.physical.firstOrNull()?.name} completed successfully in $d.")
             p to d
         }  catch (e: Throwable) {
             throw context.handleError(e, false)
@@ -143,7 +143,7 @@ internal interface TransactionalGrpcService {
         val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder()
             .setMetadata(CottontailGrpc.ResponseMetadata.newBuilder()
                 .setQueryId(context.queryId)
-                .setTransactionId(context.txn.transactionId)
+                .setTransactionId(context.transaction.transactionId)
                 .setQueryDuration(0L)
                 .setPlanDuration(planDuration.toLong(DurationUnit.MILLISECONDS))
             )
@@ -157,26 +157,25 @@ internal interface TransactionalGrpcService {
         }
 
         /* Contextual information used by Flow. */
-        val headerSize = responseBuilder.build().serializedSize
-        var accumulatedSize = headerSize
+        var accumulatedSize = 0L
         var results = 0
 
         /* Phase 2b: Execute query and stream back results. */
-        context.txn.execute(operator).onCompletion {
+        context.transaction.execute(operator).onCompletion {
             /* Handle potential error & associated auto-rollback (if applicable). */
             if (it != null) {
-                if (context.txn.type.autoRollback) {
-                    context.txn.rollback()
+                if (context.transaction.type.autoRollback) {
+                    context.transaction.rollback()
                 }
                 throw context.handleError(it, true)
             }
 
             /* Handle auto-commit (if applicable)*/
-            if (context.txn.type.autoCommit) {
+            if (context.transaction.type.autoCommit) {
                 try {
-                    context.txn.commit()
+                    context.transaction.commit()
                 }  catch (e: Throwable) {
-                    context.txn.rollback()
+                    context.transaction.rollback()
                     throw context.handleError(e, true)
                 }
             }
@@ -187,18 +186,17 @@ internal interface TransactionalGrpcService {
                 emit(responseBuilder.build())
             }
         }.collect {
-            val tuple = it.toTuple()
-            results += 1
-            if (accumulatedSize + tuple.serializedSize >= Constants.MAX_PAGE_SIZE_BYTES) {
+            val tupleSize = it.physicalSize
+            if (accumulatedSize + tupleSize >= Constants.MAX_PAGE_SIZE_BYTES) {
                 responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS) /* Query duration is, re-evaluated for every batch. */
                 emit(responseBuilder.build())
                 responseBuilder.clearTuples()
-                accumulatedSize = headerSize
+                accumulatedSize = 0
             }
 
             /* Add entry to page and increment counter. */
-            responseBuilder.addTuples(tuple)
-            accumulatedSize += tuple.serializedSize
+            responseBuilder.addTuples(it.toTuple())
+            accumulatedSize += tupleSize
         }
     }
 
@@ -211,9 +209,9 @@ internal interface TransactionalGrpcService {
      */
     fun DefaultQueryContext.handleError(e: Throwable, execution: Boolean): StatusException {
         val text = if (execution) {
-            "[${this.txn.transactionId}, ${this.queryId}] Execution of ${this.physical.firstOrNull()?.name} query failed: ${e.message}"
+            "[${this.transaction.transactionId}, ${this.queryId}] Execution of ${this.physical.firstOrNull()?.name} query failed: ${e.message}"
         } else {
-            "[${this.txn.transactionId}, ${this.queryId}] Preparation of query failed: ${e.message}"
+            "[${this.transaction.transactionId}, ${this.queryId}] Preparation of query failed: ${e.message}"
         }
 
         /* Log error. */

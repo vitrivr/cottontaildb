@@ -86,7 +86,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return True on success, false otherwise.
          */
         override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
-            val store = catalogue.transactionManager.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
+            val store = catalogue.transactionManager.catalogue.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize LSH index $name due to an exception: ${e.message}.")
@@ -102,7 +102,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return True on success, false otherwise.
          */
         override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
-            catalogue.transactionManager.environment.removeStore(name.storeName(), context.xodusTx)
+            catalogue.transactionManager.catalogue.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {
             LOGGER.error("Failed to de-initialize LSH index $name due to an exception: ${e.message}.")
@@ -138,7 +138,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
      * @param context The [QueryContext] to create this [IndexTx] for.
      */
     override fun newTx(context: QueryContext): IndexTx
-        = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
+        = context.transaction.cachedTxForName(this) ?: this.Tx(context)
 
     /**
      * Opens and returns a new [LSHIndexRebuilder] object that can be used to rebuild with this [LSHIndex].
@@ -160,7 +160,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
     private inner class Tx(context: QueryContext) : AbstractIndex.Tx(context) {
 
         /** The Xodus [Store] used to store [LSHSignature]s. */
-        private val store: LSHDataStore = LSHDataStore.open(this.context.txn.xodusTx, this@LSHIndex)
+        private val store: LSHDataStore = LSHDataStore.open(this.context.transaction.xodusTx, this@LSHIndex)
 
         /**
          * [LSHIndex] only produced candidate [TupleId]s and no columns.
@@ -223,7 +223,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             val generator = (this.config as LSHIndexConfig).generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
             val value = event.data[this.columns[0]]
             check(value is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.store.addMapping(this.context.txn.xodusTx, generator.generate(value), event.tupleId)
+            return this.store.addMapping(this.context.transaction.xodusTx, generator.generate(value), event.tupleId)
         }
 
         /**
@@ -238,7 +238,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             val value = event.data[this.columns[0]]
             check(value?.first is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
             check(value?.second is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.store.removeMapping(this.context.txn.xodusTx, generator.generate(value!!.first as VectorValue<*>), event.tupleId) && this.store.addMapping(this.context.txn.xodusTx,generator.generate(value.second as VectorValue<*>), event.tupleId)
+            return this.store.removeMapping(this.context.transaction.xodusTx, generator.generate(value!!.first as VectorValue<*>), event.tupleId) && this.store.addMapping(this.context.transaction.xodusTx,generator.generate(value.second as VectorValue<*>), event.tupleId)
         }
 
         /**
@@ -252,7 +252,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             val generator = (this.config as LSHIndexConfig).generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
             val value = event.data[this.columns[0]]
             check(value is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.store.removeMapping(this.context.txn.xodusTx, generator.generate(value), event.tupleId)
+            return this.store.removeMapping(this.context.transaction.xodusTx, generator.generate(value), event.tupleId)
         }
 
         /**
@@ -261,7 +261,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return Number of entries in this [LSHIndex]
          */
         override fun count(): Long  = this.txLatch.withLock {
-            this.store.store.count(this.context.txn.xodusTx)
+            this.store.store.count(this.context.transaction.xodusTx)
         }
 
         /**
@@ -282,7 +282,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             }
 
             /** Sub transaction for this [Cursor]. */
-            private val subTx = this@Tx.context.txn.xodusTx.readonlySnapshot
+            private val subTx = this@Tx.context.transaction.xodusTx.readonlySnapshot
 
             /** The Xodus cursors used to navigate the data. */
             private val cursor = this@Tx.store.store.openCursor(this.subTx)

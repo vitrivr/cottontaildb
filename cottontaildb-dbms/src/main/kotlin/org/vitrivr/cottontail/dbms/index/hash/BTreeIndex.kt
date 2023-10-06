@@ -79,7 +79,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @return True on success, false otherwise.
          */
         override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
-            val store = catalogue.transactionManager.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
+            val store = catalogue.transactionManager.catalogue.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize BTREE index $name due to an exception: ${e.message}.")
@@ -95,7 +95,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @return True on success, false otherwise.
          */
         override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
-            catalogue.transactionManager.environment.removeStore(name.storeName(), context.xodusTx)
+            catalogue.transactionManager.catalogue.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {
             LOGGER.error("Failed to de-initialize BTREE index $name due to an exception: ${e.message}.")
@@ -123,7 +123,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
      * @return [Tx]
      */
     override fun newTx(context: QueryContext)
-        = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
+        = context.transaction.cachedTxForName(this) ?: this.Tx(context)
 
     /**
      * Opens and returns a new [QueryContext] object that can be used to rebuild with this [BTreeIndex].
@@ -149,7 +149,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         internal val binding: ValueSerializer<Value> = SerializerFactory.value(this.columns[0].type) as ValueSerializer<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
-        internal val dataStore: Store = this@BTreeIndex.catalogue.transactionManager.environment.openStore(this@BTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
+        internal val dataStore: Store = this@BTreeIndex.catalogue.transactionManager.catalogue.openStore(this@BTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.transaction.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@BTreeIndex.name} is missing.")
 
         /**
@@ -163,7 +163,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         private fun addMapping(key: Value, tupleId: TupleId): Boolean {
             val keyRaw = this.binding.toEntry(key)
             val tupleIdRaw = LongBinding.longToCompressedEntry(tupleId)
-            return this.dataStore.put(this.context.txn.xodusTx, keyRaw, tupleIdRaw)
+            return this.dataStore.put(this.context.transaction.xodusTx, keyRaw, tupleIdRaw)
         }
 
         /**
@@ -176,7 +176,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         private fun removeMapping(key: Value, tupleId: TupleId): Boolean {
             val keyRaw = this.binding.toEntry(key)
             val valueRaw = LongBinding.longToCompressedEntry(tupleId)
-            val cursor = this.dataStore.openCursor(this.context.txn.xodusTx)
+            val cursor = this.dataStore.openCursor(this.context.transaction.xodusTx)
             val ret = cursor.getSearchBoth(keyRaw, valueRaw) && cursor.deleteCurrent()
             cursor.close()
             return ret
@@ -291,7 +291,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @return Number of entries in this [UQBTreeIndex]
          */
         override fun count(): Long  = this.txLatch.withLock {
-            this.dataStore.count(this.context.txn.xodusTx)
+            this.dataStore.count(this.context.transaction.xodusTx)
         }
 
         /**

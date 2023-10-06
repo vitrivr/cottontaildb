@@ -46,12 +46,12 @@ class TXNService constructor(override val catalogue: Catalogue) : TXNGrpcKt.TXNC
             throw Status.INVALID_ARGUMENT.withDescription("Failed to execute COMMIT: Invalid transaction identifier ${request.transactionId }!").asException()
         val ctx = this.queryContextFromMetadata(request, false)
         try {
-            ctx.txn.commit()
+            ctx.transaction.commit()
             return Empty.getDefaultInstance()
         } catch (e: TransactionException.InConflict) {
-            throw Status.ABORTED.withCause(e).withDescription("[${ctx.txn.transactionId}, ${ctx.queryId}] Failed to execute COMMIT because transaction is in conflict.").asException()
+            throw Status.ABORTED.withCause(e).withDescription("[${ctx.transaction.transactionId}, ${ctx.queryId}] Failed to execute COMMIT because transaction is in conflict.").asException()
         } catch (e: Throwable) {
-            throw Status.INTERNAL.withDescription("[${ctx.txn.transactionId}, ${ctx.queryId}] Failed to execute COMMIT due to unexpected error: ${e.message}").asException()
+            throw Status.INTERNAL.withDescription("[${ctx.transaction.transactionId}, ${ctx.queryId}] Failed to execute COMMIT due to unexpected error: ${e.message}").asException()
         }
     }
 
@@ -63,7 +63,7 @@ class TXNService constructor(override val catalogue: Catalogue) : TXNGrpcKt.TXNC
             throw Status.INVALID_ARGUMENT.withDescription("Failed to execute ROLLBACK: Invalid transaction identifier ${request.transactionId }!").asException()
         val ctx = this.queryContextFromMetadata(request, false)
         try {
-            ctx.txn.rollback()
+            ctx.transaction.rollback()
             return Empty.getDefaultInstance()
         } catch (e: Throwable) {
             throw Status.INTERNAL.withDescription("Failed to execute COMMIT due to unexpected error: ${e.message}").asException()
@@ -78,7 +78,7 @@ class TXNService constructor(override val catalogue: Catalogue) : TXNGrpcKt.TXNC
             throw Status.INVALID_ARGUMENT.withDescription("Failed to execute KILL: Invalid transaction identifier ${request.transactionId }!").asException()
         val ctx = this.queryContextFromMetadata(request, false)
         try {
-            ctx.txn.kill()
+            ctx.transaction.kill()
             return Empty.getDefaultInstance()
         } catch (e: Throwable) {
             throw Status.INTERNAL.withDescription("Failed to execute KILL due to unexpected error: ${e.message}").asException()

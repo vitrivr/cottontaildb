@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
 class UQBTreeIndexRebuilder(index: UQBTreeIndex, context: QueryContext): AbstractIndexRebuilder<UQBTreeIndex>(index, context) {
     override fun rebuildInternal(): Boolean {
         /* Read basic index properties. */
-        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.txn.xodusTx)
+        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.transaction.xodusTx)
             ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name} (${this.index.type}). Could not read catalogue entry for index.")
         val column = entry.columns[0]
 
@@ -34,7 +34,7 @@ class UQBTreeIndexRebuilder(index: UQBTreeIndex, context: QueryContext): Abstrac
             while (cursor.moveNext()) {
                 val keyRaw = binding.toEntry(cursor.value())
                 val tupleIdRaw = LongBinding.longToCompressedEntry(cursor.key())
-                if (!dataStore.add(this.context.txn.xodusTx, keyRaw, tupleIdRaw)) {
+                if (!dataStore.add(this.context.transaction.xodusTx, keyRaw, tupleIdRaw)) {
                     return false
                 }
             }

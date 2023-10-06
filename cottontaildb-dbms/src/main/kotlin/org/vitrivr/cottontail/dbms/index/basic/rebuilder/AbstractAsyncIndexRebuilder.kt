@@ -1,6 +1,9 @@
 package org.vitrivr.cottontail.dbms.index.basic.rebuilder
 
-import jetbrains.exodus.env.*
+import jetbrains.exodus.env.Environment
+import jetbrains.exodus.env.Environments
+import jetbrains.exodus.env.Store
+import jetbrains.exodus.env.StoreConfig
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.Name
@@ -98,16 +101,16 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
             if (!this.internalBuild(context)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Scanning index ${this.index.name} (${this.index.type}) failed.")
-                context.txn.rollback()
+                context.transaction.rollback()
                 return
             }
 
             /* Commit transaction. */
-            context.txn.commit()
+            context.transaction.commit()
             this.state = IndexRebuilderState.REBUILT
             LOGGER.debug("Scanning index ${this.index.name} (${this.index.type}) completed!")
         } catch (e: Throwable) {
-            context.txn.rollback()
+            context.transaction.rollback()
             LOGGER.error("Scanning index ${this.index.name} (${this.index.type}) failed due to exception: ${e.message}")
         }
     }
@@ -127,10 +130,10 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
 
         /* Clear store and update state of index (* ---> DIRTY). */
         try {
-            if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.DIRTY, context.txn.xodusTx)) {
+            if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.DIRTY, context.transaction.xodusTx)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because index state could not be changed to DIRTY!")
-                context.txn.rollback()
+                context.transaction.rollback()
                 return
             }
 
@@ -138,37 +141,37 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
             if (!this.drainAndMergeLog()) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because not all side-channel could be processed.")
-                context.txn.rollback()
+                context.transaction.rollback()
                 return
             }
             this.tmpTx.flush()
 
             /* Execute actual REPLACEMENT phase. */
             this.state = IndexRebuilderState.REPLACING
-            val dataStore: Store = this.clearAndOpenStore(context.txn)
+            val dataStore: Store = this.clearAndOpenStore(context.transaction)
             if (!this.internalReplace(context, dataStore)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed.")
-                context.txn.rollback()
+                context.transaction.rollback()
                 return
             }
 
             /* Update state of index (DIRTY ---> CLEAN). */
-            if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.CLEAN, context.txn.xodusTx)) {
+            if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.CLEAN, context.transaction.xodusTx)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because index state could not be changed to CLEAN!")
-                context.txn.rollback()
+                context.transaction.rollback()
                 return
             }
 
             /* Commit transaction. */
-            context.txn.commit()
+            context.transaction.commit()
 
             this.state = IndexRebuilderState.FINISHED
             LOGGER.debug("Merging index ${this.index.name} (${this.index.type}) completed!")
         } catch (e: Throwable) {
             LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because of exception: ${e.message}")
-            context.txn.rollback()
+            context.transaction.rollback()
             this.state = IndexRebuilderState.ABORTED
         }
     }
@@ -274,8 +277,8 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
      */
     private fun clearAndOpenStore(context: Transaction): Store {
         val storeName = this.index.name.storeName()
-        this.index.catalogue.transactionManager.environment.truncateStore(storeName, context.xodusTx)
-        return this.index.catalogue.transactionManager.environment.openStore(storeName, StoreConfig.USE_EXISTING, context.xodusTx, false)
+        this.index.catalogue.transactionManager.catalogue.truncateStore(storeName, context.xodusTx)
+        return this.index.catalogue.transactionManager.catalogue.openStore(storeName, StoreConfig.USE_EXISTING, context.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this.index.name} is missing.")
     }
 }

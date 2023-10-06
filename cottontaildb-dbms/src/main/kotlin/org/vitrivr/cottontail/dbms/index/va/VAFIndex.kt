@@ -90,7 +90,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return True on success, false otherwise.
          */
         override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
-            val store = catalogue.transactionManager.environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES, context.xodusTx, true)
+            val store = catalogue.transactionManager.catalogue.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize VAF index $name due to an exception: ${e.message}.")
@@ -106,7 +106,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return True on success, false otherwise.
          */
         override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
-            catalogue.transactionManager.environment.removeStore(name.storeName(), context.xodusTx)
+            catalogue.transactionManager.catalogue.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {
             LOGGER.error("Failed to de-initialize VAF index $name due to an exception: ${e.message}.")
@@ -155,7 +155,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
      * @param context The [QueryContext] to create this [IndexTx] for.
      */
     override fun newTx(context: QueryContext): IndexTx
-        = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
+        = context.transaction.cachedTxForName(this) ?: this.Tx(context)
 
     /**
      * A [IndexTx] that affects this [VAFIndex].
@@ -164,12 +164,12 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
 
         /** The [EquidistantVAFMarks] object used by this [VAFIndex.Tx]. */
         internal val marks: EquidistantVAFMarks by lazy {
-            IndexStructCatalogueEntry.read(this@VAFIndex.name, this@VAFIndex.catalogue, this.context.txn.xodusTx, EquidistantVAFMarks.Binding)?:
+            IndexStructCatalogueEntry.read(this@VAFIndex.name, this@VAFIndex.catalogue, this.context.transaction.xodusTx, EquidistantVAFMarks.Binding)?:
                 throw DatabaseException.DataCorruptionException("Marks for VAF index ${this@VAFIndex.name} are missing.")
         }
 
         /** The Xodus [Store] used to store [VAFSignature]s. */
-        internal val dataStore: Store = this@VAFIndex.catalogue.transactionManager.environment.openStore(this@VAFIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
+        internal val dataStore: Store = this@VAFIndex.catalogue.transactionManager.catalogue.openStore(this@VAFIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.transaction.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Store for VAF index ${this@VAFIndex.name} is missing.")
 
         /**
@@ -272,7 +272,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return Number of entries in this [VAFIndex]
          */
         override fun count(): Long  = this.txLatch.withLock {
-            this.dataStore.count(this.context.txn.xodusTx)
+            this.dataStore.count(this.context.transaction.xodusTx)
         }
 
         /**
@@ -287,7 +287,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
 
             /* Obtain marks and add them. */
             val sig = this.marks.getSignature(value as RealVectorValue<*>)
-            return this.dataStore.add(this.context.txn.xodusTx, event.tupleId.toKey(), sig.toEntry())
+            return this.dataStore.add(this.context.transaction.xodusTx, event.tupleId.toKey(), sig.toEntry())
         }
 
         /**
@@ -304,9 +304,9 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             /* Obtain marks and update them. */
             return if (newValue is RealVectorValue<*>) { /* Case 1: New value is not null, i.e., update to new value. */
                 val newSig = this.marks.getSignature(newValue)
-                this.dataStore.put(this.context.txn.xodusTx, event.tupleId.toKey(), newSig.toEntry())
+                this.dataStore.put(this.context.transaction.xodusTx, event.tupleId.toKey(), newSig.toEntry())
             } else if (oldValue is RealVectorValue<*>) { /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
-                this.dataStore.delete(this.context.txn.xodusTx, event.tupleId.toKey())
+                this.dataStore.delete(this.context.transaction.xodusTx, event.tupleId.toKey())
             } else { /* Case 3: There is no value, there was no value, proceed. */
                 true
             }
@@ -320,7 +320,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Delete): Boolean {
-            return event.data[this.columns[0]] == null || this.dataStore.delete(this.context.txn.xodusTx, event.tupleId.toKey())
+            return event.data[this.columns[0]] == null || this.dataStore.delete(this.context.transaction.xodusTx, event.tupleId.toKey())
         }
 
         /**
