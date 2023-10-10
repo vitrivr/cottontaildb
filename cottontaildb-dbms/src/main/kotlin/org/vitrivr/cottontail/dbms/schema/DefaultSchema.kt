@@ -215,7 +215,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             }
 
             /* Drop bitmap store for entity. */
-            this@DefaultSchema.catalogue.transactionManager.environment.removeStore("${name}$#bitmap", this.context.txn.xodusTx)
+            this@DefaultSchema.catalogue.transactionManager.environment.removeStore("${name}#bitmap", this.context.txn.xodusTx)
 
             /* Create Event and notify observers */
             val event = EntityEvent.Drop(name, dropped.toTypedArray())
