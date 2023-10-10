@@ -149,7 +149,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
                 throw DatabaseException.EntityAlreadyExistsException(name)
             }
 
-            /* Create store for entity. */
+            /* Create bitmap store for entity. */
             this@DefaultSchema.catalogue.transactionManager.environment.openBitmap(name.toString(), StoreConfig.WITHOUT_DUPLICATES, this.context.txn.xodusTx)
 
             /* Add catalogue entries and stores at column level. */
@@ -213,6 +213,9 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             if (!metadataStore.delete(this.context.txn.xodusTx, NameBinding.Entity.toEntry(name))) {
                 throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to delete catalogue entry.")
             }
+
+            /* Drop bitmap store for entity. */
+            this@DefaultSchema.catalogue.transactionManager.environment.removeStore("${name}$#bitmap", this.context.txn.xodusTx)
 
             /* Create Event and notify observers */
             val event = EntityEvent.Drop(name, dropped.toTypedArray())
