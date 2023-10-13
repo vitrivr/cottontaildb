@@ -35,28 +35,20 @@ class FetchOperator(parent: Operator, private val entity: EntityTx, private val 
         val fetch = this@FetchOperator.fetch.map { it.second }.toTypedArray()
         val columns = this@FetchOperator.columns.toTypedArray()
         val incoming = this@FetchOperator.parent.toFlow()
-        val cursors = fetch.map {
-            this@FetchOperator.entity.columnForName(it.name).newTx(this@FetchOperator.context).cursor()
+        val txs = fetch.map {
+            this@FetchOperator.entity.columnForName(it.name).newTx(this@FetchOperator.context)
         }
 
         val numberOfInputColumns = this@FetchOperator.parent.columns.size
-        try  {
-            incoming.collect { record ->
-                val values = Array(this@FetchOperator.columns.size) {
-                    if (it < numberOfInputColumns) {
-                        record[it]
-                    } else {
-                        val cursor = cursors[it-numberOfInputColumns]
-                        require(cursor.moveTo(record.tupleId)) {
-                            "TupleId ${record.tupleId} could not be fetched! This is a programmer's error!"
-                        }
-                        cursor.value()
-                    }
+        incoming.collect { record ->
+            val values = Array(this@FetchOperator.columns.size) {
+                if (it < numberOfInputColumns) {
+                    record[it]
+                } else {
+                    txs[it-numberOfInputColumns].read(record.tupleId)
                 }
-                emit(StandaloneTuple(record.tupleId, columns, values))
             }
-        } finally {
-            cursors.forEach { it.close() }
+            emit(StandaloneTuple(record.tupleId, columns, values))
         }
     }
 }
