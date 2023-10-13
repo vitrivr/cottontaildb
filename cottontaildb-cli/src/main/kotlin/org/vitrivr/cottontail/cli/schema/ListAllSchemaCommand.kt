@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.cli.schema
 
-import org.vitrivr.cottontail.cli.basics.AbstractSchemaCommand
+import org.vitrivr.cottontail.cli.basics.AbstractCottontailCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.ListSchemas
 import org.vitrivr.cottontail.utilities.TabulationUtilities
@@ -14,7 +14,7 @@ import kotlin.time.measureTimedValue
  * @version 2.0.0
  */
 @ExperimentalTime
-class ListAllSchemaCommand(client: SimpleClient) : AbstractSchemaCommand(client, name = "all", help = "Lists all schemas stored in Cottontail DB. Usage: schema all") {
+class ListAllSchemaCommand(private val client: SimpleClient) : AbstractCottontailCommand(name = "all", help = "Lists all schemas stored in Cottontail DB. Usage: schema all", false) {
     override fun exec() {
         /* Execute query. */
         val timedTable = measureTimedValue {
