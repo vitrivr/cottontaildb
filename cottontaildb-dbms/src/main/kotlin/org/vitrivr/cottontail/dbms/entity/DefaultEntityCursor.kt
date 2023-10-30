@@ -8,7 +8,6 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 
 /**
@@ -34,7 +33,7 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
     }.toTypedArray()
 
     /** The [LongIterator] backing this [DefaultEntityCursor]. */
-    private val iterator = entity.bitmap.iterator(entity.context.txn.xodusTx) as BitmapIterator
+    private val iterator = entity.bitmap.iterator(entity.context.txn.xodusTx.readonlySnapshot) as BitmapIterator
 
     /** The [TupleId] this [DefaultEntityCursor] is currently pointing to. */
     private var current: TupleId = -1
