@@ -3,8 +3,8 @@ package org.vitrivr.cottontail.dbms.index.basic
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.catalogue.entries.ColumnCatalogueEntry
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
+import org.vitrivr.cottontail.dbms.column.ColumnMetadata
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.events.IndexEvent
@@ -96,12 +96,20 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
             private set
 
         init {
-            val entry = IndexCatalogueEntry.read(this@AbstractIndex.name, this@AbstractIndex.catalogue, this.context.transaction.xodusTx) ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
-            this.state = entry.state
-            this.columns = entry.columns.map {
-                ColumnCatalogueEntry.read(it, this@AbstractIndex.catalogue, this.context.transaction.xodusTx)?.toColumnDef() ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name} because catalogue entry for column could not be read ${it}.")
+            val indexMetadataStore = IndexMetadata.store(this@AbstractIndex.catalogue, this.context.transaction.xodusTx)
+            val indexEntryRaw = indexMetadataStore.get(this.context.transaction.xodusTx, NameBinding.Index.toEntry(this@AbstractIndex.name)) ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
+            val indexEntry = IndexMetadata.fromEntry(indexEntryRaw)
+            this.state = indexEntry.state
+
+            /* Read columns and config. */
+            val columnMetadataStore =  ColumnMetadata.store(this@AbstractIndex.catalogue, this.context.transaction.xodusTx)
+            this.columns = indexEntry.columns.map {
+                val columnName = this@AbstractIndex.name.entity().column(it)
+                val columnEntryRaw = columnMetadataStore.get(this.context.transaction.xodusTx, NameBinding.Column.toEntry(columnName))  ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name} because catalogue entry for column could not be read ${it}.")
+                val columnEntity = ColumnMetadata.fromEntry(columnEntryRaw)
+                ColumnDef(columnName, columnEntity.type, columnEntity.nullable, columnEntity.primary, columnEntity.autoIncrement)
             }.toTypedArray()
-            this.config = entry.config
+            this.config = indexEntry.config
         }
 
         /**
@@ -158,8 +166,14 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
          * @param state The new [IndexState].
          */
         private fun updateState(state: IndexState) {
-            if (state != this.state && IndexCatalogueEntry.updateState(this@AbstractIndex.name, this@AbstractIndex.catalogue, state, this.context.transaction.xodusTx)) {
-                this.context.transaction.signalEvent(IndexEvent.State(this@AbstractIndex.name, this@AbstractIndex.type, state))
+            if (state != this.state) {
+                val name = NameBinding.Index.toEntry(this@AbstractIndex.name)
+                val store = IndexMetadata.store(this@AbstractIndex.catalogue, this.context.transaction.xodusTx)
+                val entry = IndexMetadata(this@AbstractIndex.type, state, this.columns.map { it.name.columnName }, this.config)
+                if (store.put(this.context.transaction.xodusTx, name, IndexMetadata.toEntry(entry))) {
+                    this.state = state
+                    this.context.transaction.signalEvent(IndexEvent.State(this@AbstractIndex.name, this@AbstractIndex.type, state))
+                }
             }
         }
     }

@@ -36,7 +36,7 @@ data class MetadataEntry(val key: String, val value: String) {
         }
 
         /**
-         * Returns the [Store] for [ColumnCatalogueEntry] entries.
+         * Returns the [Store] for [MetadataEntry] entries.
          *
          * @param catalogue [DefaultCatalogue] to access [Store] for.
          * @param transaction The Xodus [Transaction] to use. If not set, a new [Transaction] will be created.
@@ -52,7 +52,7 @@ data class MetadataEntry(val key: String, val value: String) {
          * @param key [String] key to retrieve the [MetadataEntry] for.
          * @param catalogue [DefaultCatalogue] to retrieve [MetadataEntry] from.
          * @param transaction The Xodus [Transaction] to use. If not set, a new [Transaction] will be created.
-         * @return [ColumnCatalogueEntry]
+         * @return [MetadataEntry]
          */
         internal fun read(key: String, catalogue: DefaultCatalogue, transaction: Transaction): MetadataEntry? {
             val rawEntry = store(catalogue, transaction).get(transaction, StringBinding.stringToEntry(key))

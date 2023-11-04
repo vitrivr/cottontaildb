@@ -7,13 +7,14 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.values.VectorValue
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
+import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractAsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.IndexRebuilderState
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
@@ -31,7 +32,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyncIndexRebuilder<PQIndex>(index, context.catalogue, context.transaction.manager) {
+class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyncIndexRebuilder<PQIndex>(index, context.catalogue, context.txn.manager) {
 
     /** The (temporary) Xodus [Store] used to store [SPQSignature]s. */
     private val tmpDataStore: Store = this.tmpEnvironment.openStore(this.index.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.tmpTx, true)
@@ -41,17 +42,18 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
     private val newQuantizer: SingleStageQuantizer
 
     /** Reference to [ColumnDef] indexed by this [AsyncPQIndexRebuilder] (only available after [IndexRebuilderState.INITIALIZED]). */
-    private val indexedColumn: ColumnDef<*>?
+    private val indexedColumn: ColumnDef<*>
 
     /** A [ConcurrentLinkedQueue] that acts as log for side-channel events. TODO: Make persistent. */
     private val log = ConcurrentLinkedQueue<PQIndexingEvent>()
 
     init {
         /* Read basic index properties. */
-        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, context.transaction.xodusTx)
-            ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
-        val config = entry.config as PQIndexConfig
-        val column = entry.columns[0]
+        val indexMetadataStore = IndexMetadata.store(this.index.catalogue, context.txn.xodusTx)
+        val indexEntryRaw = indexMetadataStore.get(context.txn.xodusTx, NameBinding.Index.toEntry(this@AsyncPQIndexRebuilder.index.name)) ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index ${this@AsyncPQIndexRebuilder.index.name}: Could not read catalogue entry for index.")
+        val indexEntry = IndexMetadata.fromEntry(indexEntryRaw)
+        val config = indexEntry.config as PQIndexConfig
+        val column = this.index.name.entity().column(indexEntry.columns[0])
 
         /* Tx objects required for index rebuilding. */
         val entityTx = this.index.parent.newTx(context)
@@ -77,14 +79,9 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
      * @return True on success, false otherwise.
      */
     override fun internalBuild(context: QueryContext): Boolean {
-        /* Read basic index properties. */
-        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, context.transaction.xodusTx)
-            ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
-        val column = entry.columns[0]
-
         /* Tx objects required for index rebuilding. */
         val entityTx = this.index.parent.newTx(context)
-        val columnTx = entityTx.columnForName(column).newTx(context)
+        val columnTx = entityTx.columnForName(this.indexedColumn.name).newTx(context)
         val count = entityTx.count()
 
         /* Iterate over entity and update index with entries. */
@@ -99,7 +96,7 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
                     }
 
                     if ((++counter) % 1_000_000 == 0) {
-                        LOGGER.debug("Rebuilding index (SCAN) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
+                        LOGGER.debug("Rebuilding index (SCAN) {} ({}) still running ({} / {})...", this.index.name, this.index.type, counter, count)
                         if (!this.tmpTx.flush()) {
                             return false
                         }
@@ -124,14 +121,14 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
             var counter = 0
             while (cursor.next) {
                 if (this.state != IndexRebuilderState.REPLACING) return false
-                if (!store.add(context.transaction.xodusTx, cursor.key, cursor.value)) {
+                if (!store.add(context.txn.xodusTx, cursor.key, cursor.value)) {
                     return false
                 }
 
                 /* Data is flushed every once in a while. */
                 if ((++counter) % 1_000_000 == 0) {
-                    LOGGER.debug("Rebuilding index (MERGE) ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
-                    if (!context.transaction.xodusTx.flush()) {
+                    LOGGER.debug("Rebuilding index (MERGE) {} ({}) still running ({} / {})...", this.index.name, this.index.type, counter, count)
+                    if (!context.txn.xodusTx.flush()) {
                         return false
                     }
                 }
@@ -139,7 +136,7 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
         }
 
         /* Update stored ProductQuantizer. */
-        IndexStructCatalogueEntry.write(this.index.name, this.newQuantizer.toSerializableProductQuantizer(), this.index.catalogue, context.transaction.xodusTx, SerializableSingleStageProductQuantizer.Binding)
+        IndexStructCatalogueEntry.write(this.index.name, this.newQuantizer.toSerializableProductQuantizer(), this.index.catalogue, context.txn.xodusTx, SerializableSingleStageProductQuantizer.Binding)
         return true
     }
 

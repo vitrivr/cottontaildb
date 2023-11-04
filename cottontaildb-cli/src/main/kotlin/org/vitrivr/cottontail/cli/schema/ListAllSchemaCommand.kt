@@ -14,7 +14,7 @@ import kotlin.time.measureTimedValue
  * @version 2.0.0
  */
 @ExperimentalTime
-class ListAllSchemaCommand(private val client: SimpleClient) : AbstractCottontailCommand(name = "all", help = "Lists all schemas stored in Cottontail DB. Usage: schema all", true) {
+class ListAllSchemaCommand(private val client: SimpleClient) : AbstractCottontailCommand(name = "all", help = "Lists all schemas stored in Cottontail DB. Usage: schema all", false) {
     override fun exec() {
         /* Execute query. */
         val timedTable = measureTimedValue {

@@ -167,7 +167,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
                 if (it.value.autoIncrement && (it.value.type == Types.Int || it.value.type == Types.Long)) {
                     this.createSequence(this@DefaultSchema.name.sequence("${it.key.entityName}_${it.key.columnName}_auto"))
                 }
-                
+
                 /* Create store for column data. */
                 if (this@DefaultSchema.catalogue.transactionManager.catalogue.openStore(it.key.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.context.transaction.xodusTx, true) == null) {
                     throw DatabaseException.DataCorruptionException("CREATE entity $name failed: Failed to create store for column $it.")
@@ -230,6 +230,9 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             if (!metadataStore.delete(this.context.transaction.xodusTx, NameBinding.Entity.toEntry(name))) {
                 throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to delete catalogue entry.")
             }
+
+            /* Drop bitmap store for entity. */
+            this@DefaultSchema.catalogue.transactionManager.environment.removeStore("${name}#bitmap", this.context.txn.xodusTx)
 
             /* Create Event and notify observers */
             val event = EntityEvent.Drop(name, dropped.toTypedArray())

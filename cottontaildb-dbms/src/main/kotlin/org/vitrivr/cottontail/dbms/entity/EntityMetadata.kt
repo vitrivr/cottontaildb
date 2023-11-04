@@ -21,7 +21,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.0.0
  */
-data class EntityMetadata(val handle: UUID = UUID.randomUUID(), val created: Long, val columns: List<String>, val indexes: List<String>) {
+data class EntityMetadata(val handle: UUID = UUID.randomUUID(), val created: Long, val modified: Long) {
 
     companion object {
         /** Name of the Xodus [Store] used to store [EntityMetadata]. */
@@ -56,13 +56,8 @@ data class EntityMetadata(val handle: UUID = UUID.randomUUID(), val created: Lon
             val stream = ByteArraySizedInputStream(entry.bytesUnsafe, 0, entry.length)
             val handle = UUID(LongBinding.readCompressed(stream), LongBinding.readCompressed(stream))
             val created = LongBinding.readCompressed(stream)
-            val columns = (0 until IntegerBinding.readCompressed(stream)).map {
-                StringBinding.BINDING.readObject(stream)
-            }
-            val indexes = (0 until IntegerBinding.readCompressed(stream)).map {
-                StringBinding.BINDING.readObject(stream)
-            }
-            return EntityMetadata(handle, created, columns, indexes)
+            val modified = LongBinding.readCompressed(stream)
+            return EntityMetadata(handle, created, modified)
         }
 
         /**
@@ -76,16 +71,7 @@ data class EntityMetadata(val handle: UUID = UUID.randomUUID(), val created: Lon
             LongBinding.writeCompressed(output, entry.handle.mostSignificantBits)
             LongBinding.writeCompressed(output, entry.handle.leastSignificantBits)
             LongBinding.writeCompressed(output, entry.created)
-            IntegerBinding.writeCompressed(output,entry.columns.size)
-            for (columnName in entry.columns) {
-                StringBinding.BINDING.writeObject(output, columnName)
-            }
-
-            /* Write all indexes. */
-            IntegerBinding.writeCompressed(output,entry.indexes.size)
-            for (indexName in entry.indexes) {
-                StringBinding.BINDING.writeObject(output, indexName)
-            }
+            LongBinding.writeCompressed(output, entry.modified)
             return output.asArrayByteIterable()
         }
     }

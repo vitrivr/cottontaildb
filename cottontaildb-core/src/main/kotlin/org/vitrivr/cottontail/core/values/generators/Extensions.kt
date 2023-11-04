@@ -27,7 +27,9 @@ fun Types<*>.defaultValue(): Value = when(this) {
     is Types.Complex32Vector -> Complex32VectorValueGenerator.zero(this.logicalSize)
     is Types.Complex64Vector -> Complex64VectorValueGenerator.zero(this.logicalSize)
     is Types.DoubleVector -> DoubleVectorValueGenerator.zero(this.logicalSize)
+    is Types.HalfVector,
     is Types.FloatVector -> FloatVectorValueGenerator.zero(this.logicalSize)
     is Types.IntVector -> IntVectorValueGenerator.zero(this.logicalSize)
     is Types.LongVector -> LongVectorValueGenerator.zero(this.logicalSize)
+    is Types.ShortVector -> ShortVectorValueGenerator.zero(this.logicalSize)
 }
