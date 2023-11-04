@@ -55,7 +55,7 @@ abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
         }
 
         /* Update state of index (DIRTY ---> CLEAN). */
-        if (!this.updateState( IndexState.CLEAN, this.context.txn)) {
+        if (!this.updateState(IndexState.CLEAN, this.context.txn)) {
             LOGGER.error("Rebuilding index ${this.index.name} (${this.index.type}) failed because index state could not be changed to CLEAN!")
             return false
         }
@@ -97,9 +97,9 @@ abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
         val oldEntryRaw = store.get(tx.xodusTx, name) ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index transaction for index ${this@AbstractIndexRebuilder.index.name}: Could not read catalogue entry for index.")
         val oldEntry =  IndexMetadata.fromEntry(oldEntryRaw)
         return if (oldEntry.state != state) {
-            store.put(tx.xodusTx, name, IndexMetadata.toEntry(oldEntry.copy(state = state)))
+            return store.put(tx.xodusTx, name, IndexMetadata.toEntry(oldEntry.copy(state = state)))
         } else {
-            false
+            true
         }
     }
 }
