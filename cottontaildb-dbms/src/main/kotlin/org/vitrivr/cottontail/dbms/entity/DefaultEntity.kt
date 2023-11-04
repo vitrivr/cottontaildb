@@ -174,10 +174,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return The maximum tuple ID occupied by entries in this [DefaultEntity].
          */
         override fun smallestTupleId(): TupleId = this.txLatch.withLock {
-            val snapshot = this.context.txn.xodusTx.readonlySnapshot
-            val ret = this.bitmap.getFirst(snapshot)
-            snapshot.abort()
-            ret
+            this.bitmap.getFirst(this.context.txn.xodusTx)
         }
 
         /**
@@ -186,10 +183,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return The maximum tuple ID occupied by entries in this [DefaultEntity].
          */
         override fun largestTupleId(): TupleId = this.txLatch.withLock {
-            val snapshot = this.context.txn.xodusTx.readonlySnapshot
-            val ret = this.bitmap.getLast(snapshot)
-            snapshot.abort()
-            ret
+            this.bitmap.getLast(this.context.txn.xodusTx)
         }
 
         /**
