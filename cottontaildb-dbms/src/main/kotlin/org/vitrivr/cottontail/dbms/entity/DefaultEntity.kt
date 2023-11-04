@@ -93,6 +93,9 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                 if (it.getSearchKeyRange(NameBinding.Entity.toEntry(this@DefaultEntity.name)) != null) {
                     do {
                         val columnName = NameBinding.Column.fromEntry(it.key)
+                        if (columnName.entity() != this@DefaultEntity.name) {
+                            break
+                        }
                         val columnEntry = ColumnMetadata.fromEntry(it.value)
                         val columnDef = ColumnDef(columnName, columnEntry.type, columnEntry.nullable, columnEntry.primary, columnEntry.primary)
                         if (columnDef.type is Types.String || columnDef.type is Types.ByteString) {
