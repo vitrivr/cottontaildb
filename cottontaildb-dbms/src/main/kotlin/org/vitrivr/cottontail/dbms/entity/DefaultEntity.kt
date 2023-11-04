@@ -163,7 +163,10 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return The number of entries in this [DefaultEntity].
          */
         override fun count(): Long = this.txLatch.withLock {
-            this.bitmap.count(this.context.txn.xodusTx)
+            val snapshot = this.context.txn.xodusTx.readonlySnapshot
+            val ret = this.bitmap.count(snapshot)
+            snapshot.abort()
+            ret
         }
 
         /**
@@ -172,7 +175,10 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return The maximum tuple ID occupied by entries in this [DefaultEntity].
          */
         override fun smallestTupleId(): TupleId = this.txLatch.withLock {
-            this.bitmap.getFirst(this.context.txn.xodusTx.readonlySnapshot)
+            val snapshot = this.context.txn.xodusTx.readonlySnapshot
+            val ret = this.bitmap.getFirst(snapshot)
+            snapshot.abort()
+            ret
         }
 
         /**
@@ -181,7 +187,10 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return The maximum tuple ID occupied by entries in this [DefaultEntity].
          */
         override fun largestTupleId(): TupleId = this.txLatch.withLock {
-            this.bitmap.getLast(this.context.txn.xodusTx.readonlySnapshot)
+            val snapshot = this.context.txn.xodusTx.readonlySnapshot
+            val ret = this.bitmap.getLast(snapshot)
+            snapshot.abort()
+            ret
         }
 
         /**
@@ -450,12 +459,14 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return Next [TupleId] for insert.
          */
         private fun nextTupleId(): TupleId = this.txLatch.withLock {
-            val smallest = this.bitmap.getFirst(this.context.txn.xodusTx.readonlySnapshot)
+            val snapshot = this.context.txn.xodusTx.readonlySnapshot
+            val smallest = this.bitmap.getFirst(snapshot)
             val next = when {
                 smallest == -1L -> 0L
                 smallest > 0L -> smallest - 1L
-                else -> this.bitmap.getLast(this.context.txn.xodusTx.readonlySnapshot) + 1L
+                else -> this.bitmap.getLast(snapshot) + 1L
             }
+            snapshot.abort()
             return@withLock next
         }
     }
