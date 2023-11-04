@@ -1,11 +1,12 @@
 package org.vitrivr.cottontail.dbms.index.va.rebuilder
 
 import org.vitrivr.cottontail.core.types.RealVectorValue
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.index.va.VAFIndexConfig
@@ -28,10 +29,11 @@ class VAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractIndexRe
      */
     override fun rebuildInternal(): Boolean {
         /* Read basic index properties. */
-        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.txn.xodusTx)
-            ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
-        val config = entry.config as VAFIndexConfig
-        val column = entry.columns[0]
+        val indexMetadataStore = IndexMetadata.store(this.index.catalogue, context.txn.xodusTx)
+        val indexEntryRaw = indexMetadataStore.get(context.txn.xodusTx, NameBinding.Index.toEntry(this@VAFIndexRebuilder.index.name)) ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index ${this@VAFIndexRebuilder.index.name}: Could not read catalogue entry for index.")
+        val indexEntry = IndexMetadata.fromEntry(indexEntryRaw)
+        val config = indexEntry.config as VAFIndexConfig
+        val column = this.index.name.entity().column(indexEntry.columns[0])
 
         /* Tx objects required for index rebuilding. */
         val entityTx = this.index.parent.newTx(this.context)

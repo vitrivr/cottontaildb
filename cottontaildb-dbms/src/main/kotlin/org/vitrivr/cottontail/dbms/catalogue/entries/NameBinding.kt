@@ -7,7 +7,6 @@ import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.database.Name
 
-
 /**
  * [ComparableBinding] for [Name]s.
  *

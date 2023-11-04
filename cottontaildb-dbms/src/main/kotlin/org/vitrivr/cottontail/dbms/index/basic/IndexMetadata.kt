@@ -9,14 +9,12 @@ import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 
 /**
  *
  */
 data class IndexMetadata(val type: IndexType, val state: IndexState, val columns: List<String>, val config: IndexConfig<*>) {
-
     companion object {
         /** Name of the [IndexMetadata] store in the Cottontail DB catalogue. */
         private const val CATALOGUE_INDEX_STORE_NAME: String = "org.vitrivr.cottontail.indexes"
@@ -35,7 +33,7 @@ data class IndexMetadata(val type: IndexType, val state: IndexState, val columns
         /**
          * Returns the [Store] for [IndexMetadata] entries.
          *
-         * @param catalogue [DefaultCatalogue] to retrieve [IndexCatalogueEntry] from.
+         * @param catalogue [DefaultCatalogue] to retrieve [IndexMetadata] from.
          * @param transaction The Xodus [Transaction] to use.
          * @return [Store]
          */

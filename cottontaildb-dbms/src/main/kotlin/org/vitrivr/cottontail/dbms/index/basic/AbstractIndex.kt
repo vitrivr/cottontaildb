@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.dbms.index.basic
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.column.ColumnMetadata
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
@@ -167,8 +166,14 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
          * @param state The new [IndexState].
          */
         private fun updateState(state: IndexState) {
-            if (state != this.state && IndexCatalogueEntry.updateState(this@AbstractIndex.name, this@AbstractIndex.catalogue, state, this.context.txn.xodusTx)) {
-                this.context.txn.signalEvent(IndexEvent.State(this@AbstractIndex.name, this@AbstractIndex.type, state))
+            if (state != this.state) {
+                val name = NameBinding.Index.toEntry(this@AbstractIndex.name)
+                val store = IndexMetadata.store(this@AbstractIndex.catalogue, this.context.txn.xodusTx)
+                val entry = IndexMetadata(this@AbstractIndex.type, state, this.columns.map { it.name.columnName }, this.config)
+                if (store.put(this.context.txn.xodusTx, name, IndexMetadata.toEntry(entry))) {
+                    this.state = state
+                    this.context.txn.signalEvent(IndexEvent.State(this@AbstractIndex.name, this@AbstractIndex.type, state))
+                }
             }
         }
     }

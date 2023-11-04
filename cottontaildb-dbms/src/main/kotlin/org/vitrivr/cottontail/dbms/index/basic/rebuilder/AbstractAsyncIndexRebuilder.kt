@@ -1,13 +1,16 @@
 package org.vitrivr.cottontail.dbms.index.basic.rebuilder
 
-import jetbrains.exodus.env.*
+import jetbrains.exodus.env.Environment
+import jetbrains.exodus.env.Environments
+import jetbrains.exodus.env.Store
+import jetbrains.exodus.env.StoreConfig
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.events.DataEvent
@@ -17,7 +20,9 @@ import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
+import org.vitrivr.cottontail.dbms.index.basic.AbstractIndex
 import org.vitrivr.cottontail.dbms.index.basic.Index
+import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
@@ -82,7 +87,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     @Synchronized
     override fun build() {
         require(this.state == IndexRebuilderState.INITIALIZED) { "Cannot perform SCAN with index builder because it is in the wrong state."}
-        LOGGER.debug("Scanning index ${this.index.name} (${this.index.type}).")
+        LOGGER.debug("Scanning index {} ({}).", this.index.name, this.index.type)
 
         /* Acquire query context; requires write-latch to prevent concurrent data events from "seeping" through. */
         val context = this.manager.computeExclusively {
@@ -105,7 +110,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
             /* Commit transaction. */
             context.txn.commit()
             this.state = IndexRebuilderState.REBUILT
-            LOGGER.debug("Scanning index ${this.index.name} (${this.index.type}) completed!")
+            LOGGER.debug("Scanning index {} ({}) completed!", this.index.name, this.index.type)
         } catch (e: Throwable) {
             context.txn.rollback()
             LOGGER.error("Scanning index ${this.index.name} (${this.index.type}) failed due to exception: ${e.message}")
@@ -118,7 +123,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     @Synchronized
     override fun replace() {
         require(this.state == IndexRebuilderState.REBUILT) { "Cannot perform MERGE with index builder because it is in the wrong state."}
-        LOGGER.debug("Merging index ${this.index.name} (${this.index.type}).")
+        LOGGER.debug("Merging index {} ({}).", this.index.name, this.index.type)
 
         /* Acquire query context; requires write-latch to prevent concurrent data events from "seeping" through. */
         val transaction = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
@@ -127,7 +132,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
 
         /* Clear store and update state of index (* ---> DIRTY). */
         try {
-            if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.DIRTY, context.txn.xodusTx)) {
+            if (!this.updateState(IndexState.DIRTY, context.txn)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because index state could not be changed to DIRTY!")
                 context.txn.rollback()
@@ -154,7 +159,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
             }
 
             /* Update state of index (DIRTY ---> CLEAN). */
-            if (!IndexCatalogueEntry.updateState(this.index.name, this.index.catalogue as DefaultCatalogue, IndexState.CLEAN, context.txn.xodusTx)) {
+            if (!this.updateState(IndexState.CLEAN, context.txn)) {
                 this.state = IndexRebuilderState.ABORTED
                 LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because index state could not be changed to CLEAN!")
                 context.txn.rollback()
@@ -165,7 +170,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
             context.txn.commit()
 
             this.state = IndexRebuilderState.FINISHED
-            LOGGER.debug("Merging index ${this.index.name} (${this.index.type}) completed!")
+            LOGGER.debug("Merging index {} ({}) completed!", this.index.name, this.index.type)
         } catch (e: Throwable) {
             LOGGER.error("Merging index ${this.index.name} (${this.index.type}) failed because of exception: ${e.message}")
             context.txn.rollback()
@@ -227,7 +232,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
                     }
                 }
 
-                LOGGER.debug("Asynchronous index re-builder index ${this.index.name} (${this.index.type}) discarded!")
+                LOGGER.debug("Asynchronous index re-builder index {} ({}) discarded!", this.index.name, this.index.type)
             }
         } catch (e: Throwable) {
             LOGGER.warn("Asynchronous index re-builder for index ${this.index.name} (${this.index.type}) could not be discarded: ${e.message}")
@@ -265,6 +270,24 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
      * @return True on success, false otherwise.
      */
     abstract fun drainAndMergeLog(): Boolean
+
+    /**
+     * Convenience method to update [IndexState] for this [AbstractIndex].
+     *
+     * @param state The new [IndexState].
+     * @param tx The [Transaction] to use.
+     */
+    private fun updateState(state: IndexState, tx: Transaction): Boolean {
+        val name = NameBinding.Index.toEntry(this@AbstractAsyncIndexRebuilder.index.name)
+        val store = IndexMetadata.store(this@AbstractAsyncIndexRebuilder.index.catalogue as DefaultCatalogue, tx.xodusTx)
+        val oldEntryRaw = store.get(tx.xodusTx, name) ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index transaction for index ${this@AbstractAsyncIndexRebuilder.index.name}: Could not read catalogue entry for index.")
+        val oldEntry =  IndexMetadata.fromEntry(oldEntryRaw)
+        return if (oldEntry.state != state) {
+            store.put(tx.xodusTx, name, IndexMetadata.toEntry(oldEntry.copy(state = state)))
+        } else {
+            false
+        }
+    }
 
     /**
      * Clears and opens the data store associated with this [AbstractIndexRebuilder].

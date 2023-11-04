@@ -1,8 +1,9 @@
 package org.vitrivr.cottontail.dbms.index.lucene
 
 import org.vitrivr.cottontail.core.values.StringValue
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.storage.lucene.XodusDirectory
@@ -21,10 +22,10 @@ class LuceneIndexRebuilder(index: LuceneIndex, context: QueryContext): AbstractI
      */
     override fun rebuildInternal(): Boolean {
         /* Read basic index properties. */
-        val entry = IndexCatalogueEntry.read(this.index.name, this.index.catalogue, this.context.txn.xodusTx)
-            ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index  ${this.index.name}: Could not read catalogue entry for index.")
-        val column = entry.columns[0]
-
+        val indexMetadataStore = IndexMetadata.store(this.index.catalogue, context.txn.xodusTx)
+        val indexEntryRaw = indexMetadataStore.get(context.txn.xodusTx, NameBinding.Index.toEntry(this@LuceneIndexRebuilder.index.name)) ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index ${this@LuceneIndexRebuilder.index.name}: Could not read catalogue entry for index.")
+        val indexEntry = IndexMetadata.fromEntry(indexEntryRaw)
+        val column = this.index.name.entity().column(indexEntry.columns[0])
 
         /* Obtain Tx for parent entity. */
         val entityTx = this.index.parent.newTx(this.context)
