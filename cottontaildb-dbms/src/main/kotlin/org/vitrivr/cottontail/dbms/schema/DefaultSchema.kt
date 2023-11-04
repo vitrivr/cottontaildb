@@ -139,12 +139,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
 
             /* Check if entity already exists. */
             val store = EntityMetadata.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
-            if (store.get(this.context.txn.xodusTx, NameBinding.Entity.toEntry(name)) != null) {
-                throw DatabaseException.EntityAlreadyExistsException(name)
-            }
-
-            /* Write entity catalogue entry. */
-            val entry = EntityMetadata(System.currentTimeMillis(), columns.keys.map { it.columnName }, emptyList())
+            val entry = EntityMetadata(System.currentTimeMillis(), columns.keys.map { it.columnName })
             if (!store.add(this.context.txn.xodusTx, NameBinding.Entity.toEntry(name), EntityMetadata.toEntry(entry))) {
                 throw DatabaseException.EntityAlreadyExistsException(name)
             }

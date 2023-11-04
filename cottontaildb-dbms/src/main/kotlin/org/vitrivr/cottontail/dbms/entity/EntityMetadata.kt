@@ -9,12 +9,9 @@ import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.LightOutputStream
-import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import java.io.ByteArrayInputStream
 
 /**
@@ -23,7 +20,7 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-data class EntityMetadata(val created: Long, val columns: List<String>, val indexes: List<String>) {
+data class EntityMetadata(val created: Long, val columns: List<String>) {
 
     companion object {
         /** Name of the Xodus [Store] used to store [EntityMetadata]. */
@@ -60,10 +57,7 @@ data class EntityMetadata(val created: Long, val columns: List<String>, val inde
             val columns = (0 until IntegerBinding.readCompressed(stream)).map {
                 StringBinding.BINDING.readObject(stream)
             }
-            val indexes = (0 until IntegerBinding.readCompressed(stream)).map {
-                StringBinding.BINDING.readObject(stream)
-            }
-            return EntityMetadata(created, columns, indexes)
+            return EntityMetadata(created, columns)
         }
 
         /**
@@ -78,12 +72,6 @@ data class EntityMetadata(val created: Long, val columns: List<String>, val inde
             IntegerBinding.writeCompressed(output,entry.columns.size)
             for (columnName in entry.columns) {
                 StringBinding.BINDING.writeObject(output, columnName)
-            }
-
-            /* Write all indexes. */
-            IntegerBinding.writeCompressed(output,entry.indexes.size)
-            for (indexName in entry.indexes) {
-                StringBinding.BINDING.writeObject(output, indexName)
             }
             return output.asArrayByteIterable()
         }

@@ -12,8 +12,6 @@ import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.catalogue.entries.EntityCatalogueEntry
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.column.*
 import org.vitrivr.cottontail.dbms.events.DataEvent
@@ -89,35 +87,33 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /* Cache this Tx for future use. */
             context.txn.cacheTx(this)
 
-            /* Load entity entry.  */
-            val entityMetadataStore = EntityMetadata.store(this@DefaultEntity.catalogue, this.context.txn.xodusTx)
-            val entityEntry = EntityMetadata.fromEntry(
-                entityMetadataStore.get(this.context.txn.xodusTx, NameBinding.Entity.toEntry(this@DefaultEntity.name)) ?: throw DatabaseException.DataCorruptionException("Catalogue entry for entity ${this@DefaultEntity.name} is missing.")
-            )
-
             /* Load a (ordered) map of columns. This map can be kept in memory for the duration of the transaction, because Transaction works with a fixed snapshot.  */
             val columnMetadataStore = ColumnMetadata.store(this@DefaultEntity.catalogue, this.context.txn.xodusTx)
-            for (c in entityEntry.columns) {
-                val name = this@DefaultEntity.name.column(c)
-                val columnEntry = ColumnMetadata.fromEntry(
-                    columnMetadataStore.get(this.context.txn.xodusTx, NameBinding.Column.toEntry(name)) ?: throw DatabaseException.DataCorruptionException("Catalogue entry for column $name is missing.")
-                )
-                val def = ColumnDef(name, columnEntry.type, columnEntry.nullable, columnEntry.primary, columnEntry.primary)
-                if (def.type is Types.String || def.type is Types.ByteString) {
-                    this.columns[name] = VariableLengthColumn(def, this@DefaultEntity)
-                } else {
-                    this.columns[name] = FixedLengthColumn(def, this@DefaultEntity, columnEntry.compression)
+            columnMetadataStore.openCursor(this.context.txn.xodusTx).use {
+                if (it.getSearchKeyRange(NameBinding.Entity.toEntry(this@DefaultEntity.name)) != null) {
+                    do {
+                        val columnName = NameBinding.Column.fromEntry(it.key)
+                        val columnEntry = ColumnMetadata.fromEntry(it.value)
+                        val columnDef = ColumnDef(columnName, columnEntry.type, columnEntry.nullable, columnEntry.primary, columnEntry.primary)
+                        if (columnDef.type is Types.String || columnDef.type is Types.ByteString) {
+                            this.columns[columnName] = VariableLengthColumn(columnDef, this@DefaultEntity)
+                        } else {
+                            this.columns[columnName] = FixedLengthColumn(columnDef, this@DefaultEntity, columnEntry.compression)
+                        }
+                    } while (it.next)
                 }
             }
 
             /* Load a map of indexes. This map can be kept in memory for the duration of the transaction, because Transaction works with a fixed snapshot.  */
             val indexMetadataStore = IndexMetadata.store(this@DefaultEntity.catalogue, this.context.txn.xodusTx)
-            for (i in entityEntry.indexes) {
-                val name = this@DefaultEntity.name.index(i)
-                val indexEntry = IndexMetadata.fromEntry(
-                indexMetadataStore.get(this.context.txn.xodusTx, NameBinding.Index.toEntry(name)) ?: throw DatabaseException.DataCorruptionException("Catalogue entry for column $name is missing.")
-                )
-                this.indexes[name] = indexEntry.type.descriptor.open(name, this.dbo)
+            indexMetadataStore.openCursor(this.context.txn.xodusTx).use {
+                if (it.getSearchKeyRange(NameBinding.Entity.toEntry(this@DefaultEntity.name))  != null) {
+                    do {
+                        val indexName = NameBinding.Index.fromEntry(it.key)
+                        val indexEntry = IndexMetadata.fromEntry(it.value)
+                        this.indexes[indexName] = indexEntry.type.descriptor.open(indexName, this.dbo)
+                    } while (it.next)
+                }
             }
         }
 
@@ -241,30 +237,20 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return Newly created [Index] for use in context of this [Tx]
          */
         override fun createIndex(name: Name.IndexName, type: IndexType, columns: List<Name.ColumnName>, configuration: IndexConfig<*>): Index = this.txLatch.withLock {
-            val entity = EntityCatalogueEntry.read(this@DefaultEntity.name, this@DefaultEntity.catalogue, this.context.txn.xodusTx) ?:  throw DatabaseException.DataCorruptionException("CREATE index $name failed: Failed to read catalogue entry for entity.")
+            /* Check if entity already exists. */
+            require(name.entity() == this@DefaultEntity.name) { "Index $name does not belong to entity! This is a programmer's error!"}
 
-            /* Checks if index exists. */
-            if (IndexCatalogueEntry.exists(name, this@DefaultEntity.catalogue, this.context.txn.xodusTx)) {
+            /* Prepare index entry and persist it. */
+            val store = IndexMetadata.store(this@DefaultEntity.catalogue, this.context.txn.xodusTx)
+            val indexEntry = IndexMetadata(type, IndexState.DIRTY, columns.map { it.columnName }, configuration)
+            if (!store.add(this.context.txn.xodusTx, NameBinding.Index.toEntry(name), IndexMetadata.toEntry(indexEntry))) {
                 throw DatabaseException.IndexAlreadyExistsException(name)
-            }
-
-            /* Create index catalogue entry. */
-            val indexEntry = if (this.count() == 0L && type in setOf(IndexType.BTREE_UQ, IndexType.BTREE, IndexType.LUCENE)) {
-                IndexCatalogueEntry(name, type, IndexState.CLEAN, columns, configuration)
-            } else {
-                IndexCatalogueEntry(name, type, IndexState.STALE, columns, configuration)
-            }
-            if (!IndexCatalogueEntry.write(indexEntry, this@DefaultEntity.catalogue, this.context.txn.xodusTx)) {
-                throw DatabaseException.DataCorruptionException("CREATE index $name failed: Failed to create catalogue entry.")
             }
 
             /* Initialize index store entry. */
             if (!type.descriptor.initialize(name, this.dbo.catalogue, this.context.txn)) {
                 throw DatabaseException.DataCorruptionException("CREATE index $name failed: Failed to initialize store.")
             }
-
-            /* Update entity catalogue entry. */
-            EntityCatalogueEntry.write(entity.copy(indexes = (entity.indexes + name)), this@DefaultEntity.catalogue, this.context.txn.xodusTx)
 
             /* Try to open index. */
             val ret = type.descriptor.open(name, this@DefaultEntity)
@@ -283,31 +269,24 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @param name [Name.IndexName] of the [Index] to drop.
          */
         override fun dropIndex(name: Name.IndexName) = this.txLatch.withLock {
-            val entity = EntityCatalogueEntry.read(this@DefaultEntity.name, this@DefaultEntity.catalogue, this.context.txn.xodusTx) ?:  throw DatabaseException.DataCorruptionException("CREATE index $name failed: Failed to read catalogue entry for entity.")
-
-            /* Check if index exists. */
-            val indexEntry = IndexCatalogueEntry.read(name, this@DefaultEntity.catalogue, this.context.txn.xodusTx)
-                ?: throw DatabaseException.IndexDoesNotExistException(name)
+            /* Fetch index entry and remove it. */
+            val store = IndexMetadata.store(this@DefaultEntity.catalogue, this.context.txn.xodusTx)
+            val metadataRaw = store.get(this.context.txn.xodusTx, NameBinding.Index.toEntry(name)) ?: throw DatabaseException.IndexDoesNotExistException(name)
+            val metadata = IndexMetadata.fromEntry(metadataRaw)
+            if (!store.delete(this.context.txn.xodusTx, NameBinding.Index.toEntry(name))) {
+                throw DatabaseException.IndexDoesNotExistException(name)
+            }
 
             /* De-initialize the index. */
-            if (!indexEntry.type.descriptor.deinitialize(name, this.dbo.catalogue, this.context.txn)) {
+            if (!metadata.type.descriptor.deinitialize(name, this.dbo.catalogue, this.context.txn)) {
                 throw DatabaseException.DataCorruptionException("DROP index $name failed: Failed to de-initialize store.")
             }
 
             /* Remove index catalogue entry. */
             this.indexes.remove(name)
-            if (!IndexCatalogueEntry.delete(name, this@DefaultEntity.catalogue, this.context.txn.xodusTx)) {
-                throw DatabaseException.DataCorruptionException("DROP index $name failed: Failed to delete catalogue entry.")
-            }
-
-            /* Deletes the index statistics entity associated with the index. */
-            this@DefaultEntity.catalogue.indexStatistics.deletePersistently(name, this.context.txn.xodusTx)
-
-            /* Update entity catalogue entry. */
-            EntityCatalogueEntry.write(entity.copy(indexes = (entity.indexes - name)), this@DefaultEntity.catalogue, this.context.txn.xodusTx)
 
             /* Signal event to transaction context. */
-            this.context.txn.signalEvent(IndexEvent.Dropped(name, indexEntry.type))
+            this.context.txn.signalEvent(IndexEvent.Dropped(name, metadata.type))
         }
 
         /**

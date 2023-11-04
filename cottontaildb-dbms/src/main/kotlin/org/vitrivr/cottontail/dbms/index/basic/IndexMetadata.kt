@@ -6,12 +6,11 @@ import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.env.Transaction
+import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-
-import java.io.ByteArrayInputStream
 
 /**
  *
@@ -51,7 +50,7 @@ data class IndexMetadata(val type: IndexType, val state: IndexState, val columns
          * @return [IndexMetadata]
          */
         fun fromEntry(entry: ByteIterable): IndexMetadata {
-            val stream = ByteArrayInputStream(entry.bytesUnsafe, 0, entry.length)
+            val stream = ByteArraySizedInputStream(entry.bytesUnsafe, 0, entry.length)
             val type = IndexType.values()[IntegerBinding.readCompressed(stream)]
             val state = IndexState.values()[IntegerBinding.readCompressed(stream)]
             val columns = (0 until IntegerBinding.readCompressed(stream)).map {
