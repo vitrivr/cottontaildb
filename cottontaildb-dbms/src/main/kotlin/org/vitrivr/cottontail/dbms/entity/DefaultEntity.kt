@@ -113,6 +113,9 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                 if (it.getSearchKeyRange(NameBinding.Entity.toEntry(this@DefaultEntity.name))  != null) {
                     do {
                         val indexName = NameBinding.Index.fromEntry(it.key)
+                        if (indexName.entity() != this@DefaultEntity.name) {
+                            break
+                        }
                         val indexEntry = IndexMetadata.fromEntry(it.value)
                         this.indexes[indexName] = indexEntry.type.descriptor.open(indexName, this.dbo)
                     } while (it.next)
@@ -239,7 +242,8 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
 
             /* Prepare index entry and persist it. */
             val store = IndexMetadata.store(this@DefaultEntity.catalogue, this.context.txn.xodusTx)
-            val indexEntry = IndexMetadata(type, IndexState.DIRTY, columns.map { it.columnName }, configuration)
+            val state = if (this.count() == 0L) { IndexState.CLEAN } else { IndexState.DIRTY }
+            val indexEntry = IndexMetadata(type, state, columns.map { it.columnName }, configuration)
             if (!store.add(this.context.txn.xodusTx, NameBinding.Index.toEntry(name), IndexMetadata.toEntry(indexEntry))) {
                 throw DatabaseException.IndexAlreadyExistsException(name)
             }
