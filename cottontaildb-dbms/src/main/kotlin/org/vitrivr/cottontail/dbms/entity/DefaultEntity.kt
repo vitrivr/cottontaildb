@@ -165,10 +165,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return The number of entries in this [DefaultEntity].
          */
         override fun count(): Long = this.txLatch.withLock {
-            val snapshot = this.context.txn.xodusTx.readonlySnapshot
-            val ret = this.bitmap.count(snapshot)
-            snapshot.abort()
-            ret
+            this.bitmap.count(this.context.txn.xodusTx)
         }
 
         /**

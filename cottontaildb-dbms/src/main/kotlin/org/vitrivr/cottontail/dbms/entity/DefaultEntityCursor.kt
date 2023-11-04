@@ -42,7 +42,7 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
     private var current: TupleId = -1
 
     /** The [TupleId] this [DefaultEntityCursor] is currently pointing to. */
-    private val maximum: TupleId = partition.last - 1L
+    private val maximum: TupleId = partition.last
 
     init {
         /* Fast-forward to entry at position. */
