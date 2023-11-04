@@ -23,7 +23,7 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
     }
 
     /** The wrapped [Cursor] to iterate over columns. */
-    private val cursors: Array<ColumnTx<*>> = Array(columns.size) {
+    private val txs: Array<ColumnTx<*>> = Array(columns.size) {
         entity.columnForName(columns[it].name).newTx(entity.context)
     }
 
@@ -32,8 +32,11 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
         def.copy(name = rename.getOrNull(index) ?: def.name)
     }.toTypedArray()
 
+    /** The transaction snapshot used for the cursor. */
+    private val snapshot = entity.context.txn.xodusTx.readonlySnapshot
+
     /** The [LongIterator] backing this [DefaultEntityCursor]. */
-    private val iterator = entity.bitmap.iterator(entity.context.txn.xodusTx.readonlySnapshot) as BitmapIterator
+    private val iterator = entity.bitmap.iterator(this.snapshot) as BitmapIterator
 
     /** The [TupleId] this [DefaultEntityCursor] is currently pointing to. */
     private var current: TupleId = -1
@@ -56,7 +59,7 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
     /**
      * Returns the [Tuple] this [Cursor] is currently pointing to.
      */
-    override fun value(): Tuple = StandaloneTuple(this.current, this.columns, Array(this.columns.size) { this.cursors[it].read(this.current) })
+    override fun value(): Tuple = StandaloneTuple(this.current, this.columns, Array(this.columns.size) { this.txs[it].read(this.current) })
 
     /**
      * Tries to move this [DefaultEntityCursor]. Returns true on success and false otherwise.
@@ -74,5 +77,8 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
     /**
      * Closes this [Cursor].
      */
-    override fun close() { /* No op. */ }
+    override fun close() {
+        this.iterator.close()
+        this.snapshot.abort()
+    }
 }
