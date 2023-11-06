@@ -27,10 +27,16 @@ class VariableLengthCursor<T: Value>(private val column: Column<T>, private val 
     /** The internal [ValueSerializer] reference used for de-/serialization. */
     private val binding: ValueSerializer<T> = SerializerFactory.value(this.column.columnDef.type)
 
+    /** Internal Xodus transaction snapshot.  */
+    private val snapshot = this.transaction.xodusTx.readonlySnapshot
+
     /** Internal Xodus cursor instance.  */
     private val cursor = this.dataStore.openCursor(this.transaction.xodusTx)
     override fun moveNext(): Boolean = this.cursor.next
     override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
     override fun value(): T = this.binding.fromEntry(this.cursor.value)!!
-    override fun close() = this.cursor.close()
+    override fun close() {
+        this.cursor.close()
+        this.snapshot.abort()
+    }
 }
