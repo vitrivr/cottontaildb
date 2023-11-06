@@ -436,14 +436,13 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return Next [TupleId] for insert.
          */
         private fun nextTupleId(): TupleId = this.txLatch.withLock {
-            val snapshot = this.context.txn.xodusTx.readonlySnapshot
-            val smallest = this.bitmap.getFirst(snapshot)
+            val txn = this.context.txn.xodusTx
+            val smallest = this.bitmap.getFirst(txn)
             val next = when {
                 smallest == -1L -> 0L
                 smallest > 0L -> smallest - 1L
-                else -> this.bitmap.getLast(snapshot) + 1L
+                else -> this.bitmap.getLast(txn) + 1L
             }
-            snapshot.abort()
             return@withLock next
         }
     }
