@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.execution.operators.projection
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
@@ -9,7 +10,6 @@ import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.BooleanValue
-import org.vitrivr.cottontail.dbms.execution.operators.basics.AbortFlowException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
@@ -38,15 +38,7 @@ class ExistsProjectionOperator(parent: Operator, val out: Binding.Column, overri
      */
     override fun toFlow(): Flow<Tuple> = flow {
         val incoming = this@ExistsProjectionOperator.parent.toFlow()
-        var exists = false
-        try {
-            incoming.collect {
-                exists = true
-                throw AbortFlowException(this)
-            }
-        } catch (e: AbortFlowException) {
-            e.checkOwnership(this)
-        }
+        val exists = incoming.firstOrNull() != null
         emit(StandaloneTuple(0L, this@ExistsProjectionOperator.columns[0], BooleanValue(exists)))
     }
 }
