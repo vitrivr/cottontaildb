@@ -90,7 +90,7 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
      * @param txId [TransactionId] to return the [AbstractTransaction] for.
      * @return [AbstractTransaction] or null
      */
-    operator fun get(txId: TransactionId): org.vitrivr.cottontail.dbms.execution.transactions.Transaction? = this.transactions[txId]
+    operator fun get(txId: TransactionId): Transaction? = this.transactions[txId]
 
     /**
      * Returns a list of [TransactionMetadata] of all ongoing and past transactions.
@@ -313,17 +313,16 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
                 this@AbstractTransaction.state = TransactionStatus.FINALIZING
 
                 try {
-                    if (!this@AbstractTransaction.xodusTx.isIdempotent) {
-                        /* Execute commit finalization. */
-                        for (txn in this@AbstractTransaction.txns.values.filterIsInstance<Tx.WithCommitFinalization>()) {
-                            txn.beforeCommit()
-                        }
+                    /* Execute commit finalization. */
+                    for (txn in this@AbstractTransaction.txns.values.filterIsInstance<Tx.WithCommitFinalization>()) {
+                        txn.beforeCommit()
+                    }
 
-                        /* Execute actual commit. */
-
-                        if (!this@AbstractTransaction.xodusTx.commit()) {
-                            throw TransactionException.InConflict(this@AbstractTransaction.transactionId)
-                        }
+                    /* Execute actual commit. */
+                    if (this@AbstractTransaction.xodusTx.isIdempotent) {
+                        this@AbstractTransaction.xodusTx.abort()
+                    } else if (!this@AbstractTransaction.xodusTx.commit()) {
+                        throw TransactionException.InConflict(this@AbstractTransaction.transactionId)
                     }
                     this@AbstractTransaction.state = TransactionStatus.COMMIT
                 } catch (e: Throwable) {
@@ -401,7 +400,7 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
 
             /* Add this transaction to the transaction history. */
             this@TransactionManager.transactionHistory.add(FinishedTransaction(this))
-            if (this@TransactionManager.transactionHistory.size >= this@TransactionManager.config.execution.transactionHistorySize) {
+            if (this@TransactionManager.transactionHistory.size > this@TransactionManager.config.execution.transactionHistorySize) {
                 this@TransactionManager.transactionHistory.removeAt(0)
             }
         }
