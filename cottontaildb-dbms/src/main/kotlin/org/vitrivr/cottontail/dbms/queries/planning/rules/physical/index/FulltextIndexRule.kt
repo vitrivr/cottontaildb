@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.values.DoubleValue
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNodeUtilities
@@ -27,7 +28,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * - Function: Executed function must be the [FulltextScore] function.
  *
  * @author Ralph Gasser
- * @version 1.3.1
+ * @version 1.4.0
  */
 object FulltextIndexRule : RewriteRule {
 
@@ -64,18 +65,19 @@ object FulltextIndexRule : RewriteRule {
         val predicate = BooleanPredicate.Comparison(ComparisonOperator.Match(probingArgument, queryString))
 
         /* This rule does not heed index hints, because it can lead the planner to not produce a plan at all. */
-        val candidate = scan.entity.listIndexes().map {
-            scan.entity.indexForName(it).newTx(ctx)
+        val entityTx = ctx.transaction.entityTx(scan.entity, AccessMode.READ)
+        val candidate = entityTx.listIndexes().map {
+            ctx.transaction.indexTx(it, AccessMode.READ)
         }.find {
-            it.state != IndexState.DIRTY && it.canProcess(predicate)
+            it.state == IndexState.CLEAN && it.canProcess(predicate)
         }
 
         with(MissingTuple) {
             with(ctx.bindings) {
                 if (candidate != null) {
                     val produces = candidate.columnsFor(predicate)
-                    val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, candidate, predicate, listOf(Pair(node.out, produces[0])))
-                    val fetch = FetchPhysicalOperatorNode(indexScan, scan.entity, scan.fetch.filter { !produces.contains(it.second) })
+                    val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, scan.context, candidate.dbo.name, predicate, listOf(Pair(node.out, produces[0])))
+                    val fetch = FetchPhysicalOperatorNode(indexScan, scan.fetch.filter { !produces.contains(it.second) })
                     if (node.output == null) return fetch
                     return OperatorNodeUtilities.chainIf(fetch, node.output!!) {
                         when (it) {

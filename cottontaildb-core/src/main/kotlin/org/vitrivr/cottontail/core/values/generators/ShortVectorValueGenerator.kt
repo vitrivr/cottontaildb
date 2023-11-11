@@ -1,7 +1,5 @@
 package org.vitrivr.cottontail.core.values.generators
 
-import org.vitrivr.cottontail.core.types.VectorValue
-import org.vitrivr.cottontail.core.values.IntVectorValue
 import org.vitrivr.cottontail.core.values.ShortVectorValue
 import java.util.*
 import java.util.random.RandomGenerator
@@ -31,7 +29,7 @@ object ShortVectorValueGenerator: VectorValueGenerator<ShortVectorValue> {
     override fun one(size: Int) = ShortVectorValue(ShortArray(size) { (1).toShort() })
 
     /**
-     * Generates a [IntVectorValue] of the given size initialized with zeros.
+     * Generates a [ShortVectorValue] of the given size initialized with zeros.
      *
      * @param size Size of the new [ShortVectorValue]
      * @return [ShortVectorValue]
@@ -41,7 +39,7 @@ object ShortVectorValueGenerator: VectorValueGenerator<ShortVectorValue> {
     /**
      * Generates a [ShortVectorValue] given [Array] of [Number]s
      *
-     * @param values List of [Number]s to generate the [VectorValue] for.
+     * @param values List of [Number]s to generate the [ShortVectorValue] for.
      * @return [ShortVectorValue]
      */
     override fun with(values: Array<Number>) = ShortVectorValue(values)

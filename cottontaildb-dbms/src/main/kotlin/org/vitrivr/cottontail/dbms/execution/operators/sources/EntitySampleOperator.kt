@@ -1,17 +1,17 @@
 package org.vitrivr.cottontail.dbms.execution.operators.sources
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flow
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import java.util.*
 
@@ -19,9 +19,9 @@ import java.util.*
  * An [Operator.SourceOperator] that samples an [Entity] and streams all [Tuple]s found within.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 3.0.0
  */
-class EntitySampleOperator(groupId: GroupId, private val entity: EntityTx, private val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, private val p: Float, private val seed: Long, override val context: QueryContext) : Operator.SourceOperator(groupId) {
+class EntitySampleOperator(groupId: GroupId, private val entity: Name.EntityName, private val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, private val p: Float, private val seed: Long, override val context: QueryContext) : Operator.SourceOperator(groupId) {
 
     companion object {
         /** [Logger] instance used by [EntitySampleOperator]. */
@@ -39,9 +39,10 @@ class EntitySampleOperator(groupId: GroupId, private val entity: EntityTx, priva
     override fun toFlow(): Flow<Tuple> = flow {
         val fetch = this@EntitySampleOperator.fetch.map { it.second }.toTypedArray()
         val rename = this@EntitySampleOperator.fetch.map { it.first.column.name }.toTypedArray()
+        val entityTx = this@EntitySampleOperator.context.transaction.entityTx(this@EntitySampleOperator.entity, AccessMode.READ)
         val random = SplittableRandom(this@EntitySampleOperator.seed)
         var read = 0
-        this@EntitySampleOperator.entity.cursor(fetch, rename).use { cursor ->
+        entityTx.cursor(fetch, rename).use { cursor ->
             while (cursor.moveNext()) {
                 if (random.nextDouble(0.0, 1.0) <= this@EntitySampleOperator.p) {
                     emit(cursor.value())
@@ -49,6 +50,6 @@ class EntitySampleOperator(groupId: GroupId, private val entity: EntityTx, priva
                 }
             }
         }
-        LOGGER.debug("Read {} entries from {}.", read, this@EntitySampleOperator.entity.dbo.name)
+        LOGGER.debug("Read {} entries from {}.", read, this@EntitySampleOperator.entity)
     }
 }

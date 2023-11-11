@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.MissingTuple
@@ -11,7 +12,6 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.sources.EntitySampleOperator
 import org.vitrivr.cottontail.dbms.execution.operators.sources.EntityScanOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
@@ -19,9 +19,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOpera
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.statistics.defaultStatistics
 import org.vitrivr.cottontail.dbms.statistics.estimateTupleSize
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
-import java.lang.Math.floorDiv
 
 /**
  * A [UnaryPhysicalOperatorNode] that formalizes a scan of a physical [Entity] in Cottontail DB.
@@ -30,7 +30,14 @@ import java.lang.Math.floorDiv
  * @version 2.7.1
  */
 @Suppress("UNCHECKED_CAST")
-class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, val partitionIndex: Int = 0, val partitions: Int = 1) : NullaryPhysicalOperatorNode() {
+class EntityScanPhysicalOperatorNode(
+    override val groupId: Int,
+    override val context: QueryContext,
+    val entity: Name.EntityName,
+    val fetch: List<Pair<Binding.Column, ColumnDef<*>>>,
+    val partitionIndex: Int = 0,
+    val partitions: Int = 1
+) : NullaryPhysicalOperatorNode() {
 
     companion object {
         private const val NODE_NAME = "ScanEntity"
@@ -51,13 +58,13 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
 
     /** The number of rows returned by this [EntityScanPhysicalOperatorNode] equals to the number of rows in the [Entity]. */
     override val outputSize by lazy {
-        floorDiv(this.entity.count(), this.partitions)
+        this.context.transaction.manager.statistics[this@EntityScanPhysicalOperatorNode.entity]?.count() ?: 0L
     }
 
     /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
     override val statistics by lazy {
         this.fetch.associate {
-            it.first.column to this.entity.columnForName(it.second.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
+            it.first.column to ((this.context.transaction.manager.statistics[it.second.name] ?: it.second.type.defaultStatistics<Value>()) as ValueStatistics<Value>)
         }
     }
 
@@ -80,7 +87,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
      *
      * @return Copy of this [EntityScanPhysicalOperatorNode].
      */
-    override fun copy() = EntityScanPhysicalOperatorNode(this.groupId, this.entity, this.fetch.map { it.first.copy() to it.second })
+    override fun copy() = EntityScanPhysicalOperatorNode(this.groupId, this.context, this.entity, this.fetch.map { it.first.copy() to it.second }, this.partitionIndex, this.partitions)
 
     /**
      * An [EntityScanPhysicalOperatorNode] is always executable
@@ -116,7 +123,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
      * @param p The partition index.
      * @return Partitioned [EntityScanPhysicalOperatorNode]
      */
-    override fun partition(partitions: Int, p: Int): Physical = EntityScanPhysicalOperatorNode(this.groupId + p, this.entity, this.fetch.map { it.first.copy() to it.second }, p, partitions)
+    override fun partition(partitions: Int, p: Int): Physical = EntityScanPhysicalOperatorNode(this.groupId + p, this.context, this.entity, this.fetch.map { it.first.copy() to it.second }, p, partitions)
 
     /**
      * Converts this [EntityScanPhysicalOperatorNode] to a [EntityScanOperator].
@@ -135,7 +142,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
      * @return [Digest]
      */
     override fun digest(): Digest {
-        var result = this.entity.dbo.name.hashCode() + 1L
+        var result = this.entity.hashCode() + 1L
         result += 31L * result + this.fetch.hashCode()
         result += 31L * result + this.partitionIndex.hashCode()
         result += 31L * result + this.partitions.hashCode()

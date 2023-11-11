@@ -4,7 +4,6 @@ import com.google.protobuf.Empty
 import io.grpc.Status
 import jetbrains.exodus.ExodusException
 import kotlinx.coroutines.flow.Flow
-import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
@@ -19,12 +18,12 @@ import kotlin.time.ExperimentalTime
  * Implementation of [TXNGrpc.TXNImplBase], the gRPC endpoint for managing [TransactionManager.TransactionImpl]s in Cottontail DB
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 2.4.0
  */
 @ExperimentalTime
-class TXNService constructor(override val catalogue: Catalogue) : TXNGrpcKt.TXNCoroutineImplBase(), TransactionalGrpcService {
+class TXNService constructor(override val manager: TransactionManager) : TXNGrpcKt.TXNCoroutineImplBase(), TransactionalGrpcService {
     /**
-     * gRPC endpoint for beginning an new [TransactionManager.TransactionImpl].
+     * gRPC endpoint for beginning a new [TransactionManager.AbstractTransaction].
      */
     override suspend fun begin(request: CottontailGrpc.BeginTransaction): CottontailGrpc.ResponseMetadata {
         try {
@@ -39,7 +38,7 @@ class TXNService constructor(override val catalogue: Catalogue) : TXNGrpcKt.TXNC
     }
 
     /**
-     * gRPC for committing a [TransactionManager.TransactionImpl].
+     * gRPC for committing a [TransactionManager.AbstractTransaction].
      */
     override suspend fun commit(request: CottontailGrpc.RequestMetadata): Empty {
         if (request.transactionId <= 0L)
@@ -56,7 +55,7 @@ class TXNService constructor(override val catalogue: Catalogue) : TXNGrpcKt.TXNC
     }
 
     /**
-     * gRPC for rolling back a [TransactionManager.TransactionImpl].
+     * gRPC for rolling back a [TransactionManager.AbstractTransaction].
      */
     override suspend fun rollback(request: CottontailGrpc.RequestMetadata): Empty {
         if (request.transactionId <= 0L)
@@ -71,7 +70,7 @@ class TXNService constructor(override val catalogue: Catalogue) : TXNGrpcKt.TXNC
     }
 
     /**
-     * gRPC for killing a [TransactionManager.TransactionImpl].
+     * gRPC for killing a [TransactionManager.AbstractTransaction].
      */
     override suspend fun kill(request: CottontailGrpc.RequestMetadata): Empty {
         if (request.transactionId <= 0L)
@@ -86,10 +85,10 @@ class TXNService constructor(override val catalogue: Catalogue) : TXNGrpcKt.TXNC
     }
 
     /**
-     * gRPC for listing all [TransactionManager.TransactionImpl]s.
+     * gRPC for listing all [TransactionManager.AbstractTransaction]s.
      */
     override fun listTransactions(request: Empty): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(CottontailGrpc.RequestMetadata.getDefaultInstance(), true) { ctx ->
-        ctx.register(ListTransactionsPhysicalOperatorNode(this.manager))
+        ctx.register(ListTransactionsPhysicalOperatorNode(ctx))
         ctx.toOperatorTree()
     }
 
@@ -97,7 +96,7 @@ class TXNService constructor(override val catalogue: Catalogue) : TXNGrpcKt.TXNC
      * gRPC for listing all active locks.
      */
     override fun listLocks(request: Empty): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(CottontailGrpc.RequestMetadata.getDefaultInstance(), true) { ctx ->
-        ctx.register(ListLocksPhysicalOperatorNode(this.manager.lockManager))
+        ctx.register(ListLocksPhysicalOperatorNode(ctx))
         ctx.toOperatorTree()
     }
 }

@@ -1,26 +1,28 @@
 package org.vitrivr.cottontail.dbms.schema
 
 import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
-import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.column.ColumnMetadata
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityMetadata
 import org.vitrivr.cottontail.dbms.events.EntityEvent
+import org.vitrivr.cottontail.dbms.events.SchemaEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.general.AbstractTx
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.index.hash.BTreeIndexConfig
-import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.sequence.DefaultSequence
 import org.vitrivr.cottontail.dbms.sequence.Sequence
 import java.util.*
+import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
@@ -30,21 +32,23 @@ import kotlin.concurrent.withLock
  * @see SchemaTx
 
  * @author Ralph Gasser
- * @version 3.1.0
+ * @version 4.0.0
  */
-class DefaultSchema(override val name: Name.SchemaName, override val parent: DefaultCatalogue) : Schema {
+class DefaultSchema(override val name: Name.SchemaName, override val parent: DefaultCatalogue, private val environment: Environment): Schema {
 
     /** A [DefaultSchema] belongs to its parent [DefaultCatalogue]. */
     override val catalogue: DefaultCatalogue = this.parent
 
     /**
-     * Creates and returns a new [DefaultSchema.Tx] for the given [QueryContext].
+     * Creates and returns a new [DefaultSchema.Tx] for the given [CatalogueTx].
      *
-     * @param context The [QueryContext] to create the [DefaultSchema.Tx] for.
+     * @param parent The [SchemaTx] to create the [DefaultSchema.Tx] for.
      * @return New [DefaultSchema.Tx]
      */
-    override fun newTx(context: QueryContext): SchemaTx
-        = context.transaction.cachedTxForName(this) ?: this.Tx(context)
+    override fun newTx(parent: CatalogueTx): DefaultSchema.Tx {
+        require(parent is DefaultCatalogue.Tx) { "DefaultSchema.Tx can only be used with DefaultCatalogue.Tx" }
+        return this.Tx(parent)
+    }
 
     /**
      * A [Tx] that affects this [DefaultSchema].
@@ -52,16 +56,20 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
      * @author Ralph Gasser
      * @version 3.0.0
      */
-    inner class Tx(context: QueryContext) : AbstractTx(context), SchemaTx {
+    inner class Tx(parent: DefaultCatalogue.Tx): SchemaTx {
 
-        init {
-            /* Cache this Tx for future use. */
-            context.transaction.cacheTx(this)
-        }
+        /** Reference to the Cottontail DB [Transaction] object. */
+        override val transaction: Transaction = parent.transaction
 
         /** Reference to the surrounding [DefaultSchema]. */
         override val dbo: DefaultSchema
             get() = this@DefaultSchema
+
+        /** The catalogue-level Xodus [jetbrains.exodus.env.Transaction]. */
+        internal val xodusTx: jetbrains.exodus.env.Transaction = parent.xodusTx
+
+        /** A [ReentrantLock] that synchronises access to this [Tx]'s methods. */
+        private val txLatch = ReentrantLock()
 
         /**
          * Returns a list of all [Name.EntityName]s held by this [DefaultSchema].
@@ -69,9 +77,9 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
          * @return [List] of all [Name.EntityName].
          */
         override fun listEntities(): List<Name.EntityName> = this.txLatch.withLock {
-            val store = EntityMetadata.store(this@DefaultSchema.catalogue, this.context.transaction.xodusTx)
+            val store = EntityMetadata.store(this@DefaultSchema.catalogue, this.xodusTx)
             val list = mutableListOf<Name.EntityName>()
-            store.openCursor(this.context.transaction.xodusTx).use { cursor ->
+            store.openCursor(this.xodusTx).use { cursor ->
                 if (cursor.getSearchKeyRange(NameBinding.Schema.toEntry(this@DefaultSchema.name)) != null) {
                     do {
                         val name = NameBinding.Entity.fromEntry(cursor.key)
@@ -89,9 +97,10 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
          * @return [List] of all [Name.SequenceName].
          */
         override fun listSequence(): List<Name.SequenceName> {
-            val store = DefaultSequence.store(this@DefaultSchema.catalogue, this.context.transaction.xodusTx)
+            val store = this@DefaultSchema.environment.openStore(DefaultSequence.CATALOGUE_SEQUENCE_STORE_NAME, StoreConfig.USE_EXISTING, this.xodusTx, false)
+                ?: throw DatabaseException.DataCorruptionException("Failed to open store for sequence catalogue.")
             val list = mutableListOf<Name.SequenceName>()
-            store.openCursor(this.context.transaction.xodusTx).use { cursor ->
+            store.openCursor(xodusTx).use { cursor ->
                 if (cursor.getSearchKeyRange(NameBinding.Schema.toEntry(this@DefaultSchema.name)) != null) {
                     do {
                         val name = NameBinding.Sequence.fromEntry(cursor.key)
@@ -110,25 +119,10 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
          * @return [Entity]
          */
         override fun entityForName(name: Name.EntityName): Entity = this.txLatch.withLock {
-            val store = EntityMetadata.store(this@DefaultSchema.catalogue, this.context.transaction.xodusTx)
-            if (store.get(this.context.transaction.xodusTx, NameBinding.Entity.toEntry(name)) == null) {
-                throw DatabaseException.EntityDoesNotExistException(name)
-            }
-            return DefaultEntity(name, this@DefaultSchema)
-        }
-
-        /**
-         * Returns an [Entity] if such an instance exists.
-         *
-         * @param name Name of the [Entity] to access.
-         * @return [Entity] or null.
-         */
-        override fun sequenceForName(name: Name.SequenceName): Sequence = this.txLatch.withLock {
-            val store = DefaultSequence.store(this@DefaultSchema.catalogue, this.context.transaction.xodusTx)
-            if (store.get(this.context.transaction.xodusTx, NameBinding.Sequence.toEntry(name)) == null) {
-                throw DatabaseException.SequenceDoesNotExistException(name)
-            }
-            return DefaultSequence(name, this@DefaultSchema)
+            val store = EntityMetadata.store(this@DefaultSchema.catalogue, this.xodusTx)
+            val entryRaw = store.get(xodusTx, NameBinding.Entity.toEntry(name)) ?: throw DatabaseException.EntityDoesNotExistException(name)
+            val entry = EntityMetadata.fromEntry(entryRaw)
+            return DefaultEntity(name, this@DefaultSchema, this.transaction.manager.environment(entry.handle))
         }
 
         /**
@@ -142,49 +136,41 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             if (columns.isEmpty()) {  throw DatabaseException.NoColumnException(name) }
 
             /* Check if entity already exists. */
-            val store = EntityMetadata.store(this@DefaultSchema.catalogue, this.context.transaction.xodusTx)
-            if (store.get(this.context.transaction.xodusTx, NameBinding.Entity.toEntry(name)) != null) {
+            val entityMetadataStore = this.xodusTx.environment.openStore(DefaultCatalogue.ENTITY_METADATA_STORE_PREFIX, StoreConfig.WITHOUT_DUPLICATES, this.xodusTx)
+            if (entityMetadataStore.get(xodusTx, NameBinding.Entity.toEntry(name)) != null) {
                 throw DatabaseException.EntityAlreadyExistsException(name)
             }
 
             /* Write entity catalogue entry. */
-            val entry = EntityMetadata(UUID.randomUUID(), System.currentTimeMillis(), columns.keys.map { it.columnName }, emptyList())
-            if (!store.add(this.context.transaction.xodusTx, NameBinding.Entity.toEntry(name), EntityMetadata.toEntry(entry))) {
+            val entry = EntityMetadata(UUID.randomUUID(), System.currentTimeMillis(), System.currentTimeMillis())
+            if (!entityMetadataStore.add(this.xodusTx, NameBinding.Entity.toEntry(name), EntityMetadata.toEntry(entry))) {
                 throw DatabaseException.EntityAlreadyExistsException(name)
             }
 
             /* Create store for entity. */
-            this@DefaultSchema.catalogue.transactionManager.catalogue.openBitmap(name.toString(), StoreConfig.WITHOUT_DUPLICATES, this.context.transaction.xodusTx)
+            val environment = this.transaction.manager.createEnvironment(entry.handle)
+            val definitions = environment.computeInExclusiveTransaction { tx ->
+                environment.openBitmap(name.toString(), StoreConfig.WITHOUT_DUPLICATES, tx)
+                val columnMetadataStore = tx.environment.openStore(DefaultCatalogue.SCHEMA_METADATA_STORE_PREFIX, StoreConfig.WITHOUT_DUPLICATES, tx)
 
-            /* Add catalogue entries and stores at column level. */
-            val definitions = columns.map {
-                val metadataStore = ColumnMetadata.store(this@DefaultSchema.catalogue, this.context.transaction.xodusTx)
-                if (!metadataStore.add(this.context.transaction.xodusTx, NameBinding.Column.toEntry(it.key), ColumnMetadata.toEntry(it.value))) {
-                    throw DatabaseException.DuplicateColumnException(name, it.key)
-                }
-
-                /* Create sequence for auto-increment columns. */
-                if (it.value.autoIncrement && (it.value.type == Types.Int || it.value.type == Types.Long)) {
-                    this.createSequence(this@DefaultSchema.name.sequence("${it.key.entityName}_${it.key.columnName}_auto"))
-                }
-
-                /* Create store for column data. */
-                if (this@DefaultSchema.catalogue.transactionManager.catalogue.openStore(it.key.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.context.transaction.xodusTx, true) == null) {
-                    throw DatabaseException.DataCorruptionException("CREATE entity $name failed: Failed to create store for column $it.")
-                }
-
-                ColumnDef(it.key, it.value.type, nullable = it.value.nullable, primary = it.value.primary, autoIncrement = it.value.autoIncrement)
-            }.toTypedArray()
+                /* Add catalogue entries and stores at column level. */
+                 columns.map {
+                     if (!columnMetadataStore.add(tx, NameBinding.Column.toEntry(it.key), ColumnMetadata.toEntry(it.value))) {
+                        throw DatabaseException.DuplicateColumnException(name, it.key)
+                    }
+                    ColumnDef(it.key, it.value.type, nullable = it.value.nullable, primary = it.value.primary, autoIncrement = it.value.autoIncrement)
+                }.toTypedArray()
+            }
 
             /* Create Event and notify observers */
             val event = EntityEvent.Create(name, definitions)
-            this.context.transaction.signalEvent(event)
+            this.transaction.signalEvent(event)
 
             /* Create index for primary key (if defined). */
-            val entity = DefaultEntity(name, this@DefaultSchema)
+            val entity = DefaultEntity(name, this@DefaultSchema, this.transaction.manager.environment(entry.handle))
             val primary = definitions.filter { it.primary }.map { it.name }
             if (primary.isNotEmpty()) {
-                val entityTx = entity.newTx(this@Tx.context)
+                val entityTx = entity.newTx(this)
                 entityTx.createIndex(entity.name.index("primary"), IndexType.BTREE_UQ, primary, BTreeIndexConfig)
             }
 
@@ -193,74 +179,38 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
         }
 
         /**
-         * Drops an [DefaultEntity] from this [DefaultSchema].
-         *
-         * @param name The name of the [DefaultEntity] that should be dropped.
+         * Drops (i.e., removes) the [DefaultSchema] backed by this [SchemaTx].
          */
-        override fun dropEntity(name: Name.EntityName) = this.txLatch.withLock {
-            /* Drop all indexes from entity. */
-            val entityTx = DefaultEntity(name, this@DefaultSchema).newTx(this.context)
-
-            /* Drop all index structures from entity. */
-            entityTx.listIndexes().forEach { entityTx.dropIndex(it) }
-
-            /* Create store for entity (bitmap). */
-            this@DefaultSchema.catalogue.transactionManager.catalogue.removeStore("$name#bitmap", this.context.transaction.xodusTx)
-
-            /* Drop all columns from entity. */
-            val dropped = entityTx.listColumns().map {
-                val metadataStore = ColumnMetadata.store(this@DefaultSchema.catalogue, this.context.transaction.xodusTx)
-
-                if (!metadataStore.delete(this.context.transaction.xodusTx, NameBinding.Column.toEntry(it.name))) {
-                    throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to delete column entry for column $it.")
-                }
-
-                /* Drop sequence. */
-                if (it.autoIncrement) {
-                    this.dropSequence(this@DefaultSchema.name.sequence("${it.name.entityName}_${it.name.columnName}_auto"))
-                }
-
-                /* Remove store for column. */
-                this@DefaultSchema.catalogue.transactionManager.catalogue.removeStore(it.name.storeName(), this.context.transaction.xodusTx)
-                it
+        override fun drop() = this.txLatch.withLock {
+            /* Check if schema exists! */
+            val store = this.xodusTx.environment.openStore(DefaultCatalogue.SCHEMA_METADATA_STORE_PREFIX, StoreConfig.USE_EXISTING, this.xodusTx)
+            if (!store.delete(this.xodusTx, NameBinding.Schema.toEntry(this@DefaultSchema.name))) {
+                throw DatabaseException.DataCorruptionException("DROP SCHEMA ${this@DefaultSchema.name} failed: Failed to delete catalogue entry.")
             }
 
-            /* Now remove all catalogue entries related to entity.  */
-            val metadataStore = EntityMetadata.store(this@DefaultSchema.catalogue, this.context.transaction.xodusTx)
-            if (!metadataStore.delete(this.context.transaction.xodusTx, NameBinding.Entity.toEntry(name))) {
-                throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to delete catalogue entry.")
+            /* Drop all entities. */
+            this.listEntities().forEach {
+                this.transaction.entityTx(it, AccessMode.WRITE).drop()
             }
-
-            /* Drop bitmap store for entity. */
-            this@DefaultSchema.catalogue.transactionManager.environment.removeStore("${name}#bitmap", this.context.txn.xodusTx)
 
             /* Create Event and notify observers */
-            val event = EntityEvent.Drop(name, dropped.toTypedArray())
-            this.context.transaction.signalEvent(event)
+            val event = SchemaEvent.Drop(name)
+            this.transaction.signalEvent(event)
         }
 
         /**
-         * Truncates an [Entity] in the [DefaultSchema] underlying this [DefaultSchema.Tx].
+         * Returns an [Entity] if such an instance exists.
          *
-         * @param name The name of the [Entity] that should be truncated.
+         * @param name Name of the [Entity] to access.
+         * @return [Entity] or null.
          */
-        override fun truncateEntity(name: Name.EntityName) = this.txLatch.withLock {
-            /* Reset associated columns & sequences. */
-            val entityTx = this.entityForName(name).newTx(this.context)
-            entityTx.listColumns().forEach {
-                this@DefaultSchema.catalogue.transactionManager.catalogue.truncateStore(it.name.storeName(), this.context.transaction.xodusTx)
-                if (it.autoIncrement) {
-                    val sequenceTx = this.sequenceForName(this@DefaultSchema.name.sequence("${it.name.entityName}_${it.name.columnName}_auto")).newTx(this.context)
-                    sequenceTx.reset()
-                }
+        override fun sequenceForName(name: Name.SequenceName): Sequence = this.txLatch.withLock {
+            val store = this@DefaultSchema.environment.openStore(DefaultSequence.CATALOGUE_SEQUENCE_STORE_NAME, StoreConfig.USE_EXISTING, this.xodusTx, false)
+                ?: throw DatabaseException.DataCorruptionException("Failed to open store for sequence catalogue.")
+            if (store.get(this.xodusTx, NameBinding.Sequence.toEntry(name)) == null) {
+                throw DatabaseException.SequenceDoesNotExistException(name)
             }
-
-            /* Reset associated indexes. */
-            entityTx.listIndexes().forEach {
-                val indexTx = entityTx.indexForName(it).newTx(this.context)
-                indexTx.dbo.type.descriptor.deinitialize(it, this@DefaultSchema.catalogue, this.context.transaction)
-                indexTx.dbo.type.descriptor.initialize(it, this@DefaultSchema.catalogue, this.context.transaction)
-            }
+            return DefaultSequence(name, this@DefaultSchema)
         }
 
         /**
@@ -270,8 +220,9 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
          * @return [DefaultSequence]
          */
         override fun createSequence(name: Name.SequenceName): Sequence = this.txLatch.withLock {
-            val store = DefaultSequence.store(this@DefaultSchema.catalogue, this.context.transaction.xodusTx)
-            if (!store.put(this.context.transaction.xodusTx, NameBinding.Sequence.toEntry(name), LongBinding.longToCompressedEntry(0L))) {
+            val store = this@DefaultSchema.environment.openStore(DefaultSequence.CATALOGUE_SEQUENCE_STORE_NAME, StoreConfig.USE_EXISTING, this.xodusTx, false)
+                ?: throw DatabaseException.DataCorruptionException("Failed to create store for sequence catalogue.")
+            if (!store.put(xodusTx, NameBinding.Sequence.toEntry(name), LongBinding.longToCompressedEntry(0L))) {
                 throw DatabaseException.SequenceAlreadyExistsException(name)
             }
             DefaultSequence(name, this@DefaultSchema)
@@ -284,8 +235,9 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
          * @return [DefaultSequence]
          */
         override fun dropSequence(name: Name.SequenceName) = this.txLatch.withLock {
-            val store = DefaultSequence.store(this@DefaultSchema.catalogue, this.context.transaction.xodusTx)
-            if (!store.delete(this.context.transaction.xodusTx, NameBinding.Sequence.toEntry(name))) {
+            val store = this@DefaultSchema.environment.openStore(DefaultSequence.CATALOGUE_SEQUENCE_STORE_NAME, StoreConfig.USE_EXISTING, this.xodusTx, false)
+                ?: throw DatabaseException.DataCorruptionException("Failed to open store for sequence catalogue.")
+            if (!store.delete(xodusTx, NameBinding.Sequence.toEntry(name))) {
                 throw DatabaseException.SequenceDoesNotExistException(name)
             }
             Unit

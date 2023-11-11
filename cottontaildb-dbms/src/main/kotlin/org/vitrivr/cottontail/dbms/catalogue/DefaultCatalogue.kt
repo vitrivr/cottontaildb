@@ -1,35 +1,28 @@
 package org.vitrivr.cottontail.dbms.catalogue
 
+import jetbrains.exodus.bindings.StringBinding
+import jetbrains.exodus.env.Environment
+import jetbrains.exodus.env.Environments
+import jetbrains.exodus.env.StoreConfig
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
-import org.vitrivr.cottontail.dbms.catalogue.entries.MetadataEntry
-import org.vitrivr.cottontail.dbms.catalogue.entries.MetadataEntry.Companion.METADATA_ENTRY_DB_VERSION
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
-import org.vitrivr.cottontail.dbms.column.ColumnMetadata
-import org.vitrivr.cottontail.dbms.entity.EntityMetadata
 import org.vitrivr.cottontail.dbms.events.SchemaEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.ExecutionManager
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.functions.initialize
-import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.DBOVersion
-import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata
 import org.vitrivr.cottontail.dbms.index.cache.InMemoryIndexCache
-import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.schema.SchemaMetadata
-import org.vitrivr.cottontail.dbms.sequence.DefaultSequence
-import org.vitrivr.cottontail.dbms.statistics.StatisticsManager
-import org.vitrivr.cottontail.dbms.statistics.index.IndexStatisticsManager
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
@@ -41,7 +34,7 @@ import kotlin.concurrent.withLock
  * @author Ralph Gasser
  * @version 3.0.0
  */
-class DefaultCatalogue(override val config: Config, executor: ExecutionManager) : Catalogue {
+class DefaultCatalogue(override val config: Config) : Catalogue {
     /**
      * Companion object to [DefaultCatalogue]
      */
@@ -50,13 +43,25 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
         private val LOGGER: Logger = LoggerFactory.getLogger(DefaultCatalogue::class.java)
 
         /** Prefix used for actual column stores. */
-        internal const val ENTITY_STORE_PREFIX: String = "org.vitrivr.cottontail.store.entity"
+        internal const val METADATA_STORE_PREFIX: String = "org.vitrivr.cottontail.metadata"
 
         /** Prefix used for actual column stores. */
-        internal const val COLUMN_STORE_PREFIX: String = "org.vitrivr.cottontail.store.column"
+        internal const val SCHEMA_METADATA_STORE_PREFIX: String = "org.vitrivr.cottontail.schemas"
+
+        /** Prefix used for actual column stores. */
+        internal const val ENTITY_METADATA_STORE_PREFIX: String = "org.vitrivr.cottontail.entities"
+
+        /** Prefix used for actual column stores. */
+        internal const val SEQUENCE_METADATA_STORE_PREFIX: String = "org.vitrivr.cottontail.sequences"
+
+        /** Prefix used for actual column stores. */
+        internal const val COLUMN_METADATA_STORE_NAME: String = "org.vitrivr.cottontail.columns"
 
         /** Prefix used for actual index stores. */
-        internal const val INDEX_STORE_PREFIX: String = "org.vitrivr.cottontail.store.index"
+        internal const val INDEX_METADATA_STORE_NAME: String = "org.vitrivr.cottontail.indexes"
+
+        /** Prefix used for actual index stores. */
+        internal const val INDEX_STRUCT_STORE_NAME: String = "org.vitrivr.cottontail.indexes.structs"
     }
 
     /** Root to Cottontail DB root folder. */
@@ -68,10 +73,11 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
 
     /** The [DBOVersion] of this [DefaultCatalogue]. */
     override val version: DBOVersion
-        get() = DBOVersion.V3_1
+        get() = DBOVersion.V4_0
 
-    /** Constant parent [DBO], which is null in case of the [DefaultCatalogue]. */
-    override val parent: DBO? = null
+    /** Constant parent [DBO], which is the [DefaultCatalogue] itself. */
+    override val parent: Catalogue
+        get() = this
 
     /** Constant parent [DBO], which is null in case of the [DefaultCatalogue]. */
     override val catalogue: Catalogue
@@ -80,41 +86,32 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
     /** The [FunctionRegistry] exposed by this [Catalogue]. */
     override val functions: FunctionRegistry = FunctionRegistry()
 
-    /** The [IndexStatisticsManager] used by this [DefaultCatalogue]. */
-    val indexStatistics: IndexStatisticsManager
-
-    /** The [TransactionManager] instanced used and exposed by this [DefaultCatalogue]. */
-    override val transactionManager = TransactionManager(executor, this.config)
-
-    /** The [StatisticsManager] instanced used and exposed by this [DefaultCatalogue]. */
-    override val statisticsManager = StatisticsManager(this, this.transactionManager)
-
     /** An internal, in-memory cache for frequently used index structures. This is highly experimental! */
     val cache = InMemoryIndexCache()
 
+    /** The [Catalogue] [Environment] used by Cottontail DB [DefaultCatalogue]. */
+    internal val environment: Environment = Environments.newInstance(
+        this.config.catalogueFolder().toFile(),
+        this.config.xodus.toEnvironmentConfig()
+    )
+
     init {
         /* Check if catalogue has been initialized and initialize if needed. */
-        val tx = this.transactionManager.catalogue.beginExclusiveTransaction()
+        val tx = this.environment.beginExclusiveTransaction()
         try {
-            if (this.transactionManager.catalogue.getAllStoreNames(tx).size < 7) {
+            val metadataStore = this.environment.openStore(METADATA_STORE_PREFIX, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, tx)
+            if (this.environment.getAllStoreNames(tx).size < 7) {
                 /* Initialize database metadata. */
-                MetadataEntry.init(this, tx)
-                MetadataEntry.write(MetadataEntry(METADATA_ENTRY_DB_VERSION, this.version.toString()), this, tx)
+                metadataStore.putRight(tx, StringBinding.stringToEntry("version"), StringBinding.stringToEntry(this.name.toString()))
 
                 /* Initialize necessary stores. */
-                SchemaMetadata.init(this, tx)
-                EntityMetadata.init(this, tx)
-                ColumnMetadata.init(this, tx)
-                IndexMetadata.init(this, tx)
-                DefaultSequence.init(this, tx)
-                IndexStructCatalogueEntry.init(this, tx)
+                this.environment.openStore(SCHEMA_METADATA_STORE_PREFIX, StoreConfig.WITHOUT_DUPLICATES, tx, true)
+                this.environment.openStore(ENTITY_METADATA_STORE_PREFIX, StoreConfig.WITHOUT_DUPLICATES, tx, true)
+                this.environment.openStore(SEQUENCE_METADATA_STORE_PREFIX, StoreConfig.WITHOUT_DUPLICATES, tx, true)
             }
 
-            /** Open the IndexStatisticsManager. */
-            this.indexStatistics = IndexStatisticsManager(this.transactionManager.catalogue, tx)
-
             /* Check database version. */
-            val version = MetadataEntry.read(METADATA_ENTRY_DB_VERSION, this, tx)?.let { DBOVersion.valueOf(it.value) } ?: DBOVersion.UNDEFINED
+            val version = metadataStore.get(tx, StringBinding.stringToEntry("version"))?.let { DBOVersion.valueOf(StringBinding.entryToString(it)) } ?: DBOVersion.UNDEFINED
             if (version != this.version) {
                 throw DatabaseException.VersionMismatchException(this.version, version)
             }
@@ -144,45 +141,48 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
     }
 
     /**
-     * Creates and returns a new [DefaultCatalogue.Tx] for the given [QueryContext].
+     * Creates and returns a new [DefaultCatalogue.Tx] for the given [Transaction].
      *
-     * @param context The [QueryContext] to create the [DefaultCatalogue.Tx] for.
+     * @param transaction The [Transaction] to create the [DefaultCatalogue.Tx] for.
      * @return New [DefaultCatalogue.Tx]
      */
-    override fun newTx(context: QueryContext): CatalogueTx = context.transaction.cachedTxForName(this) ?: Tx(context)
+    override fun newTx(transaction: Transaction): CatalogueTx = Tx(transaction)
 
     /**
      * Closes the [DefaultCatalogue] and all objects contained within.
      */
     override fun close() {
-        try {
-            this.indexStatistics.persist() /* Persist all index statistics. */
-        } finally {
-            this.transactionManager.shutdown()
-        }
+        this.environment.close()
     }
 
+    /**
+     * Compares this [DefaultCatalogue] to another object.
+     */
     override fun equals(other: Any?): Boolean {
         if (other !is DefaultCatalogue) return false
         if (this.path != other.path) return false
         return true
     }
 
+    /**
+     * Hash code for this [DefaultCatalogue].
+     */
     override fun hashCode(): Int = this.path.hashCode()
 
     /**
      * A [Tx] that affects this [DefaultCatalogue].
      */
-    inner class Tx(context: QueryContext) : AbstractTx(context), CatalogueTx {
-
-        init {
-            /* Cache this Tx for future use. */
-            context.transaction.cacheTx(this)
-        }
+    inner class Tx(override val transaction: Transaction): CatalogueTx {
 
         /** Reference to the [DefaultCatalogue] this [CatalogueTx] belongs to. */
         override val dbo: DefaultCatalogue
             get() = this@DefaultCatalogue
+
+        /** The Xodus [jetbrains.exodus.env.Transaction] used by this [Tx]. */
+        internal val xodusTx: jetbrains.exodus.env.Transaction = this@DefaultCatalogue.environment.beginTransaction()
+
+        /** A [ReentrantLock] that synchronises access to this [Tx]'s methods. */
+        private val txLatch = ReentrantLock()
 
         /**
          * Returns a list of [Name.SchemaName] held by this [DefaultCatalogue].
@@ -190,9 +190,9 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
          * @return [List] of all [Name.SchemaName].
          */
         override fun listSchemas(): List<Name.SchemaName> = this.txLatch.withLock {
-            val store = SchemaMetadata.store(this.dbo, this.context.transaction.xodusTx)
+            val store = this.xodusTx.environment.openStore(SCHEMA_METADATA_STORE_PREFIX, StoreConfig.USE_EXISTING, this.xodusTx)
             val list = mutableListOf<Name.SchemaName>()
-            store.openCursor(this.context.transaction.xodusTx).use { cursor ->
+            store.openCursor(this.xodusTx).use { cursor ->
                 while (cursor.next) {
                     list.add(NameBinding.Schema.fromEntry(cursor.key))
                 }
@@ -206,11 +206,11 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
          * @param name [Name.SchemaName] to obtain the [Schema] for.
          */
         override fun schemaForName(name: Name.SchemaName): Schema = this.txLatch.withLock {
-            val store = SchemaMetadata.store(this.dbo, this.context.transaction.xodusTx)
-            if (store.get(this.context.transaction.xodusTx, NameBinding.Schema.toEntry(name)) == null) {
+            val store = this.xodusTx.environment.openStore(SCHEMA_METADATA_STORE_PREFIX, StoreConfig.USE_EXISTING, this.xodusTx)
+            if (store.get(this.xodusTx, NameBinding.Schema.toEntry(name)) == null) {
                 throw DatabaseException.SchemaDoesNotExistException(name)
             }
-            return DefaultSchema(name, this@DefaultCatalogue)
+            return DefaultSchema(name, this@DefaultCatalogue, this@DefaultCatalogue.environment)
         }
 
         /**
@@ -219,39 +219,18 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
          * @param name The [Name.SchemaName] of the new [Schema].
          */
         override fun createSchema(name: Name.SchemaName): Schema = this.txLatch.withLock {
-            val store = SchemaMetadata.store(this@DefaultCatalogue, this.context.transaction.xodusTx)
+            val store = this.xodusTx.environment.openStore(SCHEMA_METADATA_STORE_PREFIX, StoreConfig.USE_EXISTING, this.xodusTx)
             val metadata = SchemaMetadata(System.currentTimeMillis(), System.currentTimeMillis())
-            if (!store.add(this.context.transaction.xodusTx, NameBinding.Schema.toEntry(name), SchemaMetadata.toEntry(metadata))) {
+            if (!store.add(this.xodusTx, NameBinding.Schema.toEntry(name), SchemaMetadata.toEntry(metadata))) {
                 throw DatabaseException.SchemaAlreadyExistsException(name) /* Schema already exists. */
             }
 
             /* Create Event and notify observers */
             val event = SchemaEvent.Create(name)
-            this.context.transaction.signalEvent(event)
+            this.transaction.signalEvent(event)
 
             /* Return schema. */
-            return DefaultSchema(name, this@DefaultCatalogue)
-        }
-
-        /**
-         * Drops an existing [Schema] with the given [Name.SchemaName].
-         *
-         * @param name The [Name.SchemaName] of the [Schema] to be dropped.
-         */
-        override fun dropSchema(name: Name.SchemaName) = this.txLatch.withLock {
-            /* Check if schema exists! */
-            val store = SchemaMetadata.store(this@DefaultCatalogue, this.context.transaction.xodusTx)
-            if (!store.delete(this.context.transaction.xodusTx, NameBinding.Schema.toEntry(name))) {
-                throw DatabaseException.SchemaDoesNotExistException(name)
-            }
-
-            /* Obtain schema Tx and drop all entities contained in schema. */
-            val schemaTx = DefaultSchema(name, this@DefaultCatalogue).newTx(this.context)
-            schemaTx.listEntities().forEach { schemaTx.dropEntity(it) }
-
-            /* Create Event and notify observers */
-            val event = SchemaEvent.Drop(name)
-            this.context.transaction.signalEvent(event)
+            return DefaultSchema(name, this@DefaultCatalogue, this@DefaultCatalogue.environment)
         }
     }
 }

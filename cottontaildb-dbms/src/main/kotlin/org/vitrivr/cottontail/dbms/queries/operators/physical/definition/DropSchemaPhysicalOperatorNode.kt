@@ -2,19 +2,18 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.definition
 
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.Digest
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.execution.operators.definition.DropSchemaOperator
+import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.schema.Schema
 
 /**
- * A [DataDefinitionPhysicalOperatorNode] used to drop a [Schema].
+ * A [DataDefinitionPhysicalOperatorNode] used to drop an [Index].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 3.0.0
  */
-class DropSchemaPhysicalOperatorNode(val tx: CatalogueTx, val schemaName: Name.SchemaName): DataDefinitionPhysicalOperatorNode("DropSchema") {
-    override fun copy() = DropSchemaPhysicalOperatorNode(this.tx, this.schemaName)
-    override fun toOperator(ctx: QueryContext) = DropSchemaOperator(this.tx, this.schemaName, ctx)
+class DropSchemaPhysicalOperatorNode(override val context: QueryContext, val schema: Name.SchemaName): DataDefinitionPhysicalOperatorNode("DropSchema") {
+    override fun copy() = DropSchemaPhysicalOperatorNode(this.context, this.schema)
+    override fun toOperator(ctx: QueryContext) = DropSchemaOperator(this.schema, ctx)
     override fun digest(): Digest = this.hashCode().toLong()
 }

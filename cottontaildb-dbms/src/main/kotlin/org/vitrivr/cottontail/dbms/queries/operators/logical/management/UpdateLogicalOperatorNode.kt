@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.management
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.management.UpdateOperator
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryLogicalOperatorNode
@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.management.UpdateP
  * @author Ralph Gasser
  * @version 2.3.0
  */
-class UpdateLogicalOperatorNode(input: Logical, val entity: EntityTx, val values: List<Pair<ColumnDef<*>, Binding>>) : UnaryLogicalOperatorNode(input) {
+class UpdateLogicalOperatorNode(input: Logical, val entity: Name.EntityName, val values: List<Pair<ColumnDef<*>, Binding>>) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Update"
@@ -58,7 +58,7 @@ class UpdateLogicalOperatorNode(input: Logical, val entity: EntityTx, val values
      * @return [Digest]
      */
     override fun digest(): Digest {
-        var result = this.entity.dbo.name.hashCode().toLong()
+        var result = this.entity.hashCode().toLong()
         result += 33L * result + this.values.hashCode()
         return result
     }

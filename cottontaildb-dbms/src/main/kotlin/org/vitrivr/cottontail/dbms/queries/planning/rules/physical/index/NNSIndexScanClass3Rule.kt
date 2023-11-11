@@ -5,6 +5,7 @@ import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
@@ -25,7 +26,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * - The function needs to be a VectorDistance operating on a column (vector) and a literal (query)
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
 object NNSIndexScanClass3Rule : RewriteRule {
 
@@ -78,10 +79,11 @@ object NNSIndexScanClass3Rule : RewriteRule {
 
                 /* Extract index hint and search for candidate. */
                 val hint = ctx.hints.filterIsInstance<QueryHint.IndexHint>().firstOrNull() ?: QueryHint.IndexHint.All
-                val candidate = scan.entity.listIndexes().map {
-                    scan.entity.indexForName(it).newTx(ctx)
+                val entityTx = ctx.transaction.entityTx(scan.entity, AccessMode.READ)
+                val candidate = entityTx.listIndexes().map {
+                    ctx.transaction.indexTx(it, AccessMode.READ)
                 }.find {
-                    it.state != IndexState.DIRTY && hint.matches(it.dbo) && it.canProcess(predicate)
+                    it.state == IndexState.CLEAN && hint.matches(it.dbo) && it.canProcess(predicate)
                 }
 
                 /* If candidate has been found, execute replacement. */
@@ -93,10 +95,10 @@ object NNSIndexScanClass3Rule : RewriteRule {
                         if (produces.contains(predicate.column)) {
                             fetch.add(scan.fetch.filter { it.second == predicate.column }.map { it.first.copy() to it.second }.single())
                         }
-                        var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, candidate, predicate, fetch)
+                        var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, node.context, candidate.dbo.name, predicate, fetch)
                         val newFetch = scan.fetch.filter { !produces.contains(it.second) }
                         if (newFetch.isNotEmpty()) {
-                            p = FetchPhysicalOperatorNode(p, scan.entity, newFetch)
+                            p = FetchPhysicalOperatorNode(p, newFetch)
                         }
                         return limit.output?.copyWithOutput(p) ?: p
                     }

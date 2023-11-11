@@ -3,9 +3,9 @@ package org.vitrivr.cottontail.dbms.entity
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.general.DBO
-import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
+import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
 /**
  * Represents a single entity in the Cottontail DB data model. An [Entity] has name that must remain
@@ -28,10 +28,10 @@ interface Entity : DBO {
     override val parent: Schema
 
     /**
-     * Creates and returns a new [EntityTx] for the given [QueryContext].
+     * Creates and returns a new [EntityTx] for the given [SchemaTx].
      *
-     * @param context The [QueryContext] to create the [EntityTx] for.
+     * @param parent The [SchemaTx] to create the [EntityTx] for.
      * @return New [EntityTx]
      */
-    override fun newTx(context: QueryContext): EntityTx
+    fun newTx(parent: SchemaTx): EntityTx
 }

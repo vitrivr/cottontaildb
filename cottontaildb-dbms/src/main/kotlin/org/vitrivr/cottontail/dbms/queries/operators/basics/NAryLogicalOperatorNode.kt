@@ -3,13 +3,14 @@ package org.vitrivr.cottontail.dbms.queries.operators.basics
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import java.io.PrintStream
 
 /**
  * An abstract [OperatorNode.Logical] implementation that has multiple [OperatorNode.Logical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.9.0
+ * @version 3.0.0
  */
 abstract class NAryLogicalOperatorNode(vararg inputs: Logical): OperatorNode.Logical() {
 
@@ -21,11 +22,20 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical): OperatorNode.Log
         private set
 
     /**
+     * The [QueryContext] of a [NAryLogicalOperatorNode] is always the one of its left parent.
+     *
+     * This is an (arbitrary) definition but very relevant when implementing [NAryLogicalOperatorNode]s.
+     */
+    final override val context: QueryContext
+        get() = this.inputs.first().context
+
+    /**
      * The group ID of a [NAryLogicalOperatorNode] is always the one of its left parent.
      *
      * This is an (arbitrary) definition but very relevant when implementing [NAryLogicalOperatorNode]s.
      */
-    final override val groupId: GroupId = this.inputs[0].groupId
+    final override val groupId: GroupId
+        get() = this.inputs[0].groupId
 
     /** The [base] of a [NAryLogicalOperatorNode] is always the base of its inputs. */
     final override val base: List<Logical> by lazy {

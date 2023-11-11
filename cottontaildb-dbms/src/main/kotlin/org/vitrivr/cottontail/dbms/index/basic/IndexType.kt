@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.dbms.index.pq.PQIndex
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 
 /**
- * A final list of types of [AbstractIndex] implementation.
+ * A final list of types of [DefaultIndex] implementation.
  *
  * TODO: This could actually be more of a 'registry' type of facility, which would allow for extensions
  *

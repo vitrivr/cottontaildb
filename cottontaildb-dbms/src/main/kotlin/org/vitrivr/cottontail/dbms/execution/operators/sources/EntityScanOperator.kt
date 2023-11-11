@@ -5,21 +5,22 @@ import kotlinx.coroutines.flow.flow
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * An [Operator.SourceOperator] that scans an [Entity] and streams all [Tuple]s found within.
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 3.0.0
  */
-class EntityScanOperator(groupId: GroupId, private val entity: EntityTx, private val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, private val partitionIndex: Int, private val partitions: Int, override val context: QueryContext) : Operator.SourceOperator(groupId) {
+class EntityScanOperator(groupId: GroupId, private val entity: Name.EntityName, private val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, private val partitionIndex: Int, private val partitions: Int, override val context: QueryContext) : Operator.SourceOperator(groupId) {
 
     companion object {
         /** [Logger] instance used by [EntityScanOperator]. */
@@ -37,14 +38,15 @@ class EntityScanOperator(groupId: GroupId, private val entity: EntityTx, private
     override fun toFlow(): Flow<Tuple> = flow {
         val fetch = this@EntityScanOperator.fetch.map { it.second }.toTypedArray()
         val rename = this@EntityScanOperator.fetch.map { it.first.column.name }.toTypedArray()
-        val partition = this@EntityScanOperator.entity.partitionFor(this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)
+        val entityTx = this@EntityScanOperator.context.transaction.entityTx(this@EntityScanOperator.entity, AccessMode.READ)
+        val partition = entityTx.partitionFor(this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)
         var read = 0
-        this@EntityScanOperator.entity.cursor(fetch, partition, rename).use { cursor ->
+        entityTx.cursor(fetch, partition, rename).use { cursor ->
             while (cursor.moveNext()) {
                 emit(cursor.value())
                 read += 1
             }
         }
-        LOGGER.debug("Read {} entries from {}.", read, this@EntityScanOperator.entity.dbo.name)
+        LOGGER.debug("Read {} entries from {}.", read, this@EntityScanOperator.entity)
     }
 }

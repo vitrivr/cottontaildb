@@ -5,6 +5,7 @@ import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.logical.PlaceholderLogicalOperatorNode
 import java.io.PrintStream
 
@@ -12,7 +13,7 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Logical] implementation that has exactly two [OperatorNode.Logical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.9.0
+ * @version 3.0.0
  */
 abstract class BinaryLogicalOperatorNode(val left: Logical, val right: Logical): OperatorNode.Logical() {
 
@@ -23,8 +24,12 @@ abstract class BinaryLogicalOperatorNode(val left: Logical, val right: Logical):
     final override var depth: Int = 0
         private set
 
+    /** The [QueryContext] of a [BinaryLogicalOperatorNode] is always the one of its left parent. */
+    final override val context: QueryContext
+        get() = this.left.context
+
     /**
-     * The group ID of a [BinaryLogicalOperatorNode] is always the one of its left parent.
+     * The [GroupId] of a [BinaryLogicalOperatorNode] is always the one of its left parent.
      *
      * This is an (arbitrary) definition but very relevant when implementing [BinaryLogicalOperatorNode]s.
      */
@@ -74,8 +79,8 @@ abstract class BinaryLogicalOperatorNode(val left: Logical, val right: Logical):
     final override fun copyWithOutput(vararg input: Logical): BinaryLogicalOperatorNode {
         val copy = when (input.size) {
             2 -> this.copyWithNewInput(input[0], input[1])
-            1 -> this.copyWithNewInput(input[0], PlaceholderLogicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns))
-            0-> this.copyWithNewInput(PlaceholderLogicalOperatorNode(this.left.groupId, this.left.columns, this.left.physicalColumns), PlaceholderLogicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns))
+            1 -> this.copyWithNewInput(input[0], PlaceholderLogicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns, this.context))
+            0 -> this.copyWithNewInput(PlaceholderLogicalOperatorNode(this.left.groupId, this.left.columns, this.left.physicalColumns, this.context), PlaceholderLogicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns, this.context))
             else -> throw IllegalArgumentException("The input arity for BinaryPhysicalOperatorNode.copyWithOutput() must be smaller or equal to 2 but is ${input.size}. This is a programmer's error!")
         }
         this.output?.copyWithOutput(copy)
@@ -98,7 +103,7 @@ abstract class BinaryLogicalOperatorNode(val left: Logical, val right: Logical):
      */
     final override fun copyWithExistingGroupInput(vararg replacements: Logical): BinaryLogicalOperatorNode = when (replacements.size) {
         1 -> this.copyWithNewInput(this.left.copyWithExistingGroupInput(), replacements[0])
-        0 -> this.copyWithNewInput(this.left.copyWithExistingGroupInput(), PlaceholderLogicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns))
+        0 -> this.copyWithNewInput(this.left.copyWithExistingGroupInput(), PlaceholderLogicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns, this.context))
         else -> throw IllegalArgumentException("The input arity for BinaryPhysicalOperatorNode.copyWithGroupInputs() must be smaller or equal to 1 but is ${replacements.size}. This is a programmer's error!")
     }
 

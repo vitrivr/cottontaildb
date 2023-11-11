@@ -17,7 +17,7 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Physical] implementation that has exactly two [OperatorNode.Physical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.9.0
+ * @version 3.0.0
  */
 abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physical) : OperatorNode.Physical() {
 
@@ -28,8 +28,12 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
     final override var depth: Int = 0
         private set
 
+    /** The [QueryContext] of a [BinaryPhysicalOperatorNode] is always the one of its left parent. */
+    final override val context: QueryContext
+        get() = this.left.context
+
     /**
-     * The group ID of a [BinaryPhysicalOperatorNode] is always the one of its left parent.
+     * The [GroupId] of a [BinaryPhysicalOperatorNode] is always the one of its left parent.
      *
      * This is an (arbitrary) definition but very relevant when implementing [BinaryPhysicalOperatorNode]s.
      */
@@ -90,8 +94,8 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
     final override fun copyWithOutput(vararg input: Physical): BinaryPhysicalOperatorNode {
         val copy = when (input.size) {
             2 -> this.copyWithNewInput(input[0], input[1])
-            1 -> this.copyWithNewInput(input[0], PlaceholderPhysicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns))
-            0-> this.copyWithNewInput(PlaceholderPhysicalOperatorNode(this.left.groupId, this.left.columns, this.left.physicalColumns), PlaceholderPhysicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns))
+            1 -> this.copyWithNewInput(input[0], PlaceholderPhysicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns, this.context))
+            0-> this.copyWithNewInput(PlaceholderPhysicalOperatorNode(this.left.groupId, this.left.columns, this.left.physicalColumns, this.context), PlaceholderPhysicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns, this.context))
             else -> throw IllegalArgumentException("The input arity for BinaryPhysicalOperatorNode.copyWithOutput() must be smaller or equal to 2 but is ${input.size}. This is a programmer's error!")
         }
         this.output?.copyWithOutput(copy)
@@ -114,7 +118,7 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
      */
     final override fun copyWithExistingGroupInput(vararg replacements: Physical): BinaryPhysicalOperatorNode = when (replacements.size) {
         1 -> this.copyWithNewInput(this.left.copyWithExistingGroupInput(), replacements[0])
-        0 -> this.copyWithNewInput(this.left.copyWithExistingGroupInput(), PlaceholderPhysicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns))
+        0 -> this.copyWithNewInput(this.left.copyWithExistingGroupInput(), PlaceholderPhysicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns, this.context))
         else -> throw IllegalArgumentException("The input arity for BinaryPhysicalOperatorNode.copyWithGroupInputs() must be smaller or equal to 1 but is ${replacements.size}. This is a programmer's error!")
     }
 

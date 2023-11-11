@@ -49,12 +49,12 @@ import org.vitrivr.cottontail.storage.lucene.XodusDirectory
 import kotlin.concurrent.withLock
 
 /**
- * An Apache Lucene based [AbstractIndex]. The [LuceneIndex] allows for fast search on text using the EQUAL or LIKE operator.
+ * An Apache Lucene based [DefaultIndex]. The [LuceneIndex] allows for fast search on text using the EQUAL or LIKE operator.
  *
  * @author Luca Rossetto & Ralph Gasser
  * @version 3.3.0
  */
-class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
+class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : DefaultIndex(name, parent) {
 
     /**
      * The [IndexDescriptor] for the [LuceneIndex].
@@ -147,17 +147,17 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
         override fun configBinding(): ComparableBinding = LuceneIndexConfig.Binding
     }
 
-    /** The type of this [AbstractIndex]. */
+    /** The type of this [DefaultIndex]. */
     override val type: IndexType = IndexType.LUCENE
 
     /**
-     * Opens and returns a new [IndexTx] object that can be used to interact with this [AbstractIndex].
+     * Opens and returns a new [IndexTx] object that can be used to interact with this [DefaultIndex].
      *
      * @param context If the [QueryContext] to create the [IndexTx] for.
      * @return [IndexTx]
      */
     override fun newTx(context: QueryContext): IndexTx
-        = context.transaction.cachedTxForName(this) ?: this.Tx(context)
+        = context.transaction.txForDBO(this) ?: this.Tx(context)
 
     /**
      * Returns a new [LuceneIndexRebuilder] instance.
@@ -174,10 +174,10 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
     /**
      * An [IndexTx] that affects this [LuceneIndex].
      */
-    inner class Tx(context: QueryContext) : AbstractIndex.Tx(context), org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization, org.vitrivr.cottontail.dbms.general.Tx.WithRollbackFinalization  {
+    inner class Tx(context: QueryContext) : DefaultIndex.Tx(context), org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization, org.vitrivr.cottontail.dbms.general.Tx.WithRollbackFinalization  {
 
         /** The [LuceneIndexDataStore] backing this [LuceneIndex]. */
-        private val store = LuceneIndexDataStore(XodusDirectory(this@LuceneIndex.catalogue.transactionManager.vfs, this@LuceneIndex.name.toString(), this.context.transaction.xodusTx), this.columns[0].name)
+        private val store = LuceneIndexDataStore(XodusDirectory(this@LuceneIndex.catalogue.transactionManager.vfs, this@LuceneIndex.name.toString(), this.transaction.transaction.xodusTx), this.columns[0].name)
 
         /**
          * Converts a [BooleanPredicate] to a [Query] supported by Apache Lucene.
@@ -190,7 +190,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
 
                 /* Left and right-hand side of boolean predicate */
                 with (MissingTuple) {
-                    with (this@Tx.context.bindings) {
+                    with (this@Tx.transaction.bindings) {
                         val left = op.left
                         val right = op.right
                         val column = if (right is Binding.Column && right.column == this@Tx.columns[0]) {

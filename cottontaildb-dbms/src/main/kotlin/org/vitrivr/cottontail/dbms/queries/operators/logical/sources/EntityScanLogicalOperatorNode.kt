@@ -1,10 +1,11 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.sources
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntityScanPhysicalOperatorNode
 
@@ -12,9 +13,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntityScan
  * A [NullaryLogicalOperatorNode] that formalizes the scan of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 3.0.0
  */
-class EntityScanLogicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>) : NullaryLogicalOperatorNode() {
+class EntityScanLogicalOperatorNode(override val groupId: Int, override val context: QueryContext, val entity: Name.EntityName, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>) : NullaryLogicalOperatorNode() {
 
     companion object {
         private const val NODE_NAME = "ScanEntity"
@@ -35,14 +36,14 @@ class EntityScanLogicalOperatorNode(override val groupId: Int, val entity: Entit
      *
      * @return Copy of this [EntityScanLogicalOperatorNode].
      */
-    override fun copy() = EntityScanLogicalOperatorNode(this.groupId, this.entity, this.fetch.map { it.first.copy() to it.second })
+    override fun copy() = EntityScanLogicalOperatorNode(this.groupId, this.context, this.entity, this.fetch.map { it.first.copy() to it.second })
 
     /**
      * Returns a [EntityScanPhysicalOperatorNode] representation of this [EntityScanLogicalOperatorNode]
      *
      * @return [EntityScanPhysicalOperatorNode]
      */
-    override fun implement(): Physical = EntityScanPhysicalOperatorNode(this.groupId, this.entity, this.fetch)
+    override fun implement(): Physical = EntityScanPhysicalOperatorNode(this.groupId, this.context, this.entity, this.fetch)
 
     /** Generates and returns a [String] representation of this [EntitySampleLogicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
@@ -53,7 +54,7 @@ class EntityScanLogicalOperatorNode(override val groupId: Int, val entity: Entit
      * @return [Digest]
      */
     override fun digest(): Digest {
-        var result = this.entity.dbo.name.hashCode() + 1L
+        var result = this.entity.hashCode() + 1L
         result += 33L * result + this.fetch.hashCode()
         return result
     }

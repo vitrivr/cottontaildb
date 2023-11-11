@@ -8,9 +8,7 @@ import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.Value
-import org.vitrivr.cottontail.dbms.execution.locking.LockManager
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
 
@@ -20,12 +18,12 @@ import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class ListLocksOperator(val manager: LockManager<DBO>, override val context: QueryContext) : Operator.SourceOperator() {
+class ListLocksOperator(override val context: QueryContext) : Operator.SourceOperator() {
     override val columns: List<ColumnDef<*>> = ColumnSets.DDL_LOCKS_COLUMNS
     override fun toFlow(): Flow<Tuple> = flow {
         var row = 0L
         val columns = this@ListLocksOperator.columns.toTypedArray()
-        for (lock in  this@ListLocksOperator.manager.allLocks()) {
+        for (lock in  this@ListLocksOperator.context.transaction.manager.locks.allLocks()) {
             val owners = lock.second.getOwners().map { it.transactionId }
             val values = arrayOf<Value?>(
                 StringValue(lock.first.name.toString()),

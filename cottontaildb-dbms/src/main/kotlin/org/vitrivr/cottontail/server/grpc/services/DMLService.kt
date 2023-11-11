@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.server.grpc.services
 
 import kotlinx.coroutines.flow.single
-import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.LeftConjunctionRewriteRule
@@ -21,7 +21,7 @@ import kotlin.time.ExperimentalTime
  * @version 2.3.1
  */
 @ExperimentalTime
-class DMLService(override val catalogue: Catalogue) : DMLGrpcKt.DMLCoroutineImplBase(), TransactionalGrpcService {
+class DMLService(override val manager: TransactionManager) : DMLGrpcKt.DMLCoroutineImplBase(), TransactionalGrpcService {
 
     /** [CottontailQueryPlanner] instance used to generate execution plans from query definitions. */
     private val planner = CottontailQueryPlanner(
@@ -31,7 +31,7 @@ class DMLService(override val catalogue: Catalogue) : DMLGrpcKt.DMLCoroutineImpl
             DeferFetchOnScanRewriteRule
         ),
         physicalRules = listOf(BooleanIndexScanRule),
-        this.catalogue.config.cache.planCacheSize
+        this.manager.catalogue.config.cache.planCacheSize
     )
 
     /**

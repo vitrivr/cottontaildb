@@ -2,10 +2,7 @@ package org.vitrivr.cottontail.dbms.index.basic
 
 import jetbrains.exodus.bindings.ComparableBinding
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 
 /**
  * An abstract description of an [Index].
@@ -32,26 +29,6 @@ interface IndexDescriptor<T: Index> {
      * @return The opened [Index]
      */
     fun open(name: Name.IndexName, entity: Entity): T
-
-    /**
-     * Initializes the necessary data structures for an [Index] with the given [Name.IndexName] and the given [DefaultEntity.Tx].
-     *
-     * @param name The [Name.IndexName] of the [Index].
-     * @param catalogue: [Catalogue] reference.
-     * @param context The [Transaction] to perform the transaction with.
-     * @return true on success, false otherwise.
-     */
-    fun initialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean
-
-    /**
-     * De-initializes the data structures associated with an [Index] with the given [Name.IndexName] and the given [DefaultEntity.Tx].
-     *
-     * @param name The [Name.IndexName] of the [Index].
-     * @param catalogue: [Catalogue] reference.
-     * @param context The [Transaction] to perform the transaction with.
-     * @return true on success, false otherwise.
-     */
-    fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean
 
     /**
      * Creates and returns a default [IndexConfig], optionally, initialized with the provided [parameters].

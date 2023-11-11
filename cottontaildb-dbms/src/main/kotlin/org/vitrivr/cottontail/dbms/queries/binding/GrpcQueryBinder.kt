@@ -16,9 +16,9 @@ import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.function.FunctionLogicalOperatorNode
@@ -46,7 +46,7 @@ import org.vitrivr.cottontail.utilities.extensions.fqn
  * 3) Construction of a [OperatorNode.Logical] tree from the internal query objects.
  *
  * @author Ralph Gasser
- * @version 3.0.0
+ * @version 3.1.0
  */
 object GrpcQueryBinder {
 
@@ -121,7 +121,7 @@ object GrpcQueryBinder {
     fun bind(insert: CottontailGrpc.InsertMessage): InsertLogicalOperatorNode {
         /* Parse entity for INSERT. */
         val entity = parseAndBindEntity(insert.from.scan.entity)
-        val entityTx = entity.newTx(this@QueryContext)
+        val entityTx = this@QueryContext.transaction.entityTx(entity.name, AccessMode.READ)
 
         /* Parse columns to INSERT. */
         val columns = Array<ColumnDef<*>>(insert.elementsCount) {
@@ -139,7 +139,7 @@ object GrpcQueryBinder {
 
         /* Create and return INSERT-clause. */
         val record = TupleBinding(-1L, columns, values, this@QueryContext.bindings)
-        return InsertLogicalOperatorNode(this@QueryContext.nextGroupId(), entityTx, mutableListOf(record))
+        return InsertLogicalOperatorNode(this@QueryContext.nextGroupId(), this@QueryContext, entity.name, mutableListOf(record))
     }
 
     /**
@@ -151,9 +151,9 @@ object GrpcQueryBinder {
      */
     context(QueryContext)
     fun bind(insert: CottontailGrpc.BatchInsertMessage): InsertLogicalOperatorNode {
-        /* Parse entity for BATCH INSERT. */
+        /* Parse entity for INSERT. */
         val entity = parseAndBindEntity(insert.from.scan.entity)
-        val entityTx = entity.newTx(this@QueryContext)
+        val entityTx = this@QueryContext.transaction.entityTx(entity.name, AccessMode.READ)
 
         /* Parse columns to BATCH INSERT. */
         val columns = Array<ColumnDef<*>>(insert.columnsCount) {
@@ -172,7 +172,7 @@ object GrpcQueryBinder {
                 }
             }, this@QueryContext.bindings)
         }.toMutableList()
-        return InsertLogicalOperatorNode(this@QueryContext.nextGroupId(), entityTx, tuples)
+        return InsertLogicalOperatorNode(this@QueryContext.nextGroupId(), this@QueryContext, entity.name, tuples)
     }
 
     /**
@@ -185,11 +185,11 @@ object GrpcQueryBinder {
     context(QueryContext)
     fun bind(update: CottontailGrpc.UpdateMessage): UpdateLogicalOperatorNode {
         /* Parse FROM-clause. */
-        var root = parseAndBindFrom(update.from, parseProjectionColumns(DEFAULT_PROJECTION))
-        if (root !is EntityScanLogicalOperatorNode) {
+        val from = parseAndBindFrom(update.from, parseProjectionColumns(DEFAULT_PROJECTION))
+        if (from !is EntityScanLogicalOperatorNode) {
             throw QueryException.QueryBindException("Failed to bind query. UPDATES only support entity sources as FROM-clause.")
         }
-        val entity: EntityTx = root.entity
+        var root: OperatorNode.Logical = from
 
         /* Parse values to update. */
         val values = update.updatesList.map {
@@ -219,7 +219,7 @@ object GrpcQueryBinder {
         }
 
         /* Create and return UPDATE-clause. */
-        return UpdateLogicalOperatorNode(root, entity, values)
+        return UpdateLogicalOperatorNode(root, from.entity, values)
     }
 
     /**
@@ -237,7 +237,6 @@ object GrpcQueryBinder {
         if (from !is EntityScanLogicalOperatorNode) {
             throw QueryException.QueryBindException("Failed to bind query. UPDATES only support entity sources as FROM-clause.")
         }
-        val entity: EntityTx = from.entity
         var root: OperatorNode.Logical = from
 
         /* Create WHERE-clause. */
@@ -248,7 +247,7 @@ object GrpcQueryBinder {
         }
 
         /* Create and return DELETE-clause. */
-        return DeleteLogicalOperatorNode(root, entity)
+        return DeleteLogicalOperatorNode(root, from.entity)
     }
 
     /**
@@ -263,7 +262,7 @@ object GrpcQueryBinder {
         when (from.fromCase) {
             CottontailGrpc.From.FromCase.SCAN -> {
                 val entity = parseAndBindEntity(from.scan.entity)
-                val entityTx = entity.newTx(this@QueryContext)
+                val entityTx = this@QueryContext.transaction.entityTx(entity.name, AccessMode.READ)
                 val fetch = entityTx.listColumns().map { def ->
                     val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && (c.value as Name.ColumnName).matches(def.name) }
                     if (name == null || name.key.columnName == Name.WILDCARD) {
@@ -272,11 +271,11 @@ object GrpcQueryBinder {
                         this@QueryContext.bindings.bind(def.copy(name = name.key)) to def
                     }
                 }
-                EntityScanLogicalOperatorNode(this@QueryContext.nextGroupId(), entityTx, fetch)
+                EntityScanLogicalOperatorNode(this@QueryContext.nextGroupId(), this@QueryContext, entity.name, fetch)
             }
             CottontailGrpc.From.FromCase.SAMPLE -> {
                 val entity = parseAndBindEntity(from.sample.entity)
-                val entityTx = entity.newTx(this@QueryContext)
+                val entityTx = this@QueryContext.transaction.entityTx(entity.name, AccessMode.READ)
                 val fetch = entityTx.listColumns().map { def ->
                     val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && (c.value as Name.ColumnName).matches(def.name) }
                     if (name == null || name.key.columnName == Name.WILDCARD) {
@@ -285,7 +284,7 @@ object GrpcQueryBinder {
                         this@QueryContext.bindings.bind(def.copy(name = name.key)) to def
                     }
                 }
-                EntitySampleLogicalOperatorNode(this@QueryContext.nextGroupId(), entityTx, fetch, from.sample.probability, from.sample.seed)
+                EntitySampleLogicalOperatorNode(this@QueryContext.nextGroupId(), this@QueryContext, entity.name, fetch, from.sample.probability, from.sample.seed)
             }
             CottontailGrpc.From.FromCase.QUERY -> bind(from.query) /* Sub-select. */
             else -> throw QueryException.QuerySyntaxException("Invalid or missing FROM-clause in query.")
@@ -301,12 +300,7 @@ object GrpcQueryBinder {
      * @return [Entity] that matches [CottontailGrpc.EntityName]
      */
     context(QueryContext)
-    private fun parseAndBindEntity(entity: CottontailGrpc.EntityName): Entity {
-        val name = entity.fqn()
-        val catalogueTx = this@QueryContext.catalogue.newTx(this@QueryContext)
-        val schemaTx = catalogueTx.schemaForName(name.schema()).newTx(this@QueryContext)
-        return schemaTx.entityForName(name)
-    }
+    private fun parseAndBindEntity(entity: CottontailGrpc.EntityName): Entity = this@QueryContext.transaction.entityTx(entity.fqn(), AccessMode.READ).dbo
 
     /**
      * Parses and binds a [CottontailGrpc.Where] clause.

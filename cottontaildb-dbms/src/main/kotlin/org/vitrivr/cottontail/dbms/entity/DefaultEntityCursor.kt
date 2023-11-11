@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.dbms.entity
 
+import jetbrains.exodus.env.Bitmap
 import jetbrains.exodus.env.BitmapIterator
+import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.tree.LongIterator
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
@@ -9,22 +11,23 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.column.ColumnTx
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 
 /**
  * A [Cursor] implementation for the [DefaultEntity].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 4.0.0
  */
 class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>, partition: LongRange, rename: Array<Name.ColumnName> = emptyArray<Name.ColumnName>()) : Cursor<Tuple> {
 
     init {
-        require(rename.isEmpty() || columns.size == rename.size) { "The size of the rename column array does not match the number of scanned columns."}
+        require(rename.isEmpty() || columns.size == rename.size) { "The size of the rename column array does not match the number of scanned columns." }
     }
 
     /** The wrapped [Cursor] to iterate over columns. */
     private val cursors: Array<ColumnTx<*>> = Array(columns.size) {
-        entity.columnForName(columns[it].name).newTx(entity.context)
+        entity.transaction.columnTx(columns[it].name, AccessMode.READ)
     }
 
     /** The array of output [ColumnDef] produced by this [DefaultEntityCursor]. */
@@ -32,14 +35,20 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
         def.copy(name = rename.getOrNull(index) ?: def.name)
     }.toTypedArray()
 
+    /** Opens the [Bitmap] store. */
+    private val bitmap: Bitmap = entity.dbo.environment.openBitmap("${entity.dbo.name}", StoreConfig.USE_EXISTING, entity.xodusTx)
+
+    /** A read-only [jetbrains.exodus.env.Transaction] snapshot. */
+    private val snapshot = entity.xodusTx.readonlySnapshot
+
     /** The [LongIterator] backing this [DefaultEntityCursor]. */
-    private val iterator = entity.bitmap.iterator(entity.context.transaction.xodusTx) as BitmapIterator
+    private val iterator = this.bitmap.iterator(this.snapshot) as BitmapIterator
 
     /** The [TupleId] this [DefaultEntityCursor] is currently pointing to. */
     private var current: TupleId = -1
 
     /** The [TupleId] this [DefaultEntityCursor] is currently pointing to. */
-    private val maximum: TupleId = partition.last - 1L
+    private val maximum: TupleId = partition.last
 
     init {
         /* Fast-forward to entry at position. */
@@ -74,7 +83,10 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
     }
 
     /**
-     * Closes this [Cursor].
+     * Closes this [BitmapIterator] and aborts the Xodus transaction snapshot.
      */
-    override fun close() { /* No op. */ }
+    override fun close() {
+        this.iterator.close()
+        this.snapshot.abort()
+    }
 }

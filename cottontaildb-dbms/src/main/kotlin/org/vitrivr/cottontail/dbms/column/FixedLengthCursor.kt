@@ -9,28 +9,26 @@ import org.vitrivr.cottontail.core.values.tablets.Tablet
 import org.vitrivr.cottontail.core.values.tablets.bytebuffer.AbstractByteBufferTablet
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.storage.serializers.SerializerFactory
 import org.vitrivr.cottontail.storage.serializers.tablets.TabletSerializer
 
 /**
  *
  */
-class FixedLengthCursor<T: Value>(private val column: Column<T>, private val transaction: Transaction): Cursor<T> {
-    /** Internal data [Store] reference. */
-    private val dataStore: Store = this.column.catalogue.transactionManager.catalogue.openStore(
-        this.column.name.storeName(),
-        StoreConfig.USE_EXISTING,
-        this.transaction.xodusTx,
-        false
-    ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this.column.name} is missing.")
+class FixedLengthCursor<T: Value>(tx: FixedLengthColumn<T>.Tx): Cursor<T> {
 
+    /** The Xodus [jetbrains.exodus.env.Transaction]. */
+    private val xodusTx: jetbrains.exodus.env.Transaction = tx.xodusTx.readonlySnapshot
+
+    /** Internal data [Store] reference. */
+    private val store: Store = this.xodusTx.environment.openStore(tx.dbo.name.storeName(), StoreConfig.USE_EXISTING, this.xodusTx, false)
+        ?: throw DatabaseException.DataCorruptionException("Data store for column ${tx.dbo.name.storeName()} is missing.")
 
     /** The internal [TabletSerializer] reference used for de-/serialization. */
-    private val serializer: TabletSerializer<T> = SerializerFactory.tablet(this.column.columnDef.type, 128)
+    private val serializer: TabletSerializer<T> = SerializerFactory.tablet(tx.dbo.columnDef.type, 128)
 
     /** Internal Xodus cursor instance.  */
-    private val cursor = this.dataStore.openCursor(this.transaction.xodusTx)
+    private val cursor = this.store.openCursor(this.xodusTx)
 
     /** The [TabletId] of the currently loaded [Tablet]. -1 if no [Tablet] has been loaded. */
     private var tupleId: TabletId = -1
@@ -41,17 +39,16 @@ class FixedLengthCursor<T: Value>(private val column: Column<T>, private val tra
     /** The currently loaded [AbstractByteBufferTablet]. */
     private var tablet: AbstractByteBufferTablet<T>? = null
 
-
     override fun moveNext(): Boolean {
         do {
             this.tupleId += this.tupleId + 1L
             this.tabletIndex = ((++this.tupleId) % Long.SIZE_BITS).toInt()
             if (this.tabletIndex == 0 && this.cursor.next) {
-                 if (this.cursor.next) {
+                return if (this.cursor.next) {
                     this.tablet = this.serializer.fromEntry(this.cursor.value)
-                     return true
+                    true
                 } else {
-                     return false
+                    false
                 }
             } else if (this.tabletIndex > 0 && this.tablet!![this.tabletIndex] != null) {
                 return true
@@ -61,5 +58,8 @@ class FixedLengthCursor<T: Value>(private val column: Column<T>, private val tra
 
     override fun key(): TupleId = this.tupleId
     override fun value(): T = this.tablet!![this.tabletIndex] ?: throw NoSuchElementException("")
-    override fun close() = this.cursor.close()
+    override fun close() {
+        this.cursor.close()
+        this.xodusTx.abort()
+    }
 }

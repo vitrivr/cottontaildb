@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
 import org.vitrivr.cottontail.dbms.execution.services.AutoRebuilderService
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.server.grpc.services.DDLService
 import org.vitrivr.cottontail.server.grpc.services.DMLService
 import org.vitrivr.cottontail.server.grpc.services.DQLService
@@ -16,7 +17,7 @@ import kotlin.time.ExperimentalTime
  * Main server class for Cottontail DB. This is where all comes together!
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.5.0
  */
 @ExperimentalTime
 class CottontailServer(config: Config) {
@@ -25,7 +26,10 @@ class CottontailServer(config: Config) {
     private val executor = ExecutionManager(config)
 
     /** The [DefaultCatalogue] instance used by this [CottontailServer]. */
-    private val catalogue = DefaultCatalogue(config, this.executor)
+    private val catalogue = DefaultCatalogue(config)
+
+    /** The [TransactionManager] instance used by this [CottontailServer]. */
+    private val manager: TransactionManager = TransactionManager(this.executor, this.catalogue, config)
 
     /** The internal gRPC server; if building that server fails then the [DefaultCatalogue] is closed again! */
     private val grpc: Server
@@ -33,15 +37,15 @@ class CottontailServer(config: Config) {
     /* Start server and close catalogue upon failure. */
     init {
         /* Register the different service tasks. */
-        val rebuilderService = AutoRebuilderService(this.catalogue)
+        val rebuilderService = AutoRebuilderService(this.manager)
 
         /* Prepare gRPC server itself. */
         this.grpc = ServerBuilder.forPort(config.server.port)
             .executor(this.executor.connectionWorkerPool)
-            .addService(DDLService(this.catalogue, rebuilderService))
-            .addService(DMLService(this.catalogue))
-            .addService(DQLService(this.catalogue))
-            .addService(TXNService(this.catalogue))
+            .addService(DDLService(this.manager, rebuilderService))
+            .addService(DMLService(this.manager))
+            .addService(DQLService(this.manager))
+            .addService(TXNService(this.manager))
             .let {
                 if (config.server.useTls) {
                     val certFile = config.server.certFile!!.toFile()

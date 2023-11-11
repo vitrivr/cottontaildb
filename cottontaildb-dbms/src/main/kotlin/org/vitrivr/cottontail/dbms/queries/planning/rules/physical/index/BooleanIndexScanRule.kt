@@ -5,6 +5,7 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
@@ -22,7 +23,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * through a single [IndexScanPhysicalOperatorNode].
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
 object BooleanIndexScanRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean
@@ -41,18 +42,19 @@ object BooleanIndexScanRule : RewriteRule {
                 val normalizedPredicate = this.normalize(node.predicate, fetch)
 
                 /* Extract index hint and search for candidate. */
-                val candidate = parent.entity.listIndexes().map {
-                    parent.entity.indexForName(it).newTx(ctx)
+                val entityTx = ctx.transaction.entityTx(parent.entity, AccessMode.READ)
+                val candidate = entityTx.listIndexes().map {
+                    ctx.transaction.indexTx(it, AccessMode.READ)
                 }.find {
-                    it.state != IndexState.DIRTY && it.canProcess(normalizedPredicate)
+                    it.state == IndexState.CLEAN && it.canProcess(normalizedPredicate)
                 }
 
                 if (candidate != null) {
                     val newFetch = parent.fetch.filter { candidate.columnsFor(normalizedPredicate).contains(it.second) }
                     val delta = parent.fetch.filter { !candidate.columnsFor(normalizedPredicate).contains(it.second) }
-                    var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, candidate, node.predicate, newFetch)
+                    var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, node.context, candidate.dbo.name, node.predicate, newFetch)
                     if (delta.isNotEmpty()) {
-                        p = FetchPhysicalOperatorNode(p, parent.entity, delta)
+                        p = FetchPhysicalOperatorNode(p, delta)
                     }
                     return node.output?.copyWithOutput(p) ?: p
                 }

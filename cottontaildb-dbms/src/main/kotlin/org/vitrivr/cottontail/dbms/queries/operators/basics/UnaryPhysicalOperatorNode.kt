@@ -3,11 +3,9 @@ package org.vitrivr.cottontail.dbms.queries.operators.basics
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergeLimitingSortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
@@ -21,7 +19,7 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Physical] implementation that has a single [OperatorNode] as input.
  *
  * @author Ralph Gasser
- * @version 2.9.0
+ * @version 3.0.0
  */
 abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Physical() {
 
@@ -32,7 +30,11 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
     final override var depth: Int = 0
         private set
 
-    /** The group Id of a [UnaryPhysicalOperatorNode] is always the one of its parent.*/
+    /** The [QueryContext] of a [UnaryLogicalOperatorNode] is always the one of its parent.*/
+    final override val context: QueryContext
+        get() = this.input.context
+
+    /** The [GroupId] of a [UnaryPhysicalOperatorNode] is always the one of its parent.*/
     final override val groupId: GroupId = this.input.groupId
 
     /** A [UnaryPhysicalOperatorNode] inherits its dependencies from its parent. */
@@ -63,12 +65,10 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
         get() = this.input.statistics
 
     /** The [totalCost] of a [UnaryPhysicalOperatorNode] is always the sum of its own and its input cost. */
-    context(BindingContext, Tuple)
     final override val totalCost: Cost
         get() = this.input.totalCost + this.cost
 
     /** The [parallelizableCost] of a [UnaryPhysicalOperatorNode] is always the sum of its own and its input cost. */
-    context(BindingContext, Tuple)
     final override val parallelizableCost: Cost
         get() = if (this.hasTrait(NotPartitionableTrait)) {
             this.totalCost
@@ -77,7 +77,6 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
         }
 
     /** By default, the output size of a [UnaryPhysicalOperatorNode] is the same as its input's output size. Can be overridden! */
-    context(BindingContext, Tuple)
     override val outputSize: Long
         get() = this.input.outputSize
 

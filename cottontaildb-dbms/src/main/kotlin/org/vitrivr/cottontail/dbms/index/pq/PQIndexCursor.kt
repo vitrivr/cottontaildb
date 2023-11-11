@@ -26,7 +26,7 @@ class PQIndexCursor(partition: LongRange, val predicate: ProximityPredicate.Scan
     private val lookupTable: PQLookupTable
 
     /** The sub-transaction this [Cursor] operates upon.  */
-    private val subTx = this.index.context.transaction.xodusTx.readonlySnapshot
+    private val subTx = this.index.transaction.transaction.xodusTx.readonlySnapshot
 
     /** The internal cursor used by this index. */
     private val cursor = this.index.dataStore.openCursor(this.subTx)
@@ -45,7 +45,7 @@ class PQIndexCursor(partition: LongRange, val predicate: ProximityPredicate.Scan
 
     init {
         with(MissingTuple) {
-            with(this@PQIndexCursor.index.context.bindings) {
+            with(this@PQIndexCursor.index.transaction.bindings) {
                 this@PQIndexCursor.lookupTable = this@PQIndexCursor.index.quantizer.createLookupTable(this@PQIndexCursor.predicate.query.getValue() as VectorValue<*>)
             }
         }

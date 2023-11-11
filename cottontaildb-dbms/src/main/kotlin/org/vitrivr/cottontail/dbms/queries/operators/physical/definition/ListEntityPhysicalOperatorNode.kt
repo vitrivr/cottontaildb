@@ -4,7 +4,6 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.definition.ListEntityOperator
@@ -17,11 +16,11 @@ import org.vitrivr.cottontail.dbms.schema.Schema
  * A [DataDefinitionPhysicalOperatorNode] used to list all [Entity] entries in the [Catalogue] (optionally, for a given [Schema])
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 3.0.0
  */
-class ListEntityPhysicalOperatorNode(val tx: CatalogueTx, val schema: Name.SchemaName? = null): DataDefinitionPhysicalOperatorNode("ListEntity") {
+class ListEntityPhysicalOperatorNode(override val context: QueryContext, val schema: Name.SchemaName? = null): DataDefinitionPhysicalOperatorNode("ListEntity") {
     override val columns: List<ColumnDef<*>> = ColumnSets.DDL_LIST_COLUMNS
-    override fun copy(): NullaryPhysicalOperatorNode = ListEntityPhysicalOperatorNode(this.tx, this.schema)
-    override fun toOperator(ctx: QueryContext): Operator = ListEntityOperator(this.tx, this.schema, ctx)
+    override fun copy(): NullaryPhysicalOperatorNode = ListEntityPhysicalOperatorNode(this.context, this.schema)
+    override fun toOperator(ctx: QueryContext): Operator = ListEntityOperator(this.schema, ctx)
     override fun digest(): Digest = this.hashCode().toLong()
 }

@@ -1,10 +1,11 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.sources
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntitySamplePhysicalOperatorNode
 
@@ -12,9 +13,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntitySamp
  * A [NullaryLogicalOperatorNode] that formalizes the sampling of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 3.0.0
  */
-class EntitySampleLogicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, val p: Float, val seed: Long = System.currentTimeMillis()) : NullaryLogicalOperatorNode() {
+class EntitySampleLogicalOperatorNode(override val groupId: Int, override val context: QueryContext, val entity: Name.EntityName, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, val p: Float, val seed: Long = System.currentTimeMillis()) : NullaryLogicalOperatorNode() {
 
     companion object {
         private const val NODE_NAME = "SampleEntity"
@@ -39,14 +40,14 @@ class EntitySampleLogicalOperatorNode(override val groupId: Int, val entity: Ent
      *
      * @return Copy of this [EntitySampleLogicalOperatorNode].
      */
-    override fun copy() = EntitySampleLogicalOperatorNode(this.groupId, this.entity, this.fetch, this.p, this.seed)
+    override fun copy() = EntitySampleLogicalOperatorNode(this.groupId, this.context, this.entity, this.fetch, this.p, this.seed)
 
     /**
      * Returns a [EntitySamplePhysicalOperatorNode] representation of this [EntitySampleLogicalOperatorNode]
      *
      * @return [EntitySamplePhysicalOperatorNode]
      */
-    override fun implement(): Physical = EntitySamplePhysicalOperatorNode(this.groupId, this.entity, this.fetch, this.p, this.seed)
+    override fun implement(): Physical = EntitySamplePhysicalOperatorNode(this.groupId, this.entity, this.fetch, this.p, this.seed, this.context)
 
     /** Generates and returns a [String] representation of this [EntitySampleLogicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
@@ -57,7 +58,7 @@ class EntitySampleLogicalOperatorNode(override val groupId: Int, val entity: Ent
      * @return [Digest]
      */
     override fun digest(): Digest {
-        var result = this.entity.dbo.name.hashCode() + 2L
+        var result = this.entity.hashCode() + 2L
         result += 33L * result + this.p.hashCode()
         result += 33L * result + this.fetch.hashCode()
         return result

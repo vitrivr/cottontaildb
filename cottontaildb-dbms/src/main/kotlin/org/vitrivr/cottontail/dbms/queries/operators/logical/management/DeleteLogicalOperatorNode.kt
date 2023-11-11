@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.management
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.management.DeleteOperator
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryLogicalOperatorNode
@@ -13,9 +13,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.management.DeleteP
  * A [DeleteLogicalOperatorNode] that formalizes a DELETE operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 3.0.0
  */
-class DeleteLogicalOperatorNode(input: Logical, val entity: EntityTx) : UnaryLogicalOperatorNode(input) {
+class DeleteLogicalOperatorNode(input: Logical, val entity: Name.EntityName) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Delete"
@@ -49,12 +49,12 @@ class DeleteLogicalOperatorNode(input: Logical, val entity: EntityTx) : UnaryLog
      */
     override fun implement() = DeletePhysicalOperatorNode(this.input.implement(), this.entity)
 
-    override fun toString(): String = "${super.toString()}[${this.entity.dbo.name}]"
+    override fun toString(): String = "${super.toString()}[${this.entity}]"
 
     /**
      * Generates and returns a [Digest] for this [DeleteLogicalOperatorNode].
      *
      * @return [Digest]
      */
-    override fun digest(): Digest = this.entity.dbo.name.hashCode().toLong() + -5L
+    override fun digest(): Digest = this.entity.hashCode().toLong() + -5L
 }

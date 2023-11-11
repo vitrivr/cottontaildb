@@ -12,8 +12,8 @@ import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
@@ -21,9 +21,9 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * that it receives with the provided [Value].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 3.0.0
  */
-class UpdateOperator(parent: Operator, private val entity: EntityTx, private val values: List<Pair<ColumnDef<*>, Binding?>>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
+class UpdateOperator(parent: Operator, val entity: Name.EntityName, private val values: List<Pair<ColumnDef<*>, Binding?>>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
 
     companion object {
         /** The columns produced by the [UpdateOperator]. */
@@ -46,6 +46,7 @@ class UpdateOperator(parent: Operator, private val entity: EntityTx, private val
      */
     override fun toFlow(): Flow<Tuple> = flow {
         val start = System.currentTimeMillis()
+        val entityTx = this@UpdateOperator.context.transaction.entityTx(this@UpdateOperator.entity, AccessMode.WRITE)
         val incoming = this@UpdateOperator.parent.toFlow()
         val c = this@UpdateOperator.values.map { it.first }.toTypedArray()
         var updated = 0
@@ -53,7 +54,7 @@ class UpdateOperator(parent: Operator, private val entity: EntityTx, private val
             incoming.collect { record ->
                 with(record) {
                     val v = this@UpdateOperator.values.map { it.second?.getValue() }.toTypedArray()
-                    this@UpdateOperator.entity.update(StandaloneTuple(record.tupleId, c, v)) /* Safe, cause tuple IDs are retained for simple queries. */
+                    entityTx.update(StandaloneTuple(record.tupleId, c, v)) /* Safe, cause tuple IDs are retained for simple queries. */
                     updated += 1
                 }
             }

@@ -6,14 +6,13 @@ import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.transform.FetchOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.estimateTupleSize
+import org.vitrivr.cottontail.dbms.statistics.storage.ColumnStatistic
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
@@ -23,10 +22,9 @@ import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
  * This can be used for late population, which can lead to optimized performance for kNN queries
  *
  * @author Ralph Gasser
- * @version 2.4.1
+ * @version 3.0.0
  */
-@Suppress("UNCHECKED_CAST")
-class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>) : UnaryPhysicalOperatorNode(input) {
+class FetchPhysicalOperatorNode(input: Physical, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Fetch"
@@ -46,20 +44,13 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
 
     /** The map of [ValueStatistics] employed by this [FetchPhysicalOperatorNode]. */
     override val statistics: Map<ColumnDef<*>, ValueStatistics<*>> by lazy {
-        super.statistics + this.localStatistics
+        this.physicalColumns.associateWith { (this@FetchPhysicalOperatorNode.context.transaction.manager.statistics[it.name] ?: ColumnStatistic(it)).statistics }
     }
 
     /** The [Cost] of a [FetchPhysicalOperatorNode]. */
     context(BindingContext, Tuple)
     override val cost: Cost
-        get() = (Cost.DISK_ACCESS_READ_RANDOM + Cost.MEMORY_ACCESS) * this.outputSize * this.localStatistics.estimateTupleSize()
-
-    /** Local reference to entity statistics. */
-    private val localStatistics by lazy {
-        this.fetch.associate {
-            it.first.column to this.entity.columnForName(it.second.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
-        }
-    }
+        get() = (Cost.DISK_ACCESS_READ_RANDOM + Cost.MEMORY_ACCESS) * this.outputSize * this.statistics.estimateTupleSize()
 
     /**
      * Creates and returns a copy of this [FetchPhysicalOperatorNode] using the given parents as input.
@@ -69,7 +60,7 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
      */
     override fun copyWithNewInput(vararg input: Physical): FetchPhysicalOperatorNode {
         require(input.size == 1) { "The input arity for FetchPhysicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
-        return FetchPhysicalOperatorNode(input = input[0], entity = this.entity, fetch = this.fetch.map { it.first.copy() to it.second })
+        return FetchPhysicalOperatorNode(input = input[0],fetch = this.fetch.map { it.first.copy() to it.second })
     }
 
     /**
@@ -79,7 +70,7 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
      */
     override fun toOperator(ctx: QueryContext): FetchOperator {
         /* Generate and return FetchOperator. */
-        return FetchOperator(this.input.toOperator(ctx), this.entity, this.fetch, ctx)
+        return FetchOperator(this.input.toOperator(ctx), this.fetch, ctx)
     }
 
     /** Generates and returns a [String] representation of this [FetchPhysicalOperatorNode]. */
@@ -91,8 +82,6 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
      * @return [Digest]
      */
     override fun digest(): Digest {
-        var result = this.entity.dbo.name.hashCode().toLong()
-        result += 31L * result + this.fetch.hashCode()
-        return result
+        return this.fetch.hashCode().toLong()
     }
 }

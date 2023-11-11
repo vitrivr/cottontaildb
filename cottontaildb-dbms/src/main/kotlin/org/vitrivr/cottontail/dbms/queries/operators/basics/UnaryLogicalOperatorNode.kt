@@ -5,13 +5,14 @@ import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import java.io.PrintStream
 
 /**
  * An abstract [OperatorNode.Logical] implementation that has a single [OperatorNode] as input.
  *
  * @author Ralph Gasser
- * @version 2.9.0
+ * @version 3.0.0
  */
 abstract class UnaryLogicalOperatorNode(val input: Logical): OperatorNode.Logical() {
     /** Input arity of [UnaryLogicalOperatorNode] is always one. */
@@ -21,7 +22,11 @@ abstract class UnaryLogicalOperatorNode(val input: Logical): OperatorNode.Logica
     final override var depth: Int = 0
         private set
 
-    /** The group Id of a [UnaryLogicalOperatorNode] is always the one of its parent.*/
+    /** The [QueryContext] of a [UnaryLogicalOperatorNode] is always the one of its parent.*/
+    final override val context: QueryContext
+        get() = this.input.context
+
+    /** The [GroupId] of a [UnaryLogicalOperatorNode] is always the one of its parent.*/
     final override val groupId: GroupId
         get() = this.input.groupId
 

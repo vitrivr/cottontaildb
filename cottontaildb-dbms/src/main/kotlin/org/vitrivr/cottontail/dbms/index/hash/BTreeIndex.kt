@@ -20,12 +20,11 @@ import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.values.Value
-import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.events.DataEvent
-import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
@@ -38,13 +37,13 @@ import kotlin.concurrent.withLock
 import kotlin.math.log10
 
 /**
- * Represents an [AbstractIndex] in the Cottontail DB data model, that uses a persistent [HashMap]
+ * Represents an [DefaultIndex] in the Cottontail DB data model, that uses a persistent [HashMap]
  * to map a [Value] to a [TupleId]. Well suited for equality based lookups of [Value]s.
  *
  * @author Luca Rossetto & Ralph Gasser
  * @version 3.2.0
  */
-class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
+class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : DefaultIndex(name, parent) {
 
     /**
      * The [IndexDescriptor] for the [BTreeIndex].
@@ -72,37 +71,6 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         override fun open(name: Name.IndexName, entity: Entity): BTreeIndex = BTreeIndex(name, entity as DefaultEntity)
 
         /**
-         * Initializes the [Store] for a [BTreeIndex].
-         *
-         * @param catalogue [Catalogue] reference.
-         * @param context The [Transaction] to perform the transaction with.
-         * @return True on success, false otherwise.
-         */
-        override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
-            val store = catalogue.transactionManager.catalogue.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
-            store != null
-        } catch (e:Throwable) {
-            LOGGER.error("Failed to initialize BTREE index $name due to an exception: ${e.message}.")
-            false
-        }
-
-        /**
-         * De-initializes the [Store] for associated with a [BTreeIndex].
-         *
-         * @param name The [Name.IndexName] of the [BTreeIndex].
-         * @param catalogue [Catalogue] reference.
-         * @param context The [Transaction] to perform the transaction with.
-         * @return True on success, false otherwise.
-         */
-        override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
-            catalogue.transactionManager.catalogue.removeStore(name.storeName(), context.xodusTx)
-            true
-        } catch (e:Throwable) {
-            LOGGER.error("Failed to de-initialize BTREE index $name due to an exception: ${e.message}.")
-            false
-        }
-
-        /**
          * Generates and returns an empty [IndexConfig].
          */
         override fun buildConfig(parameters: Map<String, String>): IndexConfig<BTreeIndex> = BTreeIndexConfig
@@ -113,17 +81,19 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         override fun configBinding(): ComparableBinding = BTreeIndexConfig
     }
 
-    /** The type of [AbstractIndex] */
+    /** The type of [DefaultIndex] */
     override val type: IndexType = IndexType.BTREE
 
     /**
-     * Opens and returns a new [IndexTx] object that can be used to interact with this [BTreeIndex].
+     * Opens and returns a new [IndexTx] object that can be used to interact with this [Index].
      *
-     * @param context If the [Transaction] to create the [IndexTx] for.
-     * @return [Tx]
+     * @param parent The [EntityTx] that requested the [IndexTx].
+     * @return [IndexTx]
      */
-    override fun newTx(context: QueryContext)
-        = context.transaction.cachedTxForName(this) ?: this.Tx(context)
+    override fun newTx(parent: EntityTx): IndexTx {
+        require(parent is DefaultEntity.Tx) { "BTreeIndex can only be used with DefaultEntity.Tx" }
+        return this.Tx(parent)
+    }
 
     /**
      * Opens and returns a new [QueryContext] object that can be used to rebuild with this [BTreeIndex].
@@ -142,15 +112,14 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
     /**
      * An [IndexTx] that affects this [BTreeIndex].
      */
-    inner class Tx(context: QueryContext) : AbstractIndex.Tx(context) {
+    inner class Tx(parent: DefaultEntity.Tx) : DefaultIndex.Tx(parent) {
 
         /** The internal [ValueSerializer] reference used for de-/serialization. */
         @Suppress("UNCHECKED_CAST")
-        internal val binding: ValueSerializer<Value> = SerializerFactory.value(this.columns[0].type) as ValueSerializer<Value>
+        private val binding: ValueSerializer<Value> = SerializerFactory.value(this.columns[0].type) as ValueSerializer<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
-        internal val dataStore: Store = this@BTreeIndex.catalogue.transactionManager.catalogue.openStore(this@BTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.transaction.xodusTx, false)
-            ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@BTreeIndex.name} is missing.")
+        private val dataStore: Store = this.xodusTx.environment.openStore(this@BTreeIndex.name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, this.xodusTx)
 
         /**
          * Adds a mapping from the given [Value] to the given [TupleId].
@@ -163,7 +132,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         private fun addMapping(key: Value, tupleId: TupleId): Boolean {
             val keyRaw = this.binding.toEntry(key)
             val tupleIdRaw = LongBinding.longToCompressedEntry(tupleId)
-            return this.dataStore.put(this.context.transaction.xodusTx, keyRaw, tupleIdRaw)
+            return this.dataStore.put(this.xodusTx, keyRaw, tupleIdRaw)
         }
 
         /**
@@ -176,7 +145,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         private fun removeMapping(key: Value, tupleId: TupleId): Boolean {
             val keyRaw = this.binding.toEntry(key)
             val valueRaw = LongBinding.longToCompressedEntry(tupleId)
-            val cursor = this.dataStore.openCursor(this.context.transaction.xodusTx)
+            val cursor = this.dataStore.openCursor(this.xodusTx)
             val ret = cursor.getSearchBoth(keyRaw, valueRaw) && cursor.deleteCurrent()
             cursor.close()
             return ret
@@ -230,9 +199,9 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          */
         override fun costFor(predicate: Predicate): Cost = this.txLatch.withLock {
             if (predicate !is BooleanPredicate.Comparison || predicate.columns.first() != this.columns[0]) return Cost.INVALID
-            val entityTx = this.dbo.parent.newTx(this.context)
-            val statistics = this.columns.associateWith { entityTx.columnForName(it.name).newTx(this.context).statistics() }
-            val selectivity = with(this@Tx.context.bindings) {
+            val entityTx = this.transaction.txForDbo(this.dbo.parent, AccessMode.READ) as? EntityTx
+            val statistics = this.columns.associateWith { entityTx.columnForName(it.name).newTx(this.transaction).statistics() }
+            val selectivity = with(this@Tx.transaction.bindings) {
                 with(MissingTuple) {
                     NaiveSelectivityCalculator.estimate(predicate, statistics)
                 }
@@ -291,7 +260,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @return Number of entries in this [UQBTreeIndex]
          */
         override fun count(): Long  = this.txLatch.withLock {
-            this.dataStore.count(this.context.transaction.xodusTx)
+            this.dataStore.count(this.xodusTx)
         }
 
         /**

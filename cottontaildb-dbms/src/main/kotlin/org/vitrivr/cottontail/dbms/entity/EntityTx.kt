@@ -101,9 +101,12 @@ interface EntityTx : Tx, Scanable, Countable, Modifiable {
     fun createIndex(name: Name.IndexName, type: IndexType, columns: List<Name.ColumnName>, configuration: IndexConfig<*>): Index
 
     /**
-     * Drops the [Index] with the given name.
-     *
-     * @param name [Name.IndexName] of the [Index] to drop.
+     * Truncates (i.e., clears) the [Entity] backed by this [EntityTx].
      */
-    fun dropIndex(name: Name.IndexName)
+    fun truncate()
+
+    /**
+     * Drops the [Entity] backed by this [EntityTx].
+     */
+    fun drop()
 }

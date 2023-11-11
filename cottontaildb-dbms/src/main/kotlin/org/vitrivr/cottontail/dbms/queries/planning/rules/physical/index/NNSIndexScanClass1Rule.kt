@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
@@ -22,7 +23,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * The function must be a VectorDistance operating on a column (vector) and a literal (query)
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
 object NNSIndexScanClass1Rule : RewriteRule {
     /**
@@ -62,13 +63,15 @@ object NNSIndexScanClass1Rule : RewriteRule {
         require(scan is EntityScanPhysicalOperatorNode) { "Called NNSIndexScanClass1Rule.apply() with node that does not follow an EntityScanPhysicalOperatorNode. This is a programmer's error!"}
         val physicalQueryColumn = scan.fetch.singleOrNull { it.first == queryColumn }?.second ?: return null
 
-        /* Extract index hint and search for candidate. */
         val predicate = ProximityPredicate.Scan(physicalQueryColumn, function, vectorLiteral)
+
+        /* Extract index hint and search for candidate. */
         val hint = ctx.hints.filterIsInstance<QueryHint.IndexHint>().firstOrNull() ?: QueryHint.IndexHint.All
-        val candidate = scan.entity.listIndexes().map {
-            scan.entity.indexForName(it).newTx(ctx)
+        val entityTx = ctx.transaction.entityTx(scan.entity, AccessMode.READ)
+        val candidate = entityTx.listIndexes().map {
+            ctx.transaction.indexTx(it, AccessMode.READ)
         }.find {
-            it.state != IndexState.DIRTY && hint.matches(it.dbo) && it.canProcess(predicate)
+            it.state == IndexState.CLEAN && hint.matches(it.dbo) && it.canProcess(predicate)
         }
 
         /* If candidate has been found, execute replacement. */
@@ -76,10 +79,10 @@ object NNSIndexScanClass1Rule : RewriteRule {
             val produces = candidate.columnsFor(predicate)
             val distanceColumn = predicate.distanceColumn
             if (produces.contains(predicate.distanceColumn)) {
-                var replacement: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, candidate, predicate, listOf(Pair(node.out.copy(), distanceColumn)))
+                var replacement: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, node.context, candidate.dbo.name, predicate, listOf(Pair(node.out.copy(), distanceColumn)))
                 val newFetch = scan.fetch.filter { !produces.contains(it.second) && it != predicate.column }
                 if (newFetch.isNotEmpty()) {
-                    replacement = FetchPhysicalOperatorNode(replacement, scan.entity, newFetch)
+                    replacement = FetchPhysicalOperatorNode(replacement, newFetch)
                 }
                 return node.output?.copyWithOutput(replacement) ?: replacement
             }

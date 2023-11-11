@@ -4,7 +4,6 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhysicalOperatorNode
 
@@ -16,9 +15,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhy
  * that involve pruning the result set (e.g. filters or nearest neighbour search).
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 3.0.0
  */
-class FetchLogicalOperatorNode(input: Logical, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>) : UnaryLogicalOperatorNode(input) {
+class FetchLogicalOperatorNode(input: Logical, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Fetch"
@@ -44,7 +43,7 @@ class FetchLogicalOperatorNode(input: Logical, val entity: EntityTx, val fetch: 
      */
     override fun copyWithNewInput(vararg input: Logical): FetchLogicalOperatorNode {
         require(input.size == 1) { "The input arity for FetchLogicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
-        return FetchLogicalOperatorNode(input = input[0], entity = this.entity, fetch = this.fetch)
+        return FetchLogicalOperatorNode(input = input[0], this.fetch)
     }
 
     /**
@@ -52,7 +51,7 @@ class FetchLogicalOperatorNode(input: Logical, val entity: EntityTx, val fetch: 
      *
      * @return [FetchPhysicalOperatorNode]
      */
-    override fun implement(): Physical = FetchPhysicalOperatorNode(this.input.implement(), this.entity, this.fetch)
+    override fun implement(): Physical = FetchPhysicalOperatorNode(this.input.implement(), this.fetch)
 
     /** Generates and returns a [String] representation of this [FetchLogicalOperatorNode]. */
     override fun toString() = "${super.toString()}(${this.fetch.joinToString(",") { it.second.name.toString() }})"
@@ -62,9 +61,5 @@ class FetchLogicalOperatorNode(input: Logical, val entity: EntityTx, val fetch: 
      *
      * @return [Digest]
      */
-    override fun digest(): Digest {
-        var result = this.entity.dbo.name.hashCode().toLong()
-        result += 33L * result + this.fetch.hashCode()
-        return result
-    }
+    override fun digest(): Digest =  33L * this.fetch.hashCode()
 }

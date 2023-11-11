@@ -10,8 +10,8 @@ import org.vitrivr.cottontail.core.values.BooleanValue
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.StringValue
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
 
@@ -19,36 +19,32 @@ import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
  * An [Operator.SourceOperator] used during query execution. Retrieves information about an entity.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 3.0.0
  */
-class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.EntityName, override val context: QueryContext) : Operator.SourceOperator() {
+class AboutEntityOperator(private val name: Name.EntityName, override val context: QueryContext) : Operator.SourceOperator() {
     override val columns: List<ColumnDef<*>> = ColumnSets.DDL_ABOUT_COLUMNS
 
     override fun toFlow(): Flow<Tuple> = flow {
-        val schemaTxn = this@AboutEntityOperator.tx.schemaForName(this@AboutEntityOperator.name.schema()).newTx(this@AboutEntityOperator.context)
-        val entityTxn = schemaTxn.entityForName(this@AboutEntityOperator.name).newTx(this@AboutEntityOperator.context)
-
+        val entityTxn = this@AboutEntityOperator.context.transaction.entityTx(this@AboutEntityOperator.name, AccessMode.READ)
         val columns = this@AboutEntityOperator.columns.toTypedArray()
         var rowId = 0L
 
         /* Describe entity. */
         emit(
             StandaloneTuple(rowId++, columns, arrayOf(
-            StringValue(this@AboutEntityOperator.name.toString()),
-            StringValue("ENTITY"),
-            null,
-            LongValue(entityTxn.count()),
-            null,
-            null,
-            null
-        ))
+                StringValue(this@AboutEntityOperator.name.toString()),
+                StringValue("ENTITY"),
+                null,
+                LongValue(entityTxn.count()),
+                null,
+                null,
+                null
+            ))
         )
 
         /* Describe columns. */
         val cols = entityTxn.listColumns()
         cols.forEach {
-            val column = entityTxn.columnForName(it.name)
-            val columnTx = column.newTx(this@AboutEntityOperator.context)
             emit(
                 StandaloneTuple(rowId++, columns, arrayOf(
                 StringValue(it.name.toString()),
@@ -69,13 +65,12 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
         /* Describe indexes. */
         val indexes = entityTxn.listIndexes()
         indexes.forEach {
-            val index = entityTxn.indexForName(it)
-            val indexTx = index.newTx(this@AboutEntityOperator.context)
+            val indexTx = this@AboutEntityOperator.context.transaction.indexTx(it, AccessMode.READ)
             emit(
                 StandaloneTuple(rowId++, columns, arrayOf(
                 StringValue(it.toString()),
                 StringValue("INDEX"),
-                StringValue(index.type.toString()),
+                StringValue(indexTx.dbo.type.toString()),
                 LongValue(indexTx.count()),
                 null,
                 null,

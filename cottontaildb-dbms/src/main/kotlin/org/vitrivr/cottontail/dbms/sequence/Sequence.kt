@@ -3,9 +3,8 @@ package org.vitrivr.cottontail.dbms.sequence
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.general.DBO
-import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.Schema
-import kotlin.sequences.Sequence
+import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
 /**
  * Represents a [Sequence] in the Cottontail DB data model.
@@ -21,10 +20,10 @@ interface Sequence: DBO {
     override val name: Name.SequenceName
 
     /**
-     * Creates and returns a new [SequenceTx] for the given [QueryContext].
+     * Creates and returns a new [SequenceTx] for the given [SchemaTx].
      *
-     * @param context The [QueryContext] to create the [SequenceTx] for.
+     * @param parent The [SchemaTx] to create the [SequenceTx] for.
      * @return New [SequenceTx]
      */
-    override fun newTx(context: QueryContext): SequenceTx
+    fun newTx(parent: SchemaTx): SequenceTx
 }

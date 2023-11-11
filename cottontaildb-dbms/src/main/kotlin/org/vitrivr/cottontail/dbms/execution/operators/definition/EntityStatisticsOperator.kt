@@ -7,32 +7,30 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.values.StringValue
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
+import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
+import org.vitrivr.cottontail.dbms.statistics.defaultStatistics
 
 /**
  * An [Operator.SourceOperator] used during query execution. Retrieves and returns statistics about entities.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 3.0.0
  */
-class EntityStatisticsOperator(private val tx: CatalogueTx, private val name: Name.EntityName, override val context: QueryContext) : Operator.SourceOperator() {
+class EntityStatisticsOperator(private val entity: Name.EntityName, override val context: QueryContext) : Operator.SourceOperator() {
     override val columns: List<ColumnDef<*>> = ColumnSets.DDL_INTROSPECTION_COLUMNS
     override fun toFlow(): Flow<Tuple> = flow {
-        val schemaTxn = this@EntityStatisticsOperator.tx.schemaForName(this@EntityStatisticsOperator.name.schema()).newTx(this@EntityStatisticsOperator.context)
-        val entityTxn = schemaTxn.entityForName(this@EntityStatisticsOperator.name).newTx(this@EntityStatisticsOperator.context)
+        val entityTxn = this@EntityStatisticsOperator.context.transaction.entityTx(this@EntityStatisticsOperator.entity, AccessMode.READ)
 
         /* Describe columns. */
         var rowId = 0L
-        val cols = entityTxn.listColumns()
-        cols.forEach {
-            val column = entityTxn.columnForName(it.name)
-            val columnTx = column.newTx(this@EntityStatisticsOperator.context)
-            val statistics = columnTx.statistics().about()
-            for ((k,v) in statistics) {
-                emit(StandaloneTuple(rowId++, columns.toTypedArray(), arrayOf(StringValue(column.name.fqn), StringValue(k), StringValue(v))))
+        entityTxn.listColumns().forEach {
+            val statistics = this@EntityStatisticsOperator.context.transaction.manager.statistics[it.name]?.statistics ?: it.type.defaultStatistics<Value>()
+            for ((k,v) in statistics.about()) {
+                emit(StandaloneTuple(rowId++, columns.toTypedArray(), arrayOf(StringValue(it.name.fqn), StringValue(k), StringValue(v))))
             }
         }
     }

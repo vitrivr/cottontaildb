@@ -15,7 +15,7 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Physical] implementation that has multiple [OperatorNode.Physical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.8.0
+ * @version 3.0.0
  */
 abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.Physical() {
 
@@ -27,12 +27,20 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
         private set
 
     /**
-     * The group ID of a [NAryPhysicalOperatorNode] is always the one of its left parent.
+     * The [QueryContext] of a [NAryPhysicalOperatorNode] is always the one of its left parent.
+     *
+     * This is an (arbitrary) definition but very relevant when implementing [BinaryPhysicalOperatorNode]s.
+     */
+    final override val context: QueryContext
+        get() = this.inputs.first().context
+
+    /**
+     * The [GroupId] of a [NAryPhysicalOperatorNode] is always the one of its left parent.
      *
      * This is an (arbitrary) definition but very relevant when implementing [BinaryPhysicalOperatorNode]s.
      */
     final override val groupId: GroupId
-        get() = this.inputs.firstOrNull()?.groupId ?: 0
+        get() = this.inputs[0].groupId
 
     /** The [base] of a [NAryPhysicalOperatorNode] is the sum of its input's bases. */
     final override val base: List<Physical> by lazy {

@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.management
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
@@ -9,7 +10,6 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.management.DeleteOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
@@ -21,9 +21,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.logical.management.DeleteLo
  * A [DeletePhysicalOperatorNode] that formalizes a delete operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 3.0.0
  */
-class DeletePhysicalOperatorNode(input: Physical, val entity: EntityTx) : UnaryPhysicalOperatorNode(input) {
+class DeletePhysicalOperatorNode(input: Physical, val entity: Name.EntityName) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Delete"
@@ -43,8 +43,9 @@ class DeletePhysicalOperatorNode(input: Physical, val entity: EntityTx) : UnaryP
     override val outputSize: Long = 1L
 
     /** The [Cost] of this [DeletePhysicalOperatorNode]. */
-    context(BindingContext, Tuple)    override val cost: Cost
-        get() = Cost.DISK_ACCESS_WRITE * this.entity.count() * this.input.outputSize
+    context(BindingContext, Tuple)
+    override val cost: Cost
+        get() = Cost.DISK_ACCESS_WRITE * (this.context.transaction.manager.statistics[this.entity]?.count() ?: 0L) * this.input.outputSize
 
     /** The [DeletePhysicalOperatorNode] cannot be partitioned. */
     override val traits: Map<TraitType<*>, Trait> = mapOf(NotPartitionableTrait to NotPartitionableTrait)
@@ -57,7 +58,7 @@ class DeletePhysicalOperatorNode(input: Physical, val entity: EntityTx) : UnaryP
      */
     override fun copyWithNewInput(vararg input: Physical): DeletePhysicalOperatorNode {
         require(input.size == 1) { "The input arity for DeletePhysicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
-        return DeletePhysicalOperatorNode(input = input[0], entity = this.entity)
+        return DeletePhysicalOperatorNode(input[0], this.entity)
     }
 
     /**
@@ -73,7 +74,7 @@ class DeletePhysicalOperatorNode(input: Physical, val entity: EntityTx) : UnaryP
     override fun tryPartition(ctx: QueryContext, max: Int): Physical? = null
 
 
-    override fun toString(): String = "${super.toString()}[${this.entity.dbo.name}]"
+    override fun toString(): String = "${super.toString()}[${this.entity}]"
 
 
     /**
@@ -81,5 +82,5 @@ class DeletePhysicalOperatorNode(input: Physical, val entity: EntityTx) : UnaryP
      *
      * @return [Digest]
      */
-    override fun digest(): Digest = this.entity.dbo.name.hashCode().toLong() + -7L
+    override fun digest(): Digest = this.entity.hashCode().toLong() + -7L
 }

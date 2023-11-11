@@ -5,25 +5,26 @@ import kotlinx.coroutines.flow.flow
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.index.basic.Index
-import org.vitrivr.cottontail.dbms.index.basic.IndexTx
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * An [Operator.SourceOperator] that scans an [Index] and streams all [Tuple]s found within.
  *
  * @author Ralph Gasser
- * @version 1.7.0
+ * @version 1.8.0
  */
 class IndexScanOperator(
     groupId: GroupId,
-    private val index: IndexTx,
+    private val index: Name.IndexName,
     private val predicate: Predicate,
     private val fetch: List<Pair<Binding.Column, ColumnDef<*>>>,
     private val partitionIndex: Int = 0,
@@ -37,10 +38,11 @@ class IndexScanOperator(
     }
 
     /** The [ColumnDef] produced by this [IndexScanOperator]. */
-    override val columns: List<ColumnDef<*>> = this.fetch.map {
-        require(this.index.columnsFor(this.predicate).contains(it.second)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
+    override val columns: List<ColumnDef<*>> by lazy { this.fetch.map {
+        val indexTx = this@IndexScanOperator.context.transaction.indexTx(this@IndexScanOperator.index, AccessMode.READ)
+        require(indexTx.columnsFor(this.predicate).contains(it.second)) { "The given column $it is not produced by the selected index ${this.index}. This is a programmer's error!"}
         it.first.column
-    }
+    }}
 
     /**
      * Converts this [IndexScanOperator] to a [Flow] and returns it.
@@ -49,12 +51,13 @@ class IndexScanOperator(
      */
     override fun toFlow(): Flow<Tuple> = flow {
         val columns = this@IndexScanOperator.fetch.map { it.first.column }.toTypedArray()
+        val indexTx = this@IndexScanOperator.context.transaction.indexTx(this@IndexScanOperator.index, AccessMode.READ)
         var read = 0
         if (this@IndexScanOperator.partitions == 1) {
-            this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate)
+            indexTx.filter(this@IndexScanOperator.predicate)
         } else {
-            val entityTx = this@IndexScanOperator.index.dbo.parent.newTx(this@IndexScanOperator.context)
-            this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate, entityTx.partitionFor(this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions))
+            val entityTx = this@IndexScanOperator.context.transaction.entityTx(this@IndexScanOperator.index.entity(), AccessMode.READ)
+            indexTx.filter(this@IndexScanOperator.predicate, entityTx.partitionFor(this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions))
         }.use { cursor ->
             while (cursor.moveNext()) {
                 val record = cursor.value() as StandaloneTuple
@@ -62,6 +65,6 @@ class IndexScanOperator(
                 read += 1
             }
         }
-        LOGGER.debug("Read $read entries from ${this@IndexScanOperator.index.dbo.name}.")
+        LOGGER.debug("Read {} entries from {}.", read, this@IndexScanOperator.index)
     }
 }

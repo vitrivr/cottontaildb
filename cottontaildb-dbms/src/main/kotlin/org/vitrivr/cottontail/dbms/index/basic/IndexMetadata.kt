@@ -3,43 +3,17 @@ package org.vitrivr.cottontail.dbms.index.basic
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.StringBinding
-import jetbrains.exodus.env.Store
-import jetbrains.exodus.env.StoreConfig
-import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.LightOutputStream
-import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 
 /**
+ * Metadata maintained and stored by Cottontail DB to described [Index]es.
  *
+ * @author Ralph Gasser
+ * @version 1.0.0
  */
 data class IndexMetadata(val type: IndexType, val state: IndexState, val columns: List<String>, val config: IndexConfig<*>) {
     companion object {
-        /** Name of the [IndexMetadata] store in the Cottontail DB catalogue. */
-        private const val CATALOGUE_INDEX_STORE_NAME: String = "org.vitrivr.cottontail.indexes"
-
-        /**
-         * Initializes the store used to store [IndexMetadata] entries in Cottontail DB.
-         *
-         * @param catalogue The [DefaultCatalogue] to initialize.
-         * @param transaction The [Transaction] to use.
-         */
-        internal fun init(catalogue: DefaultCatalogue, transaction: Transaction) {
-            catalogue.transactionManager.catalogue.openStore(CATALOGUE_INDEX_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
-                ?: throw DatabaseException.DataCorruptionException("Failed to create store for index catalogue.")
-        }
-
-        /**
-         * Returns the [Store] for [IndexMetadata] entries.
-         *
-         * @param catalogue [DefaultCatalogue] to retrieve [IndexMetadata] from.
-         * @param transaction The Xodus [Transaction] to use.
-         * @return [Store]
-         */
-        internal fun store(catalogue: DefaultCatalogue, transaction: Transaction): Store =
-            catalogue.transactionManager.catalogue.openStore(CATALOGUE_INDEX_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open store for index catalogue.")
 
         /**
          * De-serializes a [IndexMetadata] from the given [ByteIterable].

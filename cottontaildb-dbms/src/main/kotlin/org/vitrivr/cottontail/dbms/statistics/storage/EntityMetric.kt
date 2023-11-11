@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.statistics.metrics
+package org.vitrivr.cottontail.dbms.statistics.storage
 
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
@@ -34,4 +34,9 @@ data class EntityMetric(var inserts: Long = 0L, var updates: Long = 0L, var dele
             return output.asArrayByteIterable()
         }
     }
+
+    /**
+     * Estimates the size of the entity described by this [EntityMetric].
+     */
+    fun count(): Long = this.inserts - this.deletes
 }

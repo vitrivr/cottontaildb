@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.entity
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
+import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
@@ -10,22 +11,24 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.values.UuidValue
 import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
+import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue.Companion.INDEX_METADATA_STORE_NAME
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.column.*
 import org.vitrivr.cottontail.dbms.events.DataEvent
+import org.vitrivr.cottontail.dbms.events.EntityEvent
 import org.vitrivr.cottontail.dbms.events.IndexEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
-import org.vitrivr.cottontail.dbms.execution.transactions.xodus.RefCountedEnvironment
-import org.vitrivr.cottontail.dbms.general.AbstractTx
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
-import java.util.*
+import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
@@ -37,7 +40,7 @@ import kotlin.concurrent.withLock
  * @author Ralph Gasser
  * @version 4.0.0
  */
-class DefaultEntity(override val name: Name.EntityName, override val parent: DefaultSchema, val handle: UUID) : Entity {
+class DefaultEntity(override val name: Name.EntityName, override val parent: DefaultSchema, internal val environment: Environment) : Entity {
 
     /** A [DefaultEntity] belongs to the same [DefaultCatalogue] as the [DefaultSchema] it belongs to. */
     override val catalogue: DefaultCatalogue
@@ -50,21 +53,26 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
     /**
      * Creates and returns a new [DefaultEntity.Tx] for the given [QueryContext].
      *
-     * @param context The [QueryContext] to create the [DefaultEntity.Tx] for.
+     * @param parent The [SchemaTx] to create the [DefaultEntity.Tx] for.
      * @return New [DefaultEntity.Tx]
      */
-    override fun newTx(context: QueryContext): EntityTx {
-        val tx = this.Tx(context)
-        context.transaction.cacheTx(tx) /* Cache this Tx for future use. */
-        return tx
+    override fun newTx(parent: SchemaTx): DefaultEntity.Tx {
+        require(parent is DefaultSchema.Tx) { "VariableLengthColumn can only be used with DefaultEntity.Tx" }
+        return this.Tx(parent)
     }
 
+    /**
+     * Compares this [DefaultEntity] to another object.
+     */
     override fun equals(other: Any?): Boolean {
         if (other !is DefaultEntity) return false
         if (other.catalogue != this.catalogue) return false
         return other.name == this.name
     }
 
+    /**
+     * Hash code for this [DefaultEntity].
+     */
     override fun hashCode(): Int {
         var result = name.hashCode()
         result = 31 * result + parent.hashCode()
@@ -75,42 +83,38 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
      * A [Tx] that affects this [DefaultEntity]. Opening a [DefaultEntity.Tx] will automatically spawn [ColumnTx]
      * and [IndexTx] for every [Column] and [IndexTx] associated with this [DefaultEntity].
      */
-    inner class Tx(context: QueryContext) : AbstractTx(context), EntityTx {
+    inner class Tx(parent: DefaultSchema.Tx): EntityTx {
+
+        /** Reference to the Cottontail DB [Transaction] object. */
+        override val transaction: Transaction = parent.transaction
+
         /** Reference to the surrounding [DefaultEntity]. */
         override val dbo: DefaultEntity
             get() = this@DefaultEntity
 
-        /** The [RefCountedEnvironment.Tx] backing this [EntityTx]. */
-        private val tx = context.transaction.requestEnvironment(this@DefaultEntity.handle)
-
-        /** The bitmap store that backs this [DefaultEntity]. */
-        private val bitmap = this.tx.environment.openBitmap("${this@DefaultEntity.name}", StoreConfig.USE_EXISTING, this.tx.xodusTx)
+        /** The entity-level Xodus [jetbrains.exodus.env.Transaction] used by this [Tx]. */
+        internal val xodusTx: jetbrains.exodus.env.Transaction = this@DefaultEntity.environment.beginTransaction()
 
         /** Map of [Name.ColumnName] to [Column]. */
-        private val columns = Object2ObjectLinkedOpenHashMap<Name.ColumnName,ColumnTx<*>>()
+        private val columns = Object2ObjectLinkedOpenHashMap<Name.ColumnName,Column<*>>()
 
         /** Map of [Name.IndexName] to [IndexTx]. */
         private val indexes = Object2ObjectLinkedOpenHashMap<Name.IndexName, Index>()
 
+        /** The bitmap store that backs this [DefaultEntity]. */
+        private var bitmap = this.xodusTx.environment.openBitmap("${this@DefaultEntity.name}", StoreConfig.WITHOUT_DUPLICATES, this.xodusTx)
+
+        /** A [ReentrantLock] that synchronises access to this [Tx]'s methods. */
+        private val txLatch = ReentrantLock()
+
         init {
-            /* Load entity entry.  */
-            val entityMetadataStore = EntityMetadata.store(this@DefaultEntity.catalogue, this.context.transaction.xodusTx)
-            val entityEntry = EntityMetadata.fromEntry(
-                entityMetadataStore.get(this.context.transaction.xodusTx, NameBinding.Entity.toEntry(this@DefaultEntity.name)) ?: throw DatabaseException.DataCorruptionException("Catalogue entry for entity ${this@DefaultEntity.name} is missing.")
-            )
-
-            /* Cache this Tx for future use. */
-            context.transaction.cacheTx(this)
-
             /* Load a (ordered) map of columns. This map can be kept in memory for the duration of the transaction, because Transaction works with a fixed snapshot.  */
-            val columnMetadataStore = ColumnMetadata.store(this@DefaultEntity.catalogue, this.context.transaction.xodusTx)
-            columnMetadataStore.openCursor(this.context.transaction.xodusTx).use {
+            val columnMetadataStore = this.xodusTx.environment.openStore(DefaultCatalogue.COLUMN_METADATA_STORE_NAME, StoreConfig.USE_EXISTING, this.xodusTx, false)
+                ?: throw DatabaseException.DataCorruptionException("Failed to open store for column metadata.")
+            columnMetadataStore.openCursor(this.xodusTx).use {
                 if (it.getSearchKeyRange(NameBinding.Entity.toEntry(this@DefaultEntity.name)) != null) {
                     do {
                         val columnName = NameBinding.Column.fromEntry(it.key)
-                        if (columnName.entity() != this@DefaultEntity.name) {
-                            break
-                        }
                         val columnEntry = ColumnMetadata.fromEntry(it.value)
                         val columnDef = ColumnDef(columnName, columnEntry.type, columnEntry.nullable, columnEntry.primary, columnEntry.primary)
                         if (columnDef.type is Types.String || columnDef.type is Types.ByteString) {
@@ -123,8 +127,9 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }
 
             /* Load a map of indexes. This map can be kept in memory for the duration of the transaction, because Transaction works with a fixed snapshot.  */
-            val indexMetadataStore = IndexMetadata.store(this@DefaultEntity.catalogue, this.context.transaction.xodusTx)
-            indexMetadataStore.openCursor(this.context.transaction.xodusTx).use {
+            val indexMetadataStore = this.xodusTx.environment.openStore(DefaultCatalogue.INDEX_METADATA_STORE_NAME, StoreConfig.USE_EXISTING, this.xodusTx, false)
+                ?: throw DatabaseException.DataCorruptionException("Failed to open store for index catalogue.")
+            indexMetadataStore.openCursor(this.xodusTx).use {
                 if (it.getSearchKeyRange(NameBinding.Entity.toEntry(this@DefaultEntity.name))  != null) {
                     do {
                         val indexName = NameBinding.Index.fromEntry(it.key)
@@ -148,7 +153,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return True if entry exists, false otherwise,
          */
         override fun contains(tupleId: TupleId): Boolean = this.txLatch.withLock {
-            this.bitmap.get(this.context.transaction.xodusTx, tupleId)
+            this.bitmap.get(this.xodusTx, tupleId)
         }
 
         /**
@@ -161,12 +166,11 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
          */
         override fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Tuple = this.txLatch.withLock {
-            require(this.bitmap.get(this.tx.xodusTx, tupleId)) { "Tuple with ID $tupleId does not exist." }
+            require(this.bitmap.get(this.xodusTx, tupleId)) { "Tuple with ID $tupleId does not exist." }
 
             /* Read values from underlying columns. */
             val values = Array(columns.size) {
-                val name = columns[it].name
-                val columnTx = this.columns[columns[it].name] ?: throw IllegalArgumentException("Column $name does not exist.")
+                val columnTx = this.transaction.columnTx(columns[it].name, AccessMode.READ)
                 columnTx.read(tupleId)
             }
 
@@ -180,7 +184,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return The number of entries in this [DefaultEntity].
          */
         override fun count(): Long = this.txLatch.withLock {
-            this.bitmap.count(this.tx.xodusTx)
+            this.bitmap.count(this.xodusTx)
         }
 
         /**
@@ -189,7 +193,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return The maximum tuple ID occupied by entries in this [DefaultEntity].
          */
         override fun smallestTupleId(): TupleId = this.txLatch.withLock {
-            this.bitmap.getFirst(this.tx.xodusTx)
+            this.bitmap.getFirst(this.xodusTx)
         }
 
         /**
@@ -198,7 +202,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return The maximum tuple ID occupied by entries in this [DefaultEntity].
          */
         override fun largestTupleId(): TupleId = this.txLatch.withLock {
-            this.bitmap.getLast(this.tx.xodusTx)
+            this.bitmap.getLast(this.xodusTx)
         }
 
         /**
@@ -216,7 +220,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @param name The [Name.ColumnName] of the [Column].
          * @return [ColumnDef] of the [Column].
          */
-        override fun columnForName(name: Name.ColumnName): ColumnTx<*> = this.txLatch.withLock {
+        override fun columnForName(name: Name.ColumnName): Column<*> = this.txLatch.withLock {
             val fqn = this@DefaultEntity.name.column(name.simple)
             this.columns[fqn] ?: throw DatabaseException.ColumnDoesNotExistException(fqn)
         }
@@ -253,16 +257,12 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             require(name.entity() == this@DefaultEntity.name) { "Index $name does not belong to entity! This is a programmer's error!"}
 
             /* Prepare index entry and persist it. */
-            val store = IndexMetadata.store(this@DefaultEntity.catalogue, this.context.transaction.xodusTx)
-            val state = if (this.count() == 0L) { IndexState.CLEAN } else { IndexState.DIRTY }
+            val store = this@DefaultEntity.catalogue.environment.openStore(INDEX_METADATA_STORE_NAME, StoreConfig.USE_EXISTING, this.xodusTx, false)
+                ?: throw DatabaseException.DataCorruptionException("Failed to open store for index catalogue.")
+            val state = if (this.count() == 0L) { IndexState.CLEAN } else { IndexState.STALE }
             val indexEntry = IndexMetadata(type, state, columns.map { it.columnName }, configuration)
-            if (!store.add(this.context.transaction.xodusTx, NameBinding.Index.toEntry(name), IndexMetadata.toEntry(indexEntry))) {
+            if (!store.add(this.xodusTx, NameBinding.Index.toEntry(name), IndexMetadata.toEntry(indexEntry))) {
                 throw DatabaseException.IndexAlreadyExistsException(name)
-            }
-
-            /* Initialize index store entry. */
-            if (!type.descriptor.initialize(name, this.dbo.catalogue, this.context.transaction)) {
-                throw DatabaseException.DataCorruptionException("CREATE index $name failed: Failed to initialize store.")
             }
 
             /* Try to open index. */
@@ -270,36 +270,69 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             this.indexes[name] = ret
 
             /* Signal event to transaction context. */
-            this.context.transaction.signalEvent(IndexEvent.Created(name, type))
+            this.transaction.signalEvent(IndexEvent.Created(name, type))
 
             /* Return index. */
             return ret
         }
 
         /**
-         * Drops the [Index] with the given name.
-         *
-         * @param name [Name.IndexName] of the [Index] to drop.
+         * Truncates (i.e., clears) the [DefaultEntity] backed by this [EntityTx].
          */
-        override fun dropIndex(name: Name.IndexName) = this.txLatch.withLock {
-            /* Fetch index entry and remove it. */
-            val store = IndexMetadata.store(this@DefaultEntity.catalogue, this.context.transaction.xodusTx)
-            val metadataRaw = store.get(this.context.transaction.xodusTx, NameBinding.Index.toEntry(name)) ?: throw DatabaseException.IndexDoesNotExistException(name)
-            val metadata = IndexMetadata.fromEntry(metadataRaw)
-            if (!store.delete(this.context.transaction.xodusTx, NameBinding.Index.toEntry(name))) {
-                throw DatabaseException.IndexDoesNotExistException(name)
+        override fun truncate() = this.txLatch.withLock {
+            /* Truncate all columns. */
+            val truncated = mutableListOf<ColumnDef<*>>()
+            for (column in this.columns.values) {
+                val columnTx = this.transaction.columnTx(column.name, AccessMode.WRITE)
+                columnTx.truncate()
+                truncated.add(column.columnDef)
             }
 
-            /* De-initialize the index. */
-            if (!metadata.type.descriptor.deinitialize(name, this.dbo.catalogue, this.context.transaction)) {
-                throw DatabaseException.DataCorruptionException("DROP index $name failed: Failed to de-initialize store.")
+            /* Truncate all indexes. */
+            for (index in this.indexes.values) {
+                val indexTx = this.transaction.indexTx(index.name, AccessMode.WRITE)
+                indexTx.truncate()
             }
 
-            /* Remove index catalogue entry. */
-            this.indexes.remove(name)
+            /* Drop store for entity (bitmap). */
+            this.xodusTx.environment.truncateStore("$name#bitmap", this.xodusTx)
+            this.bitmap = this.xodusTx.environment.openBitmap("${this@DefaultEntity.name}", StoreConfig.WITHOUT_DUPLICATES, this.xodusTx)
 
-            /* Signal event to transaction context. */
-            this.context.transaction.signalEvent(IndexEvent.Dropped(name, metadata.type))
+            /* Create Event and notify observers */
+            val event = EntityEvent.Truncate(this@DefaultEntity.name, truncated.toTypedArray())
+            this.transaction.signalEvent(event)
+        }
+
+        /**
+         * Drops the [DefaultEntity] backed by this [EntityTx].
+         */
+        override fun drop() = this.txLatch.withLock {
+            /* Drop all columns. */
+            val dropped = mutableListOf<ColumnDef<*>>()
+            for (column in this.columns.values) {
+                val columnTx = this.transaction.columnTx(column.name, AccessMode.WRITE)
+                columnTx.drop()
+                dropped.add(column.columnDef)
+            }
+
+            /* Drop all indexes. */
+            for (index in this.indexes.values) {
+                val indexTx = this.transaction.indexTx(index.name, AccessMode.WRITE)
+                indexTx.drop()
+            }
+
+            /* Drop store for entity (bitmap). */
+            this.xodusTx.environment.removeStore("$name#bitmap", this.xodusTx)
+
+            /* Now remove all catalogue entries related to entity. */
+            val entityMetadataStore = this.xodusTx.environment.openStore(DefaultCatalogue.ENTITY_METADATA_STORE_PREFIX, StoreConfig.WITHOUT_DUPLICATES, this.xodusTx)
+            if (!entityMetadataStore.delete(this.xodusTx, NameBinding.Entity.toEntry(name))) {
+                throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to delete catalogue entry.")
+            }
+
+            /* Create Event and notify observers */
+            val event = EntityEvent.Drop(this@DefaultEntity.name, dropped.toTypedArray())
+            this.transaction.signalEvent(event)
         }
 
         /**
@@ -345,24 +378,13 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
            /* Execute INSERT on column level. */
             val tupleId = nextTupleId()
             val inserts = Object2ObjectArrayMap<ColumnDef<*>, Value>(this.columns.size)
-            this.bitmap.set(this.context.transaction.xodusTx, tupleId, true)
+            this.bitmap.set(this.xodusTx, tupleId, true)
             for (column in this.columns.values) {
+                val columnTx = this.transaction.columnTx(column.name, AccessMode.READ) as ColumnTx<Value>
+
                 /* Make necessary checks for value. */
                 val value = when {
-                    column.columnDef.autoIncrement -> {
-                        /* Obtain sequence and generate next value. */
-                        val sequenceName = column.columnDef.name.autoincrement() ?: throw IllegalStateException("")
-                        val schemaTx = this@DefaultEntity.parent.newTx(this.context)
-                        val sequenceTx = schemaTx.sequenceForName(sequenceName).newTx(this.context)
-
-                        /* Generate and use value. */
-                        when (column.columnDef.type) {
-                            Types.Int -> sequenceTx.next().asInt()
-                            Types.Long -> sequenceTx.next()
-                            Types.Uuid -> UuidValue(UUID.randomUUID())
-                            else -> throw IllegalStateException("Columns of types ${column.columnDef.type} do not allow for serial values. This is a programmer's error!")
-                        }
-                    }
+                    column.columnDef.autoIncrement -> columnTx.nextAutoValue()
                     column.columnDef.nullable -> tuple[column.columnDef]
                     else -> tuple[column.columnDef] ?: throw DatabaseException.ValidationException("Cannot INSERT a NULL value into column ${column.columnDef}.")
                 }
@@ -370,18 +392,19 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                 /* Record and perform insert. */
                 inserts[column.columnDef] = value
                 if (value != null) {
-                    (column as ColumnTx<Value>).write(tupleId, value)
+                    columnTx.write(tupleId, value)
                 }
             }
 
             /* Issue DataChangeEvent.InsertDataChange event and update indexes. */
             val event = DataEvent.Insert(this@DefaultEntity.name, tupleId, inserts)
             for (index in this.indexes.values) {
-                index.newTx(this.context).insert(event)
+                val indexTx = this.transaction.indexTx(index.name, AccessMode.READ)
+                indexTx.insert(event)
             }
 
             /* Signal event to transaction context. */
-            this.context.transaction.signalEvent(event)
+            this.transaction.signalEvent(event)
 
             /* Return generated record. */
             return StandaloneTuple(tupleId, inserts.keys.toTypedArray(), inserts.values.toTypedArray())
@@ -400,7 +423,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /* Execute UPDATE on column level. */
             val updates = Object2ObjectArrayMap<ColumnDef<*>, Pair<Value?, Value?>>(tuple.columns.size)
             for (def in tuple.columns) {
-                val columnTx = (this.columns[def.name] as? ColumnTx<Value>) ?: throw DatabaseException.ColumnDoesNotExistException(def.name)
+                val columnTx = this.transaction.columnTx(def.name, AccessMode.READ) as ColumnTx<Value>
                 val value = tuple[def]
                 val oldValue = if (value == null) {
                     if (!def.nullable) throw DatabaseException.ValidationException("Record ${tuple.tupleId} cannot be updated with NULL value for column $def, because column is not nullable.")
@@ -414,11 +437,12 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /* Issue DataChangeEvent.UpdateDataChangeEvent and update indexes + statistics. */
             val event = DataEvent.Update(this@DefaultEntity.name, tuple.tupleId, updates)
             for (index in this.indexes.values) {
-                index.newTx(this.context).update(event)
+                val indexTx = this.transaction.indexTx(index.name, AccessMode.READ)
+                indexTx.update(event)
             }
 
             /* Signal event to transaction context. */
-            this.context.transaction.signalEvent(event)
+            this.transaction.signalEvent(event)
         }
 
         /**
@@ -432,17 +456,19 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /* Perform DELETE on column level. */
             val deleted = Object2ObjectArrayMap<ColumnDef<*>, Value?>(this.columns.size)
             for (column in this.columns.values) {
-                deleted[column.columnDef] = column.delete(tupleId)
+                val columnTx = this.transaction.columnTx(column.name, AccessMode.READ)
+                deleted[column.columnDef] = columnTx.delete(tupleId)
             }
 
             /* Issue DataChangeEvent.DeleteDataChangeEvent and update indexes + statistics. */
             val event = DataEvent.Delete(this@DefaultEntity.name, tupleId, deleted)
             for (index in this.indexes.values) {
-                index.newTx(this.context).delete(event)
+                val indexTx = this.transaction.indexTx(index.name, AccessMode.READ)
+                indexTx.delete(event)
             }
 
             /* Signal event to transaction context. */
-            this.context.transaction.signalEvent(event)
+            this.transaction.signalEvent(event)
         }
 
         /**
@@ -451,11 +477,11 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return Next [TupleId] for insert.
          */
         private fun nextTupleId(): TupleId = this.txLatch.withLock {
-            val smallest = this.bitmap.getFirst(this.context.transaction.xodusTx)
+            val smallest = this.bitmap.getFirst(this.xodusTx)
             val next = when {
                 smallest == -1L -> 0L
                 smallest > 0L -> smallest - 1L
-                else -> this.bitmap.getLast(this.context.transaction.xodusTx) + 1L
+                else -> this.bitmap.getLast(this.xodusTx) + 1L
             }
             return@withLock next
         }

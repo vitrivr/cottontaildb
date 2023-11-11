@@ -37,11 +37,4 @@ interface CatalogueTx : Tx {
      * @return Newly created [Schema] for use in context of current [Tx]
      */
     fun createSchema(name: Name.SchemaName): Schema
-
-    /**
-     * Drops an existing [Schema] with the given [Name.SchemaName].
-     *
-     * @param name The [Name.SchemaName] of the [Schema] to be dropped.
-     */
-    fun dropSchema(name: Name.SchemaName)
 }

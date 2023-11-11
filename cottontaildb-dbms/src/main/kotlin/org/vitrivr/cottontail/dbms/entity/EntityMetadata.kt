@@ -1,9 +1,7 @@
 package org.vitrivr.cottontail.dbms.entity
 
 import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.LongBinding
-import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.env.Transaction
@@ -34,7 +32,7 @@ data class EntityMetadata(val handle: UUID = UUID.randomUUID(), val created: Lon
          * @param transaction The [Transaction] to use.
          */
         fun init(catalogue: DefaultCatalogue, transaction: Transaction) {
-            catalogue.transactionManager.catalogue.openStore(CATALOGUE_ENTITY_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
+            catalogue.environment.openStore(CATALOGUE_ENTITY_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
                 ?: throw DatabaseException.DataCorruptionException("Failed to create entity catalogue.")
         }
 
@@ -46,7 +44,7 @@ data class EntityMetadata(val handle: UUID = UUID.randomUUID(), val created: Lon
          * @return [Store]
          */
         fun store(catalogue: DefaultCatalogue, transaction: Transaction): Store =
-            catalogue.transactionManager.catalogue.openStore(CATALOGUE_ENTITY_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
+            catalogue.environment.openStore(CATALOGUE_ENTITY_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
                 ?: throw DatabaseException.DataCorruptionException("Failed to open store for entity catalogue.")
 
         /**

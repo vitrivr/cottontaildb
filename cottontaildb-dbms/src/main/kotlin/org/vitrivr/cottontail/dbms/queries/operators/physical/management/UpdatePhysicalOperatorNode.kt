@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.management
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
@@ -10,7 +11,6 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.management.UpdateOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
@@ -20,9 +20,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperato
  * A [UpdatePhysicalOperatorNode] that formalizes a UPDATE operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 3.0.0
  */
-class UpdatePhysicalOperatorNode(input: Physical, val entity: EntityTx, val values: List<Pair<ColumnDef<*>, Binding>>) : UnaryPhysicalOperatorNode(input) {
+class UpdatePhysicalOperatorNode(input: Physical, val entity: Name.EntityName, val values: List<Pair<ColumnDef<*>, Binding>>) : UnaryPhysicalOperatorNode(input) {
     companion object {
         private const val NODE_NAME = "Update"
     }
@@ -78,7 +78,7 @@ class UpdatePhysicalOperatorNode(input: Physical, val entity: EntityTx, val valu
      * @return [Digest]
      */
     override fun digest(): Digest {
-        var result = this.entity.dbo.name.hashCode().toLong()
+        var result = this.entity.hashCode().toLong()
         result += 31L * result + this.values.hashCode()
         return result
     }

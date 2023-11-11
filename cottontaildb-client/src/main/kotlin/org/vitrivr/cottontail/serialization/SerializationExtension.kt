@@ -34,6 +34,8 @@ fun Types<*>.valueSerializer(): KSerializer<Value?> = when (this) {
     is Types.FloatVector -> FloatVectorValue.serializer()
     is Types.IntVector -> IntVectorValue.serializer()
     is Types.LongVector -> LongVectorValue.serializer()
+    is Types.HalfVector -> TODO()
+    is Types.ShortVector -> TODO()
 } as KSerializer<Value?>
 
 

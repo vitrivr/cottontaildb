@@ -4,13 +4,19 @@ import jetbrains.exodus.env.Transaction
 import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
+import org.vitrivr.cottontail.dbms.column.Column
+import org.vitrivr.cottontail.dbms.column.ColumnTx
+import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.execution.ExecutionContext
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.xodus.RefCountedEnvironment
-import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
-import java.util.*
+import org.vitrivr.cottontail.dbms.index.basic.Index
+import org.vitrivr.cottontail.dbms.index.basic.IndexTx
+import org.vitrivr.cottontail.dbms.schema.Schema
+import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
 /**
  * A [Transaction] can be used to query and interact with a [Transaction].
@@ -18,18 +24,12 @@ import java.util.*
  * This is the view of a [Transaction] that is available to the operators that execute a query.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 3.0.0
  */
 interface Transaction: ExecutionContext, TransactionMetadata {
 
-    /** The Xodus [Transaction] associated with this [Transaction]. */
-    val xodusTx: Transaction
-
     /** The [TransactionManager] this [Transaction] belongs to. */
     val manager: TransactionManager
-
-    /** */
-    fun requestEnvironment(handle: UUID): RefCountedEnvironment.Tx
 
     /**
      * Schedules an [Operator] in the context of this [Transaction] and blocks, until execution has completed.
@@ -58,20 +58,48 @@ interface Transaction: ExecutionContext, TransactionMetadata {
     fun kill()
 
     /**
-     * Caches a [Tx] for later re-use.
+     * Obtains a [Tx] for the given [Schema].
      *
-     * @param tx The [DBO] to create the [Tx] for.
-     * @return True on success, false otherwise.
+     * @param mode The [AccessMode] for the requested [Tx].
+     * @return The resulting [CatalogueTx] or null
      */
-    fun cacheTx(tx: Tx): Boolean
+    fun catalogueTx(mode: AccessMode): CatalogueTx
 
     /**
-     * Obtains a cached [Tx] for the given [DBO].
+     * Obtains a [Tx] for the given [Schema].
      *
-     * @param name The [DBO] to create the [Tx] for.
-     * @return The resulting [Tx] or null
+     * @param name The [Name.SchemaName] to create the [Tx] for.
+     * @param mode The [AccessMode] for the requested [Tx].
+     * @return The resulting [SchemaTx] or null
      */
-    fun cachedTxForName(name: Name): Tx?
+    fun schemaTx(name: Name.SchemaName, mode: AccessMode): SchemaTx
+
+    /**
+     * Obtains a [Tx] for the given [Entity].
+     *
+     * @param name The [Name.EntityName] to create the [Tx] for.
+     * @param mode The [AccessMode] for the requested [Tx].
+     * @return The resulting [EntityTx]
+     */
+    fun entityTx(name: Name.EntityName, mode: AccessMode): EntityTx
+
+    /**
+     * Obtains a [Tx] for the given [Column].
+     *
+     * @param name The [Name.ColumnName] to create the [Tx] for.
+     * @param mode The [AccessMode] for the requested [Tx].
+     * @return The resulting [ColumnTx] or null
+     */
+    fun columnTx(name: Name.ColumnName, mode: AccessMode): ColumnTx<*>
+
+    /**
+     * Obtains a [Tx] for the given [Index].
+     *
+     * @param name The [Name.IndexName] to create the [Tx] for.
+     * @param mode The [AccessMode] for the requested [Tx].
+     * @return The resulting [ColumnTx] or null
+     */
+    fun indexTx(name: Name.IndexName, mode: AccessMode): IndexTx
 
     /**
      * Signals an [Event] to this [Transaction].

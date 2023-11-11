@@ -94,6 +94,16 @@ interface IndexTx: Tx, Filterable, Countable {
     fun delete(event: DataEvent.Delete)
 
     /**
+     * Truncates (i.e., clears) the [Index] backed by this [IndexTx].
+     */
+    fun truncate()
+
+    /**
+     * Drops (i.e., removes) the [Index] backed by this [IndexTx].
+     */
+    fun drop()
+
+    /**
      * Performs a lookup through this [IndexTx] and returns a [Cursor] of all the [Tuple]s that match the [Predicate].
      *
      * @param predicate The [Predicate] to perform the lookup.

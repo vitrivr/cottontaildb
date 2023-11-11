@@ -20,7 +20,7 @@ import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
-import org.vitrivr.cottontail.dbms.index.basic.AbstractIndex
+import org.vitrivr.cottontail.dbms.index.basic.DefaultIndex
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
@@ -272,7 +272,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
     abstract fun drainAndMergeLog(): Boolean
 
     /**
-     * Convenience method to update [IndexState] for this [AbstractIndex].
+     * Convenience method to update [IndexState] for this [DefaultIndex].
      *
      * @param state The new [IndexState].
      * @param tx The [Transaction] to use.

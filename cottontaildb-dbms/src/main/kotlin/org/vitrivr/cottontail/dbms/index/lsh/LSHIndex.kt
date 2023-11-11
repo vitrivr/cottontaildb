@@ -37,7 +37,7 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import kotlin.concurrent.withLock
 
 /**
- * An [AbstractIndex] structure for proximity based search (NNS / FNS) based on locality sensitive hashing (LSH, see [1]).
+ * An [DefaultIndex] structure for proximity based search (NNS / FNS) based on locality sensitive hashing (LSH, see [1]).
  *
  * This [LSHIndex] is a generalization that basically maps an [LSHSignature] to the [TupleId] that match that [LSHSignature].
  * Generating the [LSHSignature] is delegated to a [LSHSignatureGenerator], which enables different types of LSH algorithms
@@ -49,7 +49,7 @@ import kotlin.concurrent.withLock
  * @author Ralph Gasser, Manuel Hürbin, Gabriel Zihlmann
  * @version 1.1.0
  */
-class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
+class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : DefaultIndex(name, parent) {
 
     /**
      * The [IndexDescriptor] for the [LSHIndex].
@@ -138,7 +138,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
      * @param context The [QueryContext] to create this [IndexTx] for.
      */
     override fun newTx(context: QueryContext): IndexTx
-        = context.transaction.cachedTxForName(this) ?: this.Tx(context)
+        = context.transaction.txForDBO(this) ?: this.Tx(context)
 
     /**
      * Opens and returns a new [LSHIndexRebuilder] object that can be used to rebuild with this [LSHIndex].
@@ -157,10 +157,10 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
     /**
      * A [IndexTx] that affects this [LSHIndex].
      */
-    private inner class Tx(context: QueryContext) : AbstractIndex.Tx(context) {
+    private inner class Tx(context: QueryContext) : DefaultIndex.Tx(context) {
 
         /** The Xodus [Store] used to store [LSHSignature]s. */
-        private val store: LSHDataStore = LSHDataStore.open(this.context.transaction.xodusTx, this@LSHIndex)
+        private val store: LSHDataStore = LSHDataStore.open(this.transaction.transaction.xodusTx, this@LSHIndex)
 
         /**
          * [LSHIndex] only produced candidate [TupleId]s and no columns.
@@ -223,7 +223,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             val generator = (this.config as LSHIndexConfig).generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
             val value = event.data[this.columns[0]]
             check(value is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.store.addMapping(this.context.transaction.xodusTx, generator.generate(value), event.tupleId)
+            return this.store.addMapping(this.transaction.transaction.xodusTx, generator.generate(value), event.tupleId)
         }
 
         /**
@@ -238,7 +238,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             val value = event.data[this.columns[0]]
             check(value?.first is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
             check(value?.second is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.store.removeMapping(this.context.transaction.xodusTx, generator.generate(value!!.first as VectorValue<*>), event.tupleId) && this.store.addMapping(this.context.transaction.xodusTx,generator.generate(value.second as VectorValue<*>), event.tupleId)
+            return this.store.removeMapping(this.transaction.transaction.xodusTx, generator.generate(value!!.first as VectorValue<*>), event.tupleId) && this.store.addMapping(this.transaction.transaction.xodusTx,generator.generate(value.second as VectorValue<*>), event.tupleId)
         }
 
         /**
@@ -252,7 +252,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             val generator = (this.config as LSHIndexConfig).generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
             val value = event.data[this.columns[0]]
             check(value is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.store.removeMapping(this.context.transaction.xodusTx, generator.generate(value), event.tupleId)
+            return this.store.removeMapping(this.transaction.transaction.xodusTx, generator.generate(value), event.tupleId)
         }
 
         /**
@@ -261,7 +261,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return Number of entries in this [LSHIndex]
          */
         override fun count(): Long  = this.txLatch.withLock {
-            this.store.store.count(this.context.transaction.xodusTx)
+            this.store.store.count(this.transaction.transaction.xodusTx)
         }
 
         /**
@@ -282,7 +282,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             }
 
             /** Sub transaction for this [Cursor]. */
-            private val subTx = this@Tx.context.transaction.xodusTx.readonlySnapshot
+            private val subTx = this@Tx.transaction.transaction.xodusTx.readonlySnapshot
 
             /** The Xodus cursors used to navigate the data. */
             private val cursor = this@Tx.store.store.openCursor(this.subTx)
@@ -296,7 +296,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
 
                 /* Assure correctness of query vector. */
                 with(MissingTuple) {
-                    with(this@Tx.context.bindings) {
+                    with(this@Tx.transaction.bindings) {
                         val value = (predicate as ProximityPredicate).query.getValue()
                         check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
 

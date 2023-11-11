@@ -10,9 +10,9 @@ import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.predicates.FilterOperator
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
@@ -22,7 +22,7 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class DeleteOperator(parent: Operator, private val entity: EntityTx, override val context: QueryContext) : Operator.PipelineOperator(parent) {
+class DeleteOperator(parent: Operator, private val entity: Name.EntityName, override val context: QueryContext) : Operator.PipelineOperator(parent) {
     companion object {
         /** The columns produced by the [DeleteOperator]. */
         val COLUMNS: List<ColumnDef<*>> = listOf(
@@ -47,8 +47,9 @@ class DeleteOperator(parent: Operator, private val entity: EntityTx, override va
         val parent = this@DeleteOperator.parent.toFlow()
         val columns = this@DeleteOperator.columns.toTypedArray()
         val start = System.currentTimeMillis()
+        val entityTxn = this@DeleteOperator.context.transaction.entityTx(this@DeleteOperator.entity, AccessMode.WRITE)
         parent.collect {
-            this@DeleteOperator.entity.delete(it.tupleId) /* Safe, cause tuple IDs are retained for simple queries. */
+            entityTxn.delete(it.tupleId) /* Safe, cause tuple IDs are retained for simple queries. */
             deleted += 1
         }
         emit(StandaloneTuple(0L, columns, arrayOf(LongValue(deleted), DoubleValue(System.currentTimeMillis()-start))))

@@ -7,9 +7,9 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.catalogue.storeName
-import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.index.basic.AbstractIndex
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.index.basic.DefaultIndex
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
@@ -37,13 +37,10 @@ abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
      */
     @Synchronized
     override fun rebuild(): Boolean {
-        /* Sanity check. */
-        require(this.context.transaction.xodusTx.isExclusive) { "Failed to rebuild index ${this.index.name} (${this.index.type}); rebuild operation requires exclusive transaction."}
-
         LOGGER.debug("Rebuilding index {} ({}).", this.index.name, this.index.type)
 
         /* Clear store and update state of index (* ---> DIRTY). */
-        if (!this.updateState(IndexState.DIRTY, this.context.txn)) {
+        if (!this.updateState(IndexState.DIRTY, this.context.transaction)) {
             LOGGER.error("Rebuilding index ${this.index.name} (${this.index.type}) failed because index state could not be changed to CLEAN!")
             return false
         }
@@ -86,12 +83,12 @@ abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
     }
 
     /**
-     * Convenience method to update [IndexState] for this [AbstractIndex].
+     * Convenience method to update [IndexState] for this [DefaultIndex].
      *
      * @param state The new [IndexState].
      * @param tx The [Transaction] to use.
      */
-    private fun updateState(state: IndexState, tx: Transaction): Boolean {
+    private fun updateState(state: IndexState, transaction: Transaction): Boolean {
         val name = NameBinding.Index.toEntry(this@AbstractIndexRebuilder.index.name)
         val store = IndexMetadata.store(this@AbstractIndexRebuilder.index.catalogue as DefaultCatalogue, tx.xodusTx)
         val oldEntryRaw = store.get(tx.xodusTx, name) ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index transaction for index ${this@AbstractIndexRebuilder.index.name}: Could not read catalogue entry for index.")

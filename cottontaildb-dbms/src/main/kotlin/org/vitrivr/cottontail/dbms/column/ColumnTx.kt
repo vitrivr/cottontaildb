@@ -63,4 +63,20 @@ interface ColumnTx<T : Value> : Tx {
      * @return [Cursor]
      */
     fun cursor(): Cursor<T>
+
+    /**
+     * Returns the next auto-generated value for this [ColumnTx].
+     */
+    fun nextAutoValue(): T
+
+
+    /**
+     * Truncates (i.e., clears) the [Column] backed by this [ColumnTx].
+     */
+    fun truncate()
+
+    /**
+     * Drops (i.e., removes) the [Column] backed by this [ColumnTx].
+     */
+    fun drop()
 }

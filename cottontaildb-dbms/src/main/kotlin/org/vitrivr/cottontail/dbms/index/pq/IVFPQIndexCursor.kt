@@ -35,7 +35,7 @@ class IVFPQIndexCursor(val predicate: ProximityPredicate.Scan, val index: IVFPQI
     private val lookupTable: PQLookupTable
 
     /** The sub-transaction this [Cursor] operates upon.  */
-    private val subTx = this.index.context.transaction.xodusTx.readonlySnapshot
+    private val subTx = this.index.transaction.transaction.xodusTx.readonlySnapshot
 
     /** The internal cursor used by this index. */
     private val cursor = this.index.dataStore.openCursor(this.subTx)
@@ -55,7 +55,7 @@ class IVFPQIndexCursor(val predicate: ProximityPredicate.Scan, val index: IVFPQI
         val selection = MinHeapSelection<ComparablePair<Int,Double>>(nprobe)
 
         with(MissingTuple) {
-            with(this@IVFPQIndexCursor.index.context.bindings) {
+            with(this@IVFPQIndexCursor.index.transaction.bindings) {
                 this@IVFPQIndexCursor.lookupTable = this@IVFPQIndexCursor.index.quantizer.createLookupTable(this@IVFPQIndexCursor.predicate.query.getValue() as VectorValue<*>)
                 for (c in coarse.centroids.indices) {
                     selection.offer(ComparablePair(c, this@IVFPQIndexCursor.coarse.distanceFrom(this@IVFPQIndexCursor.predicate.query.getValue() as RealVectorValue<*>, c)))

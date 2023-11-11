@@ -21,7 +21,7 @@ class LockManager<T> {
     private val waitForGraph: WaitForGraph = WaitForGraph()
 
     /**
-     * Returns an list all [T] that are currently locked.
+     * Returns a list all [T] that are currently locked.
      *
      * @return List of all [T]s that are currently locked.
      */
@@ -30,24 +30,23 @@ class LockManager<T> {
     /**
      * Tries to acquire a lock on [Name] for the given [LockHolder].
      *
-     * @param txn [LockHolder] to acquire the lock for.
+     * @param holder [LockHolder] to acquire the lock for.
      * @param obj Object [T] to acquire a lock on.
      * @param requestedMode The requested [LockMode]
      */
-    fun lock(txn: LockHolder<T>, obj: T, requestedMode: LockMode) {
-        require(requestedMode != LockMode.NO_LOCK) { "Cannot acquire a lock of mode $requestedMode; try LockManager.release()." }
+    fun lock(holder: LockHolder<T>, obj: T, requestedMode: LockMode) {
         val lock = this.locks.computeIfAbsent(obj) { Lock(this.waitForGraph, obj) }
-        lock.acquire(txn, requestedMode)
+        lock.acquire(holder, requestedMode)
     }
 
     /**
      * Unlocks the lock on [Name] held by the given [LockHolder].
      *
-     * @param txn [LockHolder] to release the lock for.
+     * @param holder [LockHolder] to release the lock for.
      * @param obj Object [T] to release the lock on.
      */
-    fun unlock(txn: LockHolder<T>, obj: T) = this.locks.computeIfPresent(obj) { _, lock ->
-        lock.release(txn)
+    fun unlock(holder: LockHolder<T>, obj: T) = this.locks.computeIfPresent(obj) { _, lock ->
+        lock.release(holder)
         if (lock.getMode() === LockMode.NO_LOCK) {
             null
         } else {

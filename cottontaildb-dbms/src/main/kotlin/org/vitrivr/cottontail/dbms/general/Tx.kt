@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.dbms.general
 
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
-import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * An object that acts as unit of isolation for accesses (read/write) to the underlying [DBO].
@@ -22,8 +21,8 @@ interface Tx {
     /** The [DBO] this [Tx] belongs to. */
     val dbo: DBO
 
-    /** [QueryContext] this [Tx] takes place in. */
-    val context: QueryContext
+    /** [Transaction] this [Tx] takes place in. */
+    val transaction: Transaction
 
     /**
      * A [Tx] that requires commit finalization, i.e., must execute actions before a commit can be executed.

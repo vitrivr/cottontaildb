@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.management
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
@@ -10,25 +11,24 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.values.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.management.InsertOperator
 import org.vitrivr.cottontail.dbms.execution.operators.management.UpdateOperator
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.management.InsertLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.statistics.storage.ColumnStatistic
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
  * A [InsertPhysicalOperatorNode] that formalizes a INSERT operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.6.0
+ * @version 3.0.0
  */
-@Suppress("UNCHECKED_CAST")
-class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: EntityTx, val tuples: MutableList<Tuple>) : NullaryPhysicalOperatorNode() {
+class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Name.EntityName, val tuples: MutableList<Tuple>, override val context: QueryContext) : NullaryPhysicalOperatorNode() {
     companion object {
         private const val NODE_NAME = "Insert"
     }
@@ -38,7 +38,7 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
         get() = NODE_NAME
 
     /** The physical [ColumnDef] accessed by the [InsertPhysicalOperatorNode]. */
-    override val physicalColumns: List<ColumnDef<*>> = this.entity.listColumns()
+    override val physicalColumns: List<ColumnDef<*>>
 
     /** The [InsertPhysicalOperatorNode] produces the [ColumnDef]s defined in the [UpdateOperator]. */
     override val columns: List<ColumnDef<*>> = InsertOperator.COLUMNS
@@ -58,14 +58,16 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
     init {
         /* Obtain statistics costs and  */
         var estimatedInsertSize = 0
-        this.entity.listColumns().forEach { columnDef ->
-            val statistic = this.entity.columnForName(columnDef.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
+        val entityTx = this.context.transaction.entityTx(this.entity, AccessMode.READ)
+        this.physicalColumns = entityTx.listColumns().map { columnDef ->
+            val statistic = (this.context.transaction.manager.statistics[columnDef.name] ?: ColumnStatistic(columnDef)).statistics
             this.statistics[columnDef] = statistic
             estimatedInsertSize += if (columnDef.type == Types.String) {
                 statistic.avgWidth * Char.SIZE_BYTES  /* GA: This is not a good cost estimate for empty tables but we don't really need a better one. */
             } else {
                 columnDef.type.physicalSize
             }
+            columnDef
         }
 
         this.cost = (Cost.DISK_ACCESS_WRITE + Cost.MEMORY_ACCESS) * estimatedInsertSize * this.tuples.size
@@ -76,7 +78,7 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
      *
      * @return Copy of this [InsertLogicalOperatorNode].
      */
-    override fun copy() = InsertPhysicalOperatorNode(this.groupId, this.entity, this.tuples)
+    override fun copy() = InsertPhysicalOperatorNode(this.groupId, this.entity, this.tuples, this.context)
 
     /**
      * An [InsertPhysicalOperatorNode] is always executable
@@ -104,7 +106,7 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
      * @return [Digest]
      */
     override fun digest(): Digest {
-        var result = this.entity.dbo.name.hashCode().toLong()
+        var result = this.entity.hashCode().toLong()
         result += 31L * result + this.tuples.hashCode()
         return result
     }

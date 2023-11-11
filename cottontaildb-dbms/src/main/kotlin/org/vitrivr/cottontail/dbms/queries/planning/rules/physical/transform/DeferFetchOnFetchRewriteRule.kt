@@ -58,7 +58,7 @@ object DeferFetchOnFetchRewriteRule: RewriteRule {
                 copy = append(copy, next)
             } else {
                 /* Case 2: Next node has a requirement. Fetch required (column)s and continue build-up. */
-                copy = FetchPhysicalOperatorNode(copy, node.entity, required.map { it.first to it.second })
+                copy = FetchPhysicalOperatorNode(copy, required.map { it.first to it.second })
                 candidates.removeIf { required.contains(it) }
                 if (candidates.isEmpty()) {
                     copy = next.copyWithOutput(copy)

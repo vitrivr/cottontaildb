@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.client.language.basics.Constants
 import org.vitrivr.cottontail.core.proto
 import org.vitrivr.cottontail.core.toTuple
-import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
@@ -30,7 +29,7 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.TimeSource
 
 /**
- * A facility common to all service that handle [TransactionManager.TransactionImpl]s over gRPC.
+ * A facility common to all service that handle [TransactionManager] over gRPC.
  *
  * @author Ralph Gasser
  * @version 1.5.0
@@ -42,12 +41,8 @@ internal interface TransactionalGrpcService {
         private val LOGGER = LoggerFactory.getLogger(TransactionalGrpcService::class.java)
     }
 
-    /** The [Catalogue] instance used by this [TransactionalGrpcService]. */
-    val catalogue: Catalogue
-
     /** The [TransactionManager] instance used by this [TransactionalGrpcService]. */
     val manager: TransactionManager
-        get() = this.catalogue.transactionManager
 
     /**
      * Generates and returns a new [DefaultQueryContext] for the given [CottontailGrpc.RequestMetadata].
@@ -101,12 +96,12 @@ internal interface TransactionalGrpcService {
                 metadata.policyHint.weightCpu,
                 metadata.policyHint.weightMemory,
                 metadata.policyHint.weightAccuracy,
-                this.catalogue.config.cost.speedupPerWorker, /* Setting inherited from global config. */
-                this.catalogue.config.cost.parallelisableIO /* Setting inherited from global config. */
+                this.manager.catalogue.config.cost.speedupPerWorker, /* Setting inherited from global config. */
+                this.manager.catalogue.config.cost.parallelisableIO /* Setting inherited from global config. */
             ))
         }
 
-        return DefaultQueryContext(queryId, this.catalogue, transactionContext, hints)
+        return DefaultQueryContext(queryId, this.manager.catalogue, transactionContext, hints)
     }
 
     /**
@@ -197,6 +192,7 @@ internal interface TransactionalGrpcService {
             /* Add entry to page and increment counter. */
             responseBuilder.addTuples(it.toTuple())
             accumulatedSize += tupleSize
+            results += 1
         }
     }
 

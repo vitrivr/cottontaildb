@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.dbms.queries.operators.basics
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.Node
 import org.vitrivr.cottontail.core.queries.nodes.NodeWithTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
@@ -22,9 +21,12 @@ import java.io.PrintStream
  * [OperatorNode]s allow for reasoning and transformation of the execution plan during query optimization and are manipulated by the query planner.
  *
  * @author Ralph Gasser
- * @version 2.9.0
+ * @version 3.0.0
  */
 sealed class OperatorNode : NodeWithTrait {
+    /** The [QueryContext] associated with this [OperatorNode]. */
+    abstract val context: QueryContext
+
     /** The arity of this [OperatorNode], i.e., the number of parents or inputs allowed. */
     abstract val inputArity: Int
 
@@ -162,23 +164,18 @@ sealed class OperatorNode : NodeWithTrait {
         abstract val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
 
         /** The estimated number of rows this [OperatorNode.Physical] generates. */
-        context(BindingContext, Tuple)
         abstract val outputSize: Long
 
         /** An estimation of the [Cost] incurred by this [OperatorNode.Physical]. */
-        context(BindingContext, Tuple)
         abstract val cost: Cost
 
         /** An estimation of the [Cost] incurred by the query plan up and until this [OperatorNode.Physical]. */
-        context(BindingContext, Tuple)
         abstract val totalCost: Cost
 
         /** An estimation of the [Cost] incurred by the parallelizable portion of the query plan up and until this [OperatorNode.Physical]. */
-        context(BindingContext, Tuple)
         abstract val parallelizableCost: Cost
 
         /** An estimation of the [Cost] incurred by the sequential portion of the query plan up and until this [OperatorNode.Physical]. */
-        context(BindingContext, Tuple)
         val sequentialCost: Cost
             get() = this.totalCost - this.parallelizableCost
 

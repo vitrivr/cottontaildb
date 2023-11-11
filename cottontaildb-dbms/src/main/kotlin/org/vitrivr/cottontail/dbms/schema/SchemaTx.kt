@@ -38,14 +38,6 @@ interface SchemaTx : Tx {
     fun entityForName(name: Name.EntityName): Entity
 
     /**
-     * Returns an instance of [Sequence] if such an instance exists.
-     *
-     * @param name [Name.SequenceName] of the [Sequence] to access.
-     * @return [Sequence]
-     */
-    fun sequenceForName(name: Name.SequenceName): Sequence
-
-    /**
      * Creates a new [Entity] in this [DefaultSchema].
      *
      * @param name The name of the [Entity] that should be created.
@@ -55,18 +47,17 @@ interface SchemaTx : Tx {
     fun createEntity(name: Name.EntityName, columns: Map<Name.ColumnName, ColumnMetadata>): Entity
 
     /**
-     * Drops an [Entity] in the [Schema] underlying this [SchemaTx].
-     *
-     * @param name The name of the [Entity] that should be dropped.
+     * Drops (i.e., removes) the [Schema] backed by this [SchemaTx].
      */
-    fun dropEntity(name: Name.EntityName)
+    fun drop()
 
     /**
-     * Truncates an [Entity] in the [Schema] underlying this [SchemaTx].
+     * Returns an instance of [Sequence] if such an instance exists.
      *
-     * @param name The name of the [Entity] that should be truncated.
+     * @param name [Name.SequenceName] of the [Sequence] to access.
+     * @return [Sequence]
      */
-    fun truncateEntity(name: Name.EntityName)
+    fun sequenceForName(name: Name.SequenceName): Sequence
 
     /**
      * Creates a new [Sequence] in this [Schema].

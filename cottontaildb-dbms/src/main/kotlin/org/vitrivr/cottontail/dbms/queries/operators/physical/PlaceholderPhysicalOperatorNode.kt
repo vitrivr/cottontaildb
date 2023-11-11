@@ -17,8 +17,8 @@ import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
  * @author Ralph Gasser
  * @version 1.1.0
  */
-data class PlaceholderPhysicalOperatorNode(override val groupId: GroupId, override val physicalColumns: List<ColumnDef<*>>, override val columns: List<ColumnDef<*>>): NullaryPhysicalOperatorNode() {
-    override fun copy() = PlaceholderPhysicalOperatorNode(this.groupId, this.physicalColumns, this.columns)
+data class PlaceholderPhysicalOperatorNode(override val groupId: GroupId, override val physicalColumns: List<ColumnDef<*>>, override val columns: List<ColumnDef<*>>, override val context: QueryContext): NullaryPhysicalOperatorNode() {
+    override fun copy() = PlaceholderPhysicalOperatorNode(this.groupId, this.physicalColumns, this.columns, this.context)
     override val name = "Placeholder"
     override val statistics: Map<ColumnDef<*>, ValueStatistics<*>> = emptyMap()
     override val outputSize: Long = 0L

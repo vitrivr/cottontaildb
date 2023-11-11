@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
@@ -9,7 +10,6 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.sources.EntityCountOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOperatorNode
@@ -19,9 +19,9 @@ import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
  * A [NullaryPhysicalOperatorNode] that formalizes the counting entries in a physical [Entity].
  *
  * @author Ralph Gasser
- * @version 2.6.0
+ * @version 3.0.0
  */
-class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val out: Binding.Column) : NullaryPhysicalOperatorNode() {
+class EntityCountPhysicalOperatorNode(override val groupId: Int, override val context: QueryContext, val entity: Name.EntityName, val out: Binding.Column) : NullaryPhysicalOperatorNode() {
     companion object {
         private const val NODE_NAME = "CountEntity"
     }
@@ -53,7 +53,7 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
      *
      * @return Copy of this [EntityCountPhysicalOperatorNode].
      */
-    override fun copy() = EntityCountPhysicalOperatorNode(this.groupId, this.entity, this.out)
+    override fun copy() = EntityCountPhysicalOperatorNode(this.groupId, this.context, this.entity, this.out)
 
     /**
      * An [EntityCountPhysicalOperatorNode] is always executable
@@ -79,7 +79,7 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
      * @return [Digest]
      */
     override fun digest(): Digest {
-        var result = this.entity.dbo.name.hashCode() + 3L
+        var result = this.name.hashCode() + 3L
         result += 31L * result + this.out.hashCode()
         return result
     }

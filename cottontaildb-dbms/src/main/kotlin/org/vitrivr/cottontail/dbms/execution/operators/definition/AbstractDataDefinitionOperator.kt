@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
  * @author Ralph Gasser
  * @version 1.2.0
  */
-abstract class AbstractDataDefinitionOperator(protected val dboName: Name, protected val action: String) : Operator.SourceOperator() {
+abstract class AbstractDataDefinitionOperator(private val dboName: Name, private val action: String) : Operator.SourceOperator() {
     /** The [ColumnDef] produced by this [AbstractDataDefinitionOperator]. */
     override val columns: List<ColumnDef<*>> = ColumnSets.DDL_STATUS_COLUMNS
 

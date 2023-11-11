@@ -7,8 +7,8 @@ import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class FetchOperator(parent: Operator, private val entity: EntityTx, private val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
+class FetchOperator(parent: Operator, private val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
 
     /** Columns returned by [FetchOperator] are a combination of the parent and the [FetchOperator]'s columns */
     override val columns: List<ColumnDef<*>> = this.parent.columns + this.fetch.map { it.first.column }
@@ -35,8 +35,10 @@ class FetchOperator(parent: Operator, private val entity: EntityTx, private val 
         val fetch = this@FetchOperator.fetch.map { it.second }.toTypedArray()
         val columns = this@FetchOperator.columns.toTypedArray()
         val incoming = this@FetchOperator.parent.toFlow()
+
+        /* Prepare Tx object to read columns. */
         val cursors = fetch.map {
-            this@FetchOperator.entity.columnForName(it.name).newTx(this@FetchOperator.context)
+            this@FetchOperator.context.transaction.columnTx(it.name, AccessMode.READ)
         }
 
         val numberOfInputColumns = this@FetchOperator.parent.columns.size
