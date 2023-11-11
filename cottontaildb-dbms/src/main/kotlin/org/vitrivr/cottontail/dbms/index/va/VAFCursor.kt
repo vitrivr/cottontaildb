@@ -1,8 +1,12 @@
 package org.vitrivr.cottontail.dbms.index.va
 
 import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.env.Store
+import jetbrains.exodus.env.StoreConfig
+import jetbrains.exodus.env.Transaction
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
@@ -13,11 +17,11 @@ import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.RealVectorValue
-import org.vitrivr.cottontail.core.values.VectorValue
+import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.column.ColumnTx
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.index.va.bounds.Bounds
 import org.vitrivr.cottontail.dbms.index.va.bounds.L1Bounds
 import org.vitrivr.cottontail.dbms.index.va.bounds.L2Bounds
@@ -32,21 +36,20 @@ import java.util.concurrent.atomic.AtomicBoolean
  * @author Ralph Gasser
  * @version 1.2.0
  */
-@Suppress("UNCHECKED_CAST")
-sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange, protected val predicate: T, protected val index: VAFIndex.Tx): Cursor<Tuple> {
-    /** [VectorValue] used for query. Must be prepared before using the [Iterator]. */
-    protected val query: RealVectorValue<*>
-
+sealed class VAFCursor<T: ProximityPredicate>(tx: VAFIndex.Tx, context: BindingContext, protected val partition: LongRange, protected val predicate: T): Cursor<Tuple> {
     /** The [Bounds] objects used for filtering. */
     protected val bounds: Bounds
 
     /** The sub-transaction used by this [VAFCursor]. */
-    protected val subTx = this.index.context.transaction.xodusTx.readonlySnapshot
+    private val xodusTx: Transaction = tx.xodusTx.readonlySnapshot
+
+    /** The store containing the [VAFIndex] entries. */
+    private val store: Store = this.xodusTx.environment.openStore(tx.dbo.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.xodusTx)
 
     /** Cursor backing this [VAFCursor]. */
-    protected val cursor = this.index.dataStore.openCursor(this.subTx)
+    protected val cursor: jetbrains.exodus.env.Cursor = this.store.openCursor(this.xodusTx)
 
-    /** A begin of cursor (BoC) flag. */
+    /** Begin of cursor (BoC) flag. */
     protected val boc = AtomicBoolean(true)
 
     /** Internal [ColumnTx] used to access actual values. */
@@ -59,19 +62,19 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
     protected val endKey = this.partition.last.toKey()
 
     /** Cached in-memory version of the [EquidistantVAFMarks] used by this [Cursor]. */
-    protected val marks = this.index.marks
+    protected val marks = tx.readMarks()
 
     /** The columns produced by this [Cursor]. */
-    protected val produces = this.index.columnsFor(this.predicate).toTypedArray()
+    protected val produces = tx.columnsFor(this.predicate).toTypedArray()
+
+    /** The query vector. */
+    protected val query: RealVectorValue<*>
 
     init {
-        /* Extract query vector from binding. */
-        val queryVectorBinding = this.predicate.query
-        with(MissingTuple) {
-            with(this@VAFCursor.index.context.bindings) {
-                val value = queryVectorBinding.getValue()
-                check(value is RealVectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
-                this@VAFCursor.query = value
+        /* Obtain query vector. Requires a binding context! */
+        this.query = with(context) {
+            with(MissingTuple) {
+               this@VAFCursor.predicate.query.getValue() as? RealVectorValue<*> ?: throw IllegalArgumentException("The query vector for a VAFIndex must be a RealVectorValue. This is a progarmmer's error!")
             }
         }
 
@@ -80,13 +83,11 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
             is ManhattanDistance<*> -> L1Bounds(this.query, this.marks)
             is EuclideanDistance<*>,
             is SquaredEuclideanDistance<*> -> L2Bounds(this.query, this.marks)
-
             else -> throw IllegalArgumentException("The ${this.predicate.distance} distance kernel is not supported by VAFIndex.")
         }
 
         /* Obtain Tx object for column. */
-        val entityTx: EntityTx = this.index.dbo.parent.newTx(this.index.context)
-        this.columnTx = entityTx.columnForName(this.predicate.column.name).newTx(this.index.context)
+        this.columnTx = tx.transaction.columnTx(this.predicate.column.name, AccessMode.READ)
 
         /* Move cursors to correct position. */
         if (this.cursor.getSearchKeyRange(this.startKey) == null) {
@@ -99,7 +100,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
      */
     override fun close() {
         this.cursor.close()
-        this.subTx.abort()
+        this.xodusTx.abort()
     }
 
     /**
@@ -111,14 +112,14 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
         /* Log efficiency of VAF scan. */
         val partitionSize = this.partition.last - this.partition.first + 1
         val efficiency = (1.0f - (retrieved.toFloat() / partitionSize))
-        this.index.updateEfficiency(efficiency)
+        //TODO: this.index.updateEfficiency(efficiency)
         VAFIndex.LOGGER.debug("VA-SSA Scan: Read $retrieved and skipped over ${"%.2f".format(efficiency * 100.0f)}% of entries.")
     }
 
     /**
      * A [VAFCursor] for limiting [ProximityPredicate], i.e., [ProximityPredicate.NNS] and [ProximityPredicate.FNS]
      */
-    sealed class KLimited<T : ProximityPredicate.KLimitedSearch>(partition: LongRange, predicate: T, index: VAFIndex.Tx) : VAFCursor<T>(partition, predicate, index) {
+    sealed class KLimited<T : ProximityPredicate.KLimitedSearch>(tx: VAFIndex.Tx, context: BindingContext, partition: LongRange, predicate: T) : VAFCursor<T>(tx, context, partition, predicate) {
 
         /** The [Iterator] over the top k entries. */
         protected val selection: Iterator<Tuple> by lazy {
@@ -174,7 +175,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
     /**
      * A [VAFCursor] implementation for nearest neighbour search.
      */
-    class NNS(partition: LongRange, predicate: ProximityPredicate.NNS, index: VAFIndex.Tx) : KLimited<ProximityPredicate.NNS>(partition, predicate, index) {
+    class NNS(tx: VAFIndex.Tx, context: BindingContext, partition: LongRange, predicate: ProximityPredicate.NNS) : KLimited<ProximityPredicate.NNS>(tx, context, partition, predicate) {
         /**
          * Prepares the result set using the [VAFIndex] and the VA-SSA algorithm described in [1].
          *
@@ -217,7 +218,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
     /**
      * A [VAFCursor] implementation for farthest neighbour search.
      */
-    class FNS(partition: LongRange, predicate: ProximityPredicate.FNS, index: VAFIndex.Tx) : KLimited<ProximityPredicate.FNS>(partition, predicate, index) {
+    class FNS(tx: VAFIndex.Tx, context: BindingContext, partition: LongRange, predicate: ProximityPredicate.FNS) : KLimited<ProximityPredicate.FNS>(tx, context, partition, predicate) {
         /**
          * Prepares the result set using the [VAFIndex] and the VA-SSA algorithm described in [1].
          *
@@ -260,7 +261,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
     /**
      * An (experimental) [VAFCursor] implementation for range search.
      */
-    class ENN(partition: LongRange, predicate: ProximityPredicate.ENN, index: VAFIndex.Tx) : VAFCursor<ProximityPredicate.ENN>(partition, predicate, index) {
+    class ENN(tx: VAFIndex.Tx, context: BindingContext, partition: LongRange, predicate: ProximityPredicate.ENN) : VAFCursor<ProximityPredicate.ENN>(tx, context, partition, predicate) {
 
         override fun moveNext(): Boolean {
             while (this.boc.compareAndExchange(true, false) || (this.cursor.next && this.cursor.key < this.endKey)) {

@@ -1,16 +1,14 @@
 package org.vitrivr.cottontail.dbms.index.lsh
 
 import jetbrains.exodus.bindings.ComparableBinding
-import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
+
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.binding.MissingTuple
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.CosineDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
@@ -18,21 +16,22 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
-import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.values.VectorValue
-import org.vitrivr.cottontail.dbms.catalogue.Catalogue
+import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
+import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.catalogue.storeName
+import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
-import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignature
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignatureGenerator
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
+import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import kotlin.concurrent.withLock
 
@@ -55,10 +54,6 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : DefaultIndex(name,
      * The [IndexDescriptor] for the [LSHIndex].
      */
     companion object: IndexDescriptor<LSHIndex> {
-
-        /** The [Logger] instance used by [LSHIndex]. */
-        private val LOGGER: Logger = LoggerFactory.getLogger(LSHIndex::class.java)
-
         /** True since [LSHIndex] supports incremental updates. */
         override val supportsIncrementalUpdate: Boolean = true
 
@@ -76,38 +71,6 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : DefaultIndex(name,
          * @return The opened [PQIndex]
          */
         override fun open(name: Name.IndexName, entity: Entity) = LSHIndex(name, entity as DefaultEntity)
-
-        /**
-         * Initializes the [Store] for a [LSHIndex].
-         *
-         * @param name The [Name.IndexName] of the [LSHIndex].
-         * @param catalogue [Catalogue] reference.
-         * @param context The [Transaction] to perform the transaction with.
-         * @return True on success, false otherwise.
-         */
-        override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
-            val store = catalogue.transactionManager.catalogue.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, context.xodusTx, true)
-            store != null
-        } catch (e:Throwable) {
-            LOGGER.error("Failed to initialize LSH index $name due to an exception: ${e.message}.")
-            false
-        }
-
-        /**
-         * De-initializes the [Store] for associated with a [LSHIndex].
-         *
-         * @param name The [Name.IndexName] of the [LSHIndex].
-         * @param catalogue [Catalogue] reference.
-         * @param context The [Transaction] to perform the transaction with.
-         * @return True on success, false otherwise.
-         */
-        override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
-            catalogue.transactionManager.catalogue.removeStore(name.storeName(), context.xodusTx)
-            true
-        } catch (e:Throwable) {
-            LOGGER.error("Failed to de-initialize LSH index $name due to an exception: ${e.message}.")
-            false
-        }
 
         /**
          * Generates and returns a [LSHIndexConfig] for the given [parameters] (or default values, if [parameters] are not set).
@@ -135,10 +98,13 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : DefaultIndex(name,
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [LSHIndex].
      *
-     * @param context The [QueryContext] to create this [IndexTx] for.
+     * @param parent The [EntityTx] to create the [IndexTx] for.
+     * @return [Tx]
      */
-    override fun newTx(context: QueryContext): IndexTx
-        = context.transaction.txForDBO(this) ?: this.Tx(context)
+    override fun newTx(parent: EntityTx): IndexTx {
+        require(parent is DefaultEntity.Tx) { "LSHindex can only be used with DefaultEntity.Tx" }
+        return this.Tx(parent)
+    }
 
     /**
      * Opens and returns a new [LSHIndexRebuilder] object that can be used to rebuild with this [LSHIndex].
@@ -157,10 +123,44 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : DefaultIndex(name,
     /**
      * A [IndexTx] that affects this [LSHIndex].
      */
-    private inner class Tx(context: QueryContext) : DefaultIndex.Tx(context) {
+    inner class Tx(parent: DefaultEntity.Tx) : DefaultIndex.Tx(parent) {
 
-        /** The Xodus [Store] used to store [LSHSignature]s. */
-        private val store: LSHDataStore = LSHDataStore.open(this.transaction.transaction.xodusTx, this@LSHIndex)
+        /** The [Store] associated with this [VAFIndex]. */
+        private var store: Store = this.xodusTx.environment.openStore(this@LSHIndex.name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, this.xodusTx)
+
+        /**
+         * Adds a mapping from the bucket [IntArray] to the given [TupleId].
+         *
+         * @param signature The [IntArray] signature key to add a mapping for.
+         * @param tupleId The [TupleId] to add to the mapping
+         *
+         * This is an internal function and can be used safely with values o
+         */
+        internal fun addMapping(signature: LSHSignature, tupleId: TupleId): Boolean {
+            val signatureRaw = LSHSignature.Binding.objectToEntry(signature)
+            val tupleIdRaw = tupleId.toKey()
+            return if (this.store.exists(this.xodusTx, signatureRaw, tupleIdRaw)) {
+                this.store.put(this.xodusTx, signatureRaw, tupleIdRaw)
+            } else {
+                false
+            }
+        }
+
+        /**
+         * Removes a mapping from the given [IntArray] signature to the given [TupleId].
+         *
+         * @param signature The [IntArray] signature key to remove a mapping for.
+         * @param tupleId The [TupleId] to remove.
+         *
+         * This is an internal function and can be used safely with values o
+         */
+        internal fun removeMapping(signature: LSHSignature, tupleId: TupleId): Boolean {
+            val signatureRaw = LSHSignature.Binding.objectToEntry(signature)
+            val valueRaw = tupleId.toKey()
+            return this.store.openCursor(this.xodusTx).use { cursor ->
+                cursor.getSearchBoth(signatureRaw, valueRaw) && cursor.deleteCurrent()
+            }
+        }
 
         /**
          * [LSHIndex] only produced candidate [TupleId]s and no columns.
@@ -223,7 +223,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : DefaultIndex(name,
             val generator = (this.config as LSHIndexConfig).generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
             val value = event.data[this.columns[0]]
             check(value is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.store.addMapping(this.transaction.transaction.xodusTx, generator.generate(value), event.tupleId)
+            return this.addMapping(generator.generate(value), event.tupleId)
         }
 
         /**
@@ -238,7 +238,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : DefaultIndex(name,
             val value = event.data[this.columns[0]]
             check(value?.first is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
             check(value?.second is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.store.removeMapping(this.transaction.transaction.xodusTx, generator.generate(value!!.first as VectorValue<*>), event.tupleId) && this.store.addMapping(this.transaction.transaction.xodusTx,generator.generate(value.second as VectorValue<*>), event.tupleId)
+            return this.removeMapping(generator.generate(value!!.first as VectorValue<*>), event.tupleId) && this.addMapping(generator.generate(value.second as VectorValue<*>), event.tupleId)
         }
 
         /**
@@ -252,7 +252,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : DefaultIndex(name,
             val generator = (this.config as LSHIndexConfig).generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
             val value = event.data[this.columns[0]]
             check(value is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.store.removeMapping(this.transaction.transaction.xodusTx, generator.generate(value), event.tupleId)
+            return this.removeMapping(generator.generate(value), event.tupleId)
         }
 
         /**
@@ -261,88 +261,42 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : DefaultIndex(name,
          * @return Number of entries in this [LSHIndex]
          */
         override fun count(): Long  = this.txLatch.withLock {
-            this.store.store.count(this.transaction.transaction.xodusTx)
+            this.store.count(this.xodusTx)
         }
 
         /**
-         * Performs a lookup through this [LSHIndex] and returns a [Cursor] of all [TupleId]s that match the [ProximityPredicate].
+         * Truncates this [PQIndex].
+         */
+        override fun truncate() = this.txLatch.withLock {
+            this.xodusTx.environment.truncateStore(this.store.name, this.xodusTx)
+            this.store = this.xodusTx.environment.openStore(this@LSHIndex.name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, this.xodusTx)
+        }
+
+        /**
+         * Drops this [VAFIndex].
+         */
+        override fun drop() = this.txLatch.withLock {
+            /* Drop store. */
+            this.xodusTx.environment.removeStore(this.store.name, this.xodusTx)
+
+            /* Delete stored marks. */
+            val store = this.xodusTx.environment.openStore(DefaultCatalogue.INDEX_STRUCT_STORE_NAME, StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, this.xodusTx)
+            store.delete(this.xodusTx, NameBinding.Index.toEntry(this@LSHIndex.name))
+            Unit
+        }
+
+        /**
+         * Performs a lookup through this [LSHIndex] and returns a [LSHCursor] of all [TupleId]s that match the [ProximityPredicate].
          *
-         * The resulting [Cursor] is not thread safe!
+         * The resulting [LSHCursor] is not thread safe!
          *
          * @param predicate The [ProximityPredicate] for the lookup
          * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate) = object : Cursor<Tuple> {
-
-            /** Cast [ProximityPredicate] (if such a cast is possible).  */
-            private val predicate: ProximityPredicate = if (predicate is ProximityPredicate) {
-                predicate
-            } else {
-                throw QueryException.UnsupportedPredicateException("Index '${this@LSHIndex.name}' (LSH Index) does not support predicates of type '${predicate::class.simpleName}'.")
-            }
-
-            /** Sub transaction for this [Cursor]. */
-            private val subTx = this@Tx.transaction.transaction.xodusTx.readonlySnapshot
-
-            /** The Xodus cursors used to navigate the data. */
-            private val cursor = this@Tx.store.store.openCursor(this.subTx)
-
-            /* Performs some sanity checks. */
-            init {
-                val config = this@Tx.config
-                if (this.predicate.columns.first() != this@Tx.columns[0] || this.predicate.distance.name != (config as LSHIndexConfig).distance) {
-                    throw QueryException.UnsupportedPredicateException("Index '${this@LSHIndex.name}' (lsh-index) does not support the provided predicate.")
-                }
-
-                /* Assure correctness of query vector. */
-                with(MissingTuple) {
-                    with(this@Tx.transaction.bindings) {
-                        val value = (predicate as ProximityPredicate).query.getValue()
-                        check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
-
-                        /* Obtain LSH signature of query and set signature. */
-                        val signature = config.generator?.generate(value)
-                        check(signature != null) { "Failed to generate signature for query vector." }
-                        cursor.getSearchKey(LSHSignature.Binding.objectToEntry(signature))
-                    }
-                }
-            }
-
-            /**
-             * Moves this [Cursor] by one entry.
-             *
-             * Returns true upon success and false if there is no entry left.
-             */
-            override fun moveNext(): Boolean = this.cursor.nextDup
-
-            /**
-             * Returns the next [Tuple] value.
-             *
-             * @return Next [Tuple]
-             */
-            override fun next(): Tuple = this.value()
-
-            /**
-             * Returns the next [Tuple] value.
-             *
-             * @return Next [Tuple]
-             */
-            override fun value(): Tuple = StandaloneTuple(this.key(), emptyArray(), emptyArray())
-
-            /**
-             * Returns the next [TupleId].
-             *
-             * @return Next [TupleId]
-             */
-            override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.value)
-
-            /**
-             * Closes the internal Xodus [Cursor] and finalizes the sub transaction.
-             */
-            override fun close() {
-                this.cursor.close()
-                this.subTx.commit()
-            }
+        context(BindingContext)
+        override fun filter(predicate: Predicate): Cursor<Tuple> {
+            require(predicate is ProximityPredicate) { "PQIndex can only be used with a SCAN type proximity predicate. This is a programmer's error!" }
+            return LSHCursor(this, this@BindingContext, predicate)
         }
 
         /**

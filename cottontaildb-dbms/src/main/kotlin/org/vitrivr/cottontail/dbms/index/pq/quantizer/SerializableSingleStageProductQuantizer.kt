@@ -1,7 +1,9 @@
 package org.vitrivr.cottontail.dbms.index.pq.quantizer
 
+import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.IntegerBinding
+import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.types.Types
@@ -10,21 +12,25 @@ import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.IntVectorValue
 import org.vitrivr.cottontail.core.values.LongVectorValue
 import org.xerial.snappy.Snappy
-import java.io.ByteArrayInputStream
 
 /**
  * A serializable version of a [SingleStageQuantizer].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
-data class SerializableSingleStageProductQuantizer(val codebooks: Array<Array<DoubleArray>>): IndexStructCatalogueEntry() {
+data class SerializableSingleStageProductQuantizer(val codebooks: Array<Array<DoubleArray>>) {
+
+    companion object {
+        val EMPTY = SerializableSingleStageProductQuantizer(emptyArray())
+    }
 
     /**
      * The [ComparableBinding] used to de-/serialize the [SerializableSingleStageProductQuantizer].
      */
-    object Binding: ComparableBinding() {
-        override fun readObject(stream: ByteArrayInputStream): Comparable<SerializableSingleStageProductQuantizer> {
+    object Binding {
+        fun deserialize(iterable: ByteIterable): SerializableSingleStageProductQuantizer {
+            val stream = ByteArraySizedInputStream(iterable.bytesUnsafe, 0, iterable.length)
             val numberOfSubspaces = IntegerBinding.readCompressed(stream)
             val numberOfCentroids = IntegerBinding.readCompressed(stream)
             return SerializableSingleStageProductQuantizer(Array(numberOfSubspaces) {
@@ -35,8 +41,8 @@ data class SerializableSingleStageProductQuantizer(val codebooks: Array<Array<Do
             })
         }
 
-        override fun writeObject(output: LightOutputStream, `object`: Comparable<SerializableSingleStageProductQuantizer>) {
-            require(`object` is SerializableSingleStageProductQuantizer) { "SerializableProductQuantizer.Binding can only be used to serialize instances of SerializableProductQuantizer." }
+        fun serialize(`object`: SerializableSingleStageProductQuantizer): ByteIterable {
+            val output = LightOutputStream()
             IntegerBinding.writeCompressed(output, `object`.numberOfSubspaces)
             IntegerBinding.writeCompressed(output, `object`.numberOfCentroids)
             for (cb in `object`.codebooks) {
@@ -46,6 +52,7 @@ data class SerializableSingleStageProductQuantizer(val codebooks: Array<Array<Do
                     output.write(compressed)
                 }
             }
+            return output.asArrayByteIterable()
         }
     }
 
@@ -81,25 +88,6 @@ data class SerializableSingleStageProductQuantizer(val codebooks: Array<Array<Do
             })
         }
         return SingleStageQuantizer(codebooks)
-    }
-
-    /**
-     * Trivial comparator between two [IndexStructCatalogueEntry]. Proably never used.
-     *
-     * @param other The other [IndexStructCatalogueEntry] to compare this [IndexStructCatalogueEntry] to.
-     * @return -1, 0 or 1
-     */
-    override fun compareTo(other: IndexStructCatalogueEntry): Int {
-        if (other !is SerializableSingleStageProductQuantizer) return -1
-        for ((i, cb) in this.codebooks.withIndex()) {
-            for ((j, ce) in cb.withIndex()) {
-                for ((k, d) in ce.withIndex()) {
-                    val compare = d.compareTo(other.codebooks[i][j][k])
-                    if (compare != 0) return compare
-                }
-            }
-        }
-        return 0
     }
 
     override fun equals(other: Any?): Boolean {

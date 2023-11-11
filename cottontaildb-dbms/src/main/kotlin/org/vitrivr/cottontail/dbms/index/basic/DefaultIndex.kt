@@ -177,7 +177,7 @@ abstract class DefaultIndex(final override val name: Name.IndexName, final overr
          *
          * @param state The new [IndexState].
          */
-        private fun updateState(state: IndexState) {
+        internal fun updateState(state: IndexState) {
             if (state != this.state) {
                 val name = NameBinding.Index.toEntry(this@DefaultIndex.name)
                 val store = this.xodusTx.environment.openStore(INDEX_METADATA_STORE_NAME, StoreConfig.USE_EXISTING, this.xodusTx, false) ?: throw DatabaseException.DataCorruptionException("Failed to open store for index catalogue.")

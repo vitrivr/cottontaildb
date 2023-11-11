@@ -2,9 +2,12 @@ package org.vitrivr.cottontail.dbms.index.pq
 
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.ShortBinding
+import jetbrains.exodus.env.Store
+import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
@@ -12,6 +15,7 @@ import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.RealVectorValue
 import org.vitrivr.cottontail.core.values.VectorValue
+import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.index.pq.quantizer.PQCodebook
 import org.vitrivr.cottontail.dbms.index.pq.signature.IVFPQSignature
 import org.vitrivr.cottontail.dbms.index.pq.signature.PQLookupTable
@@ -26,22 +30,25 @@ import java.util.concurrent.atomic.AtomicBoolean
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class IVFPQIndexCursor(val predicate: ProximityPredicate.Scan, val index: IVFPQIndex.Tx): Cursor<Tuple> {
+class IVFPQIndexCursor(index: IVFPQIndex.Tx, context: BindingContext, val predicate: ProximityPredicate.Scan): Cursor<Tuple> {
 
     /** The [PQCodebook] used for coarse quantization. */
-    private val coarse: PQCodebook = this.index.quantizer.coarse
+    private val coarse: PQCodebook = index.quantizer.coarse
 
     /** [PQLookupTable]s for the given query vector(s). */
     private val lookupTable: PQLookupTable
 
     /** The sub-transaction this [Cursor] operates upon.  */
-    private val subTx = this.index.transaction.transaction.xodusTx.readonlySnapshot
+    private val xodusTx = index.xodusTx.readonlySnapshot
 
-    /** The internal cursor used by this index. */
-    private val cursor = this.index.dataStore.openCursor(this.subTx)
+    /** The store containing the [IVFPQIndexCursor] entries. */
+    private val store: Store = this.xodusTx.environment.openStore(index.dbo.name.storeName(), StoreConfig.USE_EXISTING, this.xodusTx)
+
+    /** The [jetbrains.exodus.env.Cursor] used by this [IVFPQIndexCursor]. */
+    private val cursor: jetbrains.exodus.env.Cursor = this.store.openCursor(this.xodusTx)
 
     /** The [ColumnDef] produced by  this [Cursor]. */
-    private val produces = this.index.columnsFor(predicate).toTypedArray()
+    private val produces = index.columnsFor(predicate).toTypedArray()
 
     /** A [Deque] for bucket numbers left to explore. */
     private val queue: Deque<Short>
@@ -53,10 +60,9 @@ class IVFPQIndexCursor(val predicate: ProximityPredicate.Scan, val index: IVFPQI
         /* Prepare list of Voronoi cells that should be scanned. */
         val nprobe = this@IVFPQIndexCursor.coarse.numberOfCentroids / 32
         val selection = MinHeapSelection<ComparablePair<Int,Double>>(nprobe)
-
-        with(MissingTuple) {
-            with(this@IVFPQIndexCursor.index.transaction.bindings) {
-                this@IVFPQIndexCursor.lookupTable = this@IVFPQIndexCursor.index.quantizer.createLookupTable(this@IVFPQIndexCursor.predicate.query.getValue() as VectorValue<*>)
+        with(context) {
+            with(MissingTuple) {
+                this@IVFPQIndexCursor.lookupTable = index.quantizer.createLookupTable(this@IVFPQIndexCursor.predicate.query.getValue() as VectorValue<*>)
                 for (c in coarse.centroids.indices) {
                     selection.offer(ComparablePair(c, this@IVFPQIndexCursor.coarse.distanceFrom(this@IVFPQIndexCursor.predicate.query.getValue() as RealVectorValue<*>, c)))
                 }
@@ -102,8 +108,8 @@ class IVFPQIndexCursor(val predicate: ProximityPredicate.Scan, val index: IVFPQI
      * Closes this [IVFPQIndexCursor]
      */
     override fun close() {
-        this.subTx.abort()
         this.cursor.close()
+        this.xodusTx.abort()
     }
 
     /**

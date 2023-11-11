@@ -18,7 +18,6 @@ import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
-import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.statistics.collectors.*
 import org.vitrivr.cottontail.dbms.statistics.storage.*
 import java.lang.ref.SoftReference
@@ -213,6 +212,19 @@ class StatisticsManager(private val manager: TransactionManager): TransactionObs
         return statistic
     }
 
+    /**
+     * Updates te [IndexStatistic] for the given [Name.IndexName].
+     *
+     * @param name [Name.IndexName] to update [IndexStatistic] for
+     * @param statistics The new [IndexStatistic]
+     * @return [IndexStatistic]
+     */
+    operator fun set(name: Name.IndexName, statistics: IndexStatistic) {
+        this.environment.computeInExclusiveTransaction { tx ->
+            this.indexStatisticsStore[tx, name] = statistics
+        }
+        this.indexStatisticsCache[name] = SoftReference(statistics)
+    }
 
     /**
      * Starts gathering new statistics for the specified [Name.EntityName]. This is a blocking method!
@@ -226,7 +238,6 @@ class StatisticsManager(private val manager: TransactionManager): TransactionObs
         LOGGER.info("Starting statistics gathering for entity $entityName.")
 
         val transaction = this@StatisticsManager.manager.startTransaction(TransactionType.SYSTEM_READONLY)
-        val context = DefaultQueryContext("statistics-manager-${this@StatisticsManager.counter.incrementAndGet()}", this@StatisticsManager.manager.catalogue, transaction)
         try {
             val duration = measureTime {
                 val entityTx = transaction.entityTx(entityName, AccessMode.READ)

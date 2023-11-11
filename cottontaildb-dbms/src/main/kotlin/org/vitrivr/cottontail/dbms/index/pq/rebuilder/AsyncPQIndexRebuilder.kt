@@ -7,18 +7,17 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.types.VectorValue
-import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
+import org.vitrivr.cottontail.core.values.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
+import org.vitrivr.cottontail.dbms.index.basic.IndexTx
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractAsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.IndexRebuilderState
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
 import org.vitrivr.cottontail.dbms.index.pq.PQIndexConfig
-import org.vitrivr.cottontail.dbms.index.pq.quantizer.SerializableSingleStageProductQuantizer
 import org.vitrivr.cottontail.dbms.index.pq.quantizer.SingleStageQuantizer
 import org.vitrivr.cottontail.dbms.index.pq.signature.SPQSignature
 import org.vitrivr.cottontail.dbms.index.va.rebuilder.AsyncVAFIndexRebuilder
@@ -29,12 +28,12 @@ import java.util.concurrent.ConcurrentLinkedQueue
  * An [AbstractAsyncIndexRebuilder] that can be used to concurrently rebuild a  [PQIndex].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
-class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyncIndexRebuilder<PQIndex>(index, context.catalogue, context.txn.manager) {
+class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyncIndexRebuilder<PQIndex>(index, context.transaction.manager) {
 
     /** The (temporary) Xodus [Store] used to store [SPQSignature]s. */
-    private val tmpDataStore: Store = this.tmpEnvironment.openStore(this.index.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.tmpTx, true)
+    private val store: Store = this.environment.openStore(this.index.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.xodusTx, true)
         ?: throw DatabaseException.DataCorruptionException("Temporary data store for index ${this.index.name} could not be created.")
 
     /** Reference to [SingleStageQuantizer] used by this [AsyncPQIndexRebuilder] (only available after [IndexRebuilderState.INITIALIZED]). */
@@ -48,17 +47,14 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
 
     init {
         /* Read basic index properties. */
-        val indexMetadataStore = IndexMetadata.store(this.index.catalogue, context.txn.xodusTx)
-        val indexEntryRaw = indexMetadataStore.get(context.txn.xodusTx, NameBinding.Index.toEntry(this@AsyncPQIndexRebuilder.index.name)) ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index ${this@AsyncPQIndexRebuilder.index.name}: Could not read catalogue entry for index.")
-        val indexEntry = IndexMetadata.fromEntry(indexEntryRaw)
-        val config = indexEntry.config as PQIndexConfig
-        val column = this.index.name.entity().column(indexEntry.columns[0])
+        val indexTx = context.transaction.indexTx(index.name, AccessMode.READ)
+        val config = indexTx.config as PQIndexConfig
+        this.indexedColumn = indexTx.columns[0]
 
         /* Tx objects required for index rebuilding. */
-        val entityTx = this.index.parent.newTx(context)
-        val columnTx = entityTx.columnForName(column).newTx(context)
+        val entityTx = context.transaction.entityTx(this.index.parent.name, AccessMode.READ)
+        val columnTx = context.transaction.columnTx(this.indexedColumn.name, AccessMode.READ)
         val count = entityTx.count()
-        this.indexedColumn = columnTx.columnDef
 
         /* Generate and obtain signature and distance function. */
         val signature = Signature.Closed(config.distance, arrayOf(this.indexedColumn.type, this.indexedColumn.type), Types.Double)
@@ -79,8 +75,8 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
      */
     override fun internalBuild(context: QueryContext): Boolean {
         /* Tx objects required for index rebuilding. */
-        val entityTx = this.index.parent.newTx(context)
-        val columnTx = entityTx.columnForName(this.indexedColumn.name).newTx(context)
+        val entityTx = context.transaction.entityTx(this.index.parent.name, AccessMode.READ)
+        val columnTx = context.transaction.columnTx(this.indexedColumn.name, AccessMode.READ)
         val count = entityTx.count()
 
         /* Iterate over entity and update index with entries. */
@@ -90,13 +86,13 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
                 if (this.state != IndexRebuilderState.REBUILDING) return false
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
-                    if (!this.tmpDataStore.add(this.tmpTx, cursor.key().toKey(), this.newQuantizer.quantize(value).toEntry())) {
+                    if (!this.store.add(this.xodusTx, cursor.key().toKey(), this.newQuantizer.quantize(value).toEntry())) {
                         return false
                     }
 
                     if ((++counter) % 1_000_000 == 0) {
                         LOGGER.debug("Rebuilding index (SCAN) {} ({}) still running ({} / {})...", this.index.name, this.index.type, counter, count)
-                        if (!this.tmpTx.flush()) {
+                        if (!this.xodusTx.flush()) {
                             return false
                         }
                     }
@@ -109,25 +105,26 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
     /**
      * Internal merge method that is being executed when executing the MERGE stage of this [AsyncVAFIndexRebuilder].
      *
-     * @param context The [QueryContext] to execute the MERGE stage in.
-     * @param store The [Store] to merge data into.
+     * @param indexTx The [IndexTx] to merge data into.
      * @return True on success, false otherwise.
      */
-    override fun internalReplace(context: QueryContext, store: Store): Boolean {
+    override fun internalReplace(indexTx: IndexTx): Boolean {
+        require(indexTx is PQIndex.Tx) { "AsyncPQIndexRebuilder only supports PQIndex.Tx implementations." }
+
         /* Start replacement process. */
-        val count = this.tmpDataStore.count(this.tmpTx)
-        this.tmpDataStore.openCursor(this.tmpTx).use { cursor ->
+        val count = this.store.count(this.xodusTx)
+        this.store.openCursor(this.xodusTx).use { cursor ->
             var counter = 0
             while (cursor.next) {
                 if (this.state != IndexRebuilderState.REPLACING) return false
-                if (!store.add(context.txn.xodusTx, cursor.key, cursor.value)) {
+                if (!indexTx.store.add(indexTx.xodusTx, cursor.key, cursor.value)) {
                     return false
                 }
 
                 /* Data is flushed every once in a while. */
                 if ((++counter) % 1_000_000 == 0) {
                     LOGGER.debug("Rebuilding index (MERGE) {} ({}) still running ({} / {})...", this.index.name, this.index.type, counter, count)
-                    if (!context.txn.xodusTx.flush()) {
+                    if (!indexTx.xodusTx.flush()) {
                         return false
                     }
                 }
@@ -135,7 +132,7 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
         }
 
         /* Update stored ProductQuantizer. */
-        IndexStructCatalogueEntry.write(this.index.name, this.newQuantizer.toSerializableProductQuantizer(), this.index.catalogue, context.txn.xodusTx, SerializableSingleStageProductQuantizer.Binding)
+        indexTx.updateQuantizer(this.newQuantizer.toSerializableProductQuantizer())
         return true
     }
 
@@ -188,8 +185,8 @@ class AsyncPQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractAsyn
         var next = this.log.poll()
         while (next != null) {
             val success = when (next) {
-                is PQIndexingEvent.Set -> this.tmpDataStore.put(this.tmpTx, next.tupleId.toKey(), next.signature.toEntry())
-                is PQIndexingEvent.Unset -> this.tmpDataStore.delete(this.tmpTx, next.tupleId.toKey())
+                is PQIndexingEvent.Set -> this.store.put(this.xodusTx, next.tupleId.toKey(), next.signature.toEntry())
+                is PQIndexingEvent.Unset -> this.store.delete(this.xodusTx, next.tupleId.toKey())
             }
             if (!success) return false
             next = this.log.poll()

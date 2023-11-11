@@ -1,17 +1,10 @@
 package org.vitrivr.cottontail.dbms.index.basic.rebuilder
 
-import jetbrains.exodus.env.Store
-import jetbrains.exodus.env.StoreConfig
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
-import org.vitrivr.cottontail.dbms.catalogue.storeName
-import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.index.basic.DefaultIndex
 import org.vitrivr.cottontail.dbms.index.basic.Index
-import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
@@ -21,10 +14,9 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * @see [IndexRebuilder]
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
-abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
-                                                final override val context: QueryContext): IndexRebuilder<T> {
+abstract class AbstractIndexRebuilder<T: Index>(final override val index: T, final override val context: QueryContext): IndexRebuilder<T> {
     companion object {
         /** [Logger] instance used by [AbstractIndexRebuilder]. */
         internal val LOGGER: Logger = LoggerFactory.getLogger(AbstractIndexRebuilder::class.java)
@@ -39,23 +31,21 @@ abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
     override fun rebuild(): Boolean {
         LOGGER.debug("Rebuilding index {} ({}).", this.index.name, this.index.type)
 
-        /* Clear store and update state of index (* ---> DIRTY). */
-        if (!this.updateState(IndexState.DIRTY, this.context.transaction)) {
-            LOGGER.error("Rebuilding index ${this.index.name} (${this.index.type}) failed because index state could not be changed to CLEAN!")
-            return false
-        }
+        /* Obtain index transaction. */
+        val indexTx = this.context.transaction.indexTx(this.index.name, AccessMode.WRITE)
+        require(indexTx is DefaultIndex.Tx) { "AbstractIndexRebuilder only supports DefaultIndex.Tx implementations." }
+
+        /* Truncate index. */
+        indexTx.truncate()
 
         /* Execute rebuild operation*/
-        if (!this.rebuildInternal()) {
+        if (!this.rebuildInternal(indexTx)) {
             LOGGER.error("Rebuilding index ${this.index.name} (${this.index.type}) failed!")
             return false
         }
 
-        /* Update state of index (DIRTY ---> CLEAN). */
-        if (!this.updateState(IndexState.CLEAN, this.context.transaction)) {
-            LOGGER.error("Rebuilding index ${this.index.name} (${this.index.type}) failed because index state could not be changed to CLEAN!")
-            return false
-        }
+        /* Set index to stale. */
+        indexTx.updateState(IndexState.CLEAN)
 
         LOGGER.debug("Rebuilding index {} ({}) completed!", this.index.name, this.index.type)
         return true
@@ -66,37 +56,5 @@ abstract class AbstractIndexRebuilder<T: Index>(final override val index: T,
      *
      * @return True on success, false otherwise.
      */
-    protected abstract fun rebuildInternal(): Boolean
-
-    /**
-     * Clears and opens the data store associated with this [Index].
-     *
-     * @return [Store]
-     */
-    protected fun tryClearAndOpenStore(): Store? {
-        val storeName = this.index.name.storeName()
-        if (this.index.catalogue.transactionManager.catalogue.storeExists(storeName, this.context.transaction.xodusTx)) {
-            this.index.catalogue.transactionManager.catalogue.truncateStore(storeName, this.context.transaction.xodusTx)
-            return this.index.catalogue.transactionManager.catalogue.openStore(storeName, StoreConfig.USE_EXISTING, this.context.transaction.xodusTx, false)
-        }
-        return null
-    }
-
-    /**
-     * Convenience method to update [IndexState] for this [DefaultIndex].
-     *
-     * @param state The new [IndexState].
-     * @param tx The [Transaction] to use.
-     */
-    private fun updateState(state: IndexState, transaction: Transaction): Boolean {
-        val name = NameBinding.Index.toEntry(this@AbstractIndexRebuilder.index.name)
-        val store = IndexMetadata.store(this@AbstractIndexRebuilder.index.catalogue as DefaultCatalogue, tx.xodusTx)
-        val oldEntryRaw = store.get(tx.xodusTx, name) ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index transaction for index ${this@AbstractIndexRebuilder.index.name}: Could not read catalogue entry for index.")
-        val oldEntry =  IndexMetadata.fromEntry(oldEntryRaw)
-        return if (oldEntry.state != state) {
-            return store.put(tx.xodusTx, name, IndexMetadata.toEntry(oldEntry.copy(state = state)))
-        } else {
-            true
-        }
-    }
+    protected abstract fun rebuildInternal(indexTx: DefaultIndex.Tx): Boolean
 }

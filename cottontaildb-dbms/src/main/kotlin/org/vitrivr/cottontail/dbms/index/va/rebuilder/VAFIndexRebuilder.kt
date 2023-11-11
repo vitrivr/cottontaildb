@@ -1,18 +1,12 @@
 package org.vitrivr.cottontail.dbms.index.va.rebuilder
 
-import org.vitrivr.cottontail.core.types.RealVectorValue
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
-import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
+import org.vitrivr.cottontail.core.values.RealVectorValue
 import org.vitrivr.cottontail.dbms.catalogue.toKey
-import org.vitrivr.cottontail.dbms.column.ColumnTx
-import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
+import org.vitrivr.cottontail.dbms.index.basic.DefaultIndex
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
-import org.vitrivr.cottontail.dbms.index.va.VAFIndexConfig
-import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
 
 /**
  * An [AbstractIndexRebuilder] for the [VAFIndex].
@@ -27,37 +21,29 @@ class VAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractIndexRe
      *
      * @return True on success, false on failure.
      */
-    override fun rebuildInternal(): Boolean {
-        /* Read basic index properties. */
-        val indexMetadataStore = IndexMetadata.store(this.index.catalogue, context.txn.xodusTx)
-        val indexEntryRaw = indexMetadataStore.get(context.txn.xodusTx, NameBinding.Index.toEntry(this@VAFIndexRebuilder.index.name)) ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index ${this@VAFIndexRebuilder.index.name}: Could not read catalogue entry for index.")
-        val indexEntry = IndexMetadata.fromEntry(indexEntryRaw)
-        val config = indexEntry.config as VAFIndexConfig
-        val column = this.index.name.entity().column(indexEntry.columns[0])
+    override fun rebuildInternal(indexTx: DefaultIndex.Tx): Boolean {
+        require(indexTx is VAFIndex.Tx) { "VAFIndexRebuilder only supports VAFIndex.Tx implementations." }
 
         /* Tx objects required for index rebuilding. */
-        val entityTx = this.index.parent.newTx(this.context)
-        val columnTx = entityTx.columnForName(column).newTx(this.context) as ColumnTx<*>
-        val dataStore = this.tryClearAndOpenStore() ?: return false
-        val count = entityTx.count()
+        val columnTx = this.context.transaction.columnTx(indexTx.columns[0].name, AccessMode.READ)
 
         /* Obtain new marks. */
-        val marks = EquidistantVAFMarks(columnTx.statistics() as RealVectorValueStatistics<*>, config.marksPerDimension)
+        val marks = indexTx.readMarks()
 
         /* Iterate over entity and update index with entries. */
         var counter = 1
+        val store = indexTx.store
         columnTx.cursor().use { cursor ->
             while (cursor.hasNext()) {
                 val value = cursor.value()
                 if (value is RealVectorValue<*>) {
-                    if (!dataStore.put(this.context.txn.xodusTx, cursor.key().toKey(), marks.getSignature(value).toEntry())) {
+                    if (!store.put(indexTx.xodusTx, cursor.key().toKey(), marks.getSignature(value).toEntry())) {
                         return false
                     }
 
                     /* Data is flushed every once in a while. */
                     if ((counter ++) % 1_000_000 == 0) {
-                        LOGGER.debug("Rebuilding index ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
-                        if (!this.context.txn.xodusTx.flush()) {
+                        if (!indexTx.xodusTx.flush()) {
                             return false
                         }
                     }
@@ -66,7 +52,6 @@ class VAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractIndexRe
         }
 
         /* Update stored VAFMarks. */
-        IndexStructCatalogueEntry.write(this.index.name, marks, this.index.catalogue, this.context.txn.xodusTx, EquidistantVAFMarks.Binding)
         return true
     }
 }

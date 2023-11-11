@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.MinkowskiDistance
 import org.vitrivr.cottontail.core.queries.nodes.traits.LimitTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
@@ -20,35 +21,34 @@ import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.values.RealVectorValue
-import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue.Companion.INDEX_STRUCT_STORE_NAME
+import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
-import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.va.rebuilder.AsyncVAFIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.va.rebuilder.VAFIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
-import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.statistics.index.IndexStatistic
+import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
 import kotlin.concurrent.withLock
 
 /**
- * An [AbstractIndex] structure for proximity based search (NNS / FNS) that uses a vector approximation (VA) file ([1]). Can be used for all types of [RealVectorValue]s
+ * An [DefaultIndex] structure for proximity based search (NNS / FNS) that uses a vector approximation (VA) file ([1]). Can be used for all types of [RealVectorValue]s
  * and all Minkowski metrics (L1, L2, Lp etc.).
  *
  * References:
  * [1] Weber, R. and Blott, S., 1997. An approximation based data structure for similarity search (No. 9141, p. 416). Technical Report 24, ESPRIT Project HERMES.
  *
- * @author Gabriel Zihlmann & Ralph Gasser
- * @version 3.3.0
+ * @author Gabriel Zihlmann
+ * @author Ralph Gasser
+ * @version 3.6.0
  */
-class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
+class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : DefaultIndex(name, parent) {
 
     /**
      * The [IndexDescriptor] for the [VAFIndex].
@@ -82,38 +82,6 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         override fun open(name: Name.IndexName, entity: Entity): VAFIndex = VAFIndex(name, entity as DefaultEntity)
 
         /**
-         * Initializes the [Store] for a [VAFIndex].
-         *
-         * @param name The [Name.IndexName] of the [VAFIndex].
-         * @param catalogue [Catalogue] reference.
-         * @param context The [Transaction] to perform the transaction with.
-         * @return True on success, false otherwise.
-         */
-        override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
-            val store = catalogue.transactionManager.catalogue.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES, context.xodusTx, true)
-            store != null
-        } catch (e:Throwable) {
-            LOGGER.error("Failed to initialize VAF index $name due to an exception: ${e.message}.")
-            false
-        }
-
-        /**
-         * De-initializes the [Store] for associated with a [VAFIndex].
-         *
-         * @param name The [Name.IndexName] of the [VAFIndex].
-         * @param catalogue [Catalogue] reference.
-         * @param context The [Transaction] to perform the transaction with.
-         * @return True on success, false otherwise.
-         */
-        override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
-            catalogue.transactionManager.catalogue.removeStore(name.storeName(), context.xodusTx)
-            true
-        } catch (e:Throwable) {
-            LOGGER.error("Failed to de-initialize VAF index $name due to an exception: ${e.message}.")
-            false
-        }
-
-        /**
          * Generates and returns a [VAFIndexConfig] for the given [parameters] (or default values, if [parameters] are not set).
          *
          * @param parameters The parameters to initialize the default [VAFIndexConfig] with.
@@ -127,7 +95,6 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return [VAFIndexConfig.Binding]
          */
         override fun configBinding(): ComparableBinding = VAFIndexConfig.Binding
-
     }
 
     /** The [IndexType] of this [VAFIndex]. */
@@ -152,49 +119,52 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [VAFIndex].
      *
-     * @param context The [QueryContext] to create this [IndexTx] for.
+     * @param parent The [EntityTx] to create this [IndexTx] for.
      */
-    override fun newTx(context: QueryContext): IndexTx
-        = context.transaction.cachedTxForName(this) ?: this.Tx(context)
+    override fun newTx(parent: EntityTx): IndexTx {
+        require(parent is DefaultEntity.Tx) { "VAFIndex can only be used with DefaultEntity.Tx" }
+        return this.Tx(parent)
+    }
 
     /**
      * A [IndexTx] that affects this [VAFIndex].
      */
-    inner class Tx(context: QueryContext) : AbstractIndex.Tx(context) {
+    inner class Tx(parent: DefaultEntity.Tx) : DefaultIndex.Tx(parent) {
 
         /** The [EquidistantVAFMarks] object used by this [VAFIndex.Tx]. */
-        internal val marks: EquidistantVAFMarks by lazy {
-            IndexStructCatalogueEntry.read(this@VAFIndex.name, this@VAFIndex.catalogue, this.context.transaction.xodusTx, EquidistantVAFMarks.Binding)?:
-                throw DatabaseException.DataCorruptionException("Marks for VAF index ${this@VAFIndex.name} are missing.")
-        }
+        private var marks: EquidistantVAFMarks
 
-        /** The Xodus [Store] used to store [VAFSignature]s. */
-        internal val dataStore: Store = this@VAFIndex.catalogue.transactionManager.catalogue.openStore(this@VAFIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.transaction.xodusTx, false)
-            ?: throw DatabaseException.DataCorruptionException("Store for VAF index ${this@VAFIndex.name} is missing.")
+        /** The [Store] associated with this [VAFIndex]. */
+        internal var store: Store = this.xodusTx.environment.openStore(this@VAFIndex.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.xodusTx)
 
-        /**
-         * Retrieves this [VAFIndex]'s efficiency co-efficient from the [IndexStatisticsManager].
-         *
-         * @return Efficiency for this [VAFIndex].
-         */
-        internal fun getEfficiency(): Float {
-            val key = this@VAFIndex.catalogue.indexStatistics.get(this@VAFIndex.name, FILTER_EFFICIENCY_CACHE_KEY)
-            return key?.asFloat() ?: 0.9f
+        init {
+            this.marks = this.readMarks()
         }
 
         /**
-         * Updates this [VAFIndex]'s efficiency co-efficient from the [IndexStatisticsManager].
-         *
-         * @return Efficiency for this [VAFIndex].
+         * Internal function used to read [EquidistantVAFMarks] using this [VAFIndex.Tx].
          */
-        internal fun updateEfficiency(float: Float) {
-            val key = this@VAFIndex.catalogue.indexStatistics.get(this@VAFIndex.name, FILTER_EFFICIENCY_CACHE_KEY)
-            if (key == null) {
-                this@VAFIndex.catalogue.indexStatistics.update(this@VAFIndex.name, IndexStatistic(FILTER_EFFICIENCY_CACHE_KEY, float.toString()))
+        internal fun readMarks(): EquidistantVAFMarks {
+            val structStore = this.xodusTx.environment.openStore(INDEX_STRUCT_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES, this.xodusTx)
+            val marksRaw = structStore.get(this.xodusTx, NameBinding.Index.toEntry(this@VAFIndex.name))
+            return if (marksRaw == null) {
+                val config = this.config as VAFIndexConfig
+                val statistics = this.transaction.manager.statistics[this.columns[0].name]!!.statistics as RealVectorValueStatistics<*>
+                val marks = EquidistantVAFMarks(statistics, config.marksPerDimension)
+                structStore.put(this.xodusTx, NameBinding.Index.toEntry(this@VAFIndex.name), EquidistantVAFMarks.Binding.serialize(marks))
+                marks
             } else {
-                val avg = (key.asFloat() + float) / 2
-                this@VAFIndex.catalogue.indexStatistics.update(this@VAFIndex.name, IndexStatistic(FILTER_EFFICIENCY_CACHE_KEY, avg.toString()))
+                EquidistantVAFMarks.Binding.deserialize(marksRaw)
             }
+        }
+
+        /**
+         * Internal function used to update [EquidistantVAFMarks] using this [VAFIndex.Tx].
+         */
+        internal fun writeMarks(marks: EquidistantVAFMarks) {
+            val structStore = this.xodusTx.environment.openStore(INDEX_STRUCT_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES, this.xodusTx)
+            structStore.put(this.xodusTx, NameBinding.Index.toEntry(this@VAFIndex.name), EquidistantVAFMarks.Binding.serialize(marks))
+            this.marks = marks
         }
 
         /**
@@ -207,7 +177,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             if (predicate !is ProximityPredicate) return Cost.INVALID
             if (predicate.column != this.columns[0]) return Cost.INVALID
             if (predicate.distance !is MinkowskiDistance<*>) return Cost.INVALID
-            val efficiency = this.getEfficiency()
+            val efficiency =  0.9f //TODO Lookup in index statistics
             val signatureRead = this.count()
             val fullRead = (1.0f - efficiency) * signatureRead /* Assumption: Efficiency determines how many entries must be read. */
             return when (predicate) {
@@ -267,12 +237,33 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         }
 
         /**
+         * Truncates this [VAFIndex].
+         */
+        override fun truncate() = this.txLatch.withLock {
+            this.xodusTx.environment.truncateStore(this.store.name, this.xodusTx)
+            this.store = this.xodusTx.environment.openStore(this@VAFIndex.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.xodusTx)
+        }
+
+        /**
+         * Drops this [VAFIndex].
+         */
+        override fun drop() = this.txLatch.withLock {
+            /* Drop store. */
+            this.xodusTx.environment.removeStore(this.store.name, this.xodusTx)
+
+            /* Delete stored marks. */
+            val store = this.xodusTx.environment.openStore(INDEX_STRUCT_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES, this.xodusTx)
+            store.delete(this.xodusTx, NameBinding.Index.toEntry(this@VAFIndex.name))
+            Unit
+        }
+
+        /**
          * Returns the number of entries in this [VAFIndex].
          *
          * @return Number of entries in this [VAFIndex]
          */
-        override fun count(): Long  = this.txLatch.withLock {
-            this.dataStore.count(this.context.transaction.xodusTx)
+        override fun count(): Long = this.txLatch.withLock {
+            this.store.count(this.xodusTx)
         }
 
         /**
@@ -287,7 +278,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
 
             /* Obtain marks and add them. */
             val sig = this.marks.getSignature(value as RealVectorValue<*>)
-            return this.dataStore.add(this.context.transaction.xodusTx, event.tupleId.toKey(), sig.toEntry())
+            return this.store.add(this.xodusTx, event.tupleId.toKey(), sig.toEntry())
         }
 
         /**
@@ -304,9 +295,9 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             /* Obtain marks and update them. */
             return if (newValue is RealVectorValue<*>) { /* Case 1: New value is not null, i.e., update to new value. */
                 val newSig = this.marks.getSignature(newValue)
-                this.dataStore.put(this.context.transaction.xodusTx, event.tupleId.toKey(), newSig.toEntry())
+                this.store.put(this.xodusTx, event.tupleId.toKey(), newSig.toEntry())
             } else if (oldValue is RealVectorValue<*>) { /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
-                this.dataStore.delete(this.context.transaction.xodusTx, event.tupleId.toKey())
+                this.store.delete(this.xodusTx, event.tupleId.toKey())
             } else { /* Case 3: There is no value, there was no value, proceed. */
                 true
             }
@@ -320,7 +311,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(event: DataEvent.Delete): Boolean {
-            return event.data[this.columns[0]] == null || this.dataStore.delete(this.context.transaction.xodusTx, event.tupleId.toKey())
+            return event.data[this.columns[0]] == null || this.store.delete(this.xodusTx, event.tupleId.toKey())
         }
 
         /**
@@ -333,9 +324,9 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [Iterator]
          */
+        context(BindingContext)
         override fun filter(predicate: Predicate) = this.txLatch.withLock {
-            val entityTx = this@VAFIndex.parent.newTx(this.context)
-            filter(predicate,entityTx.smallestTupleId() .. entityTx.largestTupleId())
+            filter(predicate,this.parent.smallestTupleId() .. this.parent.largestTupleId())
         }
 
         /**
@@ -348,11 +339,12 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Iterator].
          */
+        context(BindingContext)
         override fun filter(predicate: Predicate, partition: LongRange): Cursor<Tuple> = this.txLatch.withLock {
             return when(predicate) {
-                is ProximityPredicate.ENN -> VAFCursor.ENN(partition, predicate, this)
-                is ProximityPredicate.FNS -> VAFCursor.FNS(partition, predicate, this)
-                is ProximityPredicate.NNS -> VAFCursor.NNS(partition, predicate, this)
+                is ProximityPredicate.ENN -> VAFCursor.ENN(this, this@BindingContext, partition, predicate)
+                is ProximityPredicate.FNS -> VAFCursor.FNS(this, this@BindingContext, partition, predicate)
+                is ProximityPredicate.NNS -> VAFCursor.NNS(this, this@BindingContext, partition, predicate)
                 else -> throw IllegalArgumentException(" VAFIndex can only be used with a NNS, FNS or ENS type proximity predicate. This is a programmer's error!")
             }
         }

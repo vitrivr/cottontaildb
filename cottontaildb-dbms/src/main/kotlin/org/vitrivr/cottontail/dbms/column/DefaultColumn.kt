@@ -140,14 +140,14 @@ abstract class DefaultColumn<T : Value>(final override val columnDef: ColumnDef<
          * Drops the [DefaultEntity] backed by this [Name.EntityName].
          */
         override fun drop() = this.txLatch.withLock {
-            /* Remove the data store. */
-            this.xodusTx.environment.removeStore(this@DefaultColumn.name.storeName(), this.xodusTx)
-
             /* Now remove all catalogue entries related to column. */
             val columnMetadataStore = this.xodusTx.environment.openStore(DefaultCatalogue.COLUMN_METADATA_STORE_NAME, StoreConfig.USE_EXISTING, this.xodusTx)
             if (!columnMetadataStore.delete(this.xodusTx, NameBinding.Column.toEntry(this@DefaultColumn.name))) {
                 throw DatabaseException.DataCorruptionException("DROP COLUMN $name failed: Failed to delete catalogue entry.")
             }
+
+            /* Remove the data store. */
+            this.xodusTx.environment.removeStore(this@DefaultColumn.name.storeName(), this.xodusTx)
         }
 
         /**

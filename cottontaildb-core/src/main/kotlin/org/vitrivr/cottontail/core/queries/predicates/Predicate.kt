@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.core.tuple.Tuple
  * Generally, [Predicate]s are assumed to operate on [Tuple]s and usually affect a set of [ColumnDef]s in that [Tuple].
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 2.0.0
  */
 sealed interface Predicate : NodeWithCost {
     /** Set of [ColumnDef] that are accessed by this [Predicate]. */

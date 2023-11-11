@@ -14,7 +14,7 @@ import java.io.Closeable
  * @author Ralph Gasser
  * @version 1.0.0
  */
-internal class LuceneIndexDataStore(val directory: XodusDirectory, private val indexedColumn: Name.ColumnName): Closeable {
+internal class LuceneIndexDataStore(private val directory: XodusDirectory, private val indexedColumn: Name.ColumnName): Closeable {
     /** Flag indicating, that [IndexReader] was initialized. */
     @Volatile
     private var readerInitialized = false
