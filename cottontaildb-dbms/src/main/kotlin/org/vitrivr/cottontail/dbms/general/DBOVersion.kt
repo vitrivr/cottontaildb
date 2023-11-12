@@ -23,6 +23,6 @@ enum class DBOVersion {
     V4_0;
 
     companion object {
-        fun current() = DBOVersion.V4_0
+        fun current() = V4_0
     }
 }

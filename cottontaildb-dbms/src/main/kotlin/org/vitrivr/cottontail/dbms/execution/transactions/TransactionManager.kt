@@ -262,7 +262,7 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
      * [SerializableReadonly] transaction require a shared lock on the [DBO] they operate on, and thus
      * synchronize it with other writeable [Transaction]s.
      */
-    inner class SerializableReadonly(): AbstractTransaction(TransactionType.SNAPSHOT_READONLY) {
+    inner class SerializableReadonly(): AbstractTransaction(TransactionType.SERIALIZABLE_READONLY) {
         override fun catalogueTx(mode: AccessMode): CatalogueTx {
             require(mode == READ) { "Read-only transaction can only be used for read-only access." }
             return this.txns.computeIfAbsent(Name.RootName) {

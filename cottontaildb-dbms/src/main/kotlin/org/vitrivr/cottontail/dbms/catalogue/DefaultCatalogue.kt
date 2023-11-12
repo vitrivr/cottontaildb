@@ -3,8 +3,6 @@ package org.vitrivr.cottontail.dbms.catalogue
 import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.StoreConfig
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
@@ -36,9 +34,6 @@ class DefaultCatalogue(private val environment: Environment) : Catalogue {
      * Companion object to [DefaultCatalogue]
      */
     companion object {
-        /** [Logger] instance used by [DefaultCatalogue]. */
-        private val LOGGER: Logger = LoggerFactory.getLogger(DefaultCatalogue::class.java)
-
         /** Prefix used for actual column stores. */
         internal const val METADATA_STORE_PREFIX: String = "org.vitrivr.cottontail.metadata"
 

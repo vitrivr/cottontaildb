@@ -119,7 +119,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : DefaultIndex(na
      */
     inner class Tx(parent: DefaultEntity.Tx) : DefaultIndex.Tx(parent), org.vitrivr.cottontail.dbms.general.Tx.BeforeCommit, org.vitrivr.cottontail.dbms.general.Tx.BeforeRollback  {
         /** The [VirtualFileSystem] used by this [LuceneIndex]. */
-        private val vfs = VirtualFileSystem(this.xodusTx.environment);
+        private val vfs = VirtualFileSystem(this.xodusTx.environment)
 
         /** The [LuceneIndexDataStore] backing this [LuceneIndex]. */
         internal var store = LuceneIndexDataStore(XodusDirectory(this.vfs, this@LuceneIndex.name.toString(), this.xodusTx), this.columns[0].name)
