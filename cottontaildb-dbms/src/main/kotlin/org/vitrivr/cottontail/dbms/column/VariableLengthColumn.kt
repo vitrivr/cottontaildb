@@ -49,7 +49,7 @@ class VariableLengthColumn<T : Value>(columnDef: ColumnDef<T>, parent: DefaultEn
     /**
      * A [Tx] that affects this [VariableLengthColumn].
      */
-    inner class Tx constructor(parent: DefaultEntity.Tx) : DefaultColumn<T>.Tx(parent), org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization {
+    inner class Tx constructor(parent: DefaultEntity.Tx) : DefaultColumn<T>.Tx(parent) {
 
         /** Reference to [Column] this [Tx] belongs to. */
         override val dbo: VariableLengthColumn<T>
@@ -57,7 +57,6 @@ class VariableLengthColumn<T : Value>(columnDef: ColumnDef<T>, parent: DefaultEn
 
         /** The internal [ValueSerializer] reference used for de-/serialization. */
         private val serializer: ValueSerializer<T> = SerializerFactory.value(this@VariableLengthColumn.columnDef.type)
-
 
         /**
          * Gets and returns an entry from this [Column].

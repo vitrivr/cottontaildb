@@ -43,7 +43,7 @@ class DefaultQueryContext(override val queryId: String, override val catalogue: 
         get() = this.logical.first()[OrderTrait]?.order ?: emptyList()
 
     /** [CostPolicy] is derived from [QueryHint] or global setting in that order. */
-    override val costPolicy: CostPolicy = this.hints.filterIsInstance(QueryHint.CostPolicy::class.java).singleOrNull() ?: this.catalogue.config.cost
+    override val costPolicy: CostPolicy = this.hints.filterIsInstance(QueryHint.CostPolicy::class.java).singleOrNull() ?: this.transaction.manager.config.cost
 
     /** Internal counter used to obtain the next [GroupId]. */
     @Volatile

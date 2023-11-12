@@ -5,8 +5,6 @@ import jetbrains.exodus.vfs.VirtualFileSystem
 import org.apache.lucene.document.Document
 import org.apache.lucene.index.IndexWriter
 import org.apache.lucene.search.similarities.SimilarityBase.log2
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
@@ -48,9 +46,6 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : DefaultIndex(na
      * The [IndexDescriptor] for the [LuceneIndex].
      */
     companion object: IndexDescriptor<LuceneIndex> {
-        /** [Logger] instance used by [LuceneIndex]. */
-        private val LOGGER: Logger = LoggerFactory.getLogger(LuceneIndex::class.java)
-
         /** True since [LuceneIndex] supports incremental updates. */
         override val supportsIncrementalUpdate: Boolean = true
 
@@ -122,7 +117,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : DefaultIndex(na
     /**
      * An [IndexTx] that affects this [LuceneIndex].
      */
-    inner class Tx(parent: DefaultEntity.Tx) : DefaultIndex.Tx(parent), org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization, org.vitrivr.cottontail.dbms.general.Tx.WithRollbackFinalization  {
+    inner class Tx(parent: DefaultEntity.Tx) : DefaultIndex.Tx(parent), org.vitrivr.cottontail.dbms.general.Tx.BeforeCommit, org.vitrivr.cottontail.dbms.general.Tx.BeforeRollback  {
         /** The [VirtualFileSystem] used by this [LuceneIndex]. */
         private val vfs = VirtualFileSystem(this.xodusTx.environment);
 

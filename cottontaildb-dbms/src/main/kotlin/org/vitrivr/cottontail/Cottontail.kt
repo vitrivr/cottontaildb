@@ -142,17 +142,16 @@ fun standalone(config: Config) {
 
     /* Start CLI (if configured); wait for gRPC server to be stopped. */
     val scanner = Scanner(System.`in`)
-    loop@ while (server.isRunning) {
+    loop@ while (server.closed) {
         if (scanner.hasNext()) {
             when (scanner.nextLine()) {
-                "exit", "quit", "stop" -> break
+                "exit", "quit", "stop" -> server.close()
             }
         }
         Thread.sleep(250)
     }
 
     /* Stop server and print shutdown message. */
-    server.shutdownAndWait()
     println("Cottontail DB was shut down. Have a binky day!")
 }
 

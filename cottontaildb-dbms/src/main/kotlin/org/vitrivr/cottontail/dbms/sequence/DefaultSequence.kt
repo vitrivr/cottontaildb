@@ -47,7 +47,7 @@ class DefaultSequence(override val name: Name.SequenceName, override val parent:
     /**
      * A [Tx] that affects this [DefaultEntity].
      */
-    inner class Tx(parent: DefaultSchema.Tx): SequenceTx, org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization {
+    inner class Tx(parent: DefaultSchema.Tx): SequenceTx, org.vitrivr.cottontail.dbms.general.Tx.BeforeCommit {
         /** Reference to the Cottontail DB [Transaction] object. */
         override val transaction: Transaction = parent.transaction
 

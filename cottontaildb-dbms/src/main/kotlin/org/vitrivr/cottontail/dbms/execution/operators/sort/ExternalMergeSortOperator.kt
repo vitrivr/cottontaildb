@@ -28,7 +28,7 @@ import java.util.*
 class ExternalMergeSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, private val chunkSize: Int, override val context: QueryContext) : AbstractSortOperator(parent, sortOn) {
 
     /** Temporary path used by this [ExternalMergeSortOperator]. */
-    private val tmpPath = this@ExternalMergeSortOperator.context.catalogue.config.root.resolve("tmp").resolve(this@ExternalMergeSortOperator.context.queryId)
+    private val tmpPath = this@ExternalMergeSortOperator.context.transaction.manager.config.root.resolve("tmp").resolve(this@ExternalMergeSortOperator.context.queryId)
 
     /** A [LinkedList] of chunks created by this [ExternalMergeSortOperator]. */
     private val chunks = LinkedList<Path>()

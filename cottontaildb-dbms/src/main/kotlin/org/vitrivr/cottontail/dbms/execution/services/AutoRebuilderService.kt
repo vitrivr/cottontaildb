@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
@@ -132,7 +131,7 @@ class AutoRebuilderService(private val manager: TransactionManager): Transaction
          * @return True on success, false otherwise.
          */
         private fun performRebuild(): Boolean {
-            val transaction = this@AutoRebuilderService.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+            val transaction = this@AutoRebuilderService.manager.Serializable()
             val context = DefaultQueryContext("auto-rebuild-${this@AutoRebuilderService.counter.incrementAndGet()}", this@AutoRebuilderService.manager.catalogue, transaction)
             try {
                 val entityTx = transaction.entityTx(this.index.entity(), AccessMode.READ)
@@ -163,7 +162,7 @@ class AutoRebuilderService(private val manager: TransactionManager): Transaction
          */
         private fun performConcurrentRebuild(): Boolean {
             /* Step 1a: Scan index (read-only). */
-            val transaction = this@AutoRebuilderService.manager.startTransaction(TransactionType.SYSTEM_READONLY)
+            val transaction = this@AutoRebuilderService.manager.SerializableReadonly()
             val context = DefaultQueryContext("auto-rebuild-prepare", this@AutoRebuilderService.manager.catalogue, transaction)
             val rebuilder = try {
                 val entityTx = transaction.entityTx(this.index.entity(), AccessMode.READ)

@@ -8,7 +8,10 @@ import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.events.Event
-import org.vitrivr.cottontail.dbms.execution.transactions.*
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
 import org.vitrivr.cottontail.dbms.index.basic.DefaultIndex
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
@@ -77,13 +80,10 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
         LOGGER.debug("Scanning index {} ({}).", this.index.name, this.index.type)
 
         /* Acquire query context; requires write-latch to prevent concurrent data events from "seeping" through. */
-        val context = this.manager.computeExclusively {
-            val transaction = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
-            val context = DefaultQueryContext("auto-rebuild-scan-$sequenceNumber", this.manager.catalogue, transaction)
-            this.manager.register(this)
-            this.state = IndexRebuilderState.REBUILDING
-            context
-        }
+        val transaction = this.manager.Serializable()
+        val context = DefaultQueryContext("auto-rebuild-scan-$sequenceNumber", this.manager.catalogue, transaction)
+        this.manager.register(this)
+        this.state = IndexRebuilderState.REBUILDING
 
         try {
             /* Start BUILD phase of process. */
@@ -113,7 +113,7 @@ abstract class AbstractAsyncIndexRebuilder<T: Index>(final override val index: T
         LOGGER.debug("Merging index {} ({}).", this.index.name, this.index.type)
 
         /* Acquire query context; requires write-latch to prevent concurrent data events from "seeping" through. */
-        val transaction = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val transaction = this.manager.Serializable()
         val context = DefaultQueryContext("auto-rebuild-replace-$sequenceNumber", this.manager.catalogue, transaction)
         this.manager.deregister(this)
 

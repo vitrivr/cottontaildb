@@ -25,22 +25,45 @@ interface Tx {
     val transaction: Transaction
 
     /**
-     * A [Tx] that requires commit finalization, i.e., must execute actions before a commit can be executed.
+     * A [Tx] object, that performs actions prior to being committed.
      */
-    interface WithCommitFinalization: Tx {
-        /**
-         * Called when the global transaction is rolled back. Can be used by this [Tx] to finalize its portion of the transaction.
-         */
+    interface BeforeCommit: Tx {
         fun beforeCommit()
     }
 
     /**
-     * A [Tx] that requires rollback finalization, i.e., must execute actions before a commit can be executed.
+     * A [Tx] object, that performs actions prior to being rolled back.
      */
-    interface WithRollbackFinalization: Tx {
-        /**
-         * Called when the global transaction is rolled back. Can be used by this [Tx] to finalize its portion of the transaction.
-         */
+    interface BeforeRollback: Tx {
         fun beforeRollback()
+    }
+
+    /**
+     * A [Tx] object, that performs some actions after to being committed.
+     */
+    interface AfterCommit: Tx {
+        fun afterCommit()
+    }
+
+    /**
+     * A [Tx] object, that performs some actions after to being rolled back.
+     */
+    interface AfterRollback: Tx {
+        fun afterRollback()
+    }
+
+    /**
+     * A [Tx] object, that can be committed or rolled back as part of a larger [Transaction]-
+     */
+    interface Commitable: Tx {
+        /**
+         * Commits this [Tx] and thus finalizes and persists all operations executed so far.
+         */
+        fun commit()
+
+        /**
+         * Aborts this [Tx] and rollsback all changes.
+         */
+        fun rollback()
     }
 }

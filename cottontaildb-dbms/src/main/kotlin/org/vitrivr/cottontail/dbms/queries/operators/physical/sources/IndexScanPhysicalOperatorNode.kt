@@ -179,7 +179,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
                     MergeLimitingSortPhysicalOperatorNode(*inbound.toTypedArray(), sortOn = order.order, limit = limit.limit.toInt())
                 } else {
                     val tupleSize = this.statistics.estimateTupleSize()
-                    val chunkSize = floorDiv(ctx.catalogue.config.memory.maxSortBufferSize, tupleSize).toInt()
+                    val chunkSize = floorDiv(ctx.transaction.manager.config.memory.maxSortBufferSize, tupleSize).toInt()
                     LimitPhysicalOperatorNode(ExternalSortPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), sortOn = order.order, chunkSize = chunkSize), limit.limit)
                 }
             }
@@ -190,7 +190,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
             this.hasTrait(OrderTrait) -> {
                 val order = this[OrderTrait]!!
                 val tupleSize = this.statistics.estimateTupleSize()
-                val chunkSize = floorDiv(ctx.catalogue.config.memory.maxSortBufferSize, tupleSize).toInt()
+                val chunkSize = floorDiv(ctx.transaction.manager.config.memory.maxSortBufferSize, tupleSize).toInt()
                 ExternalSortPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), sortOn = order.order, chunkSize = chunkSize)
             }
             else -> MergePhysicalOperatorNode(*inbound.toTypedArray())

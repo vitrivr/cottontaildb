@@ -17,7 +17,6 @@ import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.locking.DeadlockException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
@@ -59,15 +58,15 @@ internal interface TransactionalGrpcService {
         }
 
         /* Obtain transaction context. */
-        val transactionContext = if (metadata.transactionId <= 0L) {
+        val transaction = if (metadata.transactionId <= 0L) {
             if (readOnly) { /* Start new transaction. */
-                this.manager.startTransaction(TransactionType.USER_IMPLICIT_READONLY)
+                this.manager.SnapshotReadonly()
             } else {
-                this.manager.startTransaction(TransactionType.USER_IMPLICIT_EXCLUSIVE)
+                this.manager.Snapshot()
             }
-        } else { /* Reuse existing transaction. */
+        } else {
             val txn = this.manager[metadata.transactionId]
-            if (txn === null || txn.type.autoCommit) {
+            if (txn === null) {
                 throw Status.FAILED_PRECONDITION.withDescription( "Execution failed because transaction ${metadata.transactionId} could not be resumed because it doesn't exist or has the wrong type.").asException()
             }
             txn
@@ -96,12 +95,12 @@ internal interface TransactionalGrpcService {
                 metadata.policyHint.weightCpu,
                 metadata.policyHint.weightMemory,
                 metadata.policyHint.weightAccuracy,
-                this.manager.catalogue.config.cost.speedupPerWorker, /* Setting inherited from global config. */
-                this.manager.catalogue.config.cost.parallelisableIO /* Setting inherited from global config. */
+                this.manager.config.cost.speedupPerWorker, /* Setting inherited from global config. */
+                this.manager.config.cost.parallelisableIO /* Setting inherited from global config. */
             ))
         }
 
-        return DefaultQueryContext(queryId, this.manager.catalogue, transactionContext, hints)
+        return DefaultQueryContext(queryId, this.manager.catalogue, transaction, hints)
     }
 
     /**
@@ -157,24 +156,6 @@ internal interface TransactionalGrpcService {
 
         /* Phase 2b: Execute query and stream back results. */
         context.transaction.execute(operator).onCompletion {
-            /* Handle potential error & associated auto-rollback (if applicable). */
-            if (it != null) {
-                if (context.transaction.type.autoRollback) {
-                    context.transaction.rollback()
-                }
-                throw context.handleError(it, true)
-            }
-
-            /* Handle auto-commit (if applicable)*/
-            if (context.transaction.type.autoCommit) {
-                try {
-                    context.transaction.commit()
-                }  catch (e: Throwable) {
-                    context.transaction.rollback()
-                    throw context.handleError(e, true)
-                }
-            }
-
             /* Flush remaining tuples (final transmission). */
             if (results == 0 || responseBuilder.tuplesCount > 0) {
                 responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS)

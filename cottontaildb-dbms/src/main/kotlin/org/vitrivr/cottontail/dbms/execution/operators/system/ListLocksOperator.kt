@@ -26,7 +26,7 @@ class ListLocksOperator(override val context: QueryContext) : Operator.SourceOpe
         for (lock in  this@ListLocksOperator.context.transaction.manager.locks.allLocks()) {
             val owners = lock.second.getOwners().map { it.transactionId }
             val values = arrayOf<Value?>(
-                StringValue(lock.first.name.toString()),
+                StringValue(lock.first.toString()),
                 StringValue(lock.second.getMode().toString()),
                 IntValue(owners.size),
                 StringValue(owners.joinToString(", "))

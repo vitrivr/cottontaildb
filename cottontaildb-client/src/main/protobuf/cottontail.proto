@@ -146,8 +146,10 @@ enum IndexType {
 
 /** The mode of the transaction. */
 enum TransactionMode {
-    READ_WRITE = 0;
-    READONLY = 1;
+    SNAPSHOT = 0;
+    SNAPSHOT_READONLY = 1;
+    SERIALIZABLE = 2;
+    SERIALIZABLE_READONLY = 3;
 }
 
 /** Message to begin a transaction with. */

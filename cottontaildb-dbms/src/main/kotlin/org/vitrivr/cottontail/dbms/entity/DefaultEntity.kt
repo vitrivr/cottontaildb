@@ -40,7 +40,7 @@ import kotlin.concurrent.withLock
  * @author Ralph Gasser
  * @version 4.0.0
  */
-class DefaultEntity(override val name: Name.EntityName, override val parent: DefaultSchema, internal val environment: Environment) : Entity {
+class DefaultEntity(override val name: Name.EntityName, override val parent: DefaultSchema, private val environment: Environment) : Entity {
 
     /** A [DefaultEntity] belongs to the same [DefaultCatalogue] as the [DefaultSchema] it belongs to. */
     override val catalogue: DefaultCatalogue
@@ -83,7 +83,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
      * A [Tx] that affects this [DefaultEntity]. Opening a [DefaultEntity.Tx] will automatically spawn [ColumnTx]
      * and [IndexTx] for every [Column] and [IndexTx] associated with this [DefaultEntity].
      */
-    inner class Tx(parent: DefaultSchema.Tx): EntityTx {
+    inner class Tx(parent: DefaultSchema.Tx): EntityTx, org.vitrivr.cottontail.dbms.general.Tx.Commitable {
 
         /** Reference to the Cottontail DB [Transaction] object. */
         override val transaction: Transaction = parent.transaction
@@ -127,7 +127,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }
 
             /* Load a map of indexes. This map can be kept in memory for the duration of the transaction, because Transaction works with a fixed snapshot.  */
-            val indexMetadataStore = this.xodusTx.environment.openStore(DefaultCatalogue.INDEX_METADATA_STORE_NAME, StoreConfig.USE_EXISTING, this.xodusTx, false)
+            val indexMetadataStore = this.xodusTx.environment.openStore(INDEX_METADATA_STORE_NAME, StoreConfig.USE_EXISTING, this.xodusTx, false)
                 ?: throw DatabaseException.DataCorruptionException("Failed to open store for index catalogue.")
             indexMetadataStore.openCursor(this.xodusTx).use {
                 if (it.getSearchKeyRange(NameBinding.Entity.toEntry(this@DefaultEntity.name))  != null) {
@@ -257,7 +257,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             require(name.entity() == this@DefaultEntity.name) { "Index $name does not belong to entity! This is a programmer's error!"}
 
             /* Prepare index entry and persist it. */
-            val store = this@DefaultEntity.catalogue.environment.openStore(INDEX_METADATA_STORE_NAME, StoreConfig.USE_EXISTING, this.xodusTx, false)
+            val store = this@DefaultEntity.environment.openStore(INDEX_METADATA_STORE_NAME, StoreConfig.USE_EXISTING, this.xodusTx, false)
                 ?: throw DatabaseException.DataCorruptionException("Failed to open store for index catalogue.")
             val state = if (this.count() == 0L) { IndexState.CLEAN } else { IndexState.STALE }
             val indexEntry = IndexMetadata(type, state, columns.map { it.columnName }, configuration)
@@ -469,6 +469,20 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
 
             /* Signal event to transaction context. */
             this.transaction.signalEvent(event)
+        }
+
+        /**
+         * Commits the local Xodus [jetbrains.exodus.env.Transaction] and persists all changes.
+         */
+        override fun commit() {
+            this.xodusTx.commit()
+        }
+
+        /**
+         * Aborts the local Xodus [jetbrains.exodus.env.Transaction] and persists all changes.
+         */
+        override fun rollback() {
+            this.xodusTx.abort()
         }
 
         /**

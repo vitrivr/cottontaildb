@@ -31,7 +31,7 @@ class DMLService(override val manager: TransactionManager) : DMLGrpcKt.DMLCorout
             DeferFetchOnScanRewriteRule
         ),
         physicalRules = listOf(BooleanIndexScanRule),
-        this.manager.catalogue.config.cache.planCacheSize
+        this.manager.config.cache.planCacheSize
     )
 
     /**

@@ -62,7 +62,7 @@ class FixedLengthColumn<T : Value>(columnDef: ColumnDef<T>, parent: DefaultEntit
     /**
      * A [Tx] that affects this [VariableLengthColumn].
      */
-    inner class Tx constructor(parent: DefaultEntity.Tx) : DefaultColumn<T>.Tx(parent), org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization {
+    inner class Tx constructor(parent: DefaultEntity.Tx) : DefaultColumn<T>.Tx(parent) {
 
         /** The internal [TabletSerializer] reference used for de-/serialization. */
         private val serializer: TabletSerializer<T> = SerializerFactory.tablet(this@FixedLengthColumn.columnDef.type, this@FixedLengthColumn.tabletSize)

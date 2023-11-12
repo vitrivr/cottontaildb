@@ -62,7 +62,7 @@ abstract class DefaultColumn<T : Value>(final override val columnDef: ColumnDef<
     /**
      * A [Tx] that affects this [VariableLengthColumn].
      */
-    abstract inner class Tx constructor(parent: DefaultEntity.Tx) : ColumnTx<T>, org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization {
+    abstract inner class Tx constructor(parent: DefaultEntity.Tx) : ColumnTx<T>, org.vitrivr.cottontail.dbms.general.Tx.BeforeCommit {
         /** Reference to the Cottontail DB [Transaction] object. */
         final override val transaction: Transaction = parent.transaction
 

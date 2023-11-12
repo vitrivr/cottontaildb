@@ -6,7 +6,6 @@ import jetbrains.exodus.ExodusException
 import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.queries.operators.physical.system.ListLocksPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.system.ListTransactionsPhysicalOperatorNode
 import org.vitrivr.cottontail.grpc.CottontailGrpc
@@ -15,10 +14,10 @@ import org.vitrivr.cottontail.grpc.TXNGrpcKt
 import kotlin.time.ExperimentalTime
 
 /**
- * Implementation of [TXNGrpc.TXNImplBase], the gRPC endpoint for managing [TransactionManager.TransactionImpl]s in Cottontail DB
+ * Implementation of [TXNGrpc.TXNImplBase], the gRPC endpoint for managing [Transaction]s in Cottontail DB
  *
  * @author Ralph Gasser
- * @version 2.4.0
+ * @version 2.5.0
  */
 @ExperimentalTime
 class TXNService constructor(override val manager: TransactionManager) : TXNGrpcKt.TXNCoroutineImplBase(), TransactionalGrpcService {
@@ -28,8 +27,10 @@ class TXNService constructor(override val manager: TransactionManager) : TXNGrpc
     override suspend fun begin(request: CottontailGrpc.BeginTransaction): CottontailGrpc.ResponseMetadata {
         try {
             val txn = when(request.mode) {
-                CottontailGrpc.TransactionMode.READONLY -> this.manager.startTransaction(TransactionType.USER_READONLY)
-                else -> this.manager.startTransaction(TransactionType.USER_EXCLUSIVE)
+                CottontailGrpc.TransactionMode.SNAPSHOT_READONLY -> this.manager.SnapshotReadonly()
+                CottontailGrpc.TransactionMode.SERIALIZABLE_READONLY -> this.manager.SerializableReadonly()
+                CottontailGrpc.TransactionMode.SERIALIZABLE -> this.manager.Serializable()
+                else -> this.manager.Snapshot()
             }
             return CottontailGrpc.ResponseMetadata.newBuilder().setTransactionId(txn.transactionId).setTransactionMode(request.mode).build()
         } catch (e: ExodusException) {

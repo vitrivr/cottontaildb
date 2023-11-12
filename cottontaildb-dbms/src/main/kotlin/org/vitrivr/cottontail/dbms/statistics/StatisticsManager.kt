@@ -17,13 +17,12 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.statistics.collectors.*
 import org.vitrivr.cottontail.dbms.statistics.storage.*
+import java.io.Closeable
 import java.lang.ref.SoftReference
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
@@ -36,7 +35,7 @@ import kotlin.time.measureTime
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class StatisticsManager(private val manager: TransactionManager): TransactionObserver {
+class StatisticsManager(private val config: StatisticsConfig, private val manager: TransactionManager): TransactionObserver, Closeable {
 
     companion object {
         private val LOGGER = LoggerFactory.getLogger(StatisticsManager::class.java)
@@ -44,9 +43,6 @@ class StatisticsManager(private val manager: TransactionManager): TransactionObs
 
     /** The statistics/metrics Xodus [Environment] used by the [ColumnStatisticsStore]. */
     private val environment: Environment = Environments.newInstance(this.manager.config.statisticsFolder().toFile(), this.manager.config.xodus.toEnvironmentConfig())
-
-    /** Internal counter to keep track of then number of spawned tasks. */
-    private val counter = AtomicLong(0L)
 
     /** The [ColumnStatisticsStore] wraps a Xodus [Store] and can be used to store / obtain [ColumnStatistic]. */
     private val columnsStatisticsStore: ColumnStatisticsStore
@@ -237,30 +233,30 @@ class StatisticsManager(private val manager: TransactionManager): TransactionObs
         /* Log progress. */
         LOGGER.info("Starting statistics gathering for entity $entityName.")
 
-        val transaction = this@StatisticsManager.manager.startTransaction(TransactionType.SYSTEM_READONLY)
+        val transaction = this@StatisticsManager.manager.SnapshotReadonly()
         try {
             val duration = measureTime {
                 val entityTx = transaction.entityTx(entityName, AccessMode.READ)
                 val columns = entityTx.listColumns().toTypedArray()
 
                 /* Determines the number of entries that must be scanned. */
-                val sampleProbability = this@StatisticsManager.manager.catalogue.config.statistics.sampleProbability
+                val sampleProbability = this@StatisticsManager.config.sampleProbability
                 val expectedEntries = (entityTx.count() * sampleProbability).toLong()
 
                 /* Prepares array of column data collectors. */
                 val collectors = Array(columns.size) {
-                    getCollector(columns[it], this@StatisticsManager.manager.catalogue.config.statistics, expectedEntries) as MetricsCollector<Value>
+                    getCollector(columns[it], this@StatisticsManager.config, expectedEntries) as MetricsCollector<Value>
                 }
 
                 /* Scans the data and passes it to the collector */
                 entityTx.cursor(columns).use { cursor ->
-                    if (expectedEntries <= this@StatisticsManager.manager.catalogue.config.statistics.minimumSampleSize) {
+                    if (expectedEntries <= this@StatisticsManager.config.minimumSampleSize) {
                         while (cursor.moveNext()) {
                             val record = cursor.value()
                             collectors.forEachIndexed { index, collect ->  collect.receive(record[index]) }
                         }
                     } else {
-                        val generator = this@StatisticsManager.manager.catalogue.config.statistics.randomGenerator()
+                        val generator = this@StatisticsManager.config.randomGenerator()
                         while (cursor.moveNext()) {
                             if (generator.nextDouble(0.0, 1.0) <= sampleProbability) {
                                 val record = cursor.value()
@@ -334,4 +330,9 @@ class StatisticsManager(private val manager: TransactionManager): TransactionObs
     inner class AnalysisTask(private val entityName: Name.EntityName): Runnable {
         override fun run() = this@StatisticsManager.gatherStatisticsForEntity(this.entityName)
     }
+
+    /**
+     * Closes this [StatisticsManager]
+     */
+    override fun close() = this.environment.close()
 }

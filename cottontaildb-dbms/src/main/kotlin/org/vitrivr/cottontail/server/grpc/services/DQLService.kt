@@ -54,10 +54,10 @@ class DQLService(override val manager: TransactionManager) : DQLGrpcKt.DQLCorout
             DeferFetchOnFetchRewriteRule,
             DeferFunctionRewriteRule
         )
-        if (this.manager.catalogue.config.execution.simd) {
-            physical += FunctionVectorisationRule(this.manager.catalogue.config.execution.simdThreshold)
+        if (this.manager.config.execution.simd) {
+            physical += FunctionVectorisationRule(this.manager.config.execution.simdThreshold)
         }
-        this.planner = CottontailQueryPlanner(logical, physical, this.manager.catalogue.config.cache.planCacheSize)
+        this.planner = CottontailQueryPlanner(logical, physical, this.manager.config.cache.planCacheSize)
     }
 
     /**

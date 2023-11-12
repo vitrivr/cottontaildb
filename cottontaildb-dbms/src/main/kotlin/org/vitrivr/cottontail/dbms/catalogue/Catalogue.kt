@@ -1,13 +1,11 @@
 package org.vitrivr.cottontail.dbms.catalogue
 
-import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.Schema
-import java.io.Closeable
 
 /**
  * The main catalogue in Cottontail DB. It contains references to all the [Schema]s managed by
@@ -18,10 +16,7 @@ import java.io.Closeable
  * @author Ralph Gasser
  * @version 3.0.0
  */
-interface Catalogue : DBO, Closeable {
-    /** Reference to [Config] object. */
-    val config: Config
-
+interface Catalogue : DBO {
     /** The [FunctionRegistry] exposed by this [Catalogue]. */
     val functions: FunctionRegistry
 
@@ -38,9 +33,4 @@ interface Catalogue : DBO, Closeable {
      * @return New [CatalogueTx]
      */
     fun newTx(transaction: Transaction): CatalogueTx
-
-    /**
-     * Closes the [Catalogue] and all objects contained within.
-     */
-    override fun close()
 }

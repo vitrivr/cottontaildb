@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 
-import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.Digest
@@ -21,7 +20,7 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class SelectDistinctProjectionPhysicalOperatorNode(input: Physical, val fields: List<Pair<Name.ColumnName,Boolean>>, val config: Config): UnaryPhysicalOperatorNode(input) {
+class SelectDistinctProjectionPhysicalOperatorNode(input: Physical, val fields: List<Pair<Name.ColumnName,Boolean>>): UnaryPhysicalOperatorNode(input) {
     /** The name of this [CountProjectionPhysicalOperatorNode]. */
     override val name: String
         get() = Projection.SELECT_DISTINCT.label()
@@ -55,7 +54,7 @@ class SelectDistinctProjectionPhysicalOperatorNode(input: Physical, val fields: 
      */
     override fun copyWithNewInput(vararg input: Physical): SelectDistinctProjectionPhysicalOperatorNode {
         require(input.size == 1) { "The input arity for SelectDistinctProjectionPhysicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
-        return SelectDistinctProjectionPhysicalOperatorNode(input = input[0], fields = this.fields, config = this.config)
+        return SelectDistinctProjectionPhysicalOperatorNode(input[0], this.fields)
     }
 
     /**

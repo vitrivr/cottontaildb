@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
@@ -304,9 +305,10 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): DefaultIndex(name
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [IVFPQIndexCursor]
          */
+        context(BindingContext)
         override fun filter(predicate: Predicate): Cursor<Tuple> = this.txLatch.withLock {
             require(predicate is ProximityPredicate.Scan) { "IVFPQIndex can only be used with a SCAN type proximity predicate. This is a programmer's error!" }
-            IVFPQIndexCursor(predicate, this)
+            IVFPQIndexCursor(this, this@BindingContext, predicate)
         }
 
         /**
@@ -316,6 +318,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): DefaultIndex(name
          * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Iterator]
          */
+        context(BindingContext)
         override fun filter(predicate: Predicate, partition: LongRange): Cursor<Tuple>
             = throw UnsupportedOperationException("IVFPQIndex does not support range partitioning.")
     }

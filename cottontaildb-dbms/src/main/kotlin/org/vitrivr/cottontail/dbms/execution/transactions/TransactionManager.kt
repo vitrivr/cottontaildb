@@ -11,11 +11,16 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.slf4j.Logger
 import org.vitrivr.cottontail.config.Config
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
+import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
+import org.vitrivr.cottontail.dbms.column.ColumnTx
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
@@ -24,28 +29,38 @@ import org.vitrivr.cottontail.dbms.execution.locking.LockHolder
 import org.vitrivr.cottontail.dbms.execution.locking.LockManager
 import org.vitrivr.cottontail.dbms.execution.locking.LockMode
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode.*
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager.AbstractTransaction
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode.READ
+import org.vitrivr.cottontail.dbms.execution.transactions.AccessMode.WRITE
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
+import org.vitrivr.cottontail.dbms.index.basic.IndexTx
+import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.dbms.statistics.StatisticsManager
-import org.vitrivr.cottontail.utilities.extensions.write
+import java.io.Closeable
 import java.lang.ref.SoftReference
 import java.nio.file.Files
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.CoroutineContext
+import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.deleteRecursively
 
 /**
  * The default [TransactionManager] for Cottontail DB. It hosts all the necessary facilities to
- * create and execute queries within different [AbstractTransaction]s.
+ * create and execute queries within different [Transaction]s.
  *
  * @author Ralph Gasser
- * @version 1.9.0
+ * @version 2.0.0
  */
-class TransactionManager(val executionManager: ExecutionManager, val catalogue: Catalogue, val config: Config) {
+@OptIn(ExperimentalPathApi::class)
+class TransactionManager(val executionManager: ExecutionManager, val config: Config): Closeable {
+
+    companion object {
+        /** The [Logger] instance used for logging. */
+        private val LOGGER: Logger = org.slf4j.LoggerFactory.getLogger(TransactionManager::class.java)
+    }
+
     /** Map of [AbstractTransaction]s that are currently PENDING or RUNNING. */
     private val transactions = Collections.synchronizedMap(Long2ObjectOpenHashMap<AbstractTransaction>(this.config.execution.transactionTableSize, VERY_FAST_LOAD_FACTOR))
 
@@ -58,14 +73,23 @@ class TransactionManager(val executionManager: ExecutionManager, val catalogue: 
     /** Internal counter to generate [TransactionId]s. Starts with 1 */
     private val tidCounter = AtomicLong(1L)
 
-    /** Map of [DefaultEntity] to [Environment]. */
+    /** Map of [Environment]s for the different entites managed by this [TransactionManager]. */
     private val environments = ConcurrentHashMap<UUID, Environment>()
 
+    /** The [Environment] for the main [Catalogue]. */
+    private val catalogueEnvironment = Environments.newInstance(
+        this.config.catalogueFolder().toFile(),
+        this.config.xodus.toEnvironmentConfig()
+    )
+
     /** A map of all [Lock]s held by this [TransactionManager]. */
-    internal val locks = LockManager<DBO>()
+    internal val locks = LockManager<Name>()
 
     /** The [StatisticsManager] instance used by this [TransactionManager]. */
-    internal val statistics = StatisticsManager(this)
+    val statistics = StatisticsManager(this.config.statistics, this)
+
+    /** The [DefaultCatalogue] held by this [TransactionMetadata]*/
+    val catalogue = DefaultCatalogue(this.catalogueEnvironment)
 
     /**
      * Returns the [AbstractTransaction] for the provided [TransactionId].
@@ -109,44 +133,53 @@ class TransactionManager(val executionManager: ExecutionManager, val catalogue: 
     }
 
     /**
-     * Computes a block of code with exclusive access to the database, i.e., making sure that no concurrent write transaction is running.
-     *
-     * @param callback The [callback] to execute.
-     * @return [T]
-     */
-    fun <T> computeExclusively(callback: () -> T): T = this.exclusiveLock.write {
-        callback()
-    }
-
-    /**
-     * Starts a new [AbstractTransaction] through this [TransactionManager].
-     *
-     * @param type The [TransactionType] of the [TransactionMetadata] to start.
-     * @return [AbstractTransaction]
-     */
-    fun startTransaction(type: TransactionType): Transaction = if (type.readonly) {
-        ReadonlyTransaction(type)
-    } else {
-        ExclusiveTransaction(type)
-    }
-
-    /**
      * Attempts to shut down this [TransactionManager].
      */
-    fun shutdown() {
-        this.catalogue.close()
+    override fun close() {
+        /** Kill ongoing transactions. */
+        for (txn in this.transactions.values) {
+            txn.kill()
+        }
+
+        /* Close all environments. */
+        this.environments.values.forEach { it.close() }
+        this.environments.clear()
+        this.catalogueEnvironment.close()
+
+        /* Closes the statistics manager. */
+        this.statistics.close()
+
+        /* Close temporary environment and cleanup. */
+        if (!Files.exists(this.config.temporaryDataFolder())) {
+            Files.createDirectories(this.config.temporaryDataFolder())
+        } else {
+            Files.walk(this.config.temporaryDataFolder()).sorted(Comparator.reverseOrder()).forEach {
+                try {
+                    Files.delete(it)
+                } catch (e: Throwable) {
+                    LOGGER.warn("Failed to clean-up temporary data at $it.")
+                }
+            }
+        }
     }
 
     /**
+     * Returns the [Environment] for the given [UUID] [handle].
      *
+     * @param handle The [UUID] of the [Environment] to return.
+     * @return [Environment]
      */
-    fun environment(handle: UUID): Environment = this.environments[handle] ?: throw IllegalStateException("")
+    fun environment(handle: UUID): Environment = this.environments[handle] ?: throw IllegalStateException("No environment with handle $handle found. This is a programmer's error!")
 
     /**
+     * Creates and registers a new [Environment] for the given [UUID] [handle].
      *
+     * @param handle The [UUID] of the [Environment] to return.
+     * @return New  [Environment]
      */
     fun createEnvironment(handle: UUID): Environment {
-        val handlePath =  this.config.dataFolder().resolve(handle.toString())
+        require(!this.environments.containsKey(handle)) { "Environment with handle $handle already exists. This is a programmer's error!" }
+        val handlePath = this.config.dataFolder().resolve(handle.toString())
         if (Files.notExists(handlePath)) {
             Files.createDirectories(handlePath)
         }
@@ -156,7 +189,11 @@ class TransactionManager(val executionManager: ExecutionManager, val catalogue: 
     }
 
     /**
+     * De-registers and deletes an existing [Environment] for the given [UUID] [handle].
+     * If no [Environment] for the [UUID] exists, this method does nothing.
      *
+     * @param handle The [UUID] of the [Environment] to return.
+     * @return New  [Environment]
      */
     fun deleteEnvironment(handle: UUID) {
         val environment = this.environments.remove(handle)
@@ -169,47 +206,208 @@ class TransactionManager(val executionManager: ExecutionManager, val catalogue: 
         }
     }
 
-
-
-    private inner class Readonly(): AbstractTransaction(TransactionType.SYSTEM_READONLY) {
-    }
     /**
+     * An [AbstractTransaction] used for executing read-only queries.
      *
+     * [SnapshotReadonly] transactions operate on a moment-in-time snapshots of the database, that is
+     * acquired upon access to a [DBO]. No serialization with concurrent transactions takes place.
      */
-    private inner class Default(): AbstractTransaction(TransactionType.SYSTEM_READONLY) {
-        override fun txForDbo(dbo: DBO, mode: AccessMode): Tx {
-            val lockMode = when(mode) {
-                READ -> LockMode.NO_LOCK
-                WRITE -> LockMode.EXCLUSIVE
-            }
+    inner class SnapshotReadonly: AbstractTransaction(TransactionType.SNAPSHOT_READONLY) {
+        override fun catalogueTx(mode: AccessMode): CatalogueTx {
+            require(mode == READ) { "Read-only transaction can only be used for read-only access." }
+            return this.txns.computeIfAbsent(Name.RootName) {
+                this@TransactionManager.catalogue.newTx(this)
+            } as CatalogueTx
+        }
 
-            /* Acquire lock for DBO. */
-            this@TransactionManager.locks.lock(this, dbo, lockMode);
+        override fun schemaTx(name: Name.SchemaName, mode: AccessMode): SchemaTx {
+            require(mode == READ) { "Read-only transaction can only be used for read-only access." }
+            return this.txns.computeIfAbsent(name) {
+                val catalogue = this@TransactionManager.catalogue.newTx(this)
+                catalogue.schemaForName(name).newTx(catalogue)
+            } as SchemaTx
+        }
 
-            /* Create or re-use tx. */
-            return this.txns.computeIfAbsent(dbo) {
-                dbo.newTx(this)
-            }
+        override fun entityTx(name: Name.EntityName, mode: AccessMode): EntityTx {
+            require(mode == READ) { "Read-only transaction can only be used for read-only access." }
+            return this.txns.computeIfAbsent(name) {
+                val schemaTx = this.schemaTx(name.schema(), READ)
+                val entity = schemaTx.entityForName(name)
+                entity.newTx(schemaTx)
+            } as EntityTx
+        }
+
+        override fun columnTx(name: Name.ColumnName, mode: AccessMode): ColumnTx<*> {
+            require(mode == READ) { "Read-only transaction can only be used for read-only access." }
+            return this.txns.computeIfAbsent(name) {
+                val entityTx = this.entityTx(name.entity()!!, READ)
+                val column = entityTx.columnForName(name)
+                column.newTx(entityTx)
+            } as ColumnTx<*>
+        }
+
+        override fun indexTx(name: Name.IndexName, mode: AccessMode): IndexTx {
+            require(mode == READ) { "Read-only transaction can only be used for read-only access." }
+            return this.txns.computeIfAbsent(name) {
+                val entityTx = this.entityTx(name.entity(), READ)
+                val index = entityTx.indexForName(name)
+                index.newTx(entityTx)
+            } as IndexTx
         }
     }
 
     /**
+     * A [Transaction] used for executing read-only queries.
      *
+     * [SerializableReadonly] transaction require a shared lock on the [DBO] they operate on, and thus
+     * synchronize it with other writeable [Transaction]s.
      */
-    private inner class Serializable(type: TransactionType): AbstractTransaction(type) {
-        override fun txForDbo(dbo: DBO, mode: AccessMode): Tx {
-            val lockMode = when(mode) {
-                READ -> LockMode.SHARED
-                WRITE -> LockMode.EXCLUSIVE
-            }
+    inner class SerializableReadonly(): AbstractTransaction(TransactionType.SNAPSHOT_READONLY) {
+        override fun catalogueTx(mode: AccessMode): CatalogueTx {
+            require(mode == READ) { "Read-only transaction can only be used for read-only access." }
+            return this.txns.computeIfAbsent(Name.RootName) {
+                this@TransactionManager.locks.lock(this, Name.RootName, LockMode.SHARED)
+                this@TransactionManager.catalogue.newTx(this)
+            } as CatalogueTx
+        }
 
-            /* Acquire lock for DBO. */
-            this@TransactionManager.locks.lock(this, dbo, lockMode);
+        override fun schemaTx(name: Name.SchemaName, mode: AccessMode): SchemaTx {
+            require(mode == READ) { "Read-only transaction can only be used for read-only access." }
+            return this.txns.computeIfAbsent(name) {
+                this@TransactionManager.locks.lock(this, name, LockMode.SHARED)
+                val catalogue = this@TransactionManager.catalogue.newTx(this)
+                catalogue.schemaForName(name).newTx(catalogue)
+            } as SchemaTx
+        }
 
-            /* Create or re-use tx. */
-            return this.txns.computeIfAbsent(dbo) {
-                dbo.newTx(this)
-            }
+        override fun entityTx(name: Name.EntityName, mode: AccessMode): EntityTx {
+            require(mode == READ) { "Read-only transaction can only be used for read-only access." }
+            return this.txns.computeIfAbsent(name) {
+                this@TransactionManager.locks.lock(this, name, LockMode.SHARED)
+                val schemaTx = this.schemaTx(name.schema(), READ)
+                val entity = schemaTx.entityForName(name)
+                entity.newTx(schemaTx)
+            } as EntityTx
+        }
+
+        override fun columnTx(name: Name.ColumnName, mode: AccessMode): ColumnTx<*> {
+            require(mode == READ) { "Read-only transaction can only be used for read-only access." }
+            return this.txns.computeIfAbsent(name) {
+                this@TransactionManager.locks.lock(this, name, LockMode.SHARED)
+                val entityTx = this.entityTx(name.entity()!!, READ)
+                val column = entityTx.columnForName(name)
+                column.newTx(entityTx)
+            } as ColumnTx<*>
+        }
+
+        override fun indexTx(name: Name.IndexName, mode: AccessMode): IndexTx {
+            require(mode == READ) { "Read-only transaction can only be used for read-only access." }
+            return this.txns.computeIfAbsent(name) {
+                this@TransactionManager.locks.lock(this, name, LockMode.SHARED)
+                val entityTx = this.entityTx(name.entity(), READ)
+                val index = entityTx.indexForName(name)
+                index.newTx(entityTx)
+            } as IndexTx
+        }
+    }
+
+    /**
+     * A [Transaction] used for executing read and write queries.
+     *
+     * [Snapshot] transactions require an exclusive lock on the [DBO] they write. However, read-access
+     * is lock-free and does not synchronize with other [Transaction]s.
+     */
+    inner class Snapshot(): AbstractTransaction(TransactionType.SNAPSHOT) {
+        override fun catalogueTx(mode: AccessMode): CatalogueTx {
+            return this.txns.computeIfAbsent(Name.RootName) {
+                if (mode == WRITE) this@TransactionManager.locks.lock(this, Name.RootName, LockMode.EXCLUSIVE)
+                this@TransactionManager.catalogue.newTx(this)
+            } as CatalogueTx
+        }
+
+        override fun schemaTx(name: Name.SchemaName, mode: AccessMode): SchemaTx {
+            return this.txns.computeIfAbsent(name) {
+                if (mode == WRITE) this@TransactionManager.locks.lock(this, name, LockMode.EXCLUSIVE)
+                val catalogueTx = this.catalogueTx(mode)
+                catalogueTx.schemaForName(name).newTx(catalogueTx)
+            } as SchemaTx
+        }
+
+        override fun entityTx(name: Name.EntityName, mode: AccessMode): EntityTx {
+            return this.txns.computeIfAbsent(name) {
+                if (mode == WRITE) this@TransactionManager.locks.lock(this, name, LockMode.EXCLUSIVE)
+                val schemaTx = this.schemaTx(name.schema(), READ)
+                val entity = schemaTx.entityForName(name)
+                entity.newTx(schemaTx)
+            } as EntityTx
+        }
+
+        override fun columnTx(name: Name.ColumnName, mode: AccessMode): ColumnTx<*> {
+            return this.txns.computeIfAbsent(name) {
+                if (mode == WRITE) this@TransactionManager.locks.lock(this, name, LockMode.EXCLUSIVE)
+                val entityTx = this.entityTx(name.entity()!!, mode) /* Changing a column requires a write-access to the entity. */
+                val column = entityTx.columnForName(name)
+                column.newTx(entityTx)
+            } as ColumnTx<*>
+        }
+
+        override fun indexTx(name: Name.IndexName, mode: AccessMode): IndexTx {
+            return this.txns.computeIfAbsent(name) {
+                if (mode == WRITE) this@TransactionManager.locks.lock(this, name, LockMode.EXCLUSIVE)
+                val entityTx = this.entityTx(name.entity(), mode) /* Changing an index requires a write-access to the entity. */
+                val index = entityTx.indexForName(name)
+                index.newTx(entityTx)
+            } as IndexTx
+        }
+    }
+
+    /**
+     * A [Transaction] used for executing read and write queries.
+     *
+     * [SerializableReadonly] transactions require locks on the [DBO] before they can access it
+     * and therefore synchronize with other [Transaction]s.
+     */
+    inner class Serializable(): AbstractTransaction(TransactionType.SERIALIZABLE) {
+        override fun catalogueTx(mode: AccessMode): CatalogueTx {
+            return this.txns.computeIfAbsent(Name.RootName) {
+                this@TransactionManager.locks.lock(this, Name.RootName, mode.lock)
+                this@TransactionManager.catalogue.newTx(this)
+            } as CatalogueTx
+        }
+
+        override fun schemaTx(name: Name.SchemaName, mode: AccessMode): SchemaTx {
+            return this.txns.computeIfAbsent(name) {
+               this@TransactionManager.locks.lock(this, name, mode.lock)
+                val catalogueTx = this.catalogueTx(mode)
+                catalogueTx.schemaForName(name).newTx(catalogueTx)
+            } as SchemaTx
+        }
+
+        override fun entityTx(name: Name.EntityName, mode: AccessMode): EntityTx {
+            return this.txns.computeIfAbsent(name) {
+                this@TransactionManager.locks.lock(this, name, mode.lock)
+                val schemaTx = this.schemaTx(name.schema(), READ)
+                val entity = schemaTx.entityForName(name)
+                entity.newTx(schemaTx)
+            } as EntityTx
+        }
+
+        override fun columnTx(name: Name.ColumnName, mode: AccessMode): ColumnTx<*> {
+            return this.txns.computeIfAbsent(name) {
+                this@TransactionManager.locks.lock(this, name, mode.lock)
+                val entityTx = this.entityTx(name.entity()!!, mode) /* Changing a column requires a write-access to the entity. */
+                val column = entityTx.columnForName(name)
+                column.newTx(entityTx)
+            } as ColumnTx<*>
+        }
+
+        override fun indexTx(name: Name.IndexName, mode: AccessMode): IndexTx {
+            return this.txns.computeIfAbsent(name) {
+                this@TransactionManager.locks.lock(this, name, mode.lock)
+                val entityTx = this.entityTx(name.entity(), mode) /* Changing an index requires a write-access to the entity. */
+                val index = entityTx.indexForName(name)
+                index.newTx(entityTx)
+            } as IndexTx
         }
     }
 
@@ -222,7 +420,7 @@ class TransactionManager(val executionManager: ExecutionManager, val catalogue: 
      * @author Ralph Gasser
      * @version 2.0.0
      */
-    private abstract inner class AbstractTransaction(override val type: TransactionType): Transaction, LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()) {
+    abstract inner class AbstractTransaction(override val type: TransactionType): Transaction, LockHolder<Name>(this@TransactionManager.tidCounter.getAndIncrement()) {
 
         /** The [TransactionStatus] of this [AbstractTransaction]. */
         @Volatile
@@ -243,7 +441,7 @@ class TransactionManager(val executionManager: ExecutionManager, val catalogue: 
         private val localObservers: MutableMap<TransactionObserver, SoftReference<MutableList<Event>>> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
         /** Map of all [Tx] that have been created as part of this [AbstractTransaction]. */
-        protected val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
+        protected val txns: MutableMap<Name, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
         /** A [Mutex] data structure used for synchronisation on the [AbstractTransaction]. */
         private val mutex = Mutex()
@@ -292,17 +490,6 @@ class TransactionManager(val executionManager: ExecutionManager, val catalogue: 
             for (observer in this@TransactionManager.observers) {
                 this.localObservers[observer] = SoftReference(LinkedList<Event>())
             }
-        }
-
-        /**
-         *
-         */
-        fun createEnvironment(handle: UUID) {
-            val handlePath =  this@TransactionManager.config.dataFolder().resolve(handle.toString())
-            if (Files.notExists(handlePath)) {
-                Files.createDirectories(handlePath)
-            }
-            val environment: Environment =
         }
 
         /**
@@ -362,29 +549,31 @@ class TransactionManager(val executionManager: ExecutionManager, val catalogue: 
                     throw TransactionException.Commit(this@AbstractTransaction.transactionId, "Unable to COMMIT because transaction is in wrong state (s = ${this@AbstractTransaction.state}).")
                 this@AbstractTransaction.state = TransactionStatus.FINALIZING
 
-                try {
-                    if (!this@AbstractTransaction.xodusTx.isIdempotent) {
-                        /* Execute commit finalization. */
-                        for (txn in this@AbstractTransaction.txns.values.filterIsInstance<Tx.WithCommitFinalization>()) {
-                            txn.beforeCommit()
-                        }
-
-                        /* Execute actual commit. */
-
-                        if (!this@AbstractTransaction.xodusTx.commit()) {
-                            throw TransactionException.InConflict(this@AbstractTransaction.transactionId)
-                        }
+                /* Phase 1: Perform pre-commit finalization. */
+                for (txn in this@AbstractTransaction.txns.values.filterIsInstance<Tx.BeforeCommit>()) {
+                    try {
+                        txn.beforeCommit()
+                    } catch (e: Throwable) {
+                        this@AbstractTransaction.state = TransactionStatus.ERROR
+                        LOGGER.warn("Failed to execute beforeCommit() on ${txn.dbo.name}. This is not supposed to happen. Transaction will be aborted!", e)
+                        break
                     }
-                    this@AbstractTransaction.state = TransactionStatus.COMMIT
-                } catch (e: Throwable) {
-                    this@AbstractTransaction.xodusTx.abort()
-                    this@AbstractTransaction.state = TransactionStatus.ROLLBACK
-                    throw e
-                } finally {
-                    this@AbstractTransaction.finalizeTransaction()
-                    if (this@AbstractTransaction.state === TransactionStatus.COMMIT) {
-                        this@AbstractTransaction.notifyObservers()
+                }
+
+
+                /* Phase 2: Execute commit (if no error occurred). */
+                for (txn in this@AbstractTransaction.txns.values.filterIsInstance<Tx.Commitable>()) {
+                    if (this@AbstractTransaction.state ==  TransactionStatus.ERROR) {
+                        txn.rollback() /* Execute individual commits. */
+                    } else {
+                        txn.commit() /* Execute individual commits. */
                     }
+                }
+
+                /* Phase 3: Finalize transaction. */
+                this@AbstractTransaction.finalizeTransaction()
+                if (this@AbstractTransaction.state === TransactionStatus.COMMIT) {
+                    this@AbstractTransaction.notifyObservers()
                 }
             }
         }
@@ -428,22 +617,44 @@ class TransactionManager(val executionManager: ExecutionManager, val catalogue: 
          */
         private fun performRollback() {
             this@AbstractTransaction.state = TransactionStatus.FINALIZING
-            try {
-                for (txn in this@AbstractTransaction.txns.values.filterIsInstance<Tx.WithRollbackFinalization>()) {
+
+            /* Phase 1: Perform pre-rollback finalization. */
+            for (txn in this@AbstractTransaction.txns.values.filterIsInstance<Tx.BeforeRollback>()) {
+                try {
                     txn.beforeRollback()
+                } catch (e: Throwable) {
+                    LOGGER.warn("Failed to execute beforeRollback() on ${txn.dbo.name}. This is not supposed to happen!", e)
                 }
-                this.xodusTx.abort()
-                this.state = TransactionStatus.ROLLBACK
-            } finally {
-                this@AbstractTransaction.finalizeTransaction()
             }
+
+            /* Phase 2: Execute commit (if no error occurred). */
+            for (txn in this@AbstractTransaction.txns.values.filterIsInstance<Tx.Commitable>()) {
+                try {
+                    txn.rollback() /* Execute individual rollback. */
+                } catch (e: Throwable) {
+                    LOGGER.error("Failed to execute rollback() on ${txn.dbo.name}. This is a severe error!", e)
+                }
+            }
+            this.state = TransactionStatus.ROLLBACK
+
+            /* Phase 3: Finalize transaction. */
+            this@AbstractTransaction.finalizeTransaction()
         }
 
         /**
          * Finalizes the state of this [AbstractTransaction].
          */
         protected open fun finalizeTransaction() {
-            this@AbstractTransaction.txns.clear()
+
+            /* Release all locks. */
+            for (txn in this.txns.values) {
+                this@TransactionManager.locks.unlock(this, txn.dbo.name)
+            }
+
+            /* Clear Txn objects. */
+            this.txns.clear()
+
+            /* Update timestamp. */
             this@AbstractTransaction.ended = System.currentTimeMillis()
 
             /* Remove this transaction from the list of ongoing transactions. */

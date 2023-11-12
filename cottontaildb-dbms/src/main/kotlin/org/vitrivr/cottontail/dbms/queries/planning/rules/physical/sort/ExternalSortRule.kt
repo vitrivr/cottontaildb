@@ -39,7 +39,7 @@ object ExternalSortRule: RewriteRule {
         /* Perform rewrite. */
         val input = node.input.copyWithExistingInput()
         val tupleSize = input.statistics.estimateTupleSize()
-        val chunkSize = Math.floorDiv(ctx.catalogue.config.memory.maxSortBufferSize, tupleSize).toInt()
+        val chunkSize = Math.floorDiv(ctx.transaction.manager.config.memory.maxSortBufferSize, tupleSize).toInt()
         val p = ExternalSortPhysicalOperatorNode(input, node.sortOn, chunkSize)
         return node.output?.copyWithOutput(p) ?: p
     }

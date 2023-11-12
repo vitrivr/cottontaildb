@@ -167,7 +167,7 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
                         this.copyWithOutput(MergeLimitingSortPhysicalOperatorNode(*inbound.toTypedArray(), sortOn = order.order, limit = limit.limit.toInt()))
                     } else {
                         val tupleSize = this.statistics.estimateTupleSize()
-                        val chunkSize = Math.floorDiv(ctx.catalogue.config.memory.maxSortBufferSize, tupleSize).toInt()
+                        val chunkSize = Math.floorDiv(ctx.transaction.manager.config.memory.maxSortBufferSize, tupleSize).toInt()
                         this.copyWithOutput(ExternalSortPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), sortOn = order.order, chunkSize = chunkSize))
                     }
                 }
@@ -178,7 +178,7 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
                 this.input.hasTrait(OrderTrait) -> {
                     val order = this[OrderTrait]!!
                     val tupleSize = this.statistics.estimateTupleSize()
-                    val chunkSize = Math.floorDiv(ctx.catalogue.config.memory.maxSortBufferSize, tupleSize).toInt()
+                    val chunkSize = Math.floorDiv(ctx.transaction.manager.config.memory.maxSortBufferSize, tupleSize).toInt()
                     this.copyWithOutput(ExternalSortPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), sortOn = order.order, chunkSize = chunkSize))
                 }
                 else -> this.copyWithOutput(MergePhysicalOperatorNode(*inbound.toTypedArray()))

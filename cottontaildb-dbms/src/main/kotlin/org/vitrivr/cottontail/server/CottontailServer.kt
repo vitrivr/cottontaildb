@@ -11,25 +11,23 @@ import org.vitrivr.cottontail.server.grpc.services.DDLService
 import org.vitrivr.cottontail.server.grpc.services.DMLService
 import org.vitrivr.cottontail.server.grpc.services.DQLService
 import org.vitrivr.cottontail.server.grpc.services.TXNService
+import java.io.Closeable
 import kotlin.time.ExperimentalTime
 
 /**
  * Main server class for Cottontail DB. This is where all comes together!
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 2.0.0
  */
 @ExperimentalTime
-class CottontailServer(config: Config) {
+class CottontailServer(config: Config): Closeable {
 
     /** The [ExecutionManager] used for handling gRPC calls and executing queries. */
     private val executor = ExecutionManager(config)
 
-    /** The [DefaultCatalogue] instance used by this [CottontailServer]. */
-    private val catalogue = DefaultCatalogue(config)
-
     /** The [TransactionManager] instance used by this [CottontailServer]. */
-    private val manager: TransactionManager = TransactionManager(this.executor, this.catalogue, config)
+    private val manager: TransactionManager = TransactionManager(this.executor, config)
 
     /** The internal gRPC server; if building that server fails then the [DefaultCatalogue] is closed again! */
     private val grpc: Server
@@ -57,39 +55,30 @@ class CottontailServer(config: Config) {
             }.build()
 
         /* Start gRPC server. */
-        try {
-            this.grpc.start()
-        } catch (e: Throwable) {
-            this.executor.shutdownAndWait()
-            this.catalogue.close()
-            throw e
-        }
+        this.grpc.start()
     }
 
     /**
      * Returns true if this [CottontailServer] is currently running, and false otherwise.
      */
     @Volatile
-    var isRunning: Boolean = true
+    var closed: Boolean = false
         private set
 
     /**
      * Stops this instance of [CottontailServer].
      */
-    fun shutdownAndWait() {
-        if (this.isRunning) {
+    override fun close() {
+        if (!this.closed) {
             /* Shutdown gRPC server. */
-            this.grpc.shutdown().awaitTermination()
+            this.grpc.shutdown()
+
+            /* Closes the TransactionManager. */
+            this.manager.close()
 
             /* Shutdown thread pool executor. */
+            this.grpc.awaitTermination()
             this.executor.shutdownAndWait()
-
-            /* Close catalogue. */
-            this.catalogue.close()
-
-            /* Update flag. */
-            this.isRunning = false
         }
-
     }
 }

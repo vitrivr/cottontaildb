@@ -2,11 +2,9 @@ package org.vitrivr.cottontail.dbms.catalogue
 
 import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.env.Environment
-import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.StoreConfig
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
@@ -20,7 +18,6 @@ import org.vitrivr.cottontail.dbms.index.cache.InMemoryIndexCache
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.schema.SchemaMetadata
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -34,7 +31,7 @@ import kotlin.concurrent.withLock
  * @author Ralph Gasser
  * @version 3.0.0
  */
-class DefaultCatalogue(override val config: Config) : Catalogue {
+class DefaultCatalogue(private val environment: Environment) : Catalogue {
     /**
      * Companion object to [DefaultCatalogue]
      */
@@ -64,9 +61,6 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         internal const val INDEX_STRUCT_STORE_NAME: String = "org.vitrivr.cottontail.indexes.structs"
     }
 
-    /** Root to Cottontail DB root folder. */
-    val path: Path = this.config.root
-
     /** Constant name of the [DefaultCatalogue] object. */
     override val name: Name.RootName
         get() = Name.RootName
@@ -88,12 +82,6 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
     /** An internal, in-memory cache for frequently used index structures. This is highly experimental! */
     val cache = InMemoryIndexCache()
-
-    /** The [Catalogue] [Environment] used by Cottontail DB [DefaultCatalogue]. */
-    internal val environment: Environment = Environments.newInstance(
-        this.config.catalogueFolder().toFile(),
-        this.config.xodus.toEnvironmentConfig()
-    )
 
     init {
         /* Check if catalogue has been initialized and initialize if needed. */
@@ -123,19 +111,6 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
             throw e
         }
 
-        /* Tries to clean up the temporary environment. */
-        if (!Files.exists(this.config.temporaryDataFolder())) {
-            Files.createDirectories(this.config.temporaryDataFolder())
-        } else {
-            Files.walk(this.config.temporaryDataFolder()).sorted(Comparator.reverseOrder()).forEach {
-                try {
-                    Files.delete(it)
-                } catch (e: Throwable) {
-                    LOGGER.warn("Failed to clean-up temporary data at $it.")
-                }
-            }
-        }
-
         /* Initialize function registry. */
         this.functions.initialize()
     }
@@ -149,30 +124,23 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
     override fun newTx(transaction: Transaction): CatalogueTx = Tx(transaction)
 
     /**
-     * Closes the [DefaultCatalogue] and all objects contained within.
-     */
-    override fun close() {
-        this.environment.close()
-    }
-
-    /**
      * Compares this [DefaultCatalogue] to another object.
      */
     override fun equals(other: Any?): Boolean {
         if (other !is DefaultCatalogue) return false
-        if (this.path != other.path) return false
+        if (this.environment != other.environment) return false
         return true
     }
 
     /**
      * Hash code for this [DefaultCatalogue].
      */
-    override fun hashCode(): Int = this.path.hashCode()
+    override fun hashCode(): Int = this.environment.hashCode()
 
     /**
      * A [Tx] that affects this [DefaultCatalogue].
      */
-    inner class Tx(override val transaction: Transaction): CatalogueTx {
+    inner class Tx(override val transaction: Transaction): CatalogueTx, org.vitrivr.cottontail.dbms.general.Tx.Commitable {
 
         /** Reference to the [DefaultCatalogue] this [CatalogueTx] belongs to. */
         override val dbo: DefaultCatalogue
@@ -231,6 +199,20 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
             /* Return schema. */
             return DefaultSchema(name, this@DefaultCatalogue, this@DefaultCatalogue.environment)
+        }
+
+        /**
+         * Commits the local Xodus [jetbrains.exodus.env.Transaction] and persists all changes.
+         */
+        override fun commit() {
+            this.xodusTx.commit()
+        }
+
+        /**
+         * Aborts the local Xodus [jetbrains.exodus.env.Transaction] and persists all changes.
+         */
+        override fun rollback() {
+            this.xodusTx.abort()
         }
     }
 }

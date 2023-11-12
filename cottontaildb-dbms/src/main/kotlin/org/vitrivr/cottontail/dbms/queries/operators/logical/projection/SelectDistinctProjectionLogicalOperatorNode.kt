@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.projection
 
-import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.Digest
@@ -15,7 +14,7 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class SelectDistinctProjectionLogicalOperatorNode(input: Logical, val fields: List<Pair<Name.ColumnName, Boolean>>, val config: Config): AbstractProjectionLogicalOperatorOperator(input, Projection.SELECT_DISTINCT) {
+class SelectDistinctProjectionLogicalOperatorNode(input: Logical, val fields: List<Pair<Name.ColumnName, Boolean>>): AbstractProjectionLogicalOperatorOperator(input, Projection.SELECT_DISTINCT) {
     /** The name of this [SelectDistinctProjectionLogicalOperatorNode]. */
     override val name: String = "SelectDistinct"
 
@@ -43,7 +42,7 @@ class SelectDistinctProjectionLogicalOperatorNode(input: Logical, val fields: Li
      */
     override fun copyWithNewInput(vararg input: Logical): SelectDistinctProjectionLogicalOperatorNode {
         require(input.size == 1) { "The input arity for SelectDistinctProjectionLogicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
-        return SelectDistinctProjectionLogicalOperatorNode(input = input[0], fields = this.fields, config = this.config)
+        return SelectDistinctProjectionLogicalOperatorNode(input[0], this.fields)
     }
 
     /**
@@ -51,7 +50,7 @@ class SelectDistinctProjectionLogicalOperatorNode(input: Logical, val fields: Li
      *
      * @return [SelectDistinctProjectionPhysicalOperatorNode]
      */
-    override fun implement(): Physical = SelectDistinctProjectionPhysicalOperatorNode(this.input.implement(), this.fields, this.config)
+    override fun implement(): Physical = SelectDistinctProjectionPhysicalOperatorNode(this.input.implement(), this.fields)
 
     /**
      * Generates and returns a [Digest] for this [SelectDistinctProjectionLogicalOperatorNode].

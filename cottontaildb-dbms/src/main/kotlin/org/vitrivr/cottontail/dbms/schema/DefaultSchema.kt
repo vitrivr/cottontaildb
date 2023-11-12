@@ -77,7 +77,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
          * @return [List] of all [Name.EntityName].
          */
         override fun listEntities(): List<Name.EntityName> = this.txLatch.withLock {
-            val store = EntityMetadata.store(this@DefaultSchema.catalogue, this.xodusTx)
+            val store = this.xodusTx.environment.openStore(DefaultCatalogue.ENTITY_METADATA_STORE_PREFIX, StoreConfig.USE_EXISTING, this.xodusTx)
             val list = mutableListOf<Name.EntityName>()
             store.openCursor(this.xodusTx).use { cursor ->
                 if (cursor.getSearchKeyRange(NameBinding.Schema.toEntry(this@DefaultSchema.name)) != null) {
@@ -119,7 +119,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
          * @return [Entity]
          */
         override fun entityForName(name: Name.EntityName): Entity = this.txLatch.withLock {
-            val store = EntityMetadata.store(this@DefaultSchema.catalogue, this.xodusTx)
+            val store = this.xodusTx.environment.openStore(DefaultCatalogue.ENTITY_METADATA_STORE_PREFIX, StoreConfig.USE_EXISTING, this.xodusTx)
             val entryRaw = store.get(xodusTx, NameBinding.Entity.toEntry(name)) ?: throw DatabaseException.EntityDoesNotExistException(name)
             val entry = EntityMetadata.fromEntry(entryRaw)
             return DefaultEntity(name, this@DefaultSchema, this.transaction.manager.environment(entry.handle))
@@ -151,7 +151,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             val environment = this.transaction.manager.createEnvironment(entry.handle)
             val definitions = environment.computeInExclusiveTransaction { tx ->
                 environment.openBitmap(name.toString(), StoreConfig.WITHOUT_DUPLICATES, tx)
-                val columnMetadataStore = tx.environment.openStore(DefaultCatalogue.SCHEMA_METADATA_STORE_PREFIX, StoreConfig.WITHOUT_DUPLICATES, tx)
+                val columnMetadataStore = tx.environment.openStore(DefaultCatalogue.COLUMN_METADATA_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES, tx)
 
                 /* Add catalogue entries and stores at column level. */
                  columns.map {

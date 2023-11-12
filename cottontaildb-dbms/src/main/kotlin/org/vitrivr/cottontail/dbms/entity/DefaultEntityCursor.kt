@@ -36,7 +36,7 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
     }.toTypedArray()
 
     /** Opens the [Bitmap] store. */
-    private val bitmap: Bitmap = entity.dbo.environment.openBitmap("${entity.dbo.name}", StoreConfig.USE_EXISTING, entity.xodusTx)
+    private val bitmap: Bitmap = entity.xodusTx.environment.openBitmap("${entity.dbo.name}", StoreConfig.USE_EXISTING, entity.xodusTx)
 
     /** A read-only [jetbrains.exodus.env.Transaction] snapshot. */
     private val snapshot = entity.xodusTx.readonlySnapshot

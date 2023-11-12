@@ -492,7 +492,7 @@ object GrpcQueryBinder {
             }.map {
                 it.name to true
             }
-            SelectDistinctProjectionLogicalOperatorNode(input, fields, this@QueryContext.catalogue.config)
+            SelectDistinctProjectionLogicalOperatorNode(input, fields)
         }
         Projection.COUNT -> {
             val columnName = projection.keys.first()
@@ -506,7 +506,7 @@ object GrpcQueryBinder {
                 it.name to true
             }
             val columnDef = ColumnDef(Name.ColumnName(fields.first().first.schemaName, fields.first().first.entityName,"count(${fields.joinToString(",") { it.first.columnName }})"), Types.Long, false)
-            CountProjectionLogicalOperatorNode(SelectDistinctProjectionLogicalOperatorNode(input, fields, this@QueryContext.catalogue.config), this@QueryContext.bindings.bind(columnDef))
+            CountProjectionLogicalOperatorNode(SelectDistinctProjectionLogicalOperatorNode(input, fields), this@QueryContext.bindings.bind(columnDef))
         }
         Projection.EXISTS -> {
             val columnName = projection.keys.first()
