@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.dbms.column.ColumnTx
+import org.vitrivr.cottontail.core.types.Value
 
 /**
  * A [Cursor] implementation for the [DefaultEntity].
@@ -23,8 +23,8 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
     }
 
     /** The wrapped [Cursor] to iterate over columns. */
-    private val txs: Array<ColumnTx<*>> = Array(columns.size) {
-        entity.columnForName(columns[it].name).newTx(entity.context)
+    private val txs: Array<Cursor<Value>> = Array(columns.size) {
+        (entity.columnForName(columns[it].name).newTx(entity.context).cursor() as Cursor<Value>)
     }
 
     /** The array of output [ColumnDef] produced by this [DefaultEntityCursor]. */
@@ -59,7 +59,7 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
     /**
      * Returns the [Tuple] this [Cursor] is currently pointing to.
      */
-    override fun value(): Tuple = StandaloneTuple(this.current, this.columns, Array(this.columns.size) { this.txs[it].read(this.current) })
+    override fun value(): Tuple = StandaloneTuple(this.current, this.columns, Array(this.columns.size) { this.txs[it].value() })
 
     /**
      * Tries to move this [DefaultEntityCursor]. Returns true on success and false otherwise.
@@ -69,7 +69,7 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
     override fun moveNext(): Boolean {
         if (this.iterator.hasNext() && this.current < this.maximum) {
             this.current = this.iterator.next()
-            return true
+            return this.txs.all { it.moveTo(this.current) }
         }
         return false
     }

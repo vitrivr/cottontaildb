@@ -160,9 +160,10 @@ class VariableLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, over
          * @return [Cursor]
          */
         @Suppress("UNCHECKED_CAST")
-        override fun cursor(): Cursor<T> {
-            if (this.dataStore.count(this.context.txn.xodusTx) == 0L) return EmptyColumnCursor as Cursor<T>
-            return VariableLengthCursor(this@VariableLengthColumn, this.context.txn)
+        override fun cursor(): Cursor<T> = this.txLatch.withLock {
+            val count = this.dataStore.count(this.context.txn.xodusTx)
+            if (count == 0L) return EmptyColumnCursor as Cursor<T>
+            return VariableLengthCursor(this)
         }
     }
 }

@@ -8,35 +8,49 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.storage.serializers.SerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
 
 /**
  *
  */
-class VariableLengthCursor<T: Value>(private val column: Column<T>, private val transaction: Transaction): Cursor<T> {
+class VariableLengthCursor<T: Value>(column: VariableLengthColumn<T>.Tx): Cursor<T> {
+    /** The Xodus transaction snapshot used by this FixedLengthCursor. */
+    private val xodusTx = column.context.txn.xodusTx.readonlySnapshot
+
     /** Internal data [Store] reference. */
-    private val dataStore: Store = this.column.catalogue.transactionManager.environment.openStore(
-        this.column.name.storeName(),
+    private val store: Store = this.xodusTx.environment.openStore(
+        column.dbo.name.storeName(),
         StoreConfig.USE_EXISTING,
-        this.transaction.xodusTx,
+        xodusTx,
         false
-    ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this.column.name} is missing.")
+    ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${column.dbo.name} is missing.")
 
     /** The internal [ValueSerializer] reference used for de-/serialization. */
-    private val binding: ValueSerializer<T> = SerializerFactory.value(this.column.columnDef.type)
-
-    /** Internal Xodus transaction snapshot.  */
-    private val snapshot = this.transaction.xodusTx.readonlySnapshot
+    private val binding: ValueSerializer<T> = SerializerFactory.value(column.columnDef.type)
 
     /** Internal Xodus cursor instance.  */
-    private val cursor = this.dataStore.openCursor(this.transaction.xodusTx)
-    override fun moveNext(): Boolean = this.cursor.next
-    override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
+    private val cursor = this.store.openCursor(this.xodusTx)
+
+    /** The [TupleId] this [VariableLengthCursor] is currently pointing to. */
+    private var tupleId: TupleId = -1L
+
+    override fun moveNext(): Boolean = this.moveTo(this.tupleId + 1)
+    override fun movePrevious(): Boolean  = this.moveTo(this.tupleId - 1)
+    override fun moveTo(tupleId: TupleId): Boolean {
+        val ret = when (tupleId) {
+            this.tupleId + 1 -> this.cursor.next
+            this.tupleId - 1 -> this.cursor.prev
+            else -> this.cursor.getSearchKey(LongBinding.longToCompressedEntry(tupleId)) != null
+        }
+        if (ret) this.tupleId = tupleId
+        return ret
+    }
+
+    override fun key(): TupleId = this.tupleId
     override fun value(): T = this.binding.fromEntry(this.cursor.value)!!
     override fun close() {
         this.cursor.close()
-        this.snapshot.abort()
+        this.xodusTx.abort()
     }
 }

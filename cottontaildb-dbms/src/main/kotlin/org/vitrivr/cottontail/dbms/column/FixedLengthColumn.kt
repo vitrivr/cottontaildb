@@ -18,13 +18,11 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.defaultStatistics
-import org.vitrivr.cottontail.dbms.statistics.values.*
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import org.vitrivr.cottontail.storage.serializers.SerializerFactory
 import org.vitrivr.cottontail.storage.serializers.tablets.Compression
 import org.vitrivr.cottontail.storage.serializers.tablets.TabletSerializer
 import kotlin.concurrent.withLock
-
-typealias TabletId = Long
 
 /**
  * The default [Column] implementation for fixed-length columns based on JetBrains Xodus. [Value]s are stored in [AbstractTablet]s of 64 entries.
@@ -37,7 +35,13 @@ typealias TabletId = Long
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, override val parent: DefaultEntity, private val compression: Compression) : Column<T> {
+class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, override val parent: DefaultEntity, val compression: Compression) : Column<T> {
+
+    companion object {
+        const val TABLET_SIZE = 128
+        const val TABLET_SHR = 7
+    }
+
 
     /** The [Name.ColumnName] of this [VariableLengthColumn]. */
     override val name: Name.ColumnName
@@ -46,9 +50,6 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
     /** A [VariableLengthColumn] belongs to the same [DefaultCatalogue] as the [DefaultEntity] it belongs to. */
     override val catalogue: DefaultCatalogue
         get() = this.parent.catalogue
-
-    /** */
-    private val tabletSize: Int = 128
 
     init {
         require(type !is Types.String && this.columnDef.type !is Types.ByteString) {
@@ -82,12 +83,11 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
             false
         ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@FixedLengthColumn.name} is missing.")
 
-
         /** The internal [TabletSerializer] reference used for de-/serialization. */
-        private val serializer: TabletSerializer<T> = SerializerFactory.tablet(this@FixedLengthColumn.columnDef.type, this@FixedLengthColumn.tabletSize, this@FixedLengthColumn.compression)
+        private val serializer: TabletSerializer<T> = SerializerFactory.tablet(this@FixedLengthColumn.columnDef.type, TABLET_SIZE, this@FixedLengthColumn.compression)
 
-        /** The [TabletId] of the currently loaded [Tablet]. -1 if no [Tablet] has been loaded. */
-        private var tabletId: TabletId = -1
+        /** The [TupleId] of the currently loaded [Tablet]. -1 if no [Tablet] has been loaded. */
+        private var tabletId: TupleId = -1
 
         /** The currently loaded [Tablet]. */
         private var tablet: Tablet<T>? = null
@@ -117,12 +117,10 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
          * @return The desired [Value] or null.
          */
         override fun read(tupleId: TupleId): T? = this.txLatch.withLock {
-            val tabletId = tupleId ushr 6
-            val position = (tupleId % Long.SIZE_BITS).toInt()
-            if (this.tabletId != tabletId) {
-                loadTabletForTuple(tabletId)
-            }
-            return this.tablet!![position]
+            val tabletId = tupleId ushr TABLET_SHR
+            val tabletIdx = (tupleId % TABLET_SIZE).toInt()
+            loadTabletF(tabletId)
+            return this.tablet!![tabletIdx]
         }
 
         /**
@@ -133,13 +131,11 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
          * @return The desired entry.
          */
         override fun write(tupleId: TupleId, value: T) = this.txLatch.withLock {
-            val tabletId = tupleId ushr 6
-            val position = (tupleId % Long.SIZE_BITS).toInt()
-            if (this.tabletId != tabletId) {
-                loadTabletForTuple(tabletId)
-            }
-            val old = this.tablet!![position]
-            this.tablet!![position] = value
+            val tabletId = tupleId ushr TABLET_SHR
+            val tabletIdx = (tupleId % TABLET_SIZE).toInt()
+            loadTabletF(tabletId)
+            val old = this.tablet!![tabletIdx]
+            this.tablet!![tabletIdx] = value
             this.dirty = true
             old
         }
@@ -151,13 +147,11 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
          * @return The previous [Value] entry.
          */
         override fun delete(tupleId: TupleId): T? = this.txLatch.withLock {
-            val tabletId = tupleId ushr 6
-            val position = (tupleId % tabletId).toInt()
-            if (this.tabletId != tabletId) {
-                loadTabletForTuple(tabletId)
-            }
-            val old = this.tablet!![position]
-            this.tablet!![position] = null
+            val tabletId = tupleId ushr TABLET_SHR
+            val tabletIdx = (tupleId % TABLET_SIZE).toInt()
+            loadTabletF(tabletId)
+            val old = this.tablet!![tabletIdx]
+            this.tablet!![tabletIdx] = null
             this.dirty = true
             old
         }
@@ -169,37 +163,42 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
          */
         @Suppress("UNCHECKED_CAST")
         override fun cursor(): Cursor<T> {
-            if (this.dataStore.count(this.context.txn.xodusTx) == 0L) return EmptyColumnCursor as Cursor<T>
-            return VariableLengthCursor(this@FixedLengthColumn, this.context.txn)
+            val count = this.dataStore.count(this.context.txn.xodusTx)
+            if (count == 0L) return EmptyColumnCursor as Cursor<T>
+            return FixedLengthCursor(this)
         }
 
         /**
          * Flushes in-memory [AbstractTablet] to disk, if needed.
          */
         override fun beforeCommit() {
-            val tablet = this.tablet
-            if (this.dirty && tablet != null) {
-                this.dataStore.put(this.context.txn.xodusTx, LongBinding.longToCompressedEntry(this.tabletId), this.serializer.toEntry(tablet))
-                this.dirty = false
-            }
+            this.flushTablet()
         }
 
         /**
-         * Loads the [AbstractTablet] with the specified [TabletId] into memory.
+         * Loads the [AbstractTablet] with the specified [TupleId] into memory.
          *
-         * @param tabletId [TabletId] of the [AbstractTablet] to load.
+         * @param tabletId [TupleId] of the [AbstractTablet] to load.
          */
-        private fun loadTabletForTuple(tabletId: TabletId) {
-            if (this.dirty && this.tablet != null) { /* Flush current tablet if needed. */
-                this.dataStore.put(this.context.txn.xodusTx, LongBinding.longToCompressedEntry(this.tabletId), this.serializer.toEntry(this.tablet!!))
-                this.dirty = false
-            }
+        private fun loadTabletF(tabletId: TupleId) {
+            if (this.tabletId == tabletId) return
+            this.flushTablet() /* Flush tablet to disk if necessary. */
             this.tabletId = tabletId
             val rawTablet = this.dataStore.get(this.context.txn.xodusTx, LongBinding.longToCompressedEntry(tabletId))
             if (rawTablet != null) {
                 this.tablet = this.serializer.fromEntry(rawTablet)
             } else {
-                this.tablet = Tablet.of(this@FixedLengthColumn.tabletSize, this@FixedLengthColumn.type)
+                this.tablet = Tablet.of(TABLET_SIZE, this@FixedLengthColumn.type)
+            }
+        }
+
+        /**
+         * Flushes the currently active tablet to disk, if necessary.
+         */
+        private fun flushTablet() {
+            if (this.dirty && this.tablet != null) { /* Flush current tablet if needed. */
+                this.dataStore.put(this.context.txn.xodusTx, LongBinding.longToCompressedEntry(this.tabletId), this.serializer.toEntry(this.tablet!!))
+                this.dirty = false
             }
         }
     }
