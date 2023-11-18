@@ -273,6 +273,7 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                     CreateSchemaCommand(this@Cli.client),
                     DropSchemaCommand(this@Cli.client),
                     DumpSchemaCommand(this@Cli.client),
+                    RestoreSchemaCommand(this@Cli.client),
                     ListAllSchemaCommand(this@Cli.client),
                     ListEntitiesCommand(this@Cli.client)
                 ),

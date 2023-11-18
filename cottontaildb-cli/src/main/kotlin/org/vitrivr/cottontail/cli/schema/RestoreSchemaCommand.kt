@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.cli.schema
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
-import org.vitrivr.cottontail.cli.basics.AbstractSchemaCommand
+import org.vitrivr.cottontail.cli.basics.AbstractCottontailCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.data.Restorer
 import java.nio.file.Files
@@ -19,10 +19,10 @@ import kotlin.time.measureTime
  * @version 1.0.0
  */
 @ExperimentalTime
-class RestoreCommand(client: SimpleClient) : AbstractSchemaCommand(
-    client,
+class RestoreSchemaCommand(private val client: SimpleClient) : AbstractCottontailCommand(
     name = "restore",
-    help = "Restores the content of a database dump back into Cottontail DB."
+    help = "Restores the content of a database dump back into Cottontail DB.",
+    false
 ) {
 
     /** Path to the output folder or file. */
