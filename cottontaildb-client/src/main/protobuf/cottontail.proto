@@ -460,9 +460,10 @@ message ColumnDefinition {
     bool autoIncrement = 6;
     Compression compression = 7;
     enum Compression {
-        NONE = 0;
-        LZ4 = 1;
-        SNAPPY = 2;
+        DEFAULT = 0;
+        NONE = 1;
+        LZ4 = 2;
+        SNAPPY = 3;
     }
 }
 

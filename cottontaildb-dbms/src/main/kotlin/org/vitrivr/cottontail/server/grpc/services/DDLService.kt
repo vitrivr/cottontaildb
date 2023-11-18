@@ -17,6 +17,8 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.definition.*
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.InMemorySortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.grpc.CottontailGrpc.ColumnDefinition.Compression.NONE
+import org.vitrivr.cottontail.grpc.CottontailGrpc.ColumnDefinition.Compression.SNAPPY
 import org.vitrivr.cottontail.grpc.DDLGrpcKt
 import org.vitrivr.cottontail.storage.serializers.tablets.Compression
 import org.vitrivr.cottontail.utilities.extensions.fqn
@@ -65,8 +67,13 @@ class DDLService(override val catalogue: DefaultCatalogue, val autoRebuilderServ
         val columns = request.columnsList.associate {
             val type = Types.forName(it.type.name, it.length)
             val name = entityName.column(it.name.name) /* To make sure that columns belongs to entity. */
+            val compression = when(it.compression) {
+                NONE -> Compression.NONE
+                SNAPPY -> Compression.SNAPPY
+                else -> Compression.LZ4
+            }
             try {
-                name to ColumnMetadata(type, Compression.valueOf(it.compression.name), it.nullable, it.primary, it.autoIncrement)
+                name to ColumnMetadata(type, compression, it.nullable, it.primary, it.autoIncrement)
             } catch (e: IllegalArgumentException) {
                 throw DatabaseException.ValidationException(e.message ?: "Failed to validate query input.")
             }
