@@ -6,6 +6,7 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.CreateEntity
+import org.vitrivr.cottontail.client.language.ddl.CreateSchema
 import org.vitrivr.cottontail.client.language.dml.BatchInsert
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tuple.Tuple
@@ -72,6 +73,9 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
         val tuples = this.iterator(entity)
         val txId = this.client.begin(false)
         try {
+            /* Create Schema (if it doesn't exist). */
+            this.client.create(CreateSchema(entity.name.schema()).ifNotExists().txId(txId))
+
             /* Create entity. */
             val create = CreateEntity(entity.name).txId(txId)
             for (c in entity.columns) {
