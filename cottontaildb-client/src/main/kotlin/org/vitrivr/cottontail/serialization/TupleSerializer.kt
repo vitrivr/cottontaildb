@@ -38,16 +38,15 @@ class TupleSerializer(val columns: Array<ColumnDef<*>>): KSerializer<Tuple> {
      * @return The decoded [Tuple].
      */
     override fun deserialize(decoder: Decoder): Tuple {
-        val values = ArrayList<Value?>(this.columns.size)
+        val values = Array<Value?>(this.columns.size) { null }
         val dec = decoder.beginStructure(this.descriptor)
         while (true) {
             val index = dec.decodeElementIndex(this.descriptor)
             if (index == CompositeDecoder.DECODE_DONE) break
-            val serializer = this.elementSerializers[index]
-            values.add(dec.decodeNullableSerializableElement(this@TupleSerializer.descriptor, index, serializer))
+            values[index] = dec.decodeNullableSerializableElement(this.descriptor, index, this.elementSerializers[index])
         }
         dec.endStructure(this.descriptor)
-        return StandaloneTuple(0L, this@TupleSerializer.columns, values.toTypedArray())
+        return StandaloneTuple(0L, this.columns, values)
     }
 
     /**
