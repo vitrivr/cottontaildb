@@ -238,6 +238,10 @@ sealed class Types<T : Value> {
     @Serializable
     @SerialName("INTEGER_VECTOR")
     class IntVector(override val logicalSize: kotlin.Int): Vector<IntVectorValue, IntValue>() {
+        init {
+            require(this.logicalSize > 0) { "Logical size of a vector must be greater than zero." }
+        }
+
         override val name = "INTEGER_VECTOR"
         override val ordinal: kotlin.Int = 12
         override val physicalSize = this.logicalSize * kotlin.Int.SIZE_BYTES
@@ -247,6 +251,10 @@ sealed class Types<T : Value> {
     @Serializable
     @SerialName("LONG_VECTOR")
     class LongVector(override val logicalSize: kotlin.Int): Vector<LongVectorValue, LongValue>() {
+        init {
+            require(this.logicalSize > 0) { "Logical size of a vector must be greater than zero." }
+        }
+
         override val name = "LONG_VECTOR"
         override val ordinal: kotlin.Int = 13
         override val physicalSize = this.logicalSize * kotlin.Long.SIZE_BYTES
@@ -256,6 +264,10 @@ sealed class Types<T : Value> {
     @Serializable
     @SerialName("FLOAT_VECTOR")
     class FloatVector(override val logicalSize: kotlin.Int): Vector<FloatVectorValue, FloatValue>() {
+        init {
+            require(this.logicalSize > 0) { "Logical size of a vector must be greater than zero." }
+        }
+
         override val name = "FLOAT_VECTOR"
         override val ordinal: kotlin.Int = 14
         override val physicalSize = this.logicalSize * kotlin.Int.SIZE_BYTES
@@ -265,6 +277,10 @@ sealed class Types<T : Value> {
     @Serializable
     @SerialName("DOUBLE_VECTOR")
     class DoubleVector(override val logicalSize: kotlin.Int): Vector<DoubleVectorValue, DoubleValue>() {
+        init {
+            require(this.logicalSize > 0) { "Logical size of a vector must be greater than zero." }
+        }
+
         override val name = "DOUBLE_VECTOR"
         override val ordinal: kotlin.Int = 15
         override val physicalSize = this.logicalSize * kotlin.Long.SIZE_BYTES
@@ -274,6 +290,10 @@ sealed class Types<T : Value> {
     @Serializable
     @SerialName("BOOLEAN_VECTOR")
     class BooleanVector(override val logicalSize: kotlin.Int): Vector<BooleanVectorValue, BooleanValue>() {
+        init {
+            require(this.logicalSize > 0) { "Logical size of a vector must be greater than zero." }
+        }
+
         override val name = "BOOLEAN_VECTOR"
         override val ordinal: kotlin.Int = 16
         override val physicalSize = this.logicalSize * kotlin.Byte.SIZE_BYTES
@@ -283,6 +303,10 @@ sealed class Types<T : Value> {
     @Serializable
     @SerialName("COMPLEX32_VECTOR")
     class Complex32Vector(override val logicalSize: kotlin.Int): Vector<Complex32VectorValue, Complex32Value>() {
+        init {
+            require(this.logicalSize > 0) { "Logical size of a vector must be greater than zero." }
+        }
+
         override val name = "COMPLEX32_VECTOR"
         override val ordinal: kotlin.Int = 17
         override val physicalSize = this.logicalSize * 2 * kotlin.Int.SIZE_BYTES
@@ -292,6 +316,10 @@ sealed class Types<T : Value> {
     @Serializable
     @SerialName("COMPLEX64_VECTOR")
     class Complex64Vector(override val logicalSize: kotlin.Int): Vector<Complex64VectorValue, Complex32Value>() {
+        init {
+            require(this.logicalSize > 0) { "Logical size of a vector must be greater than zero." }
+        }
+
         override val name = "COMPLEX64_VECTOR"
         override val ordinal: kotlin.Int = 18
         override val elementType = Complex32
@@ -310,6 +338,10 @@ sealed class Types<T : Value> {
     @Serializable
     @SerialName("SHORT_VECTOR")
     class ShortVector(override val logicalSize: kotlin.Int): Vector<ShortVectorValue, ShortValue>() {
+        init {
+            require(this.logicalSize > 0) { "Logical size of a vector must be greater than zero." }
+        }
+
         override val name = "SHORT_VECTOR"
         override val ordinal: kotlin.Int = 20
         override val physicalSize = this.logicalSize * kotlin.Short.SIZE_BYTES
@@ -319,6 +351,10 @@ sealed class Types<T : Value> {
     @Serializable
     @SerialName("HALF_VECTOR")
     class HalfVector(override val logicalSize: kotlin.Int): Vector<FloatVectorValue, FloatValue>() {
+        init {
+            require(this.logicalSize > 0) { "Logical size of a vector must be greater than zero." }
+        }
+
         override val name = "HALF_VECTOR"
         override val ordinal: kotlin.Int = 21
         override val physicalSize = this.logicalSize * kotlin.Short.SIZE_BYTES
