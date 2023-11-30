@@ -30,8 +30,8 @@ class StandaloneTuple(override var tupleId: TupleId, override val columns: Array
 
     init {
         require(this.columns.size == this.values.size) { "Number of values and number of columns must be the same." }
-        for ((i, c) in this.columns.withIndex()) {
-            require(c.validate(this.values[i])) { "Value ${this.values[i]} is incompatible with column $c." }
+        for ((c, v) in this.columns.zip(this.values)) {
+            require(((v == null && c.nullable) || (v != null && c.type == v.type))) { "Value $v is incompatible with column $c." }
         }
     }
 
@@ -72,10 +72,7 @@ class StandaloneTuple(override var tupleId: TupleId, override val columns: Array
      * @param index The index for which to retrieve the value.
      * @return The value for the column index.
      */
-    override fun get(index: Int): Value? {
-        require(index in (0 until this.size)) { "The specified column $index is out of bounds." }
-        return this.values[index]
-    }
+    override fun get(index: Int): Value? = this.values[index]
 
     /**
      * Returns a [List] of [Value]s contained in this [StandaloneTuple].
@@ -91,8 +88,8 @@ class StandaloneTuple(override var tupleId: TupleId, override val columns: Array
      * @param value The new [Value]
      */
     override fun set(index: Int, value: Value?) {
-        require(index in (0 until this.size)) { "The specified column $index is out of bounds." }
-        require(this.columns[index].validate(value)) { "Provided value $value is incompatible with column ${this.columns[index]}." }
+        val column = this.columns[index]
+        require(((value == null && column.nullable) || (value != null && value.type == column.type))) { "Provided value $value is incompatible with column ${this.columns[index]}." }
         this.values[index] = value
     }
 

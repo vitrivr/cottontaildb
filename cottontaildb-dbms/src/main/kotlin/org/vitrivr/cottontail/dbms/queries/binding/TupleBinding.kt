@@ -12,9 +12,17 @@ import org.vitrivr.cottontail.core.types.Value
  * A [Tuple] implementation that depends on the existence of [Binding]s for the [Value]s it contains. Used for inserts.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 class TupleBinding(override var tupleId: TupleId, override val columns: Array<ColumnDef<*>>, private val values: Array<Binding.Literal>, private val context: BindingContext) : MutableTuple {
+
+    init {
+        require(this.columns.size == this.values.size) { "Number of values and number of columns must be the same." }
+        for ((c, b) in this.columns.zip(this.values)) {
+            require(c.nullable == b.canBeNull) { "Value binding $b is incompatible with column $c." }
+            require(c.type == b.type) { "Value binding $b is incompatible with column $c." }
+        }
+    }
 
     /**
      * Creates a copy of this [TupleBinding]

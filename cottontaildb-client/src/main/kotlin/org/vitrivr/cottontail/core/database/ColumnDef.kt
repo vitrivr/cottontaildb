@@ -13,16 +13,6 @@ import org.vitrivr.cottontail.core.types.Value
  */
 @Serializable
 data class ColumnDef<T : Value>(val name: Name.ColumnName, val type: Types<T>, val nullable: Boolean = true, val primary: Boolean = false, val autoIncrement: Boolean = false) {
-
-    /**
-     * Validates a value with regard to this [ColumnDef] return a flag indicating whether validation was passed.
-     *
-     * @param value The value that should be validated.
-     * @return True if value passes validation, false otherwise.
-     */
-    fun validate(value: Value?): Boolean
-        = ((value == null && this.nullable) || (value != null && this.type == value.type))
-
     /**
      * Creates and returns a [String] representation of this [ColumnDef].
      */
