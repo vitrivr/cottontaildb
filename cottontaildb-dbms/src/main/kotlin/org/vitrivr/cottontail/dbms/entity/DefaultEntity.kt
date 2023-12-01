@@ -97,7 +97,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                             break
                         }
                         val columnEntry = ColumnMetadata.fromEntry(it.value)
-                        val columnDef = ColumnDef(columnName, columnEntry.type, columnEntry.nullable, columnEntry.primary, columnEntry.primary)
+                        val columnDef = ColumnDef(columnName, columnEntry.type, columnEntry.nullable, columnEntry.primary, columnEntry.autoIncrement)
                         if (columnDef.type is Types.String || columnDef.type is Types.ByteString) {
                             this.columns[columnName] = VariableLengthColumn(columnDef, this@DefaultEntity)
                         } else {
