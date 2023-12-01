@@ -4,14 +4,15 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
+import org.vitrivr.cottontail.dbms.column.ColumnMetadata
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.schema.Schema
+import org.vitrivr.cottontail.storage.serializers.tablets.Compression
 
 /**
  * A set of unit tests to test basic [Schema] functionality.
@@ -45,7 +46,7 @@ class SchemaTest: AbstractDatabaseTest() {
             val schema = catalogueTx1.createSchema(this.schemaName)
             val schemaTx1 = schema.newTx(ctx1)
             for (name in entityNames) {
-                schemaTx1.createEntity(name, ColumnDef(name.column("id"), Types.String))
+                schemaTx1.createEntity(name, mapOf(name.column("id") to ColumnMetadata(Types.String, Compression.NONE, false, true, false)))
             }
             txn1.commit()
         } catch (t: Throwable) {
@@ -91,7 +92,7 @@ class SchemaTest: AbstractDatabaseTest() {
             val schema = catalogueTx1.createSchema(this.schemaName)
             val schemaTx1 = schema.newTx(ctx1)
             for (name in entityNames) {
-                schemaTx1.createEntity(name, ColumnDef(name.column("id"), Types.String))
+                schemaTx1.createEntity(name, mapOf(name.column("id") to ColumnMetadata(Types.String, Compression.NONE, false, true, false)))
             }
 
             /* Drop newly created entity. */
@@ -100,8 +101,10 @@ class SchemaTest: AbstractDatabaseTest() {
             /* Create new entity with the same name. */
             schemaTx1.createEntity(
                 entityNames[1],
-                ColumnDef(entityNames[1].column("id1"), Types.Long),
-                ColumnDef(entityNames[1].column("id2"), Types.Int)
+                mapOf(
+                    entityNames[1].column("id1") to ColumnMetadata(Types.Long, Compression.NONE, false, true, false),
+                    entityNames[1].column("id2") to ColumnMetadata(Types.Int, Compression.NONE, false, false, false)
+                )
             )
             txn1.commit()
         } catch (t: Throwable) {
@@ -154,7 +157,7 @@ class SchemaTest: AbstractDatabaseTest() {
             val schema = catalogueTx1.schemaForName(this.schemaName)
             val schemaTx1 = schema.newTx(ctx1)
             for (name in entityNames) {
-                schemaTx1.createEntity(name, ColumnDef(name.column("id"), Types.String))
+                schemaTx1.createEntity(name, mapOf(name.column("id") to ColumnMetadata(Types.String, Compression.NONE, false, true, false)))
             }
         } finally {
             txn1.rollback()
@@ -190,7 +193,7 @@ class SchemaTest: AbstractDatabaseTest() {
             val schema = catalogueTx1.createSchema(this.schemaName)
             val schemaTx1 = schema.newTx(ctx1)
             for (name in this.entityNames) {
-                schemaTx1.createEntity(name, ColumnDef(name.column("id"), Types.String))
+                schemaTx1.createEntity(name, mapOf(name.column("id") to ColumnMetadata(Types.String, Compression.NONE, false, true, false)))
             }
         } finally {
             txn1.commit()
@@ -209,9 +212,11 @@ class SchemaTest: AbstractDatabaseTest() {
                 assertEquals(1, entityTx.listColumns().size)
                 schemaTx2.dropEntity(name)
                 schemaTx2.createEntity(
-                        name,
-                        ColumnDef(name.column("id"), Types.String),
-                        ColumnDef(name.column("value"), Types.String)
+                    name,
+                    mapOf(
+                        name.column("id") to ColumnMetadata(Types.String, Compression.NONE, false, true, false),
+                        name.column("value") to ColumnMetadata(Types.String, Compression.NONE, false, false, false)
+                    )
                 )
             }
         } finally {

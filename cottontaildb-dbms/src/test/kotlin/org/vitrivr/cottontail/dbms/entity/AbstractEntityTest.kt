@@ -4,11 +4,13 @@ import org.junit.jupiter.api.BeforeEach
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
+import org.vitrivr.cottontail.dbms.column.ColumnMetadata
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.schema.Schema
+import org.vitrivr.cottontail.storage.serializers.tablets.Compression
 
 /**
  * An [AbstractDatabaseTest] that tests entities with toy data.
@@ -76,7 +78,7 @@ abstract class AbstractEntityTest: AbstractDatabaseTest() {
             val catalogueTx = this.catalogue.newTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
-            schemaTx.createEntity(e.first, *e.second.map { it }.toTypedArray())
+            schemaTx.createEntity(e.first, e.second.associate { it.name to ColumnMetadata(it.type, Compression.NONE, it.nullable, it.primary, it.autoIncrement) })
         }
         txn.commit()
     }

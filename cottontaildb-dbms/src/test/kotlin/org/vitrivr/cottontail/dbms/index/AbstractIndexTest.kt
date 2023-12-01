@@ -8,12 +8,14 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
+import org.vitrivr.cottontail.dbms.column.ColumnMetadata
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.schema.Schema
+import org.vitrivr.cottontail.storage.serializers.tablets.Compression
 import org.vitrivr.cottontail.test.TestConstants
 
 /**
@@ -102,7 +104,7 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
             val catalogueTx = this.catalogue.newTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
-            schemaTx.createEntity(this.entityName, *this.columns)
+            schemaTx.createEntity(this.entityName, this.columns.associate { it.name to ColumnMetadata(it.type, Compression.NONE, it.nullable, it.primary, it.autoIncrement) })
             txn.commit()
         } catch (e: Throwable) {
             txn.rollback()
