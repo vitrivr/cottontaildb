@@ -325,7 +325,6 @@ class DMLServiceTest : AbstractClientTest() {
     fun testInvalidNullInsert() {
         val entries = TEST_COLLECTION_SIZE * 5
         val batchSize = 1000
-        val stringLength = 200
 
         /* Start large insert. */
         val txId = this.client.begin()

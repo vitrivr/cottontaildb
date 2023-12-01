@@ -115,7 +115,7 @@ object GrpcTestUtils {
      */
     fun populateVectorEntity(client: SimpleClient) {
         val batch = BatchInsert(TestConstants.TEST_VECTOR_ENTITY_NAME.fqn)
-            .columns(ID_COLUMN_NAME, STRING_COLUMN_NAME, INT_COLUMN_NAME, TestConstants.TWOD_COLUMN_NAME)
+            .columns(ID_COLUMN_NAME, STRING_COLUMN_NAME, INT_COLUMN_NAME,  TWOD_COLUMN_NAME)
         val random = Random.Default
         repeat(TestConstants.TEST_COLLECTION_SIZE) {
             val lat = random.nextFloat() + random.nextInt(0, 50)

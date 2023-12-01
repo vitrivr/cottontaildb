@@ -30,7 +30,7 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.TimeSource
 
 /**
- * A facility common to all service that handle [TransactionManager.TransactionImpl]s over gRPC.
+ * A facility common to all service that handle [TransactionManager.AbstractTransaction]s over gRPC.
  *
  * @author Ralph Gasser
  * @version 1.5.0
