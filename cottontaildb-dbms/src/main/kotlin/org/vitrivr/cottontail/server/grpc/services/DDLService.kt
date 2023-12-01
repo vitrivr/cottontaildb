@@ -64,22 +64,22 @@ class DDLService(override val catalogue: DefaultCatalogue, val autoRebuilderServ
      */
     override suspend fun createEntity(request: CottontailGrpc.CreateEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val entityName = request.entity.fqn()
-        val columns = request.columnsList.associate {
-            val type = Types.forName(it.type.name, it.length)
-            val name = entityName.column(it.name.name) /* To make sure that columns belongs to entity. */
-            val compression = when(it.compression) {
-                NONE -> Compression.NONE
-                SNAPPY -> Compression.SNAPPY
-                else -> Compression.LZ4
-            }
-            try {
+        try {
+            val columns = request.columnsList.associate {
+                val type = Types.forName(it.type.name, it.length)
+                val name = entityName.column(it.name.name) /* To make sure that columns belongs to entity. */
+                val compression = when (it.compression) {
+                    NONE -> Compression.NONE
+                    SNAPPY -> Compression.SNAPPY
+                    else -> Compression.LZ4
+                }
                 name to ColumnMetadata(type, compression, it.nullable, it.primary, it.autoIncrement)
-            } catch (e: IllegalArgumentException) {
-                throw DatabaseException.ValidationException(e.message ?: "Failed to validate query input.")
             }
+            ctx.register(CreateEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName, request.mayExist, columns))
+            ctx.toOperatorTree()
+        }  catch (e: IllegalArgumentException) {
+            throw DatabaseException.ValidationException("Invalid entity definition: ${e.message}")
         }
-        ctx.register(CreateEntityPhysicalOperatorNode(this.catalogue.newTx(ctx), entityName, request.mayExist, columns))
-        ctx.toOperatorTree()
     }.single()
 
     /**

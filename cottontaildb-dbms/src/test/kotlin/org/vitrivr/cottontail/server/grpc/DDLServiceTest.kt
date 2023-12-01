@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.test.AbstractClientTest
 import org.vitrivr.cottontail.test.GrpcTestUtils
 import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.test.TestConstants.DBO_CONSTANT
+import kotlin.Result.Companion.success
 import kotlin.time.ExperimentalTime
 
 /**
@@ -133,6 +134,29 @@ class DDLServiceTest : AbstractClientTest() {
             if (e.status.code != Status.NOT_FOUND.code) {
                 fail("status was " + e.status + " instead of NOT_FOUND")
             }
+        } finally {
+            client.drop(DropSchema(TestConstants.TEST_SCHEMA.fqn))
+
+            /* Make sure, that no transaction or locks are dangling. */
+            val locks = this.client.locks()
+            Assertions.assertFalse(locks.hasNext())
+            locks.close()
+        }
+    }
+
+    /**
+     * Creates an entity with a vector field of size 0, which should cause an exception.
+     */
+    @Test
+    fun createInvalidEntity() {
+        try {
+            client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
+            client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", "STRING").column("id", "FLOAT_VECTOR",0))
+            fail("Creating entity ${TestConstants.TEST_ENTITY_NAME.fqn} should have failed with an exception")
+        } catch (e: StatusRuntimeException) {
+            success("Creating entity ${TestConstants.TEST_ENTITY_NAME.fqn} failed with status " + e.status)
+        } catch (e: IllegalArgumentException) {
+            success("Creating entity ${TestConstants.TEST_ENTITY_NAME.fqn} failed with exception " + e.message)
         } finally {
             client.drop(DropSchema(TestConstants.TEST_SCHEMA.fqn))
 
