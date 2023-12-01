@@ -54,10 +54,10 @@ object GrpcTestUtils {
      */
     fun createTestEntity(client: SimpleClient) {
         val create = CreateEntity(TestConstants.TEST_ENTITY_NAME)
-            .column(Name.ColumnName.parse(ID_COLUMN_NAME), Types.Long, autoIncrement = true)
-            .column(Name.ColumnName.parse(STRING_COLUMN_NAME), Types.String)
-            .column(Name.ColumnName.parse(INT_COLUMN_NAME), Types.Int)
-            .column(Name.ColumnName.parse(DOUBLE_COLUMN_NAME), Types.Double)
+            .column(Name.ColumnName.parse(ID_COLUMN_NAME), Types.Long, nullable = false, autoIncrement = true)
+            .column(Name.ColumnName.parse(STRING_COLUMN_NAME), Types.String, nullable = false)
+            .column(Name.ColumnName.parse(INT_COLUMN_NAME), Types.Int, nullable = true)
+            .column(Name.ColumnName.parse(DOUBLE_COLUMN_NAME), Types.Double, nullable = true)
         client.create(create)
     }
 
@@ -69,9 +69,9 @@ object GrpcTestUtils {
     fun createTestVectorEntity(client: SimpleClient) {
         val create = CreateEntity(TestConstants.TEST_VECTOR_ENTITY_NAME)
             .column(Name.ColumnName.parse(ID_COLUMN_NAME), Types.Long, autoIncrement = true)
-            .column(Name.ColumnName.parse(STRING_COLUMN_NAME), Types.String)
-            .column(Name.ColumnName.parse(INT_COLUMN_NAME), Types.Int)
-            .column(Name.ColumnName.parse(TWOD_COLUMN_NAME), Types.FloatVector(2))
+            .column(Name.ColumnName.parse(STRING_COLUMN_NAME), Types.String, nullable = false)
+            .column(Name.ColumnName.parse(INT_COLUMN_NAME), Types.Int, nullable = true)
+            .column(Name.ColumnName.parse(TWOD_COLUMN_NAME), Types.FloatVector(2), nullable = true)
         client.create(create)
     }
 

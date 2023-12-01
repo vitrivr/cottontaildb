@@ -139,8 +139,12 @@ object GrpcQueryBinder {
         }
 
         /* Create and return INSERT-clause. */
-        val record = TupleBinding(-1L, columns, values, this@QueryContext.bindings)
-        return InsertLogicalOperatorNode(this@QueryContext.nextGroupId(), entityTx, mutableListOf(record))
+        try {
+            val record = TupleBinding(-1L, columns, values, this@QueryContext.bindings)
+            return InsertLogicalOperatorNode(this@QueryContext.nextGroupId(), entityTx, mutableListOf(record))
+        } catch (e: IllegalArgumentException) {
+            throw DatabaseException.ValidationException("Provided data could not be bound to INSERT due to validation error: ${e.message}")
+        }
     }
 
     /**
@@ -163,17 +167,21 @@ object GrpcQueryBinder {
         }
 
         /* Parse records to BATCH INSERT. */
-        val tuples: MutableList<Tuple> = insert.insertsList.map { ins ->
-            TupleBinding(-1L, columns, Array(ins.valuesCount) { i ->
-                val literal = ins.valuesList[i].toValue()
-                if (literal == null) {
-                    this@QueryContext.bindings.bindNull(columns[i].type)
-                } else {
-                    this@QueryContext.bindings.bind(literal)
-                }
-            }, this@QueryContext.bindings)
-        }.toMutableList()
-        return InsertLogicalOperatorNode(this@QueryContext.nextGroupId(), entityTx, tuples)
+        try {
+            val tuples: MutableList<Tuple> = insert.insertsList.map { ins ->
+                TupleBinding(-1L, columns, Array(ins.valuesCount) { i ->
+                    val literal = ins.valuesList[i].toValue()
+                    if (literal == null) {
+                        this@QueryContext.bindings.bindNull(columns[i].type)
+                    } else {
+                        this@QueryContext.bindings.bind(literal)
+                    }
+                }, this@QueryContext.bindings)
+            }.toMutableList()
+            return InsertLogicalOperatorNode(this@QueryContext.nextGroupId(), entityTx, tuples)
+        } catch (e: IllegalArgumentException) {
+            throw DatabaseException.ValidationException("Provided data could not be bound to BATCH INSERT due to validation error: ${e.message}")
+        }
     }
 
     /**

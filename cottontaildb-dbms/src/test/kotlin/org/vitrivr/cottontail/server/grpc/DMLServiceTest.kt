@@ -5,6 +5,7 @@ import io.grpc.StatusRuntimeException
 import org.apache.commons.lang3.RandomStringUtils
 import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.*
+import org.junit.platform.commons.function.Try.success
 import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.basics.predicate.Compare
 import org.vitrivr.cottontail.client.language.ddl.CreateEntity
@@ -315,5 +316,31 @@ class DMLServiceTest : AbstractClientTest() {
         this.client.delete(delete)
         this.client.commit(txId)
         Assertions.assertEquals(0, countElements(this.client, entityName)!!.toInt())
+    }
+
+    /**
+     * Performs a large number of INSERTs in a single transaction and checks the count before and afterwards.
+     */
+    @Test
+    fun testInvalidNullInsert() {
+        val entries = TEST_COLLECTION_SIZE * 5
+        val batchSize = 1000
+        val stringLength = 200
+
+        /* Start large insert. */
+        val txId = this.client.begin()
+        try {
+            repeat(entries / batchSize) { i ->
+                val batch = BatchInsert(TEST_ENTITY_NAME).columns(INT_COLUMN_NAME, STRING_COLUMN_NAME, DOUBLE_COLUMN_NAME)
+                repeat(batchSize) { j ->
+                    batch.any(i * j, null, 1.0)
+                }
+                this.client.insert(batch.txId(txId))
+            }
+        } catch (e: StatusRuntimeException) {
+            success("Creating entity ${TEST_ENTITY_NAME.fqn} failed with exception " + e.message)
+        } finally {
+            this.client.rollback(txId)
+        }
     }
 }
