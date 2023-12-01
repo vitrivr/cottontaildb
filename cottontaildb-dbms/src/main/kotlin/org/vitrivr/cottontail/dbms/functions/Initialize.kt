@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.core.queries.functions.math.arithmetics.vector.Sum
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.*
 import org.vitrivr.cottontail.core.queries.functions.math.distance.ternary.HyperplaneDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.ternary.WeightedManhattanDistance
-import org.vitrivr.cottontail.core.queries.functions.math.random.RandomFloatVector
 import org.vitrivr.cottontail.core.queries.functions.math.score.FulltextScore
 
 /**
@@ -17,7 +16,6 @@ fun FunctionRegistry.initialize() {
     this.register(FulltextScore)
     this.initializeArithmetics()
     this.initializeVectorDistance()
-    this.initializeRandoms()
 }
 
 /**
@@ -54,11 +52,4 @@ private fun FunctionRegistry.initializeVectorDistance() {
     this.register(InnerProductDistance)
     this.register(HyperplaneDistance)
     this.register(WeightedManhattanDistance)
-}
-
-/**
- * Registers default random functions.
- */
-private fun FunctionRegistry.initializeRandoms() {
-    this.register(RandomFloatVector)
 }
