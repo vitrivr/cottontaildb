@@ -154,6 +154,7 @@ internal interface TransactionalGrpcService {
             builder.nullable = c.nullable
             builder.primary = c.primary
             builder.type = c.type.proto()
+            builder.length = c.type.logicalSize
         }
 
         /* Contextual information used by Flow. */
