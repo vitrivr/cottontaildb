@@ -22,14 +22,14 @@ abstract class AbstractDistanceTest {
         @JvmStatic
         fun dimensions(): Stream<Arguments> = Stream.of(
                 Arguments.of(TestConstants.smallVectorMaxDimension),
-                Arguments.of(RANDOM.nextInt(TestConstants.smallVectorMaxDimension)),
+                Arguments.of(RANDOM.nextInt(1, TestConstants.smallVectorMaxDimension)),
                 Arguments.of(TestConstants.mediumVectorMaxDimension),
-                Arguments.of(RANDOM.nextInt(TestConstants.mediumVectorMaxDimension)),
-                Arguments.of(RANDOM.nextInt(TestConstants.mediumVectorMaxDimension)),
+                Arguments.of(RANDOM.nextInt(1, TestConstants.mediumVectorMaxDimension)),
+                Arguments.of(RANDOM.nextInt(1, TestConstants.mediumVectorMaxDimension)),
                 Arguments.of(TestConstants.largeVectorMaxDimension),
-                Arguments.of(RANDOM.nextInt(TestConstants.largeVectorMaxDimension)),
-                Arguments.of(RANDOM.nextInt(TestConstants.largeVectorMaxDimension)),
-                Arguments.of(RANDOM.nextInt(TestConstants.largeVectorMaxDimension))
+                Arguments.of(RANDOM.nextInt(1, TestConstants.largeVectorMaxDimension)),
+                Arguments.of(RANDOM.nextInt(1, TestConstants.largeVectorMaxDimension)),
+                Arguments.of(RANDOM.nextInt(1, TestConstants.largeVectorMaxDimension))
         )
 
         /** Logger used for the tests. */
