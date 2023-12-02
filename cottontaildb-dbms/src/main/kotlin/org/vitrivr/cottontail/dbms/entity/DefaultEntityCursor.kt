@@ -78,6 +78,7 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
      * Closes this [Cursor].
      */
     override fun close() {
+        this.txs.forEach { it.close() }
         this.iterator.close()
         this.snapshot.abort()
     }

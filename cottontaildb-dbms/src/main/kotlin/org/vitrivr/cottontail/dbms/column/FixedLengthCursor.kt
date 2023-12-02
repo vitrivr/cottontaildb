@@ -27,7 +27,7 @@ class FixedLengthCursor<T: Value>(column: FixedLengthColumn<T>.Tx): Cursor<T> {
     private val store: Store = this.xodusTx.environment.openStore(
         column.dbo.name.storeName(),
         StoreConfig.USE_EXISTING,
-        xodusTx,
+        this.xodusTx,
         false
     ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${column.dbo.name} is missing.")
 
