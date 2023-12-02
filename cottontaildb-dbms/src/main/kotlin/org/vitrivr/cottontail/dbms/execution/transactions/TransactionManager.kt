@@ -319,9 +319,7 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
                     }
 
                     /* Execute actual commit. */
-                    if (this@AbstractTransaction.xodusTx.isIdempotent) {
-                        this@AbstractTransaction.xodusTx.abort()
-                    } else if (!this@AbstractTransaction.xodusTx.commit()) {
+                    if (!this@AbstractTransaction.xodusTx.commit()) {
                         throw TransactionException.InConflict(this@AbstractTransaction.transactionId)
                     }
                     this@AbstractTransaction.state = TransactionStatus.COMMIT
