@@ -240,7 +240,11 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
 
             /* Prepare index entry and persist it. */
             val store = IndexMetadata.store(this@DefaultEntity.catalogue, this.context.txn.xodusTx)
-            val state = if (this.count() == 0L) { IndexState.CLEAN } else { IndexState.DIRTY }
+            val state = if (this.count() == 0L) {
+                type.defaultEmptyState
+            } else {
+                IndexState.DIRTY
+            }
             val indexEntry = IndexMetadata(type, state, columns.map { it.columnName }, configuration)
             if (!store.add(this.context.txn.xodusTx, NameBinding.Index.toEntry(name), IndexMetadata.toEntry(indexEntry))) {
                 throw DatabaseException.IndexAlreadyExistsException(name)
