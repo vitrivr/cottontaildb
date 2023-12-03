@@ -230,7 +230,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             /* Reset associated columns & sequences. */
             val entityTx = this.entityForName(name).newTx(this.context)
             entityTx.listColumns().forEach {
-                this@DefaultSchema.catalogue.transactionManager.environment.truncateStore(it.name.storeName(), this.context.txn.xodusTx)
+                this@DefaultSchema.catalogue.transactionManager.environment.truncateStore("${name.storeName()}#bitmap", this.context.txn.xodusTx)
                 if (it.autoIncrement) {
                     val sequenceTx = this.sequenceForName(this@DefaultSchema.name.sequence("${it.name.entityName}_${it.name.columnName}_auto")).newTx(this.context)
                     sequenceTx.reset()
