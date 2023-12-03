@@ -145,7 +145,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             }
 
             /* Create bitmap store for entity. */
-            this@DefaultSchema.catalogue.transactionManager.environment.openBitmap(name.toString(), StoreConfig.WITHOUT_DUPLICATES, this.context.txn.xodusTx)
+            this@DefaultSchema.catalogue.transactionManager.environment.openBitmap(name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.context.txn.xodusTx)
 
             /* Add catalogue entries and stores at column level. */
             val definitions = columns.map {
@@ -181,15 +181,20 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
          * @param name The name of the [DefaultEntity] that should be dropped.
          */
         override fun dropEntity(name: Name.EntityName) = this.txLatch.withLock {
+            /* Get metadata store and check if entity exists */
+            val entityMetadata = EntityMetadata.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
+            if (entityMetadata.get(this.context.txn.xodusTx, NameBinding.Entity.toEntry(name)) == null) {
+                throw DatabaseException.EntityDoesNotExistException(name)
+            }
+
             /* Drop all indexes from entity. */
             val entityTx = DefaultEntity(name, this@DefaultSchema).newTx(this.context)
             entityTx.listIndexes().forEach { entityTx.dropIndex(it) }
 
             /* Drop all columns from entity. */
+            val columnMetadata = ColumnMetadata.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
             val dropped = entityTx.listColumns().map {
-                val metadataStore = ColumnMetadata.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
-
-                if (!metadataStore.delete(this.context.txn.xodusTx, NameBinding.Column.toEntry(it.name))) {
+                if (!columnMetadata.delete(this.context.txn.xodusTx, NameBinding.Column.toEntry(it.name))) {
                     throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to delete column entry for column $it.")
                 }
 
@@ -204,13 +209,12 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             }
 
             /* Now remove all catalogue entries related to entity.  */
-            val metadataStore = EntityMetadata.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
-            if (!metadataStore.delete(this.context.txn.xodusTx, NameBinding.Entity.toEntry(name))) {
+            if (!entityMetadata.delete(this.context.txn.xodusTx, NameBinding.Entity.toEntry(name))) {
                 throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to delete catalogue entry.")
             }
 
             /* Drop bitmap store for entity. */
-            this@DefaultSchema.catalogue.transactionManager.environment.removeStore("${name}#bitmap", this.context.txn.xodusTx)
+            this@DefaultSchema.catalogue.transactionManager.environment.removeStore("${name.storeName()}#bitmap", this.context.txn.xodusTx)
 
             /* Create Event and notify observers */
             val event = EntityEvent.Drop(name, dropped.toTypedArray())

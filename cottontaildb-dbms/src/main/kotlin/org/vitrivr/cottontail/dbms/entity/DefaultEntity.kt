@@ -13,6 +13,7 @@ import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
+import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.column.*
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.events.IndexEvent
@@ -75,7 +76,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             get() = this@DefaultEntity
 
         /** The bitmap store that backs this [DefaultEntity]. */
-        internal val bitmap = this@DefaultEntity.catalogue.transactionManager.environment.openBitmap("${this@DefaultEntity.name}", StoreConfig.USE_EXISTING, this.context.txn.xodusTx)
+        internal val bitmap = this@DefaultEntity.catalogue.transactionManager.environment.openBitmap(this@DefaultEntity.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx)
 
         /** Map of [Name.ColumnName] to [Column]. */
         private val columns = Object2ObjectLinkedOpenHashMap<Name.ColumnName,Column<*>>()
