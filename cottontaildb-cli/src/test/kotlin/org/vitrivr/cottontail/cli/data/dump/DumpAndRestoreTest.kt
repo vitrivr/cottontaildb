@@ -23,8 +23,6 @@ import kotlin.time.ExperimentalTime
 @ExperimentalTime
 class DumpAndRestoreTest : AbstractClientTest() {
 
-    private val formats = listOf(Format.JSON)
-
     @BeforeEach
     fun beforeEach() {
         this.startAndPopulateCottontail()
