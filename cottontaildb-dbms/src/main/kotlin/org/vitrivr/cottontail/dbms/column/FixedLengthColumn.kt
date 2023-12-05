@@ -162,9 +162,9 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
          * @return [Cursor]
          */
         @Suppress("UNCHECKED_CAST")
-        override fun cursor(): Cursor<T> {
+        override fun cursor(): Cursor<T?> {
             val count = this.dataStore.count(this.context.txn.xodusTx)
-            if (count == 0L) return EmptyColumnCursor as Cursor<T>
+            if (count == 0L) return EmptyColumnCursor as Cursor<T?>
             return FixedLengthCursor(this)
         }
 

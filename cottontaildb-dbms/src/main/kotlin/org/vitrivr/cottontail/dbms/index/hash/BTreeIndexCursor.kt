@@ -20,10 +20,10 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index: BTreeIndex.Tx) : Cursor<Tuple> {
     /** Internal cursor used for navigation. */
-    protected val subTransaction = this.index.context.txn.xodusTx.readonlySnapshot
+    private val subTransaction = this.index.context.txn.xodusTx.readonlySnapshot
 
     /** Internal cursor used for navigation. */
-    protected val cursor: jetbrains.exodus.env.Cursor
+    protected val cursor: jetbrains.exodus.env.Cursor = this.index.dataStore.openCursor(this.subTransaction)
 
     /** A beginning of cursor (BoC) flag. */
     protected val boc = AtomicBoolean(false)
@@ -33,7 +33,6 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(val operator: T, val index:
 
     /* Perform initial sanity checks. */
     init {
-        this.cursor = this.index.dataStore.openCursor(this.subTransaction)
         with(this@BTreeIndexCursor.index.context.bindings) {
             with(MissingTuple) {
                 this@BTreeIndexCursor.boc.compareAndExchange(false, this@BTreeIndexCursor.initialize())

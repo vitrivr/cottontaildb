@@ -34,10 +34,13 @@ class UQBTreeIndexRebuilder(index: UQBTreeIndex, context: QueryContext): Abstrac
         /* Iterate over entity and update index with entries. */
         columnTx.cursor().use { cursor ->
             while (cursor.moveNext()) {
-                val keyRaw = binding.toEntry(cursor.value())
-                val tupleIdRaw = LongBinding.longToCompressedEntry(cursor.key())
-                if (!dataStore.add(this.context.txn.xodusTx, keyRaw, tupleIdRaw)) {
-                    return false
+                val key = cursor.value()
+                if (key != null) {
+                    val keyRaw = binding.toEntry(key)
+                    val tupleIdRaw = LongBinding.longToCompressedEntry(cursor.key())
+                    if (!dataStore.add(this.context.txn.xodusTx, keyRaw, tupleIdRaw)) {
+                        return false
+                    }
                 }
             }
         }

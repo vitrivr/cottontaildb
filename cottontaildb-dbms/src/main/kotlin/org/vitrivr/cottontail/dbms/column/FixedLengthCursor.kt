@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.storage.serializers.tablets.TabletSerializer
 /**
  * A [Cursor] to iterate over the [Tablet]s of a [Column].
  */
-class FixedLengthCursor<T: Value>(column: FixedLengthColumn<T>.Tx): Cursor<T> {
+class FixedLengthCursor<T: Value>(column: FixedLengthColumn<T>.Tx): Cursor<T?> {
 
     /** The Xodus transaction snapshot used by this FixedLengthCursor. */
     private val xodusTx = column.context.txn.xodusTx.readonlySnapshot
@@ -38,64 +38,43 @@ class FixedLengthCursor<T: Value>(column: FixedLengthColumn<T>.Tx): Cursor<T> {
     /** Internal Xodus cursor instance.  */
     private val cursor = this.store.openCursor(this.xodusTx)
 
-    /** The [TupleId] of the currently loaded [Tablet]. -1 if no [Tablet] has been loaded. */
-    private var tupleId: TupleId = -1L
+    /** The [TabletId] of the currently loaded [Tablet]. -1 if no [Tablet] has been loaded. */
+    private var tupleId: TupleId = -1
 
-    /** The [TupleId] of the currently loaded [Tablet]. -1 if no [Tablet] has been loaded. */
-    private var tabletId: TabletId= -1L
+    /** The [TabletId] of the currently loaded [Tablet]. -1 if no [Tablet] has been loaded. */
+    private var tabletId: TabletId = -1
 
-    /** The [TupleId] of the currently loaded [Tablet]. -1 if no [Tablet] has been loaded. */
+    /** The [TabletId] of the currently loaded [Tablet]. -1 if no [Tablet] has been loaded. */
     private var tabletIndex: Int = -1
 
     /** The currently loaded [Tablet]. */
     private var tablet: Tablet<T>? = null
 
-    override fun moveNext(): Boolean = moveTo(this.tupleId + 1)
-    override fun movePrevious(): Boolean = moveTo(this.tupleId - 1)
+    override fun moveNext(): Boolean = this.moveTo(this.tupleId + 1)
+    override fun movePrevious(): Boolean  = this.moveTo(this.tupleId - 1)
+
     override fun moveTo(tupleId: TupleId): Boolean {
-        /* Reposition cursor. */
+        if (tupleId < 0) return false
+        if (this.tupleId == tupleId) return true
+
+        /* Adjust tabletId. */
         val tabletId = tupleId ushr TABLET_SHR
-
-        /* Load tablet. */
-        return if (this.loadTablet(tabletId)) {
-            this.tupleId = tupleId
-            this.tabletIndex = ((tupleId) % TABLET_SIZE).toInt()
-            true
-        } else {
-            false
+        val tabletIdx = (tupleId % TABLET_SIZE).toInt()
+        if (tabletId != this.tabletId) {
+            val tablet = this.cursor.getSearchKey(LongBinding.longToCompressedEntry(tabletId))
+            if (tablet != null) {
+                this.tablet = this.serializer.fromEntry(tablet)
+                this.tabletId = tabletId
+            } else {
+                return false
+            }
         }
-    }
-
-    override fun key(): TupleId = this.tupleId
-    override fun value(): T = this.tablet!![this.tabletIndex] ?: throw NoSuchElementException("")
-
-    /**
-     * Loads the [Tablet] with the given [TabletId] into memory.
-     *
-     * @param tabletId The [TabletId] of the [Tablet] to load.
-     * @return True on success, false otherwise.
-     */
-    private fun loadTablet(tabletId: TabletId): Boolean {
-        if (this.tabletId == tabletId) return true
-        val moved = when (tabletId) {
-            this.tabletId + 1 -> this.cursor.next
-            this.tabletId - 1 -> this.cursor.prev
-            else -> this.cursor.getSearchKey(LongBinding.longToCompressedEntry(tabletId)) != null
-         }
-
-        /* If cursor did not move, return false. */
-        if (!moved) return false
-
-        /* Load tablet and return serialized value. */
-        val tablet = this.cursor.value
-        this.tablet = this.serializer.fromEntry(tablet)
-        this.tabletId = tabletId
+        this.tabletIndex = tabletIdx
         return true
     }
 
-    /**
-     * Closes this [FixedLengthCursor].
-     */
+    override fun key(): TupleId = this.tupleId
+    override fun value(): T? = this.tablet!![this.tabletIndex]
     override fun close() {
         this.cursor.close()
         this.xodusTx.abort()

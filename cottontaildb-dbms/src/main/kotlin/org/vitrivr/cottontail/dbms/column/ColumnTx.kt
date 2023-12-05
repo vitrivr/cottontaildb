@@ -62,5 +62,5 @@ interface ColumnTx<T : Value> : Tx {
      *
      * @return [Cursor]
      */
-    fun cursor(): Cursor<T>
+    fun cursor(): Cursor<T?>
 }

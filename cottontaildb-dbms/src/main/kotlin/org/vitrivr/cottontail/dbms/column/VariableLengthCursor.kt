@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.column
 
+import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
@@ -14,7 +15,7 @@ import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
 /**
  *
  */
-class VariableLengthCursor<T: Value>(column: VariableLengthColumn<T>.Tx): Cursor<T> {
+class VariableLengthCursor<T: Value>(column: VariableLengthColumn<T>.Tx): Cursor<T?> {
     /** The Xodus transaction snapshot used by this FixedLengthCursor. */
     private val xodusTx = column.context.txn.xodusTx.readonlySnapshot
 
@@ -35,20 +36,43 @@ class VariableLengthCursor<T: Value>(column: VariableLengthColumn<T>.Tx): Cursor
     /** The [TupleId] this [VariableLengthCursor] is currently pointing to. */
     private var tupleId: TupleId = -1L
 
+    /** */
+    private var valueRaw: ByteIterable? = null
+
     override fun moveNext(): Boolean = this.moveTo(this.tupleId + 1)
     override fun movePrevious(): Boolean  = this.moveTo(this.tupleId - 1)
     override fun moveTo(tupleId: TupleId): Boolean {
-        val ret = when (tupleId) {
-            this.tupleId + 1 -> this.cursor.next
-            this.tupleId - 1 -> this.cursor.prev
-            else -> this.cursor.getSearchKey(LongBinding.longToCompressedEntry(tupleId)) != null
+        if (tupleId < 0) return false
+        return when (tupleId) {
+            this.tupleId -> true
+            this.tupleId + 1 -> {
+                if (this.cursor.next) {
+                    this.tupleId = tupleId
+                    this.valueRaw = this.cursor.value
+                    true
+                } else {
+                    false
+                }
+            }
+            this.tupleId - 1 -> {
+                if (this.cursor.prev) {
+                    this.tupleId = tupleId
+                    this.valueRaw = this.cursor.value
+                    true
+                } else {
+                    false
+                }
+            }
+            else -> {
+                this.valueRaw = this.cursor.getSearchKey(LongBinding.longToCompressedEntry(tupleId))
+                return this.valueRaw != null
+            }
         }
-        if (ret) this.tupleId = tupleId
-        return ret
     }
 
     override fun key(): TupleId = this.tupleId
-    override fun value(): T = this.binding.fromEntry(this.cursor.value)!!
+    override fun value(): T? = this.binding.fromEntry(this.valueRaw ?: throw IllegalStateException("Cursor not pointing to a valid tuple. Please call moveTo() prior to calling value()."))
+
     override fun close() {
         this.cursor.close()
         this.xodusTx.abort()
