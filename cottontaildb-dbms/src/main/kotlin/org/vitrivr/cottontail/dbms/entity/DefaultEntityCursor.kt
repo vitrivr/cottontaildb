@@ -47,7 +47,7 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
     init {
         /* Fast-forward to entry at position. */
         if (partition.first > 0L) {
-            this.iterator.getSearchBit(partition.first - 1L)
+            this.iterator.getSearchBit(partition.first)
         }
     }
 
@@ -59,7 +59,13 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
     /**
      * Returns the [Tuple] this [Cursor] is currently pointing to.
      */
-    override fun value(): Tuple = StandaloneTuple(this.current, this.columns, Array(this.columns.size) { this.txs[it].value() })
+    override fun value(): Tuple = StandaloneTuple(this.current, this.columns, Array(this.columns.size) {
+        if (this.txs[it].moveTo(this.current)) {
+            this.txs[it].value()
+        } else {
+            null
+        }
+    })
 
     /**
      * Tries to move this [DefaultEntityCursor]. Returns true on success and false otherwise.
@@ -67,9 +73,9 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
      * @return True on success, false otherwise,
      */
     override fun moveNext(): Boolean {
-        if (this.iterator.hasNext() && this.current < this.maximum) {
+        if (this.current < this.maximum && this.iterator.hasNext()) {
             this.current = this.iterator.next()
-            return this.txs.all { it.moveTo(this.current) }
+            return true
         }
         return false
     }
