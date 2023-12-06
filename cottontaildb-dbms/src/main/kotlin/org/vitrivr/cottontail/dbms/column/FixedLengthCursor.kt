@@ -69,6 +69,7 @@ class FixedLengthCursor<T: Value>(column: FixedLengthColumn<T>.Tx): Cursor<T?> {
                 return false
             }
         }
+        this.tupleId = tupleId
         this.tabletIndex = tabletIdx
         return true
     }
