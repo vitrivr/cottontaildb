@@ -13,7 +13,7 @@ import kotlinx.serialization.json.encodeToStream
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.data.Format
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.serialization.valueSerializer
+import org.vitrivr.cottontail.serialization.serializer
 import org.vitrivr.cottontail.utilities.TabulationUtilities
 import java.nio.file.Files
 import java.nio.file.Path
@@ -124,9 +124,9 @@ abstract class AbstractQueryCommand(protected val client: SimpleClient, name: St
                     /* Export data using kotlinx serialization */
                     Files.newOutputStream(this.out, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use {
                         when (format) {
-                            Format.CBOR -> it.write(Cbor.encodeToByteArray(ListSerializer(results.valueSerializer()), results.toList()))
-                            Format.JSON -> Json.encodeToStream(ListSerializer(results.valueSerializer()), results.toList(), it)
-                            Format.CSV -> it.write(Csv.encodeToString(ListSerializer(results.valueSerializer()), results.toList()).toByteArray())
+                            Format.CBOR -> it.write(Cbor.encodeToByteArray(ListSerializer(results.serializer()), results.toList()))
+                            Format.JSON -> Json.encodeToStream(ListSerializer(results.serializer()), results.toList(), it)
+                            Format.CSV -> it.write(Csv.encodeToString(ListSerializer(results.serializer()), results.toList()).toByteArray())
                         }
                     }
                 }

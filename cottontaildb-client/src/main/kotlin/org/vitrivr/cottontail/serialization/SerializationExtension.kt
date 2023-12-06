@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.core.values.*
  * @return [KSerializer]
  */
 @Suppress("UNCHECKED_CAST")
-fun Types<*>.valueSerializer(): KSerializer<PublicValue?> = when (this) {
+fun Types<*>.serializer(): KSerializer<PublicValue?> = when (this) {
     Types.Boolean -> BooleanValue.serializer()
     Types.ByteString -> ByteStringValue.serializer()
     Types.Date -> DateValue.serializer()
@@ -44,7 +44,42 @@ fun Types<*>.valueSerializer(): KSerializer<PublicValue?> = when (this) {
  *
  * @return [TupleSerializer]
  */
-fun Array<ColumnDef<*>>.valueSerializer() = TupleSerializer(this)
+fun List<ColumnDef<*>>.serializer() = TupleSerializer(this.toTypedArray())
+
+/**
+ * Returns a [TupleSerializer] for a [List] of [ColumnDef].
+ *
+ * @return [TupleSerializer]
+ */
+fun List<ColumnDef<*>>.listSerializer() = TupleListSerializer(this.toTypedArray())
+
+/**
+ * Returns a [TupleSerializer] for a [List] of [ColumnDef].
+ *
+ * @return [TupleSerializer]
+ */
+fun Array<ColumnDef<*>>.serializer() = TupleSerializer(this)
+
+/**
+ * Returns a [TupleListSerializer] for a [List] of [ColumnDef].
+ *
+ * @return [TupleListSerializer]
+ */
+fun Array<ColumnDef<*>>.listSerializer() = TupleListSerializer(this)
+
+/**
+ * Returns a [TupleSerializer] for a [Tuple].
+ *
+ * @return [KSerializer]
+ */
+fun Tuple.serializer() = TupleSerializer(this.columns)
+
+/**
+ * Returns a [TupleListSerializer] for a [Tuple].
+ *
+ * @return [KSerializer]
+ */
+fun Tuple.listSerializer() = TupleListSerializer(this.columns)
 
 /**
  * Returns a [TupleSimpleSerializer] for a [List] of [ColumnDef].
@@ -54,27 +89,25 @@ fun Array<ColumnDef<*>>.valueSerializer() = TupleSerializer(this)
 fun Array<ColumnDef<*>>.descriptionSerializer() = TupleSimpleSerializer(this)
 
 /**
- * Returns a [TupleSerializer] for a [Tuple].
- *
- * @return [KSerializer]
- */
-fun Tuple.valueSerializer() = TupleSerializer(this.columns)
-
-/**
  * Returns a [TupleSimpleSerializer] for a [Tuple].
  *
  * @return [TupleSimpleSerializer]
  */
 fun Tuple.descriptionSerializer() = TupleSimpleSerializer(this.columns)
 
-
 /**
  * Returns a [TupleSerializer] for a [TupleIterator].
  *
- * @return [TupleSimpleSerializer]
+ * @return [TupleSerializer]
  */
-fun TupleIterator.valueSerializer() = this.columns.valueSerializer()
+fun TupleIterator.serializer() = this.columns.serializer()
 
+/**
+ * Returns a [TupleListSerializer] for a [TupleIterator].
+ *
+ * @return [TupleListSerializer]
+ */
+fun TupleIterator.listSerializer() = this.columns.listSerializer()
 
 /**
  * Returns a [TupleSimpleSerializer] for a [TupleIterator].

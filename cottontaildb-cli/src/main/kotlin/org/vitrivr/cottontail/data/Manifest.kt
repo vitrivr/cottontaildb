@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.data
 
 import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.database.Name
 
 /**
  * A [Manifest] record as used by [Dumper] and [Restorer].
@@ -17,9 +16,9 @@ data class Manifest(val format: Format, val batchSize: Int, val entites: List<En
     }
 
     @Serializable
-    data class Entity(val name: Name.EntityName, val batches: Long, val size: Long, val columns: List<ColumnDef<*>>)
+    data class Entity(val name: String, val batches: Long, val size: Long, val columns: List<ColumnDef<*>>)
 
     @Serializable
-    data class Index(val name: Name.IndexName)
+    data class Index(val name: String)
 }
 

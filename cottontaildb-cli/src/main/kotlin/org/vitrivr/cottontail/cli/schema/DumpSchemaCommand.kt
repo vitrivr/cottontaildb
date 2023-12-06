@@ -65,15 +65,15 @@ class DumpSchemaCommand(client: SimpleClient) : AbstractSchemaCommand(
         dumper.use {
             val total = measureTime {
                 for (entity in this.client.list(ListEntities(this.schemaName))) {
+                    val entityName = Name.EntityName.parse(entity.asString(0)!!)
                     val (value, duration) = measureTimedValue {
-                        val entityName = Name.EntityName.parse(entity.asString(0)!!)
                         try {
                             it.dump(entityName)
                         } catch (e: Throwable) {
                             System.err.println("Failed to dump $entity due to error: ${e.message}")
                         }
                     }
-                    println("Dumping $entity ($value entries) took $duration.")
+                    println("Dumping $entityName ($value entries) took $duration.")
                 }
             }
             println("Completed! Dumping $schemaName took $total.")

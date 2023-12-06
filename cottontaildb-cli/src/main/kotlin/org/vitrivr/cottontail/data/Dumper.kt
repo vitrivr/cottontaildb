@@ -18,7 +18,8 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.data.Manifest.Companion.MANIFEST_FILE_NAME
-import org.vitrivr.cottontail.serialization.valueSerializer
+import org.vitrivr.cottontail.serialization.TupleListSerializer
+import org.vitrivr.cottontail.serialization.listSerializer
 import java.io.Closeable
 import java.io.OutputStream
 import java.nio.charset.Charset
@@ -37,7 +38,7 @@ import java.util.zip.ZipOutputStream
  * - Close the [Dumper] (important, otherwise [Manifest] will not be persisted).
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 abstract class Dumper(protected val client: SimpleClient, protected val output: Path, format: Format, batchSize: Int = 100000): Closeable {
     /** The [Manifest] of this [Dumper]. Keeps track of entities, that have been dumped. */
@@ -60,10 +61,11 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
     /**
      * Writes the manifest file to the [OutputStream].
      *
+     * @param list The [List] of [Tuple]s to write.
      * @param stream The [OutputStream] to write to.
+     * @param serializer The [TupleListSerializer] to use for serialization.
      */
-    protected fun writeBatch(list: List<Tuple>, stream: OutputStream) {
-        val serializer = list.firstOrNull()?.valueSerializer() ?: return
+    protected fun writeBatch(list: List<Tuple>, stream: OutputStream, serializer: TupleListSerializer) {
         when(val format = this.manifest.format.format) {
             is BinaryFormat -> stream.write(format.encodeToByteArray(ListSerializer(serializer), list))
             is StringFormat -> stream.write(format.encodeToString(ListSerializer(serializer), list).toByteArray())
@@ -98,7 +100,7 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
             }
         }
 
-        return Manifest.Entity(entity, 0L, 0L, columns)
+        return Manifest.Entity(entity.simple, 0L, 0L, columns)
     }
 
     /**
@@ -138,13 +140,16 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
             var dumped = 0L
             var batch = 0L
 
+            /* The serializer used for dumping the data. */
+            val serializer = e.columns.listSerializer()
+
             /* Read data and write it to archive. */
             while (results.hasNext()) {
                 buffer.add(results.next())
                 dumped += 1L
                 if (dumped % this.manifest.batchSize == 0L) {
                     Files.newOutputStream(this.output.resolve("${entity.fqn}.${batch}.${this.manifest.format.suffix}"), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use {
-                        this.writeBatch(buffer,it)
+                        this.writeBatch(buffer, it, serializer)
                     }
                     batch += 1
                     buffer.clear()
@@ -154,7 +159,7 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
             /* Write final batch. */
             if (buffer.isNotEmpty()) {
                 Files.newOutputStream(this.output.resolve("${entity.fqn}.${batch}.${this.manifest.format.suffix}"), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use {
-                    this.writeBatch(buffer, it)
+                    this.writeBatch(buffer, it, serializer)
                 }
                 batch += 1
             }
@@ -201,6 +206,9 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
             /* Load basic entity information. */
             val e = loadEntityInformation(entity)
 
+            /* The serializer used for dumping the data. */
+            val serializer = e.columns.listSerializer()
+
             /* Start dumping the entity in batches. */
             val buffer = mutableListOf<Tuple>()
             val results = this.client.query(Query(entity).txId(this.txId))
@@ -212,8 +220,8 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
                 buffer.add(results.next())
                 dumped += 1L
                 if (dumped % this.manifest.batchSize == 0L) {
-                    this.stream.putNextEntry(ZipEntry("${entity.fqn}.$batch.${this.manifest.format.suffix}"))
-                    this.writeBatch(buffer, this.stream)
+                    this.stream.putNextEntry(ZipEntry("${entity.entityName}.$batch.${this.manifest.format.suffix}"))
+                    this.writeBatch(buffer, this.stream, serializer)
                     batch += 1
                     buffer.clear()
                 }
@@ -221,8 +229,8 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
 
             /* Write final batch. */
             if (buffer.isNotEmpty()) {
-                this.stream.putNextEntry(ZipEntry("${entity.fqn}.$batch.${this.manifest.format.suffix}"))
-                this.writeBatch(buffer, this.stream)
+                this.stream.putNextEntry(ZipEntry("${entity.entityName}.$batch.${this.manifest.format.suffix}"))
+                this.writeBatch(buffer, this.stream, serializer)
                 batch += 1
             }
 

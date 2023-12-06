@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.data.Format
 import org.vitrivr.cottontail.serialization.descriptionSerializer
-import org.vitrivr.cottontail.serialization.valueSerializer
+import org.vitrivr.cottontail.serialization.serializer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -76,9 +76,9 @@ class ImportDataCommand(client: SimpleClient) : AbstractEntityCommand(client, na
         /* Read schema and prepare Iterator. */
         val schema = this.client.readSchema(this.entityName).toTypedArray()
         val data: Sequence<Tuple> = when(format) {
-            Format.CBOR -> Cbor.decodeFromByteArray(ListSerializer(schema.valueSerializer()), Files.readAllBytes(this.input)).asSequence()
+            Format.CBOR -> Cbor.decodeFromByteArray(ListSerializer(schema.serializer()), Files.readAllBytes(this.input)).asSequence()
             Format.JSON -> Files.newInputStream(this.input).use {
-                Json.decodeToSequence(it, schema.valueSerializer(), DecodeSequenceMode.ARRAY_WRAPPED)
+                Json.decodeToSequence(it, schema.serializer(), DecodeSequenceMode.ARRAY_WRAPPED)
             }
             Format.CSV ->Files.newInputStream(this.input).use {
                 Csv.decodeFromString(ListSerializer(schema.descriptionSerializer()), it.readAllBytes().toString())

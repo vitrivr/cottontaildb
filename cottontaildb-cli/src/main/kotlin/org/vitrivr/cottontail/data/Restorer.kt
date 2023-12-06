@@ -11,7 +11,8 @@ import org.vitrivr.cottontail.client.language.dml.BatchInsert
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.values.PublicValue
-import org.vitrivr.cottontail.serialization.valueSerializer
+import org.vitrivr.cottontail.serialization.TupleListSerializer
+import org.vitrivr.cottontail.serialization.listSerializer
 import java.io.Closeable
 import java.io.InputStream
 import java.nio.charset.Charset
@@ -31,16 +32,15 @@ import java.util.zip.ZipFile
  * - Close the [Restorer]
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
-abstract class Restorer(protected val client: SimpleClient, protected val output: Path): Closeable {
+abstract class Restorer(protected val client: SimpleClient, protected val output: Path, protected val schema: Name.SchemaName): Closeable {
 
     /** The [Manifest] of this [Restorer]. Keeps track of entities, that should be restored. Is read from the dump. */
     abstract val manifest: Manifest
 
     /** A flag indicating, whether this [Dumper] was closed.*/
     protected var closed = false
-
 
     /**
      * Creates an [Iterator] of [Tuple] for the [Name.EntityName] held by this [Restorer].
@@ -50,13 +50,14 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
      */
     fun iterator(entity: Manifest.Entity): Iterator<Tuple>  {
         val e = this.manifest.entites.find { it == entity } ?: throw IllegalArgumentException("Could not find entry for entity $entity in database dump.")
+        val serializer = entity.columns.listSerializer()
         return object: Iterator<Tuple> {
             private var batchIndex = 0L
             private val buffer = LinkedList<Tuple>()
             override fun hasNext(): Boolean {
                 if (this.buffer.isNotEmpty()) return true
                 if (this.batchIndex < entity.batches) {
-                    this.buffer.addAll(this@Restorer.loadBatch(e, this.batchIndex++))
+                    this.buffer.addAll(this@Restorer.loadBatch(e, serializer, this.batchIndex++))
                 }
                 return this.buffer.isNotEmpty()
             }
@@ -74,17 +75,17 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
         val txId = this.client.begin(false)
         try {
             /* Create Schema (if it doesn't exist). */
-            this.client.create(CreateSchema(entity.name.schema()).ifNotExists().txId(txId))
+            this.client.create(CreateSchema(this.schema).ifNotExists().txId(txId))
 
             /* Create entity. */
-            val create = CreateEntity(entity.name).txId(txId)
+            val create = CreateEntity(this.schema.entity(entity.name)).txId(txId)
             for (c in entity.columns) {
                 create.column(c)
             }
             this.client.create(create)
 
             /* Insert the data. */
-            val insert = BatchInsert(entity.name).columns(*entity.columns.map { it.name }.toTypedArray()).txId(txId)
+            val insert = BatchInsert(this.schema.entity(entity.name)).columns(*entity.columns.map { it.name }.toTypedArray()).txId(txId)
             for (t in tuples) {
                 if (!insert.values(*t.values().mapNotNull { it as? PublicValue }.toTypedArray())) {
                     this.client.insert(insert)
@@ -106,12 +107,11 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
     /**
      * Reads a batch if [Tuple] from the provided [InputStream].
      *
-     * @param e The [Manifest.Entity] to read data for.
      * @param input The [InputStream] to read from.
+     * @param serializer The [TupleListSerializer] to use.
      * @return [List] of [Tuple]
      */
-    protected fun read(e: Manifest.Entity, input: InputStream): List<Tuple> {
-        val serializer = e.columns.toTypedArray().valueSerializer()
+    protected fun read(input: InputStream, serializer: TupleListSerializer): List<Tuple> {
         val bytes = input.readAllBytes()
         if (bytes.isEmpty()) return emptyList()
         return when (val format = this.manifest.format.format) {
@@ -134,15 +134,16 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
      * This abstract function loads a batch of [Tuple] from the dump.
      *
      * @param e The [Manifest.Entity] to restore.
+     * @param serializer The [TupleListSerializer] to use.
      * @param batchIndex The index of the batch to load.
      * @return [List] of [Tuple]
      */
-    abstract fun loadBatch(e: Manifest.Entity, batchIndex: Long): List<Tuple>
+    abstract fun loadBatch(e: Manifest.Entity, serializer: TupleListSerializer, batchIndex: Long): List<Tuple>
 
     /**
      * A [Restorer] for the folder-based storage layout.
      */
-    class Folder(client: SimpleClient, output: Path): Restorer(client, output)  {
+    class Folder(client: SimpleClient, output: Path, schema: Name.SchemaName): Restorer(client, output, schema)  {
         /** The [Manifest] of this [Dumper]. Keeps track of entities, that have been dumped. */
         override val manifest: Manifest
 
@@ -158,12 +159,13 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
          * This function loads a batch of [Tuple]s from the dump by reading the respective ZIP entry.
          *
          * @param e The [Manifest.Entity] to restore.
+         * @param serializer The [TupleListSerializer] to use.
          * @param batchIndex The index of the batch to load.
          * @return [List] of [Tuple]s read.
          */
-        override fun loadBatch(e: Manifest.Entity, batchIndex: Long): List<Tuple> {
-            return Files.newInputStream(output.resolve("${e.name.fqn}.${batchIndex}.${this.manifest.format.suffix}"), StandardOpenOption.READ).use {
-                this.read(e, it)
+        override fun loadBatch(e: Manifest.Entity, serializer: TupleListSerializer, batchIndex: Long): List<Tuple> {
+            return Files.newInputStream(output.resolve("${this.schema.schemaName}.${e.name}.${batchIndex}.${this.manifest.format.suffix}"), StandardOpenOption.READ).use {
+                this.read(it, serializer)
             }
         }
     }
@@ -172,7 +174,7 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
     /**
      * A [Restorer] for the ZIP-file-based storage layout.
      */
-    class Zip(client: SimpleClient, input: Path): Restorer(client, input) {
+    class Zip(client: SimpleClient, input: Path, schema: Name.SchemaName): Restorer(client, input, schema) {
         /** Opens the [ZipFile]. */
         private val zip: ZipFile
 
@@ -198,13 +200,14 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
          * This function loads a batch of [Tuple]s from the dump by reading the respective ZIP entry.
          *
          * @param e The [Manifest.Entity] to restore.
+         * @param serializer The [TupleListSerializer] to use.
          * @param batchIndex The index of the batch to load.
          * @return [List] of [Tuple]s read.
          */
-        override fun loadBatch(e: Manifest.Entity, batchIndex: Long): List<Tuple> {
-            val entry = this.zip.getEntry("${e.name.fqn}.${batchIndex}.${this.manifest.format.suffix}")
+        override fun loadBatch(e: Manifest.Entity, serializer: TupleListSerializer, batchIndex: Long): List<Tuple> {
+            val entry = this.zip.getEntry("${this.schema.schemaName}.${e.name}.${batchIndex}.${this.manifest.format.suffix}")
             return this.zip.getInputStream(entry).use {
-                this.read(e, it)
+                this.read(it, serializer)
             }
         }
 
