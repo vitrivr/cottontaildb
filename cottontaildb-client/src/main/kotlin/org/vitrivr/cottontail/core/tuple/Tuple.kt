@@ -207,6 +207,8 @@ interface Tuple {
     fun asDoubleVector(name: String): DoubleArray? = asDoubleVectorValue(indexOf(name))?.data
     fun asStringValue(index: Int): StringValue? = this[index] as? StringValue
     fun asStringValue(name: String): StringValue? = this.asStringValue(indexOf(name))
+    fun asUuidValue(index: Int): UuidValue? = this[index] as? UuidValue
+    fun asUuidValue(name: String): UuidValue? = this.asUuidValue(indexOf(name))
     fun asString(index: Int): String? = this.asStringValue(index)?.value
     fun asString(name: String): String? = this.asStringValue(indexOf(name))?.value
     fun asDateValue(index: Int): DateValue? = this[index] as? DateValue
