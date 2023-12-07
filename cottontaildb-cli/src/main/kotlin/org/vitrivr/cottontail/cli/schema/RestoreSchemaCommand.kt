@@ -36,18 +36,18 @@ class RestoreSchemaCommand(client: SimpleClient) : AbstractSchemaCommand(client,
         }
         restorer.use {
             val total = measureTime {
-                for (e in it.manifest.entites) {
+                for (entity in it.manifest.entites) {
                     try {
                         val duration = measureTime {
-                            it.restore(e)
+                            it.restore(entity)
                         }
-                        println("Restoring $e took $duration.")
+                        println("Restoring ${this.schemaName.entity(entity.name)} (${entity.size} rows, ${entity.batches} batches) took $duration.")
                     } catch (e: Throwable) {
-                        System.err.println("Failed to restore $e due to error: ${e.message}")
+                        System.err.println("Failed to restore ${this.schemaName.entity(entity.name)} due to error: ${e.message}")
                     }
                 }
             }
-            println("Completed! Restoring entities took $total.")
+            println("Completed! Restoring schema ${this@RestoreSchemaCommand.schemaName} took $total.")
         }
     }
 }
