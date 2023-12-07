@@ -4,6 +4,7 @@ import kotlinx.serialization.BinaryFormat
 import kotlinx.serialization.StringFormat
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import org.apache.commons.compress.archivers.zip.ZipFile
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.CreateEntity
 import org.vitrivr.cottontail.client.language.ddl.CreateSchema
@@ -20,7 +21,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.util.*
-import java.util.zip.ZipFile
 
 /**
  * A class that can be used to restore entities dumped by the [Dumper] class.
@@ -113,10 +113,11 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
      */
     protected fun read(input: InputStream, serializer: TupleListSerializer): List<Tuple> {
         val bytes = input.readAllBytes()
+        val listSerializer = ListSerializer(serializer)
         if (bytes.isEmpty()) return emptyList()
         return when (val format = this.manifest.format.format) {
-            is StringFormat -> format.decodeFromString(ListSerializer(serializer), bytes.toString(Charset.defaultCharset()))
-            is BinaryFormat -> format.decodeFromByteArray(ListSerializer(serializer), bytes)
+            is StringFormat -> format.decodeFromString(listSerializer, bytes.toString(Charset.defaultCharset()))
+            is BinaryFormat -> format.decodeFromByteArray(listSerializer, bytes)
             else -> throw IllegalArgumentException("Unsupported format $format.")
         }
     }
@@ -183,7 +184,7 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
 
         init {
             this.zip = try {
-                ZipFile(input.toFile(), ZipFile.OPEN_READ)
+                ZipFile(input)
             } catch (e: Throwable) {
                 throw IllegalArgumentException("Unable to restore dump: Failed to read ZIP file: ${this.output}.")
             }
