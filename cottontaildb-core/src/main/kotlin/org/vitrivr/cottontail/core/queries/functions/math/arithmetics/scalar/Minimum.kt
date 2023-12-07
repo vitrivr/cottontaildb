@@ -24,7 +24,7 @@ import kotlin.math.min
 sealed class Minimum<T : Value>(val type: Types<T>): Function<T> {
 
     companion object: FunctionGenerator<Value> {
-        private val FUNCTION_NAME = Name.FunctionName.create("min")
+        private val FUNCTION_NAME = Name.FunctionName("min")
 
         override val signature: Signature.Open
             get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Numeric, Argument.Numeric))

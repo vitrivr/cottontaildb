@@ -22,7 +22,7 @@ import org.vitrivr.cottontail.core.values.LongValue
  */
 sealed class Subtraction<T: Value>(val type: Types<T>): Function<T> {
     companion object: FunctionGenerator<Value> {
-        private val FUNCTION_NAME = Name.FunctionName.create("sub")
+        private val FUNCTION_NAME = Name.FunctionName("sub")
 
         override val signature: Signature.Open
             get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Numeric, Argument.Numeric))

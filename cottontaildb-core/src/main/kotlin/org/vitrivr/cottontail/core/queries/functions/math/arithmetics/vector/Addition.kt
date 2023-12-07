@@ -24,7 +24,7 @@ import org.vitrivr.cottontail.core.values.LongVectorValue
 sealed class Addition<T : VectorValue<*>>(val type: Types.Vector<T,*>): Function<T> {
 
     companion object : FunctionGenerator<VectorValue<*>> {
-        private val FUNCTION_NAME = Name.FunctionName.create("add")
+        private val FUNCTION_NAME = Name.FunctionName("add")
 
         override val signature: Signature.Open
             get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector))

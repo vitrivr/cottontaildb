@@ -6,7 +6,6 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTest
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
@@ -37,7 +36,7 @@ abstract class AbstractDatabaseTest {
     }
 
     /** [Name.SchemaName] of the test schema. */
-    protected val schemaName = Name.SchemaName.create("test")
+    protected val schemaName = Name.SchemaName("test")
 
     /** The [ExecutionManager] used for tests. */
     private val execution = ExecutionManager(this.config)

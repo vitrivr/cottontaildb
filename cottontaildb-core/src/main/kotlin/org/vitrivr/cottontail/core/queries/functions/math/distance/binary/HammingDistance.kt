@@ -21,7 +21,7 @@ import org.vitrivr.cottontail.core.values.*
 sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): VectorDistance<T>(type) {
 
     companion object: FunctionGenerator<DoubleValue> {
-        val FUNCTION_NAME = Name.FunctionName.create("hamming")
+        val FUNCTION_NAME = Name.FunctionName("hamming")
 
         override val signature: Signature.Open
             get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector))

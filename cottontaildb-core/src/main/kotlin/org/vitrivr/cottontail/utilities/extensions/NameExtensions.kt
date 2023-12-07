@@ -1,35 +1,35 @@
 package org.vitrivr.cottontail.utilities.extensions
 
-import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
  * Extension function that generates the FQN for the given [CottontailGrpc.EntityName].
  *
  * @return [Name.SchemaName] for the given [CottontailGrpc.EntityName]
  */
-fun CottontailGrpc.SchemaName.fqn(): Name.SchemaName = Name.SchemaName.create(this.name.lowercase())
+fun CottontailGrpc.SchemaName.fqn(): Name.SchemaName = Name.SchemaName(this.name.lowercase())
 
 /**
  * Extension function that generates the FQN for the given [CottontailGrpc.FunctionName].
  *
  * @return [Name.FunctionName] for the given [CottontailGrpc.FunctionName]
  */
-fun CottontailGrpc.FunctionName.fqn(): Name.FunctionName = Name.FunctionName.create(this.name.lowercase())
+fun CottontailGrpc.FunctionName.fqn(): Name.FunctionName = Name.FunctionName(this.name.lowercase())
 
 /**
  * Extension function that generates the FQN for the given [CottontailGrpc.EntityName].
  *
  * @return [Name.EntityName] for the given [CottontailGrpc.EntityName]
  */
-fun CottontailGrpc.EntityName.fqn(): Name.EntityName = Name.EntityName.create(this.schema.name.lowercase(), this.name.lowercase())
+fun CottontailGrpc.EntityName.fqn(): Name.EntityName = Name.EntityName(this.schema.name.lowercase(), this.name.lowercase())
 
 /**
  * Extension function that generates the FQN for the given [CottontailGrpc.IndexName].
  *
  * @return [Name.IndexName] for the given [CottontailGrpc.IndexName]
  */
-fun CottontailGrpc.IndexName.fqn(): Name.IndexName = Name.IndexName.create(this.entity.schema.name.lowercase(), this.entity.name.lowercase(), this.name.lowercase())
+fun CottontailGrpc.IndexName.fqn(): Name.IndexName = Name.IndexName(this.entity.schema.name.lowercase(), this.entity.name.lowercase(), this.name.lowercase())
 
 /**
  * Extension function that generates the FQN for the given [CottontailGrpc.ColumnName].
@@ -37,7 +37,7 @@ fun CottontailGrpc.IndexName.fqn(): Name.IndexName = Name.IndexName.create(this.
  * @return [Name.ColumnName] for the given [CottontailGrpc.ColumnName]
  */
 fun CottontailGrpc.ColumnName.fqn(): Name.ColumnName = if (this.hasEntity()) {
-    Name.ColumnName.create(this.entity.schema.name.lowercase(), this.entity.name.lowercase(), this.name.lowercase())
+    Name.ColumnName(this.entity.schema.name.lowercase(), this.entity.name.lowercase(), this.name.lowercase())
 } else {
     Name.ColumnName(this.name.lowercase())
 }

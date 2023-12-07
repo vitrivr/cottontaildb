@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.core.values.DoubleValue
  * @version 1.2.0
  */
 object FulltextScore: Function<DoubleValue> {
-    private val name = Name.FunctionName.create("fulltext")
+    private val name = Name.FunctionName("fulltext")
     override val signature: Signature.Closed<out DoubleValue> = Signature.Closed(name, arrayOf(Argument.Typed(Types.String), Argument.Typed(Types.String)), Types.Double)
     override val executable: Boolean = false
     override val cost: Cost = Cost.INVALID

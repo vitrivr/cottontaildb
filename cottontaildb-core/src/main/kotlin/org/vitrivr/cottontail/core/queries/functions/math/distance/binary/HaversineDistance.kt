@@ -25,7 +25,7 @@ import kotlin.math.sqrt
 sealed class HaversineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): VectorDistance<T>(type) {
 
     companion object: FunctionGenerator<DoubleValue> {
-        val FUNCTION_NAME = Name.FunctionName.create("haversine")
+        val FUNCTION_NAME = Name.FunctionName("haversine")
 
         const val RADIUS_EARTH = 6371000.0
 

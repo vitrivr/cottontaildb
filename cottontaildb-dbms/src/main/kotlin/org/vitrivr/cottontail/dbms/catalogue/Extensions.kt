@@ -10,21 +10,21 @@ import org.vitrivr.cottontail.core.database.TupleId
  *
  * @return Store name.
  */
-internal fun Name.EntityName.storeName(): String = "${DefaultCatalogue.ENTITY_STORE_PREFIX}_${this.schema}_${this.entity}"
+internal fun Name.EntityName.storeName(): String = "${DefaultCatalogue.ENTITY_STORE_PREFIX}.${this.schemaName}.${this.entityName}"
 
 /**
  * Internal function used to obtain the name of the Xodus store for the given [Name.ColumnName].
  *
  * @return Store name.
  */
-internal fun Name.ColumnName.storeName(): String = "${DefaultCatalogue.COLUMN_STORE_PREFIX}_${this.schema}_${this.entity}_${this.column}"
+internal fun Name.ColumnName.storeName(): String = "${DefaultCatalogue.COLUMN_STORE_PREFIX}.${this.schemaName}.${this.entityName}.${this.columnName}"
 
 /**
  * Internal function used to obtain the name of the Xodus store for the given [Name.IndexName].
  *
  * @return Store name.
  */
-internal fun Name.IndexName.storeName(): String = "${DefaultCatalogue.INDEX_STORE_PREFIX}_${this.schema}_${this.entity}_${this.index}"
+internal fun Name.IndexName.storeName(): String = "${DefaultCatalogue.INDEX_STORE_PREFIX}.${this.schemaName}.${this.entityName}.${this.indexName}"
 
 /**
  * Converts [TupleId] to an [ArrayByteIterable] used for persistence through Xodus.

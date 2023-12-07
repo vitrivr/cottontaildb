@@ -46,7 +46,7 @@ data class LSHIndexConfig(val distance: Name.FunctionName, val buckets: Int, val
      */
     object Binding: ComparableBinding() {
         override fun readObject(stream: ByteArrayInputStream): Comparable<LSHIndexConfig> = LSHIndexConfig(
-            Name.FunctionName.create(StringBinding.BINDING.readObject(stream)),
+            Name.FunctionName(StringBinding.BINDING.readObject(stream)),
             IntegerBinding.readCompressed(stream),
             IntegerBinding.readCompressed(stream),
             LongBinding.readCompressed(stream)

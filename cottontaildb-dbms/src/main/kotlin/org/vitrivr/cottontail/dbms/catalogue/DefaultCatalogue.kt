@@ -5,8 +5,10 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
-import org.vitrivr.cottontail.dbms.catalogue.entries.*
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.entries.MetadataEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.MetadataEntry.Companion.METADATA_ENTRY_DB_VERSION
+import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.column.ColumnMetadata
 import org.vitrivr.cottontail.dbms.entity.EntityMetadata
 import org.vitrivr.cottontail.dbms.events.SchemaEvent
@@ -48,13 +50,13 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
         private val LOGGER: Logger = LoggerFactory.getLogger(DefaultCatalogue::class.java)
 
         /** Prefix used for actual column stores. */
-        internal const val ENTITY_STORE_PREFIX: String = "ctt_ent"
+        internal const val ENTITY_STORE_PREFIX: String = "org.vitrivr.cottontail.store.entity"
 
         /** Prefix used for actual column stores. */
-        internal const val COLUMN_STORE_PREFIX: String = "ctt_col"
+        internal const val COLUMN_STORE_PREFIX: String = "org.vitrivr.cottontail.store.column"
 
         /** Prefix used for actual index stores. */
-        internal const val INDEX_STORE_PREFIX: String = "ctt_idx"
+        internal const val INDEX_STORE_PREFIX: String = "org.vitrivr.cottontail.store.index"
     }
 
     /** Root to Cottontail DB root folder. */

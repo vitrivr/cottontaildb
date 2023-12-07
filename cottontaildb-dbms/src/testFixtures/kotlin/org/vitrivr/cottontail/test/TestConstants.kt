@@ -28,7 +28,7 @@ object TestConstants {
     const val largeVectorMaxDimension: Int = 2048
 
     /** The [Name.SchemaName] used for gRPC tests */
-    val TEST_SCHEMA = Name.SchemaName.create("test-schema")
+    val TEST_SCHEMA = Name.SchemaName("test-schema")
 
     /** The [Name.EntityName] of the simple test entity used during gRPC tests. */
     val TEST_ENTITY_NAME = TEST_SCHEMA.entity("test-entity")
