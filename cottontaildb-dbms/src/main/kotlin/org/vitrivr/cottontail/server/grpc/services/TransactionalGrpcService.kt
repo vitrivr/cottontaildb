@@ -187,6 +187,9 @@ internal interface TransactionalGrpcService {
                 responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS)
                 emit(responseBuilder.build())
             }
+
+            /* Debug message. */
+            LOGGER.info("[{}, {}] Execution of {} completed successfully in {}.", context.txn.transactionId, context.queryId, context.physical.firstOrNull()?.name, m2.elapsedNow())
         }.collect {
             val tuple = it.toTuple()
             results += 1
