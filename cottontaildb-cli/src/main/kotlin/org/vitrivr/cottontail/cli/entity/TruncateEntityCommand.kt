@@ -1,7 +1,9 @@
 package org.vitrivr.cottontail.cli.entity
 
+import com.github.ajalt.clikt.core.terminal
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.mordant.terminal.YesNoPrompt
 import io.grpc.StatusException
 import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
@@ -15,7 +17,7 @@ import kotlin.time.measureTimedValue
  * Command to truncate a [org.vitrivr.cottontail.dbms.entity.DefaultEntity] by its name, thus deleting all content.
  *
  * @author Ralph Gasser
- * @version 2.0.1
+ * @version 2.0.2
  */
 @ExperimentalTime
 class TruncateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "truncate", help = "Truncates the given entity. Usage: entity truncate <schema>.<entity>") {
@@ -47,8 +49,11 @@ class TruncateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client
         help = "Directly provides the confirmation option. Set to true, no interactive prompt is given"
     ).flag()
 
+    /** The [YesNoPrompt] used by the [TruncateEntityCommand] */
+    private val prompt = YesNoPrompt("Do you really want to truncate the entity $entityName [y/N]?", this.terminal, default = false)
+
     override fun exec()  {
-        if (this.confirm || this.confirm("Do you really want to truncate the entity $entityName [y/N]?", default = false, showDefault = false) == true) {
+        if (this.confirm || this.prompt.ask() == true) {
             truncate(this.entityName, this.client)
         } else {
             println("Truncate entity aborted.")

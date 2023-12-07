@@ -1,7 +1,9 @@
 package org.vitrivr.cottontail.cli.entity
 
+import com.github.ajalt.clikt.core.terminal
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.mordant.terminal.YesNoPrompt
 import io.grpc.StatusException
 import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
@@ -14,7 +16,7 @@ import kotlin.time.measureTimedValue
  * Command to drop, i.e., remove a [org.vitrivr.cottontail.dbms.entity.DefaultEntity] by its name.
  *
  * @author Ralph Gasser
- * @version 2.0.1
+ * @version 2.0.2
  */
 @ExperimentalTime
 class DropEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "drop", help = "Drops the given entity from the database. Usage: entity drop <schema>.<entity>") {
@@ -26,8 +28,11 @@ class DropEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, na
         help = "Directly provides the confirmation option."
     ).flag()
 
+    /** The [YesNoPrompt] used by the [DropEntityCommand] */
+    private val prompt = YesNoPrompt("Do you really want to drop the entity ${this.entityName} [y/N]?", this.terminal, default = false)
+
     override fun exec() {
-        if (this.confirm || this.confirm("Do you really want to drop the entity ${this.entityName} [y/N]?", default = false, showDefault = false) == true) {
+        if (this.confirm || this.prompt.ask() == true) {
             try {
                 val timedTable = measureTimedValue {
                     TabulationUtilities.tabulate(this.client.drop(DropEntity(this.entityName.toString())))

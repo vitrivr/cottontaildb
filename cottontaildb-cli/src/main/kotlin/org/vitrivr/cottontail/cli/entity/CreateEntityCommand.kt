@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.cli.entity
 
+import com.github.ajalt.clikt.core.terminal
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.option
 import com.jakewharton.picnic.table
@@ -140,8 +141,8 @@ class CreateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, 
      * @return Optional [ColumnDef
      */
     private fun promptForColumn(): ColumnDef<*>? {
-        val name = this.prompt("Column name (must consist of letters and numbers)") ?: return null
-        val typeName = this.prompt("Column type (${CottontailGrpc.Type.values().joinToString(", ")})") ?: return null
+        val name = this.terminal.prompt("Column name (must consist of letters and numbers)") ?: return null
+        val typeName = this.terminal.prompt("Column type (${CottontailGrpc.Type.entries.joinToString(", ")})") ?: return null
         val typeSize = when (typeName.uppercase()) {
             "INTEGER_VECTOR",
             "LONG_VECTOR",
@@ -149,7 +150,7 @@ class CreateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, 
             "DOUBLE_VECTOR",
             "BOOL_VECTOR",
             "COMPLEX32_VECTOR",
-            "COMPLEX64_VECTOR" -> this.prompt("\rColumn lengths (i.e. number of entries for vectors)") { it.toInt() } ?: 1
+            "COMPLEX64_VECTOR" -> this.terminal.prompt("\rColumn lengths (i.e., number of entries for vectors)")?.toIntOrNull() ?: 1
             else -> -1
         }
         val nullable = this.confirm(text = "Should column be nullable?", default = false) ?: false

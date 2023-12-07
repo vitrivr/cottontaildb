@@ -1,11 +1,7 @@
 package org.vitrivr.cottontail.cli
 
-import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.core.NoOpCliktCommand
-import com.github.ajalt.clikt.core.context
-import com.github.ajalt.clikt.core.subcommands
-import com.github.ajalt.clikt.output.CliktHelpFormatter
-import com.github.ajalt.clikt.output.HelpFormatter
+import com.github.ajalt.clikt.core.*
+import com.github.ajalt.clikt.output.MordantHelpFormatter
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import io.grpc.StatusException
@@ -86,13 +82,12 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
         println()
     } catch (e: Exception) {
         when (e) {
-            is com.github.ajalt.clikt.core.PrintHelpMessage -> println(e.command.getFormattedHelp())
-            is com.github.ajalt.clikt.core.NoSuchSubcommand,
-            is com.github.ajalt.clikt.core.MissingArgument,
-            is com.github.ajalt.clikt.core.MissingOption,
-            is com.github.ajalt.clikt.core.BadParameterValue,
-            is com.github.ajalt.clikt.core.NoSuchOption,
-            is com.github.ajalt.clikt.core.UsageError -> println(e.localizedMessage)
+            is NoSuchSubcommand,
+            is MissingArgument,
+            is MissingOption,
+            is BadParameterValue,
+            is NoSuchOption,
+            is UsageError -> println(e.localizedMessage)
             is StatusException, /* Exceptions reported by Cottontail DB via gRPC. */
             is StatusRuntimeException -> println(e.localizedMessage)
             else -> println(e.printStackTrace())
@@ -254,7 +249,11 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
         }
 
         init {
-            context { helpFormatter = CliHelpFormatter() }
+            context {
+                helpFormatter = {
+                    MordantHelpFormatter(it)
+                }
+            }
             subcommands(
                 /* Schema related commands. */
                 object : NoOpCliktCommand(
@@ -368,33 +367,6 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                 /* General commands. */
                 StopCommand()
             )
-        }
-
-        /**
-         * Dedicated help formatter
-         */
-        inner class CliHelpFormatter : CliktHelpFormatter() {
-            override fun formatHelp(
-                prolog: String,
-                epilog: String,
-                parameters: List<HelpFormatter.ParameterHelp>,
-                programName: String
-            ): String = buildString {
-                if (programName.contains(" ")) {
-                    addUsage(parameters, programName.split(" ")[1]) // hack to not include the base command
-                } else {
-                    addUsage(parameters, programName)
-                }
-                addOptions(parameters)
-                addArguments(parameters)
-                addCommands(parameters)
-                if (programName.endsWith("cottontail")) { // hack for beautification
-                    addEpilog(
-                        "              ((`\\\u0085            ___ \\\\ '--._\u0085         .'`   `'    o  )\u0085        /    \\   '. __.'\u0085       _|    /_  \\ \\_\\_\u0085      {_\\______\\-'\\__\\_\\\u0085\u0085" +
-                                "by jks from https://www.asciiart.eu/animals/rabbits"
-                    )
-                }
-            }
         }
 
         /**
