@@ -88,23 +88,24 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /* Cache this Tx for future use. */
             context.txn.cacheTx(this)
 
+            /* Load entity metadata. */
+            val entityMetadataStore = EntityMetadata.store(this@DefaultEntity.catalogue, this.context.txn.xodusTx)
+            val entityMetadata = entityMetadataStore.get(this.context.txn.xodusTx, NameBinding.Entity.toEntry(name))?.let {
+                EntityMetadata.fromEntry(it)
+            } ?: throw DatabaseException.EntityDoesNotExistException(name)
+
             /* Load a (ordered) map of columns. This map can be kept in memory for the duration of the transaction, because Transaction works with a fixed snapshot.  */
             val columnMetadataStore = ColumnMetadata.store(this@DefaultEntity.catalogue, this.context.txn.xodusTx)
-            columnMetadataStore.openCursor(this.context.txn.xodusTx).use {
-                if (it.getSearchKeyRange(NameBinding.Entity.toEntry(this@DefaultEntity.name)) != null) {
-                    do {
-                        val columnName = NameBinding.Column.fromEntry(it.key)
-                        if (columnName.entity() != this@DefaultEntity.name) {
-                            break
-                        }
-                        val columnEntry = ColumnMetadata.fromEntry(it.value)
-                        val columnDef = ColumnDef(columnName, columnEntry.type, columnEntry.nullable, columnEntry.primary, columnEntry.autoIncrement)
-                        if (columnDef.type is Types.String || columnDef.type is Types.ByteString) {
-                            this.columns[columnName] = VariableLengthColumn(columnDef, this@DefaultEntity)
-                        } else {
-                            this.columns[columnName] = FixedLengthColumn(columnDef, this@DefaultEntity, columnEntry.compression)
-                        }
-                    } while (it.next)
+            for (c in entityMetadata.columns) {
+                val columnName = this@DefaultEntity.name.column(c)
+                val columnEntry = columnMetadataStore.get(this.context.txn.xodusTx, NameBinding.Column.toEntry(columnName))?.let {
+                    ColumnMetadata.fromEntry(it)
+                } ?: throw DatabaseException.DataCorruptionException("Failed to load specified column $columnName for entity ${this@DefaultEntity.name}")
+                val columnDef = ColumnDef(columnName, columnEntry.type, columnEntry.nullable, columnEntry.primary, columnEntry.autoIncrement)
+                if (columnDef.type is Types.String || columnDef.type is Types.ByteString) {
+                    this.columns[columnName] = VariableLengthColumn(columnDef, this@DefaultEntity)
+                } else {
+                    this.columns[columnName] = FixedLengthColumn(columnDef, this@DefaultEntity, columnEntry.compression)
                 }
             }
 
@@ -114,9 +115,6 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                 if (it.getSearchKeyRange(NameBinding.Entity.toEntry(this@DefaultEntity.name))  != null) {
                     do {
                         val indexName = NameBinding.Index.fromEntry(it.key)
-                        if (indexName.entity() != this@DefaultEntity.name) {
-                            break
-                        }
                         val indexEntry = IndexMetadata.fromEntry(it.value)
                         this.indexes[indexName] = indexEntry.type.descriptor.open(indexName, this.dbo)
                     } while (it.next)

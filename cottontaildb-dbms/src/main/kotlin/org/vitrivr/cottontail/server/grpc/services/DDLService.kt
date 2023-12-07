@@ -65,7 +65,7 @@ class DDLService(override val catalogue: DefaultCatalogue, val autoRebuilderServ
     override suspend fun createEntity(request: CottontailGrpc.CreateEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         val entityName = request.entity.fqn()
         try {
-            val columns = request.columnsList.associate {
+            val columns = request.columnsList.map {
                 val type = Types.forName(it.type.name, it.length)
                 val name = entityName.column(it.name.name) /* To make sure that columns belongs to entity. */
                 val compression = when (it.compression) {

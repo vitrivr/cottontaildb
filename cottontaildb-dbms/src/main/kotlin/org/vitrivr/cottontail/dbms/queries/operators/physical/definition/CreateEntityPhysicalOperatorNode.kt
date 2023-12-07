@@ -15,8 +15,8 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class CreateEntityPhysicalOperatorNode(private val tx: CatalogueTx, val entityName: Name.EntityName, val mayExist: Boolean, val cols: Map<Name.ColumnName, ColumnMetadata>) : DataDefinitionPhysicalOperatorNode("CreateEntity") {
-    override fun copy(): CreateEntityPhysicalOperatorNode = CreateEntityPhysicalOperatorNode(this.tx, this.entityName, this.mayExist, this.cols)
-    override fun toOperator(ctx: QueryContext): Operator = CreateEntityOperator(this.tx, this.entityName, this.cols,  this.mayExist, ctx)
+class CreateEntityPhysicalOperatorNode(private val tx: CatalogueTx, val entityName: Name.EntityName, val mayExist: Boolean, val createColumns: List<Pair<Name.ColumnName, ColumnMetadata>>) : DataDefinitionPhysicalOperatorNode("CreateEntity") {
+    override fun copy(): CreateEntityPhysicalOperatorNode = CreateEntityPhysicalOperatorNode(this.tx, this.entityName, this.mayExist, this.createColumns)
+    override fun toOperator(ctx: QueryContext): Operator = CreateEntityOperator(this.tx, this.entityName, this.createColumns,  this.mayExist, ctx)
     override fun digest(): Digest = this.hashCode().toLong()
 }

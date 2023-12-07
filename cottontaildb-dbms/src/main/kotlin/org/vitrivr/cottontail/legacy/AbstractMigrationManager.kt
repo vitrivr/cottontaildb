@@ -160,7 +160,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
             for ((i, srcEntityName) in entities.withIndex()) {
                 this.log("-- Migrating entity $srcEntityName (${i + 1} / ${entities.size}):\n")
                 val srcEntityTx = srcSchemaTx.entityForName(srcEntityName).newTx(sourceContext)
-                val entity = dstSchemaTx.createEntity(srcEntityName, srcEntityTx.listColumns().associate { it.name to ColumnMetadata(it.type, Compression.LZ4, it.nullable, it.primary, it.autoIncrement) })
+                val entity = dstSchemaTx.createEntity(srcEntityName, srcEntityTx.listColumns().map { it.name to ColumnMetadata(it.type, Compression.LZ4, it.nullable, it.primary, it.autoIncrement) })
 
                 /* Migrate indexes. */
                 for (indexName in srcEntityTx.listIndexes()) {

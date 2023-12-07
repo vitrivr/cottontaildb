@@ -49,10 +49,10 @@ interface SchemaTx : Tx {
      * Creates a new [Entity] in this [DefaultSchema].
      *
      * @param name The name of the [Entity] that should be created.
-     * @param columns Map of [Name.ColumnName] to [ColumnMetadata] that specify the columns to create.
+     * @param columns [List] of [Name.ColumnName] to [ColumnMetadata] [Pair]s that specify the columns to create in order.
      * @return Newly created [Entity] for use in context of this [Tx]
      */
-    fun createEntity(name: Name.EntityName, columns: Map<Name.ColumnName, ColumnMetadata>): Entity
+    fun createEntity(name: Name.EntityName, columns: List<Pair<Name.ColumnName, ColumnMetadata>>): Entity
 
     /**
      * Drops an [Entity] in the [Schema] underlying this [SchemaTx].

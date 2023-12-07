@@ -17,13 +17,13 @@ import kotlin.system.measureTimeMillis
  * @author Ralph Gasser
  * @version 2.1.0
  */
-class CreateEntityOperator(private val tx: CatalogueTx, private val name: Name.EntityName, private val cols: Map<Name.ColumnName, ColumnMetadata>, private val mayExist: Boolean, override val context: QueryContext) : AbstractDataDefinitionOperator(name, "CREATE ENTITY") {
+class CreateEntityOperator(private val tx: CatalogueTx, private val name: Name.EntityName, private val createColumns: List<Pair<Name.ColumnName, ColumnMetadata>>, private val mayExist: Boolean, override val context: QueryContext) : AbstractDataDefinitionOperator(name, "CREATE ENTITY") {
 
     override fun toFlow(): Flow<Tuple> = flow {
         val schemaTxn = this@CreateEntityOperator.tx.schemaForName(this@CreateEntityOperator.name.schema()).newTx(this@CreateEntityOperator.context)
         val time = measureTimeMillis {
             try {
-                schemaTxn.createEntity(this@CreateEntityOperator.name, this@CreateEntityOperator.cols)
+                schemaTxn.createEntity(this@CreateEntityOperator.name, this@CreateEntityOperator.createColumns)
             } catch (e: Throwable) {
                 if (!this@CreateEntityOperator.mayExist) throw e
             }

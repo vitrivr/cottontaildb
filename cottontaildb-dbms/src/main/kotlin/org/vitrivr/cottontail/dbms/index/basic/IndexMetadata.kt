@@ -12,7 +12,10 @@ import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 
 /**
+ * A metadata about [Index]s as stored in the Cottontail DB catalogue
  *
+ * @author Ralph Gasser
+ * @version 1.0.0
  */
 data class IndexMetadata(val type: IndexType, val state: IndexState, val columns: List<String>, val config: IndexConfig<*>) {
     companion object {
@@ -66,7 +69,6 @@ data class IndexMetadata(val type: IndexType, val state: IndexState, val columns
          */
         fun toEntry(entry: IndexMetadata): ByteIterable {
             val output = LightOutputStream()
-
             IntegerBinding.writeCompressed(output, entry.type.ordinal)
             IntegerBinding.writeCompressed(output, entry.state.ordinal)
 
