@@ -294,6 +294,7 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
                     this@AbstractTransaction.numberOfSuccess += 1
                 } else {
                     this@AbstractTransaction.numberOfError += 1
+                    this@AbstractTransaction.state = TransactionStatus.ERROR
                 }
 
                 /* Update state of transaction if necessary. */
