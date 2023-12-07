@@ -12,10 +12,10 @@ import org.vitrivr.cottontail.core.values.UuidValue
 class UuidTablet(size: Int, direct: Boolean): AbstractTablet<UuidValue>(size, Types.Uuid, direct) {
     override fun internalGet(index: Int): UuidValue = UuidValue(
         this.buffer.getLong(indexToPosition(index)),
-        this.buffer.getLong(indexToPosition(index + Long.SIZE_BYTES))
+        this.buffer.getLong(indexToPosition(index) + Long.SIZE_BYTES)
     )
     override fun internalSet(index: Int, value: UuidValue) {
         this.buffer.putLong(indexToPosition(index), value.mostSignificantBits)
-        this.buffer.putLong(indexToPosition(index + Long.SIZE_BYTES), value.leastSignificantBits)
+        this.buffer.putLong(indexToPosition(index) + Long.SIZE_BYTES, value.leastSignificantBits)
     }
 }

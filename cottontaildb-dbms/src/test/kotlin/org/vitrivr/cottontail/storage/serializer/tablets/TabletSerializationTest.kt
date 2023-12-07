@@ -27,6 +27,8 @@ class TabletSerializationTest {
     /** The [Tablet] size to test. */
     private val tabletSize = 128
 
+
+
     /**
      * Tests de-/serialization of [AbstractTablet]s of [IntVectorValue]s.
      */
@@ -156,6 +158,23 @@ class TabletSerializationTest {
         repeat(this.tabletSize) {
             if (this.random.nextBoolean()) {
                 tablet[it] = DateValueGenerator.random(this.random)
+            }
+        }
+
+        /* Create tablet and test de-/serialization. */
+        this.test(tablet, compression)
+    }
+
+    /**
+     * Tests de-/serialization of [AbstractTablet]s of [UuidValue]s.
+     */
+    @ParameterizedTest
+    @EnumSource(Compression::class)
+    fun testUuidTabletSerializer(compression: Compression) {
+        val tablet = Tablet.of(this.tabletSize, Types.Uuid, compression.direct)
+        repeat(this.tabletSize) {
+            if (this.random.nextBoolean()) {
+                tablet[it] = UuidValueGenerator.random(this.random)
             }
         }
 

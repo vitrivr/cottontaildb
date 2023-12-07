@@ -33,6 +33,7 @@ sealed interface Tablet<T: Value> {
             Types.Int -> IntTablet(size, direct)
             Types.Long -> LongTablet(size, direct)
             Types.Short -> ShortTablet(size, direct)
+            Types.Uuid -> UuidTablet(size, direct)
             is Types.BooleanVector -> BooleanVectorTablet(size, types.logicalSize, direct)
             is Types.Complex32Vector -> Complex32VectorTablet(size, types.logicalSize, direct)
             is Types.Complex64Vector -> Complex64VectorTablet(size, types.logicalSize, direct)
