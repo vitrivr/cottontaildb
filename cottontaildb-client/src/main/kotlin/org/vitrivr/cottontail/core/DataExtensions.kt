@@ -107,6 +107,7 @@ fun CottontailGrpc.Literal.toValue(): PublicValue? = when(this.dataCase) {
     CottontailGrpc.Literal.DataCase.DOUBLEDATA -> DoubleValue(this.doubleData)
     CottontailGrpc.Literal.DataCase.STRINGDATA -> StringValue(this.stringData)
     CottontailGrpc.Literal.DataCase.DATEDATA -> DateValue(this.dateData)
+    CottontailGrpc.Literal.DataCase.UUIDDATA -> UuidValue(this.uuidData.mostSignificant, this.uuidData.leastSignificant)
     CottontailGrpc.Literal.DataCase.COMPLEX32DATA -> Complex32Value(this.complex32Data.real, this.complex32Data.imaginary)
     CottontailGrpc.Literal.DataCase.COMPLEX64DATA -> Complex64Value(this.complex64Data.real, this.complex64Data.imaginary)
     CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> ByteStringValue(this.byteStringData.toByteArray())
@@ -142,6 +143,7 @@ fun CottontailGrpc.Literal.toType(): Types<*> = when(this.dataCase) {
     CottontailGrpc.Literal.DataCase.DOUBLEDATA -> Types.Double
     CottontailGrpc.Literal.DataCase.STRINGDATA -> Types.String
     CottontailGrpc.Literal.DataCase.DATEDATA -> Types.Date
+    CottontailGrpc.Literal.DataCase.UUIDDATA -> Types.Uuid
     CottontailGrpc.Literal.DataCase.COMPLEX32DATA -> Types.Complex32
     CottontailGrpc.Literal.DataCase.COMPLEX64DATA -> Types.Complex64
     CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> Types.ByteString
@@ -175,6 +177,7 @@ fun CottontailGrpc.Type.toType(size: Int = 0): Types<*> = when(this) {
     CottontailGrpc.Type.DOUBLE -> Types.Double
     CottontailGrpc.Type.DATE -> Types.Date
     CottontailGrpc.Type.STRING -> Types.String
+    CottontailGrpc.Type.UUID -> Types.Uuid
     CottontailGrpc.Type.COMPLEX32 -> Types.Complex32
     CottontailGrpc.Type.COMPLEX64 -> Types.Complex64
     CottontailGrpc.Type.BYTESTRING -> Types.ByteString
