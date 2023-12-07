@@ -22,8 +22,8 @@ object UuidValueSerializer: ValueSerializer<UuidValue> {
 
     override fun toEntry(value: UuidValue): ByteIterable {
         val stream = LightOutputStream(this.type.physicalSize)
-        LongBinding.BINDING.writeObject(stream, value.value.leastSignificantBits)
-        LongBinding.BINDING.writeObject(stream, value.value.mostSignificantBits)
+        LongBinding.BINDING.writeObject(stream, value.mostSignificantBits)
+        LongBinding.BINDING.writeObject(stream, value.leastSignificantBits)
         return stream.asArrayByteIterable()
     }
 }

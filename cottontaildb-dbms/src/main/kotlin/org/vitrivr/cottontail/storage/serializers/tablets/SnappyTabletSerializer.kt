@@ -38,6 +38,7 @@ class SnappyTabletSerializer<T: Value>(override val type: Types<T>, val size: In
         Types.Boolean,
         Types.Long,
         Types.Date,
+        Types.Uuid,
         is Types.LongVector -> BitShuffleType.LONG
         Types.Float,
         Types.Complex32,
