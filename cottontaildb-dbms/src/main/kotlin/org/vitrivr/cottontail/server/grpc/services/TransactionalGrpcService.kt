@@ -2,15 +2,15 @@ package org.vitrivr.cottontail.server.grpc.services
 
 import io.grpc.Status
 import io.grpc.StatusException
+import jetbrains.exodus.ExodusException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.flow.transform
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.client.language.basics.Constants
-import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.core.queries.QueryHint
+import org.vitrivr.cottontail.core.proto
+import org.vitrivr.cottontail.core.toTuple
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
@@ -19,19 +19,21 @@ import org.vitrivr.cottontail.dbms.execution.locking.DeadlockException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
+import org.vitrivr.cottontail.dbms.index.basic.IndexType
+import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.utilities.extensions.proto
-import org.vitrivr.cottontail.utilities.extensions.toLiteral
 import java.util.*
+import kotlin.time.DurationUnit
 import kotlin.time.ExperimentalTime
 import kotlin.time.TimeSource
 
 /**
- * A facility common to all service that handle [TransactionManager.TransactionImpl]s over gRPC.
+ * A facility common to all service that handle [TransactionManager.AbstractTransaction]s over gRPC.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.5.0
  */
 @ExperimentalTime
 internal interface TransactionalGrpcService {
@@ -45,14 +47,16 @@ internal interface TransactionalGrpcService {
 
     /** The [TransactionManager] instance used by this [TransactionalGrpcService]. */
     val manager: TransactionManager
+        get() = this.catalogue.transactionManager
 
     /**
-     * Generates and returns a new [DefaultQueryContext] for the given [CottontailGrpc.Metadata].
+     * Generates and returns a new [DefaultQueryContext] for the given [CottontailGrpc.RequestMetadata].
      *
-     * @param metadata The [CottontailGrpc.Metadata] to process.
+     * @param metadata The [CottontailGrpc.RequestMetadata] to process.
+     * @param readOnly Flag indicating whether the query that requested the [DefaultQueryContext] is a readonly query.
      * @return [DefaultQueryContext]
      */
-    fun queryContextFromMetadata(metadata: CottontailGrpc.Metadata): DefaultQueryContext? {
+    fun queryContextFromMetadata(metadata: CottontailGrpc.RequestMetadata, readOnly: Boolean): DefaultQueryContext {
         val queryId = if (metadata.queryId.isNullOrEmpty()) {
             UUID.randomUUID().toString()
         } else {
@@ -61,115 +65,144 @@ internal interface TransactionalGrpcService {
 
         /* Obtain transaction context. */
         val transactionContext = if (metadata.transactionId <= 0L) {
-            this.manager.TransactionImpl(TransactionType.USER_IMPLICIT) /* Start new transaction. */
-        } else {
-            val txn = this.manager[metadata.transactionId] /* Reuse existing transaction. */
-            if (txn === null || txn.type !== TransactionType.USER) {
-                return null
+            if (readOnly) { /* Start new transaction. */
+                this.manager.startTransaction(TransactionType.USER_IMPLICIT_READONLY)
+            } else {
+                this.manager.startTransaction(TransactionType.USER_IMPLICIT_EXCLUSIVE)
+            }
+        } else { /* Reuse existing transaction. */
+            val txn = this.manager[metadata.transactionId]
+            if (txn === null || txn.type.autoCommit) {
+                throw Status.FAILED_PRECONDITION.withDescription( "Execution failed because transaction ${metadata.transactionId} could not be resumed because it doesn't exist or has the wrong type.").asException()
             }
             txn
         }
 
         /* Parse all the query hints provided by the user. */
-//        val hints = metadata.hintList.mapNotNull {
-//            when (it.hintCase) {
-//                CottontailGrpc.Hint.HintCase.NOINDEXHINT -> QueryHint.NoIndex
-//                CottontailGrpc.Hint.HintCase.PARALLELINDEXHINT -> QueryHint.NoParallel
-//                CottontailGrpc.Hint.HintCase.POLICYHINT -> QueryHint.CostPolicy(
-//                    it.policyHint.weightIo,
-//                    it.policyHint.weightCpu,
-//                    it.policyHint.weightMemory,
-//                    it.policyHint.weightAccuracy,
-//                    this.catalogue.config.cost.speedupPerWorker, /* Setting is inherited from global config. */
-//                    this.catalogue.config.cost.nonParallelisableIO /* Setting is inherited from global config. */
-//                )
-//                CottontailGrpc.Hint.HintCase.NAMEINDEXHINT -> TODO()
-//                else -> null
-//            }
-//        }.toSet()
-
         val hints = mutableSetOf<QueryHint>()
-
-        //TODO parse new hint format
+        if (metadata.noOptimiseHint) {
+            hints.add(QueryHint.NoOptimisation)
+        }
+        if (metadata.hasParallelHint()) {
+            hints.add(QueryHint.Parallelism(metadata.parallelHint.limit))
+        }
+        if (metadata.hasIndexHint()) {
+            if (metadata.indexHint.hasDisallow()) {
+                hints.add(QueryHint.IndexHint.None)
+            } else if (metadata.indexHint.hasName()) {
+                hints.add(QueryHint.IndexHint.Name(metadata.indexHint.name))
+            } else if (metadata.indexHint.hasType()) {
+                hints.add(QueryHint.IndexHint.Type(metadata.indexHint.type.let { IndexType.valueOf(it.name) }))
+            }
+        }
+        if (metadata.hasPolicyHint()) {
+            hints.add(QueryHint.CostPolicy(
+                metadata.policyHint.weightIo,
+                metadata.policyHint.weightCpu,
+                metadata.policyHint.weightMemory,
+                metadata.policyHint.weightAccuracy,
+                this.catalogue.config.cost.speedupPerWorker, /* Setting inherited from global config. */
+                this.catalogue.config.cost.parallelisableIO /* Setting inherited from global config. */
+            ))
+        }
 
         return DefaultQueryContext(queryId, this.catalogue, transactionContext, hints)
     }
 
     /**
-     * Prepares and executes a query using the [DefaultQueryContext] specified by the [CottontailGrpc.Metadata] object.
+     * Prepares and executes a query using the [DefaultQueryContext] specified by the [CottontailGrpc.RequestMetadata] object.
      *
-     * @param metadata The [CottontailGrpc.Metadata] that identifies the [DefaultQueryContext]
+     * @param metadata The [CottontailGrpc.RequestMetadata] that identifies the [DefaultQueryContext]
+     * @param readOnly Flag indicating, whether the query prepared is a read-only query.
      * @param prepare The action that prepares the query [Operator]
      * @return [Flow] of [CottontailGrpc.QueryResponseMessage]
      */
-    fun prepareAndExecute(metadata: CottontailGrpc.Metadata, prepare: (ctx: DefaultQueryContext) -> Operator): Flow<CottontailGrpc.QueryResponseMessage> {
+    fun prepareAndExecute(metadata: CottontailGrpc.RequestMetadata, readOnly: Boolean, prepare: (ctx: DefaultQueryContext) -> Operator): Flow<CottontailGrpc.QueryResponseMessage> = flow {
         /* Phase 1a: Obtain query context. */
         val m1 = TimeSource.Monotonic.markNow()
-        val context = this.queryContextFromMetadata(metadata) ?: return flow {
-            val message = "Execution failed because transaction ${metadata.transactionId} could not be resumed."
-            LOGGER.warn(message)
-            throw Status.FAILED_PRECONDITION.withDescription(message).asException()
+        val context = try {
+            this@TransactionalGrpcService.queryContextFromMetadata(metadata, readOnly)
+        } catch (e: ExodusException) {
+            throw Status.RESOURCE_EXHAUSTED.withCause(e).withDescription("Could not start transaction due to resource exhaustion. Please try again later!").asException()
+        } catch (e: Throwable) {
+            throw Status.INTERNAL.withCause(e).withDescription("Could not start transaction due to an unknown error!").asException()
         }
 
-        try {
-            /* Phase 1b: Obtain operator by means of query parsing, binding and planning. */
-            val operator = prepare(context)
-            m1.elapsedNow()
-            LOGGER.debug("[${context.txn.txId}, ${context.queryId}] Preparation of ${context.physical?.name} completed successfully in ${m1.elapsedNow()}.")
+        /* Phase 1b: Obtain operator by means of query parsing, binding and planning. */
+        val (operator, planDuration) = try {
+            val p = prepare(context)
+            val d = m1.elapsedNow()
+            LOGGER.debug("[${context.txn.transactionId}, ${context.queryId}] Preparation of ${context.physical.firstOrNull()?.name} completed successfully in $d.")
+            p to d
+        }  catch (e: Throwable) {
+            throw context.handleError(e, false)
+        }
 
-            /* Phase 2a: Build query response message. */
-            val m2 = TimeSource.Monotonic.markNow()
-            val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setMetadata(CottontailGrpc.Metadata.newBuilder().setQueryId(context.queryId).setTransactionId(context.txn.txId))
-            for (c in operator.columns) {
-                val builder = responseBuilder.addColumnsBuilder()
-                builder.name = c.name.proto()
-                builder.nullable = c.nullable
-                builder.primary = c.primary
-                builder.type = c.type.proto()
+        /* Phase 2a: Build query response message. */
+        val m2 = TimeSource.Monotonic.markNow()
+        val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder()
+            .setMetadata(CottontailGrpc.ResponseMetadata.newBuilder()
+                .setQueryId(context.queryId)
+                .setTransactionId(context.txn.transactionId)
+                .setQueryDuration(0L)
+                .setPlanDuration(planDuration.toLong(DurationUnit.MILLISECONDS))
+            )
+
+        for (c in operator.columns) {
+            val builder = responseBuilder.addColumnsBuilder()
+            builder.name = c.name.proto()
+            builder.nullable = c.nullable
+            builder.primary = c.primary
+            builder.type = c.type.proto()
+            builder.length = c.type.logicalSize
+        }
+
+        /* Contextual information used by Flow. */
+        val headerSize = responseBuilder.build().serializedSize
+        var accumulatedSize = headerSize
+        var results = 0
+
+        /* Phase 2b: Execute query and stream back results. */
+        context.txn.execute(operator).onCompletion {
+            /* Handle potential error & associated auto-rollback (if applicable). */
+            if (it != null) {
+                if (context.txn.type.autoRollback) {
+                    context.txn.rollback()
+                }
+                throw context.handleError(it, true)
             }
 
-            /* Contextual information used by Flow. */
-            val headerSize = responseBuilder.build().serializedSize
-            var accumulatedSize = headerSize
-            var results = 0
-
-            /* Phase 2b: Execute query and stream back results. */
-            return context.txn.execute(operator).transform<Record, CottontailGrpc.QueryResponseMessage> {
-                val tuple = it.toTuple()
-                results += 1
-                if (accumulatedSize + tuple.serializedSize >= Constants.MAX_PAGE_SIZE_BYTES) {
-                    emit(responseBuilder.build())
-                    responseBuilder.clearTuples()
-                    accumulatedSize = headerSize
-                }
-
-                /* Add entry to page and increment counter. */
-                responseBuilder.addTuples(tuple)
-                accumulatedSize += tuple.serializedSize
-            }.onCompletion {
-                if (it == null) {
-                    if (results == 0 || responseBuilder.tuplesCount > 0) emit(responseBuilder.build()) /* Emit final response. */
-                    try {
-                        if (context.txn.type.autoCommit) {
-                            context.txn.commit() /* Handle auto-commit. */
-                        }
-                        LOGGER.info("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} completed successfully in ${m2.elapsedNow()}.")
-                    } catch (e: Throwable) {
-                        val wrapped = context.toStatusException(e, true)
-                        LOGGER.error("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} failed: ${wrapped.message}")
-                        throw wrapped
-                    }
-                } else {
-                    val wrapped = context.toStatusException(it, true)
-                    if (context.txn.type.autoRollback) context.txn.rollback() /* Handle auto-rollback. */
-                    LOGGER.error("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} failed: ${wrapped.message}")
-                    throw wrapped
+            /* Handle auto-commit (if applicable)*/
+            if (context.txn.type.autoCommit) {
+                try {
+                    context.txn.commit()
+                }  catch (e: Throwable) {
+                    context.txn.rollback()
+                    throw context.handleError(e, true)
                 }
             }
-        } catch (e: Throwable) {
-            LOGGER.error("[${context.txn.txId}, ${context.queryId}] Preparation of query failed: ${e.message}")
-            if (context.txn.type.autoRollback) context.txn.rollback() /* Handle auto-rollback. */
-            return flow { throw context.toStatusException(e, false) }
+
+            /* Flush remaining tuples (final transmission). */
+            if (results == 0 || responseBuilder.tuplesCount > 0) {
+                responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS)
+                emit(responseBuilder.build())
+            }
+
+            /* Debug message. */
+            LOGGER.info("[{}, {}] Execution of {} completed successfully in {}.", context.txn.transactionId, context.queryId, context.physical.firstOrNull()?.name, m2.elapsedNow())
+        }.collect {
+            val tuple = it.toTuple()
+            results += 1
+            if (accumulatedSize + tuple.serializedSize >= Constants.MAX_PAGE_SIZE_BYTES) {
+                responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS) /* Query duration is, re-evaluated for every batch. */
+                emit(responseBuilder.build())
+                responseBuilder.clearTuples()
+                accumulatedSize = headerSize
+            }
+
+            /* Add entry to page and increment counter. */
+            responseBuilder.addTuples(tuple)
+            accumulatedSize += tuple.serializedSize
         }
     }
 
@@ -178,14 +211,19 @@ internal interface TransactionalGrpcService {
      *  exception will contain all the information about this [DefaultQueryContext].
      *
      *  @param e The [Throwable] to convert.
-     *  @param execution Flag indicating whether error occured during execution.
+     *  @param execution Flag indicating whether error occurred during execution.
      */
-    fun DefaultQueryContext.toStatusException(e: Throwable, execution: Boolean): StatusException {
+    fun DefaultQueryContext.handleError(e: Throwable, execution: Boolean): StatusException {
         val text = if (execution) {
-            "[${this.txn.txId}, ${this.queryId}] Execution of ${this.physical?.name} query failed: ${e.message}"
+            "[${this.txn.transactionId}, ${this.queryId}] Execution of ${this.physical.firstOrNull()?.name} query failed: ${e.message}"
         } else {
-            "[${this.txn.txId}, ${this.queryId}] Preparation of query failed: ${e.message}"
+            "[${this.txn.transactionId}, ${this.queryId}] Preparation of query failed: ${e.message}"
         }
+
+        /* Log error. */
+        LOGGER.error(text)
+        LOGGER.error(e.stackTraceToString())
+
         return when (e) {
             is DatabaseException.SchemaDoesNotExistException,
             is DatabaseException.EntityDoesNotExistException,
@@ -204,16 +242,5 @@ internal interface TransactionalGrpcService {
             is CancellationException -> Status.CANCELLED.withCause(e)
             else -> Status.UNKNOWN.withCause(e)
         }.withDescription(text).asException()
-    }
-
-    /**
-     * Converts a [Record] to a [CottontailGrpc.QueryResponseMessage.Tuple]
-     */
-    private fun Record.toTuple(): CottontailGrpc.QueryResponseMessage.Tuple {
-        val tuple = CottontailGrpc.QueryResponseMessage.Tuple.newBuilder()
-        for (i in 0 until this.size) {
-            tuple.addData(this[i]?.toLiteral() ?: CottontailGrpc.Literal.newBuilder().build())
-        }
-        return tuple.build()
     }
 }

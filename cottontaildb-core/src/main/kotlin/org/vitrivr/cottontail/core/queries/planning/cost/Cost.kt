@@ -25,8 +25,11 @@ value class Cost private constructor(private val cost: FloatArray) {
         /** The estimated [Cost] of a sqrt operation. */
         val OP_SQRT = FLOP * 5.0f
 
+        /** The estimated [Cost] for reading from disk sequentially. TODO: Better estimate. */
+        val DISK_ACCESS_READ_SEQUENTIAL = Cost(io = MEMORY_ACCESS.cpu * 1e5f)
+
         /** The estimated [Cost] for reading from disk (per word). TODO: Better estimate. */
-        val DISK_ACCESS_READ = Cost(io = MEMORY_ACCESS.cpu * 1e5f)
+        val DISK_ACCESS_READ_RANDOM = Cost(io = MEMORY_ACCESS.cpu * 1.25e5f)
 
         /** The estimated [Cost] for writing to disk (per word). TODO: Better estimate. */
         val DISK_ACCESS_WRITE = Cost(io = MEMORY_ACCESS.cpu * 4e5f)

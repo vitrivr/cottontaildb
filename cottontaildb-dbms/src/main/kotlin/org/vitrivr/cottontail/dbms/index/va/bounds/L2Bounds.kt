@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.index.va.bounds
 
-import org.vitrivr.cottontail.core.values.types.RealVectorValue
-import org.vitrivr.cottontail.dbms.index.va.signature.VAFMarks
+import org.vitrivr.cottontail.core.types.RealVectorValue
+import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import kotlin.math.max
 import kotlin.math.pow
@@ -15,80 +15,95 @@ import kotlin.math.sqrt
  * [1] Weber, R. and Blott, S., 1997. An approximation based data structure for similarity search (No. 9141, p. 416). Technical Report 24, ESPRIT Project HERMES.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.3.0
  */
-class L2Bounds(query: RealVectorValue<*>, marks: VAFMarks) : Bounds {
+class L2Bounds(query: RealVectorValue<*>, marks: EquidistantVAFMarks) : Bounds() {
+    /** [VAFSignature] for the query [RealVectorValue]. */
+    override val query = DoubleArray(query.logicalSize) { query[it].asDouble().value }
 
-    /** Lower bound of this [L2Bounds]. */
-    override var lb = 0.0
-        private set
-
-    /** Upper bound of this [L2Bounds]. */
-    override var ub = 0.0
-        private set
-
-    /** Cells for the query [RealVectorValue]. */
-    private val rq = marks.getSignature(query)
+    /** [VAFSignature] for the query [RealVectorValue]. */
+    override val rq = marks.getSignature(query)
 
     /** Internal lookup table for pre-calculated values used in bounds calculation. */
-    private val lat = Array(marks.marks.size) { j ->
+    private val lat = Array(query.logicalSize) { j ->
         val qj = query[j].value.toDouble()
-        Array(marks.marks[j].size) { m ->
-            /*
-             * Simplification and deviation from [1], because for L2 there is only one value here.
-             *
-             * (qj - marks.marks[j][m]).pow(2) == abs(marks.marks[j][m] - qj).pow(2)
-             */
-            (qj - marks.marks[j][m]).pow(2)
-        }
+        DoubleArray(marks.marks[j].size) { (qj - marks.marks[j][it]).pow(2) }
     }
 
     /**
-     * Updates the lower and upper bounds of this [L2Bounds] for the given [VAFSignature].
-     *
-     * @param signature The [VAFSignature] to calculate the bounds for.
-     */
-    override fun update(signature: VAFSignature): L2Bounds {
-        this.lb = 0.0
-        this.ub = 0.0
-        for ((j, rij) in signature.cells.withIndex()) {
-            when {
-                rij < this.rq[j] -> {
-                    this.lb += this.lat[j][rij + 1]
-                    this.ub += this.lat[j][rij.toInt()]
-                }
-                rij == this.rq[j] -> {
-                    this.ub += max(this.lat[j][rij.toInt()], this.lat[j][rij + 1])
-                }
-                rij > this.rq[j] -> {
-                    this.lb += this.lat[j][rij.toInt()]
-                    this.ub += this.lat[j][rij + 1]
-                }
-            }
-        }
-        this.lb = sqrt(this.lb)
-        this.ub = sqrt(this.ub)
-        return this
-    }
-
-    /**
-     * Checks if the given [VAFSignature] is a VA-SSA candidate according to [1] by comparing the
-     * lower bounds estimation to the given threshold and returns true if so and false otherwise.
+     * Calculates and returns the lower bounds for this [L2Bounds].
      *
      * @param signature The [VAFSignature] to check.
-     * @param threshold The threshold for a [VAFSignature] to be deemed a candidate. Can be used for early stopping.
+     * @param threshold Threshold for early abort.
      * @return True if [VAFSignature] is a candidate, false otherwise.
      */
-    override fun isVASSACandidate(signature: VAFSignature, threshold: Double): Boolean {
-        var lb = threshold.pow(2)
-        for ((j, rij) in signature.cells.withIndex()) {
-            if (rij < this.rq.cells[j]) {
-                lb -= this.lat[j][rij + 1]
-            } else if (rij > this.rq.cells[j]) {
-                lb -= this.lat[j][rij.toInt()]
+    override fun lb(signature: VAFSignature, threshold: Double): Double {
+        val t = threshold.pow(2)
+        var sum = 0.0
+        for (i in 0 until signature.size()) {
+            val rij = signature[i]
+            val rq = this.rq[i]
+            val lat = this.lat[i]
+            if (rij < rq) {
+                sum += lat[rij + 1]
+                if (sum > t) break
+            } else if (rij > rq) {
+                sum += lat[rij]
+                if (sum > t) break
             }
-            if (lb < 0) return false
         }
-        return true
+        return sqrt(sum)
+    }
+
+    /**
+     * Calculates and returns the lower bounds for this [L2Bounds].
+     *
+     * @param signature The [VAFSignature] to check.
+     * @param threshold Threshold for early abort.
+     * @return True if [VAFSignature] is a candidate, false otherwise.
+     */
+    override fun ub(signature: VAFSignature, threshold: Double): Double {
+        val t = threshold.pow(2)
+        var sum = 0.0
+        for (i in 0 until signature.size()) {
+            val rij = signature[i]
+            val rq = this.rq[i]
+            val lat = this.lat[i]
+            sum += if (rij < rq) {
+                lat[rij]
+            } else if (rij > rq) {
+                lat[rij + 1]
+            } else {
+                max(lat[rij + 1], lat[rij])
+            }
+            if (sum > t) break
+        }
+        return sqrt(sum)
+    }
+
+    /**
+     * Calculates and returns the bounds for this [L1Bounds].
+     *
+     * @param signature [VAFSignature] to calculate bounds for.
+     * @return Bounds
+     */
+    override fun bounds(signature: VAFSignature): Pair<Double,Double> {
+        var lb = 0.0
+        var ub = 0.0
+        for (i in 0 until signature.size()) {
+            val rij = signature[i]
+            val rq = this.rq[i]
+            val lat = this.lat[i]
+            if (rij < rq) {
+                lb += lat[rij + 1]
+                ub += lat[rij]
+            } else if (rij > rq) {
+                lb += lat[rij]
+                ub += lat[rij + 1]
+            } else {
+                ub += max(lat[rij + 1], lat[rij])
+            }
+        }
+        return Pair(sqrt(lb), sqrt(ub))
     }
 }

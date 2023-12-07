@@ -1,10 +1,11 @@
 package org.vitrivr.cottontail.cli.entity
 
-import com.github.ajalt.clikt.output.TermUi
+import com.github.ajalt.clikt.core.terminal
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.mordant.terminal.YesNoPrompt
 import io.grpc.StatusException
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.DropEntity
 import org.vitrivr.cottontail.utilities.TabulationUtilities
@@ -15,10 +16,10 @@ import kotlin.time.measureTimedValue
  * Command to drop, i.e., remove a [org.vitrivr.cottontail.dbms.entity.DefaultEntity] by its name.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.2
  */
 @ExperimentalTime
-class DropEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "drop", help = "Drops the given entity from the database. Usage: entity drop <schema>.<entity>") {
+class DropEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "drop", help = "Drops the given entity from the database. Usage: entity drop <schema>.<entity>") {
 
     /** Flag that can be used to directly provide confirmation. */
     private val confirm: Boolean by option(
@@ -27,8 +28,11 @@ class DropEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
         help = "Directly provides the confirmation option."
     ).flag()
 
+    /** The [YesNoPrompt] used by the [DropEntityCommand] */
+    private val prompt = YesNoPrompt("Do you really want to drop the entity ${this.entityName} [y/N]?", this.terminal, default = false)
+
     override fun exec() {
-        if (this.confirm || confirm("Do you really want to drop the entity ${this.entityName} [y/N]?", default = false, showDefault = false) == true) {
+        if (this.confirm || this.prompt.ask() == true) {
             try {
                 val timedTable = measureTimedValue {
                     TabulationUtilities.tabulate(this.client.drop(DropEntity(this.entityName.toString())))

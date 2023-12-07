@@ -1,10 +1,11 @@
 package org.vitrivr.cottontail.cli.entity
 
-import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.terminal
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.mordant.terminal.YesNoPrompt
 import io.grpc.StatusException
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.TruncateEntity
 import org.vitrivr.cottontail.core.database.Name
@@ -16,10 +17,10 @@ import kotlin.time.measureTimedValue
  * Command to truncate a [org.vitrivr.cottontail.dbms.entity.DefaultEntity] by its name, thus deleting all content.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.2
  */
 @ExperimentalTime
-class TruncateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "truncate", help = "Truncates the given entity. Usage: entity truncate <schema>.<entity>") {
+class TruncateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "truncate", help = "Truncates the given entity. Usage: entity truncate <schema>.<entity>") {
 
     companion object{
         /**
@@ -27,21 +28,16 @@ class TruncateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.En
          *
          * @param entityName The [Name.EntityName] of the entity to truncate.
          * @param client The [SimpleClient] to use.
-         * @param confirm Flag indicating whether confirmation is already given (CLI only, not testable).
          */
-        fun truncate(entityName: Name.EntityName, client: SimpleClient, confirm: Boolean) {
-            if (confirm) {
-                try {
-                    val timedTable = measureTimedValue {
-                        TabulationUtilities.tabulate(client.truncate(TruncateEntity(entityName.toString())))
-                    }
-                    println("Successfully truncated entity $entityName (took ${timedTable.duration}).")
-                    print(timedTable.value)
-                } catch (e: StatusException) {
-                    println("Failed to truncate entity $entityName due to error: ${e.message}.")
+        fun truncate(entityName: Name.EntityName, client: SimpleClient) {
+            try {
+                val timedTable = measureTimedValue {
+                    TabulationUtilities.tabulate(client.truncate(TruncateEntity(entityName.toString())))
                 }
-            } else {
-                println("Truncate entity aborted.")
+                println("Successfully truncated entity $entityName (took ${timedTable.duration}).")
+                print(timedTable.value)
+            } catch (e: StatusException) {
+                println("Failed to truncate entity $entityName due to error: ${e.message}.")
             }
         }
     }
@@ -53,5 +49,14 @@ class TruncateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.En
         help = "Directly provides the confirmation option. Set to true, no interactive prompt is given"
     ).flag()
 
-    override fun exec() = truncate(this.entityName, this.client, this.confirm || confirm("Do you really want to truncate the entity $entityName [y/N]?", default = false, showDefault = false) == true)
+    /** The [YesNoPrompt] used by the [TruncateEntityCommand] */
+    private val prompt = YesNoPrompt("Do you really want to truncate the entity $entityName [y/N]?", this.terminal, default = false)
+
+    override fun exec()  {
+        if (this.confirm || this.prompt.ask() == true) {
+            truncate(this.entityName, this.client)
+        } else {
+            println("Truncate entity aborted.")
+        }
+    }
 }

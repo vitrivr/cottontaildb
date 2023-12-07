@@ -1,29 +1,21 @@
 package org.vitrivr.cottontail.core.queries.predicates
 
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.queries.nodes.BindableNode
 import org.vitrivr.cottontail.core.queries.nodes.Node
 import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
+import org.vitrivr.cottontail.core.tuple.Tuple
 
 /**
  * A [Predicate] is a [Node] that is being evaluated as part of a Cottontail DB query.
  *
- * Generally, [Predicate]s are assumed to operate on [Record]s and usually affect a set of [ColumnDef]s in that [Record].
+ * Generally, [Predicate]s are assumed to operate on [Tuple]s and usually affect a set of [ColumnDef]s in that [Tuple].
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.4.0
  */
-sealed interface Predicate : BindableNode, NodeWithCost {
+sealed interface Predicate : NodeWithCost {
     /** Set of [ColumnDef] that are accessed by this [Predicate]. */
     val columns: Set<ColumnDef<*>>
-
-    /**
-     * Creates a copy of this [Predicate].
-     *
-     * @return [Predicate]
-     */
-    override fun copy(): Predicate
 }
 
 

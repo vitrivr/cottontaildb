@@ -1,25 +1,31 @@
 package org.vitrivr.cottontail.core.queries.predicates
 
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
+import it.unimi.dsi.fastutil.objects.ObjectRBTreeSet
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.core.queries.nodes.BindableNode
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
+import org.vitrivr.cottontail.core.queries.nodes.PreparableNode
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.StringValue
+import org.vitrivr.cottontail.core.values.generators.defaultValue
 import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
-import org.vitrivr.cottontail.core.values.types.Value
 
 /**
  * A [ComparisonOperator] is used as part of a [BooleanPredicate] to
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 2.0.0
  */
-sealed interface ComparisonOperator: BindableNode, NodeWithCost {
+sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
     /** The [Binding] that acts as left operand for this [ComparisonOperator]. */
     val left: Binding
+
+    /** The [Binding] that acts as right operand for this [ComparisonOperator]. */
+    val right: Binding
 
     /**
      * Matches the given [Value] to this [ComparisonOperator] and returns true,
@@ -27,156 +33,194 @@ sealed interface ComparisonOperator: BindableNode, NodeWithCost {
      *
      * @return True on match, false otherwise.
      */
+    context(BindingContext, Tuple)
     fun match(): Boolean
 
     /**
-     * Copies this [ComparisonOperator], creating a new [ComparisonOperator] that is initially bound to the same [Binding]s.
-     *
-     * @return Copy of this [ComparisonOperator]
+     * Default implementation of prepare does nothing.
      */
-    override fun copy(): ComparisonOperator
-
-    /**
-     * A [ComparisonOperator] that checks if a value is NULL.
-     */
-    data class IsNull(override val left: Binding) : ComparisonOperator {
-        override val cost: Cost
-            get() = Cost.MEMORY_ACCESS
-        override fun match() = (this.left.value == null)
-        override fun copy() = IsNull(this.left.copy())
-        override fun digest(): Digest = this.hashCode().toLong()
-        override fun bind(context: BindingContext) = this.left.bind(context)
+    context(BindingContext)
+    override fun prepare() {
+        /* No op. */
     }
 
     /**
-     * A [ComparisonOperator] that expresses an equality (==) comparison.
+     * Creates a cop of this [ComparisonOperator] and returns it.
+     *
+     * @return Copy of this [ComparisonOperator].
      */
-    sealed interface Binary : ComparisonOperator {
-        /** The [Binding] that acts as right operand for this [ComparisonOperator]. */
-        val right: Binding
+    fun copy(): ComparisonOperator
 
-        /** The cost of evaluating a [Binary]. */
-        override val cost: Cost
-            get() = Cost.MEMORY_ACCESS * 2
+    /** The cost of evaluating a [Binary]. */
+    override val cost: Cost
+        get() = Cost.MEMORY_ACCESS * 5
 
-        /**
-         * Copies this [Binary], creating a new [Binary] that is initially bound to the same [Binding]s.
-         *
-         * @return Copy of this [Binary]
-         */
-        override fun copy(): Binary
-
-        /**
-         * Binds all [Binding]s contained in this [ComparisonOperator.Binary] to the new [BindingContext].
-         *
-         * @param context The new [BindingContext] to bind [Binding]s to.
-         */
-        override fun bind(context: BindingContext) {
-            this.left.bind(context)
-            this.right.bind(context)
+    data class Equal(override val left: Binding, override val right: Binding): ComparisonOperator {
+        context(BindingContext, Tuple)
+        override fun match() : Boolean {
+            val left = this.left.getValue()
+            val right = this.right.getValue()
+            return left != null && right != null && left == right
         }
+        override fun toString(): String = "$left = $right"
+        override fun copy() = Equal(this.left, this.right)
+        override fun digest(): Digest = this.hashCode().toLong()
+    }
 
-        data class Equal(override val left: Binding, override val right: Binding): Binary {
-            override fun match() = this.left.value != null && this.right.value != null && this.left.value!!.isEqual(this.right.value!!)
-            override fun toString(): String = "$left = $right"
-            override fun copy() = Equal(this.left.copy(), this.right.copy())
-            override fun digest(): Digest = this.hashCode().toLong()
+    data class NotEqual(override val left: Binding, override val right: Binding): ComparisonOperator {
+        context(BindingContext, Tuple)
+        override fun match() : Boolean {
+            val left = this.left.getValue()
+            val right = this.right.getValue()
+            return left != null && right != null && left != right
         }
+        override fun toString(): String = "$left != $right"
+        override fun copy() = NotEqual(this.left, this.right)
+        override fun digest(): Digest = this.hashCode().toLong()
+    }
 
-        /**
-         * A [ComparisonOperator] that expresses greater (>) comparison.
-         */
-        data class Greater(override val left: Binding, override val right: Binding): Binary {
-            override fun match(): Boolean = this.left.value != null && this.right.value != null && this.left.value!! > this.right.value!!
-            override fun toString(): String = "$left > $right"
-            override fun copy() = Greater(this.left.copy(), this.right.copy())
-            override fun digest(): Digest = this.hashCode().toLong()
+    /**
+     * A [ComparisonOperator] that expresses greater (>) comparison.
+     */
+    data class Greater(override val left: Binding, override val right: Binding): ComparisonOperator {
+        context(BindingContext, Tuple)
+        override fun match(): Boolean {
+            val left = this.left.getValue()
+            val right = this.right.getValue()
+            return left != null && right != null && left > right
         }
+        override fun toString(): String = "$left > $right"
+        override fun copy() = Greater(this.left, this.right)
+        override fun digest(): Digest = this.hashCode().toLong()
+    }
 
-        /**
-         * A [ComparisonOperator] that expresses less (<) comparison.
-         */
-        data class Less(override val left: Binding, override val right: Binding) : Binary {
-            override fun match() = this.left.value != null && this.right.value != null && this.left.value!! < this.right.value!!
-            override fun toString(): String = "$left < $right"
-            override fun copy() = Less(this.left.copy(), this.right.copy())
-            override fun digest(): Digest = this.hashCode().toLong()
+    /**
+     * A [ComparisonOperator] that expresses less (<) comparison.
+     */
+    data class Less(override val left: Binding, override val right: Binding) : ComparisonOperator {
+        context(BindingContext, Tuple)
+        override fun match() : Boolean {
+            val left = this.left.getValue()
+            val right = this.right.getValue()
+            return left != null && right != null && left < right
         }
+        override fun toString(): String = "$left < $right"
+        override fun copy() = Greater(this.left, this.right)
+        override fun digest(): Digest = this.hashCode().toLong()
+    }
 
-        /**
-         * A [ComparisonOperator] that expresses greater or equal (>=) comparison.
-         */
-        data class GreaterEqual(override val left: Binding, override val right: Binding) : Binary {
-            override fun match() = this.left.value != null && this.right.value != null && this.left.value!! >= this.right.value!!
-            override fun toString(): String = "$left >= $right"
-            override fun copy() = GreaterEqual(this.left.copy(), this.right.copy())
-            override fun digest(): Digest = this.hashCode().toLong()
+    /**
+     * A [ComparisonOperator] that expresses greater or equal (>=) comparison.
+     */
+    data class GreaterEqual(override val left: Binding, override val right: Binding) : ComparisonOperator {
+        context(BindingContext, Tuple)
+        override fun match(): Boolean {
+            val left = this.left.getValue()
+            val right = this.right.getValue()
+            return left != null && right != null && left >= right
         }
+        override fun toString(): String = "$left >= $right"
+        override fun copy() = GreaterEqual(this.left, this.right)
+        override fun digest(): Digest = this.hashCode().toLong()
+    }
 
-        /**
-         * A [ComparisonOperator] that expresses less or equal (<=) comparison.
-         */
-        data class LessEqual(override val left: Binding, override val right: Binding) : Binary {
-            override fun match() = this.left.value != null && this.right.value != null && this.left.value!! <= this.right.value!!
-            override fun toString(): String = "$left <= $right"
-            override fun copy() = LessEqual(this.left.copy(), this.right.copy())
-            override fun digest(): Digest = this.hashCode().toLong()
+    /**
+     * A [ComparisonOperator] that expresses less or equal (<=) comparison.
+     */
+    data class LessEqual(override val left: Binding, override val right: Binding) : ComparisonOperator {
+        context(BindingContext, Tuple)
+        override fun match(): Boolean {
+            val left = this.left.getValue()
+            val right = this.right.getValue()
+            return left != null && right != null && left <= right
         }
+        override fun copy() = LessEqual(this.left, this.right)
+        override fun toString(): String = "$left <= $right"
+        override fun digest(): Digest = this.hashCode().toLong()
+    }
 
-        /**
-         * A [ComparisonOperator] that expresses a LIKE comparison, i.e., left LIKE right.
-         */
-        class Like(override val left: Binding, override val right: Binding) : Binary {
-            override fun match() = this.left.value is StringValue && this.right.value is LikePatternValue && (this.right.value as LikePatternValue).matches(this.left.value as StringValue)
-            override fun toString(): String = "$left LIKE $right"
-            override fun copy() = Like(this.left.copy(), this.right.copy())
-            override fun digest(): Digest = this.hashCode().toLong()
-        }
+    /**
+     * A [ComparisonOperator] that expresses a LIKE comparison, i.e., left LIKE right.
+     */
+    class Like(override val left: Binding, override val right: Binding) : ComparisonOperator {
+        context(BindingContext, Tuple)
+        override fun match() = this.left.getValue() is StringValue && this.right.getValue() is LikePatternValue && (this.right.getValue() as LikePatternValue).matches(this.left.getValue() as StringValue)
+        override fun copy() = Like(this.left, this.right)
+        override fun toString(): String = "$left LIKE $right"
+        override fun digest(): Digest = this.hashCode().toLong()
+    }
 
-        /**
-         * A [ComparisonOperator] that expresses a MATCH comparison. Can only be evaluated through a lucene index.
-         */
-        class Match(override val left: Binding, override val right: Binding) : Binary {
-            override fun match() = throw UnsupportedOperationException("A MATCH comparison operator cannot be evaluated directly.")
-            override fun toString(): String = "$left MATCH $right"
-            override fun copy() = Match(this.left.copy(), this.right.copy())
-            override fun digest(): Digest = this.hashCode().toLong()
-        }
+    /**
+     * A [ComparisonOperator] that expresses a MATCH comparison. Can only be evaluated through a lucene index.
+     */
+    class Match(override val left: Binding, override val right: Binding) : ComparisonOperator {
+        context(BindingContext, Tuple)
+        override fun match() = throw UnsupportedOperationException("A MATCH comparison operator cannot be evaluated directly.")
+        override fun copy() = LessEqual(this.left, this.right)
+        override fun toString(): String = "$left MATCH $right"
+        override fun digest(): Digest = this.hashCode().toLong()
     }
 
     /**
      * A [ComparisonOperator] that expresses a BETWEEN comparison (i.e. lower <= left <= upper).
      */
-    data class Between(override val left: Binding, val rightLower: Binding, val rightUpper: Binding) : ComparisonOperator {
+    data class Between(override val left: Binding, override val right: Binding) : ComparisonOperator {
+        init {
+            /* Sanity check + initialization of values list. */
+            require(this.right is Binding.LiteralList && this.right.size() == 2L) {
+                "Right-hand side of BETWEEN operator must be a literal list with two entries."
+            }
+        }
+
+        /** The lower value of this [Between]. Since only literals can be used here, this can be generated during prepare(). */
+        private var lower: Value = this.right.type.defaultValue()
+
+        /** The upper value of this [Between]. Since only literals can be used here, this can be generated during prepare(). */
+        private var upper: Value = this.right.type.defaultValue()
+
         override val cost: Cost
             get() = Cost.MEMORY_ACCESS * 4
-        override fun match() = this.left.value != null && this.rightLower.value != null && this.rightLower.value != null && this.left.value!! in this.rightLower.value!!..this.rightUpper.value!!
-        override fun copy(): ComparisonOperator = Between(this.left.copy(), this.rightLower.copy(), this.rightUpper.copy())
-        override fun digest(): Digest = this.hashCode().toLong()
-        override fun bind(context: BindingContext) {
-            this.left.bind(context)
-            this.rightLower.bind(context)
-            this.rightUpper.bind(context)
+
+        context(BindingContext, Tuple)
+        override fun match(): Boolean {
+            val left = this.left.getValue()
+            return left != null && left >= this.lower && left <= this.upper
         }
-        override fun toString(): String = "$left BETWEEN $rightLower, $rightUpper"
+        context(BindingContext)
+        override fun prepare() {
+            with(MissingTuple) {
+                this@Between.lower = this@Between.right.getValues().getOrNull(0) ?: throw IllegalStateException("BETWEEN operator expects two non-null, literal values as right operands. This is a programmer's error!")
+                this@Between.upper = this@Between.right.getValues().getOrNull(1) ?: throw IllegalStateException("BETWEEN operator expects two non-null, literal values as right operands. This is a programmer's error!")
+                if (this@Between.lower > this@Between.upper) { /* Normalize order for literal bindings. */
+                    val cache = this@Between.upper
+                    this@Between.upper = this@Between.lower
+                    this@Between.lower = cache
+                }
+            }
+        }
+
+        override fun copy() = Between(this.left, this.right)
+        override fun digest(): Digest = this.hashCode().toLong()
+        override fun toString(): String = "$left BETWEEN ${this.right}"
     }
 
     /**
      * A [ComparisonOperator] that expresses an IN comparison (i.e. left IN right).
      */
-    class In(override val left: Binding, val right: List<Binding>) : ComparisonOperator {
-
-        /** Internal [ObjectOpenHashSet] used to speed-up actual comparison.*/
-        private var lookupSet: ObjectOpenHashSet<Value>? = null
+    class In(override val left: Binding, override val right: Binding) : ComparisonOperator {
 
         /** Cost of executing this [ComparisonOperator.In]*/
         override val cost: Cost
-            get() = Cost.MEMORY_ACCESS * 2 * this.right.size
+            get() = Cost.MEMORY_ACCESS * 2 * this.right.size()
+
+        /** Internal set to facilitate lookup. */
+        private val lookup = ObjectRBTreeSet<Value>()
 
         init {
             /* Sanity check + initialization of values list. */
-            require(this.right.isNotEmpty()) { "Right-hand side of IN operator cannot be empty." }
-            require(this.right.all { it !is Binding.Column }) { "Right-hand side of IN operator cannot be a column reference." }
+            require(this.right is Binding.Literal || this.right is Binding.LiteralList || this.right is Binding.Subquery) {
+                "Right-hand side of IN operator must be a literal or a sub-query."
+            }
         }
 
         /**
@@ -184,33 +228,20 @@ sealed interface ComparisonOperator: BindableNode, NodeWithCost {
          *
          * @return True on match, false otherwise.
          */
-        override fun match(): Boolean {
-            if (this.lookupSet == null) {
-                this.lookupSet = ObjectOpenHashSet()
-                for (r in this.right) {
-                    if (r is Binding.Subquery) {
-                        this.lookupSet!!.addAll(r.values)
-                    } else {
-                        this.lookupSet!!.add(r.value)
-                    }
-                }
-            }
-            return this.left.value in this.lookupSet!!
-        }
+        context(BindingContext, Tuple)
+        override fun match(): Boolean = this.left.getValue() in this.lookup
 
         /**
-         * Binds all [Binding]s contained in this [ComparisonOperator.In] to the new [BindingContext].
-         *
-         * @param context The new [BindingContext] to bind [Binding]s to.
+         * Prepares this [ComparisonOperator] for query execution by reading all the right-side values into the collection.
          */
-        override fun bind(context: BindingContext) {
-            this.left.bind(context)
-            this.right.forEach { it.bind(context) }
-            this.lookupSet = null
+        context(BindingContext)
+        override fun prepare() {
+            with (MissingTuple) {
+                this@In.lookup.addAll(this@In.right.getValues())
+            }
         }
-
-        override fun copy() = In(this.left.copy(), this.right.map { it.copy() }.toMutableList())
+        override fun copy() = In(this.left, this.right)
         override fun digest(): Digest = this.hashCode().toLong()
-        override fun toString(): String = "$left IN [${this.right.joinToString(",")}]"
+        override fun toString(): String = "$left IN ${this.right}"
     }
 }

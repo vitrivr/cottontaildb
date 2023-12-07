@@ -2,24 +2,24 @@ package org.vitrivr.cottontail.dbms.queries.context
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.QueryHint
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionMetadata
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.QueryHint
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
 
 /**
  * A context for query binding, planning and execution. The [QueryContext] bundles all the
- * relevant aspects of a query such as  the logical and physical plans, [TransactionContext]
+ * relevant aspects of a query such as  the logical and physical plans, [Transaction]
  * and [BindingContext]
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.1.0
  */
 interface QueryContext {
 
@@ -41,11 +41,11 @@ interface QueryContext {
     /** The [CostPolicy] that should be applied within this [QueryContext] */
     val costPolicy: CostPolicy
 
-    /** The [OperatorNode.Logical] representing the query and the sub-queries held by this [QueryContext]. */
-    val logical: OperatorNode.Logical?
+    /** The [OperatorNode.Logical] representing (sub-)queries held by this [QueryContext]. */
+    val logical: List<OperatorNode.Logical>
 
-    /** The [OperatorNode.Physical] representing the query and the sub-queries held by this [QueryContext]. */
-    val physical: OperatorNode.Physical?
+    /** The [OperatorNode.Physical] representing the (sub-)queries held by this [QueryContext]. */
+    val physical: List<OperatorNode.Physical>
 
     /** Output [ColumnDef] for the query held by this [QueryContext] (as per canonical plan). */
     val output: List<ColumnDef<*>>?
@@ -61,30 +61,28 @@ interface QueryContext {
     fun nextGroupId(): GroupId
 
     /**
-     * Assigns a new [OperatorNode.Logical] to this [QueryContext] overwriting the existing [OperatorNode.Logical].
-     *
-     * Invalidates all existing [OperatorNode.Logical] and [OperatorNode.Physical] held by this [QueryContext].
+     * Registers a new [OperatorNode.Logical] to this [QueryContext]
      *
      * @param plan The [OperatorNode.Logical] to assign.
      */
-    fun assign(plan: OperatorNode.Logical)
+    fun register(plan: OperatorNode.Logical)
 
     /**
-     * Assigns a new [OperatorNode.Physical] to this [QueryContext] overwriting the existing [OperatorNode.Physical].
-     *
-     * Invalidates all existing [OperatorNode.Logical] and [OperatorNode.Physical] held by this [QueryContext].
+     * Registers a new [OperatorNode.Physical] with this [QueryContext].
      *
      * @param plan The [OperatorNode.Physical] to assign.
      */
-    fun assign(plan: OperatorNode.Physical)
+    fun register(plan: OperatorNode.Physical)
 
     /**
      * Starts the query planning processing using the given [CottontailQueryPlanner]. The query planning
      * process tries to generate a near-optimal [OperatorNode.Physical] from the registered [OperatorNode.Logical].
      *
      * @param planner The [CottontailQueryPlanner] instance to use for planning.
+     * @param bypassCache Flag indicating, whether the [CottontailQueryPlanner] should bypass the plan cache.
+     * @param cache Flag indicating, whether the resulting plan should be cached.
      */
-    fun plan(planner: CottontailQueryPlanner)
+    fun plan(planner: CottontailQueryPlanner, bypassCache: Boolean = false, cache: Boolean = false)
 
     /**
      * Converts the registered [OperatorNode.Logical] to the equivalent [OperatorNode.Physical] and skips query planning.

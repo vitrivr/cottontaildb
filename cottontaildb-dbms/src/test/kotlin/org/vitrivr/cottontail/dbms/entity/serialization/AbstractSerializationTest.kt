@@ -6,12 +6,10 @@ import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.dbms.entity.AbstractEntityTest
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.nio.file.Files
@@ -20,7 +18,7 @@ import java.nio.file.Files
  * An abstract class for test cases that test for correctness of serialization
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.5.0
  */
 abstract class AbstractSerializationTest: AbstractEntityTest() {
 
@@ -64,16 +62,17 @@ abstract class AbstractSerializationTest: AbstractEntityTest() {
         this.random.setSeed(this.seed)
 
         /* Start testing. */
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx = DefaultQueryContext("serialization", this.catalogue, txn)
         try {
-            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+            val catalogueTx = this.catalogue.newTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getTx(schema) as SchemaTx
+            val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = txn.getTx(entity) as EntityTx
-            repeat(TestConstants.TEST_COLLECTION_SIZE) {
+            val entityTx = entity.newTx(ctx)
+            repeat(TestConstants.TEST_COLLECTION_SIZE - 1) {
                 val reference = this.nextRecord(it)
-                val retrieved = entityTx.read((it + 1).toLong(), this.columns)
+                val retrieved = entityTx.read(it.toLong(), this.columns)
                 for (i in 0 until retrieved.size) {
                     Assertions.assertTrue(reference[retrieved.columns[i]]!!.isEqual(retrieved[i]!!))
                 }
@@ -93,12 +92,13 @@ abstract class AbstractSerializationTest: AbstractEntityTest() {
         this.random.setSeed(this.seed)
 
         /* Start inserting. */
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+        val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+        val ctx = DefaultQueryContext("serialization-populate", this.catalogue, txn)
+        val catalogueTx = this.catalogue.newTx(ctx)
         val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = txn.getTx(schema) as SchemaTx
+        val schemaTx = schema.newTx(ctx)
         val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = txn.getTx(entity) as EntityTx
+        val entityTx = entity.newTx(ctx)
 
         /* Insert data and track how many entries have been stored for the test later. */
         repeat(TestConstants.TEST_COLLECTION_SIZE) {
@@ -108,9 +108,9 @@ abstract class AbstractSerializationTest: AbstractEntityTest() {
     }
 
     /**
-     * Generates and returns the i-th [StandaloneRecord]. Usually generated randomly (which is up to the implementing class).
+     * Generates and returns the i-th [StandaloneTuple]. Usually generated randomly (which is up to the implementing class).
      *
-     * @param i Index of the [StandaloneRecord]
+     * @param i Index of the [StandaloneTuple]
      */
-    abstract fun nextRecord(i: Int): StandaloneRecord
+    abstract fun nextRecord(i: Int): StandaloneTuple
 }

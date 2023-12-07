@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.core.values.pattern
 
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.types.ScalarValue
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.StringValue
-import org.vitrivr.cottontail.core.values.types.ScalarValue
-import org.vitrivr.cottontail.core.values.types.Value
 
 /**
  * [PatternValue]s can be used to check, if the expression they contain matches a given [StringValue].

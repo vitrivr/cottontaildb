@@ -7,9 +7,16 @@ package org.vitrivr.cottontail.dbms.statistics.selectivity
  * @version 1.1.0
  */
 @JvmInline
-value class Selectivity(private val value: Float) {
+value class Selectivity(val value: Float) {
     companion object {
-        val DEFAULT_SELECTIVITY = Selectivity(0.98f)
+        /** Default [Selectivity] (1/3 of the collection). This is a worst-case assumption in case no better estimate exists. */
+        val DEFAULT = Selectivity(0.33f)
+
+        /** [Selectivity] if noting is selected. */
+        val NOTHING = Selectivity(0.0f)
+
+        /** [Selectivity] if noting is selected. */
+        val ALL = Selectivity(1.0f)
     }
     /**
      * Calculates and returns the output size given this [Selectivity] and the input size.

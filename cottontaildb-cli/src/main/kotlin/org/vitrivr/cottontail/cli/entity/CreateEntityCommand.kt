@@ -1,20 +1,22 @@
 package org.vitrivr.cottontail.cli.entity
 
-import com.github.ajalt.clikt.output.TermUi
+import com.github.ajalt.clikt.core.terminal
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.option
-import com.google.gson.Gson
-import com.google.gson.JsonParser
-import com.google.gson.reflect.TypeToken
 import com.jakewharton.picnic.table
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import kotlinx.serialization.json.Json
+import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
+import org.vitrivr.cottontail.client.language.ddl.CreateEntity
 import org.vitrivr.cottontail.client.language.ddl.ListEntities
+import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.utilities.TabulationUtilities
-import org.vitrivr.cottontail.utilities.extensions.proto
+import java.util.*
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 
@@ -22,34 +24,16 @@ import kotlin.time.measureTimedValue
  * Command to create a new a [org.vitrivr.cottontail.dbms.entity.DefaultEntity].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.1
  */
 @ExperimentalTime
-class CreateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "create", help = "Creates a new entity in the database. Usage: entity create <schema>.<entity>") {
-
-    companion object {
-        data class ColumnInfo(val name: String, val type: CottontailGrpc.Type, val nullable: Boolean = false, val size: Int = -1) {
-            fun toDefinition() : CottontailGrpc.ColumnDefinition {
-                val def = CottontailGrpc.ColumnDefinition.newBuilder()
-                def.nameBuilder.name = name
-                def.type = type
-                def.nullable = nullable
-                def.length = size
-                return def.build()
-            }
-        }
-    }
-
-    private inline fun <reified T> Gson.fromJson(json: String) =
-        fromJson<T>(json, object : TypeToken<T>() {}.type)
-
+class CreateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "create", help = "Creates a new entity in the database. Usage: entity create <schema>.<entity>") {
+    /** A [List] of [ColumnDef] objects parsed directly from stdin. */
     private val columnDefinition by option(
         "-d", "--definition",
         help = "List of column definitions in the form of {\"name\": ..., \"type\": ..., \"nullable\": ..., \"size\": ...}"
     ).convert { string ->
-        val canonicalFormat = JsonParser.parseString(string).toString()
-        val list: List<ColumnInfo> = Gson().fromJson(canonicalFormat)
-        list.map { it.toDefinition() }
+        Json.decodeFromString<List<ColumnDef<*>>>(string)
     }
 
     override fun exec() {
@@ -57,31 +41,31 @@ class CreateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Enti
         checkValid()
 
         /* Prepare entity definition and prompt user use to add columns to definition. */
-        val colDef = CottontailGrpc.EntityDefinition.newBuilder().setEntity(this.entityName.proto())
-
-        if (columnDefinition != null && columnDefinition!!.isNotEmpty()) {
-            columnDefinition!!.forEach {
-                colDef.addColumns(it)
+        val createMessage = CreateEntity(this.entityName)
+        if (this.columnDefinition != null && this.columnDefinition!!.isNotEmpty()) {
+            this.columnDefinition!!.forEach {
+                createMessage.column(it)
             }
 
             val time = measureTimedValue {
-                TabulationUtilities.tabulate(this.client.create(CottontailGrpc.CreateEntityMessage.newBuilder().setDefinition(colDef).build()))
+                TabulationUtilities.tabulate(this.client.create(createMessage))
             }
             println("Entity ${this.entityName} created successfully (took ${time.duration}).")
             print(time.value)
-
         } else {
 
+            val columns = LinkedList<ColumnDef<*>>()
             do {
                 /* Prompt user for column definition. */
-                println("Please specify column to add at position ${colDef.columnsCount + 1}.")
-                val ret = this.promptForColumn()
-                if (ret != null) {
-                    colDef.addColumns(ret)
+                println("Please specify column to add at position ${createMessage.columns() + 1}.")
+                val column = this.promptForColumn()
+                if (column != null) {
+                    columns.add(column)
+                    createMessage.column(column)
                 }
 
-                /* Ask if anther column should be added. */
-                if (colDef.columnsCount > 0 && confirm("Do you want to add another column (size = ${colDef.columnsCount})?") == false) {
+                /* Ask if another column should be added. */
+                if (createMessage.columns() > 0 && this.confirm("Do you want to add another column (size = ${createMessage.columns()})?") == false) {
                     break
                 }
             } while (true)
@@ -106,18 +90,18 @@ class CreateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Enti
                     }
                 }
                 body {
-                    colDef.columnsList.forEach { def ->
+                    columns.forEach { def ->
                         row {
-                            cells(def.name, def.type, def.length, def.nullable)
+                            cells(def.name, def.type.name, def.type.logicalSize, def.nullable)
                         }
                     }
                 }
             }
 
             /* As for final confirmation and create entity. */
-            if (confirm(text = "Please confirm that you want to create the entity:\n$tbl", default = true) == true) {
+            if (this.confirm(text = "Please confirm that you want to create the entity:\n$tbl", default = true) == true) {
                 val time = measureTimedValue {
-                    TabulationUtilities.tabulate(this.client.create(CottontailGrpc.CreateEntityMessage.newBuilder().setDefinition(colDef).build()))
+                    TabulationUtilities.tabulate(this.client.create(createMessage))
                 }
                 println("Entity ${this.entityName} created successfully (took ${time.duration}).")
                 print(time.value)
@@ -152,28 +136,25 @@ class CreateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Enti
     }
 
     /**
-     * Prompts user to specify column information and returns a [CottontailGrpc.ColumnDefinition] if user completes this step.
+     * Prompts user to specify column information and returns a [ColumnDef] if user completes this step.
      *
-     * @return Optional [CottontailGrpc.ColumnDefinition]
+     * @return Optional [ColumnDef
      */
-    private fun promptForColumn(): CottontailGrpc.ColumnDefinition? {
-        val def = CottontailGrpc.ColumnDefinition.newBuilder()
-        def.nameBuilder.name = prompt("Column name (must consist of letters and numbers)")
-        def.type = prompt("Column type (${CottontailGrpc.Type.values().joinToString(", ")})") {
-            CottontailGrpc.Type.valueOf(it.uppercase())
-        }
-        def.length = when (def.type) {
-            CottontailGrpc.Type.DOUBLE_VEC,
-            CottontailGrpc.Type.FLOAT_VEC,
-            CottontailGrpc.Type.LONG_VEC,
-            CottontailGrpc.Type.INT_VEC,
-            CottontailGrpc.Type.BOOL_VEC,
-            CottontailGrpc.Type.COMPLEX32_VEC,
-            CottontailGrpc.Type.COMPLEX64_VEC -> prompt("\rColumn lengths (i.e. number of entries for vectors)") { it.toInt() } ?: 1
+    private fun promptForColumn(): ColumnDef<*>? {
+        val name = this.terminal.prompt("Column name (must consist of letters and numbers)") ?: return null
+        val typeName = this.terminal.prompt("Column type (${CottontailGrpc.Type.entries.joinToString(", ")})") ?: return null
+        val typeSize = when (typeName.uppercase()) {
+            "INTEGER_VECTOR",
+            "LONG_VECTOR",
+            "FLOAT_VECTOR",
+            "DOUBLE_VECTOR",
+            "BOOL_VECTOR",
+            "COMPLEX32_VECTOR",
+            "COMPLEX64_VECTOR" -> this.terminal.prompt("\rColumn lengths (i.e., number of entries for vectors)")?.toIntOrNull() ?: 1
             else -> -1
         }
-        def.nullable = confirm(text = "Should column be nullable?", default = false) ?: false
-
+        val nullable = this.confirm(text = "Should column be nullable?", default = false) ?: false
+        val def = ColumnDef(Name.ColumnName.parse(name), Types.forName(typeName, typeSize), nullable)
         val tbl = table {
             cellStyle {
                 border = true
@@ -187,13 +168,12 @@ class CreateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Enti
             }
             body {
                 row {
-                    cells(def.name, def.type, def.length, def.nullable)
+                    cells(def.name, def.type.name, def.type.logicalSize, def.nullable)
                 }
             }
         }
-
-        return if (confirm("Please confirm column:\n$tbl") == true) {
-            def.build()
+        return if (this.confirm("Please confirm column:\n$tbl") == true) {
+            def
         } else {
             null
         }

@@ -91,6 +91,16 @@ class MinHeapSelection<T : Comparable<T>>(override val k: Int) : Selection<T> {
         return ret
     }
 
+    /**
+     * Converts the sorted content of this [MinHeapSelection] to a [List] and returns it.
+     *
+     * @return [List] of this [MinHeapSelection]'s content.
+     */
+    @Suppress("UNCHECKED_CAST")
+    override fun toList(): List<T> {
+        if (!this.sorted) this.sort()
+        return this.heap.clone() as List<T>
+    }
 
     /**
      * Sorts the heap so that the smallest values move to the top of the [MinHeapSelection].

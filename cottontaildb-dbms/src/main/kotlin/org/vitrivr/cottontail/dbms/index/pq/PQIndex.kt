@@ -1,56 +1,59 @@
 package org.vitrivr.cottontail.dbms.index.pq
 
 import jetbrains.exodus.bindings.ComparableBinding
-import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
-import org.apache.commons.math3.random.JDKRandomGenerator
-import org.apache.commons.math3.random.RandomGenerator
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
-import org.vitrivr.cottontail.core.queries.sort.SortOrder
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.RealVectorValue
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.VectorValue
+import org.vitrivr.cottontail.dbms.catalogue.Catalogue
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import org.vitrivr.cottontail.dbms.index.*
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
+import org.vitrivr.cottontail.dbms.index.pq.quantizer.SerializableSingleStageProductQuantizer
+import org.vitrivr.cottontail.dbms.index.pq.quantizer.SingleStageQuantizer
+import org.vitrivr.cottontail.dbms.index.pq.rebuilder.AsyncPQIndexRebuilder
+import org.vitrivr.cottontail.dbms.index.pq.rebuilder.PQIndexRebuilder
+import org.vitrivr.cottontail.dbms.index.pq.signature.SPQSignature
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
-import org.vitrivr.cottontail.dbms.operations.Operation
-import org.vitrivr.cottontail.utilities.selection.HeapSelection
-import java.util.*
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import kotlin.concurrent.withLock
 
 /**
- * An [AbstractHDIndex] structure for proximity based queries that uses a product quantization (PQ).
- * Can be used for all type of [VectorValue]s and distance metrics.
+ * An [AbstractIndex] structure for proximity based queries that uses the product quantization (PQ) algorithm described in.
+ *
+ *  Can be used for all type of [VectorValue]s and distance metrics. Implements the ADC algorithm described in [1], which is well
+ * suited for million-scale datasets.
  *
  * References:
- * [1] Guo, Ruiqi, et al. "Quantization based fast inner product search." Artificial Intelligence and Statistics. 2016.
+ * [1] Jegou, Herve, et al. "Product Quantization for Nearest Neighbor Search." IEEE Transactions on Pattern Analysis and Machine Intelligence. 2010.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 3.0.0
+ * @version 3.5.0
  */
-class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(name, parent) {
+class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, parent) {
 
     /**
      * The [IndexDescriptor] for the [PQIndex].
@@ -59,24 +62,34 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         /** [Logger] instance used by [PQIndex]. */
         private val LOGGER: Logger = LoggerFactory.getLogger(PQIndex::class.java)
 
+        /** False since [PQIndex] currently doesn't support incremental updates. */
+        override val supportsIncrementalUpdate: Boolean = true
+
+        /** False since [PQIndex] doesn't support asynchronous rebuilds. */
+        override val supportsAsyncRebuild: Boolean = true
+
+        /** True since [PQIndex] supports partitioning. */
+        override val supportsPartitioning: Boolean = true
+
         /**
          * Opens a [PQIndex] for the given [Name.IndexName] in the given [DefaultEntity].
          *
          * @param name The [Name.IndexName] of the [PQIndex].
-         * @param entity The [DefaultEntity] that holds the [PQIndex].
+         * @param entity The [Entity] that holds the [PQIndex].
          * @return The opened [PQIndex]
          */
-        override fun open(name: Name.IndexName, entity: DefaultEntity): PQIndex = PQIndex(name, entity)
+        override fun open(name: Name.IndexName, entity: Entity): PQIndex = PQIndex(name, entity as DefaultEntity)
 
         /**
          * Initializes the [Store] for a [VAFIndex].
          *
          * @param name The [Name.IndexName] of the [VAFIndex].
-         * @param entity The [DefaultEntity] that executes the operation.
+         * @param catalogue [Catalogue] reference.
+         * @param context The [Transaction] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
-            val store = entity.dbo.catalogue.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES, entity.context.xodusTx, true)
+        override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
+            val store = catalogue.transactionManager.environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES, context.xodusTx, true)
             store != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize PQ index $name due to an exception: ${e.message}.")
@@ -87,11 +100,12 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          * De-initializes the [Store] for associated with a [VAFIndex].
          *
          * @param name The [Name.IndexName] of the [LuceneIndex].
-         * @param entity The [DefaultEntity.Tx] that executes the operation.
+         * @param catalogue [Catalogue] reference.
+         * @param context The [Transaction] to perform the transaction with.
          * @return True on success, false otherwise.
          */
-        override fun deinitialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
-            entity.dbo.catalogue.environment.removeStore(name.storeName(), entity.context.xodusTx)
+        override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
+            catalogue.transactionManager.environment.removeStore(name.storeName(), context.xodusTx)
             true
         } catch (e:Throwable) {
             LOGGER.error("Failed to de-initialize PQ index $name due to an exception: ${e.message}.")
@@ -104,10 +118,10 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          * @param parameters The parameters to initialize the default [PQIndexConfig] with.
          */
         override fun buildConfig(parameters: Map<String, String>): IndexConfig<PQIndex> = PQIndexConfig(
-            parameters[PQIndexConfig.KEY_DISTANCE]?.let { Name.FunctionName.create(it) } ?: EuclideanDistance.FUNCTION_NAME,
-            parameters[PQIndexConfig.KEY_SAMPLE_SIZE]?.toInt() ?: 1500,
-            parameters[PQIndexConfig.KEY_NUM_CENTROIDS]?.toInt() ?: 100,
-            parameters[PQIndexConfig.KEY_NUM_SUBSPACES]?.toInt()
+            parameters[PQIndexConfig.KEY_DISTANCE]?.let { Name.FunctionName(it) } ?: EuclideanDistance.FUNCTION_NAME,
+            parameters[PQIndexConfig.KEY_NUM_CENTROIDS]?.toInt() ?: PQIndexConfig.DEFAULT_CENTROIDS,
+            parameters[PQIndexConfig.KEY_NUM_SUBSPACES]?.toInt() ?: PQIndexConfig.DEFAULT_SUBSPACES,
+            parameters[PQIndexConfig.KEY_SEED]?.toInt() ?: System.currentTimeMillis().toInt(),
         )
 
         /**
@@ -119,48 +133,53 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
     }
 
     /** The [IndexType] of this [PQIndex]. */
-    override val type: IndexType
-        get() = IndexType.PQ
-
-    /** False since [PQIndex] currently doesn't support incremental updates. */
-    override val supportsIncrementalUpdate: Boolean = false
-
-    /** True since [PQIndex] supports partitioning. */
-    override val supportsPartitioning: Boolean = false
+    override val type: IndexType = IndexType.PQ
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [PQIndex].
      *
-     * @param context The [TransactionContext] to create this [IndexTx] for.
+     * @param context The [QueryContext] to create this [IndexTx] for.
+     * @return [Tx]
      */
-    override fun newTx(context: TransactionContext): IndexTx = Tx(context)
+    override fun newTx(context: QueryContext): IndexTx
+        = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
 
     /**
-     * Closes this [PQIndex]
+     * Opens and returns a new [PQIndexRebuilder] object that can be used to rebuild with this [PQIndex].
+     *
+     * @param context The [QueryContext] to create [PQIndexRebuilder] for.
+     * @return [PQIndexRebuilder]
      */
-    override fun close() {
-        /* No op. */
-    }
+    override fun newRebuilder(context: QueryContext) = PQIndexRebuilder(this, context)
+
+    /**
+     * Opens and returns a new [AsyncPQIndexRebuilder] object that can be used to rebuild with this [PQIndex].
+     *
+     * @param context If the [QueryContext] that requested the [AsyncPQIndexRebuilder].
+     * @return [AsyncPQIndexRebuilder]
+     */
+    override fun newAsyncRebuilder(context: QueryContext) = AsyncPQIndexRebuilder(this, context)
 
     /**
      * A [IndexTx] that affects this [AbstractIndex].
      */
-    private inner class Tx(context: TransactionContext) : AbstractHDIndex.Tx(context) {
+    inner class Tx(context: QueryContext) : AbstractIndex.Tx(context) {
 
-        /** The [PQIndexConfig] used by this [PQIndex] instance. */
-        override val config: PQIndexConfig
-            get() = super.config as PQIndexConfig
-
-        /** The set of supported [VectorDistance]s. */
-        override val supportedDistances: Set<Signature.Closed<*>>
-
-        init {
-            val config = this.config
-            this.supportedDistances = setOf(Signature.Closed(config.distance, arrayOf(this.column.type, this.column.type), Types.Double))
+        /** The [VectorDistance] function employed by this [PQIndex]. */
+        internal val distanceFunction: VectorDistance<*> by lazy {
+            val signature = Signature.Closed((this.config as PQIndexConfig).distance, arrayOf(this.columns[0].type, this.columns[0].type), Types.Double)
+            this@PQIndex.catalogue.functions.obtain(signature) as VectorDistance<*>
         }
 
-        /** The Xodus [Store] used to store [PQSignature]s. */
-        private var dataStore: Store = this@PQIndex.catalogue.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
+        /** The [SingleStageQuantizer] used by this [PQIndex.Tx] instance. */
+        internal val quantizer: SingleStageQuantizer by lazy {
+            val serializable = IndexStructCatalogueEntry.read<SerializableSingleStageProductQuantizer>(this@PQIndex.name, this@PQIndex.catalogue, this.context.txn.xodusTx, SerializableSingleStageProductQuantizer.Binding)?:
+                throw DatabaseException.DataCorruptionException("ProductQuantizer for PQ index ${this@PQIndex.name} is missing.")
+            serializable.toProductQuantizer(this.distanceFunction)
+        }
+
+        /** The Xodus [Store] used to store [SPQSignature]s. */
+        internal val dataStore: Store = this@PQIndex.catalogue.transactionManager.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.txn.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@PQIndex.name} is missing.")
 
         /**
@@ -169,8 +188,28 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          * @return [List] of [ColumnDef].
          */
         override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> = this.txLatch.withLock {
-            require(predicate is ProximityPredicate) { "PQIndex can only process proximity predicates." }
+            require(predicate is ProximityPredicate.Scan) { "PQIndex can only process proximity search." }
             return listOf(predicate.distanceColumn)
+        }
+
+        /**
+         * Checks if this [PQIndex] can process the provided [Predicate] and returns true if so and false otherwise.
+         *
+         * @param predicate [Predicate] to check.
+         * @return True if [Predicate] can be processed, false otherwise.
+         */
+        override fun canProcess(predicate: Predicate): Boolean
+            = predicate is ProximityPredicate.Scan && predicate.column == this.columns[0] && predicate.distance::class == this.distanceFunction::class
+
+        /**
+         * Returns the map of [Trait]s this [PQIndex] implements for the given [Predicate]s.
+         *
+         * @param predicate [Predicate] to check.
+         * @return Map of [Trait]s for this [PQIndex]
+         */
+        override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> = when (predicate) {
+            is ProximityPredicate.Scan -> mutableMapOf()
+            else -> throw IllegalArgumentException("Unsupported predicate for high-dimensional index. This is a programmer's error!")
         }
 
         /**
@@ -180,53 +219,15 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          * @return [Cost] estimate for the [Predicate]
          */
         override fun costFor(predicate: Predicate): Cost = this.txLatch.withLock {
-            if (predicate !is ProximityPredicate) return Cost.INVALID
+            if (predicate !is ProximityPredicate.Scan) return Cost.INVALID
             if (predicate.column != this.columns[0]) return Cost.INVALID
-            if (predicate.distance.name != this.config.distance) return Cost.INVALID
+            if (predicate.distance.name != (this.config as PQIndexConfig).distance) return Cost.INVALID
             val count = this.count()
-            val subspaces = this.config.numSubspaces ?: ProductQuantizer.defaultNumberOfSubspaces(predicate.column.type.logicalSize)
             return Cost(
-                count * subspaces * Cost.DISK_ACCESS_READ.io + predicate.k * predicate.column.type.logicalSize * Cost.DISK_ACCESS_READ.io,
-                count * (4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu) + predicate.cost.cpu * predicate.k,
-                (predicate.k * this.columnsFor(predicate).sumOf { it.type.physicalSize }).toFloat()
-            )
-        }
-
-        /**
-         * (Re-)builds the [PQIndex] from scratch.
-         */
-        override fun rebuild() = this.txLatch.withLock {
-            /* Obtain some learning data for training. */
-            LOGGER.debug("Rebuilding PQ index {}", this@PQIndex.name)
-            val random = JDKRandomGenerator(System.currentTimeMillis().toInt())
-            val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
-
-            /* Obtain PQ data structure. */
-            val config = this.config
-            val indexedColumn = this.columns[0]
-            val type = indexedColumn.type as Types.Vector<*,*>
-            val distanceFunction = this@PQIndex.catalogue.functions.obtain(Signature.SemiClosed(config.distance, arrayOf(Argument.Typed(type), Argument.Typed(type)))) as VectorDistance<*>
-            val newPq = ProductQuantizer.learnFromData(distanceFunction, this.acquireLearningData(entityTx, random), config)
-
-            /* Clear old signatures. */
-            this.clear()
-
-            /* Iterate over entity and update index with entries. */
-            val cursor = entityTx.cursor(arrayOf(indexedColumn))
-            cursor.forEach { rec ->
-                val value = rec[0] /* Optimisation: It must always be the fist column. */
-                if (value is VectorValue<*>) {
-                    val sig = newPq.quantize(value)
-                    this.dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(sig), rec.tupleId.toKey())
-                }
-            }
-
-            /* Close cursor. */
-            cursor.close()
-
-            /* Update index state for index. */
-            this.updateState(IndexState.CLEAN, this.config.copy(centroids = newPq.centroids()))
-            LOGGER.debug("Rebuilding PQ index {} completed!", this@PQIndex.name)
+                io = Cost.DISK_ACCESS_READ_SEQUENTIAL.io * Short.SIZE_BYTES,
+                cpu = 4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu,
+                accuracy = 0.2f
+            ) * this.quantizer.codebooks.size * count
         }
 
         /**
@@ -235,45 +236,58 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          * @return Number of entries in this [VAFIndex]
          */
         override fun count(): Long  = this.txLatch.withLock {
-            this.dataStore.count(this.context.xodusTx)
+            this.dataStore.count(this.context.txn.xodusTx)
         }
 
         /**
-         * Clears the [VAFIndex] underlying this [Tx] and removes all entries it contains.
-         */
-        override fun clear() = this.txLatch.withLock {
-            /* Truncate and replace store.*/
-            this@PQIndex.catalogue.environment.truncateStore(this@PQIndex.name.storeName(), this.context.xodusTx)
-            this.dataStore = this@PQIndex.catalogue.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
-                ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@PQIndex.name} is missing.")
-
-            /* Update catalogue entry for index. */
-            this.updateState(IndexState.STALE)
-        }
-
-        /**
+         * Tries to apply the change applied by this [DataEvent.Insert] to the [PQIndex] underlying this [PQIndex.Tx]. This method implements the
+         * [PQIndex]'es write model: INSERTs are always applied with the existing quantizer.
          *
+         * @param event The [DataEvent.Insert] to apply.
+         * @return True if change could be applied, false otherwise.
          */
-        override fun tryApply(operation: Operation.DataManagementOperation.InsertOperation): Boolean {
-            return false
+        override fun tryApply(event: DataEvent.Insert): Boolean {
+            /* Extract value and return true if value is NULL (since NULL values are ignored). */
+            val value = event.data[this@Tx.columns[0]] ?: return true
+            val sig = this.quantizer.quantize(value as RealVectorValue<*>)
+            return this.dataStore.put(this.context.txn.xodusTx, event.tupleId.toKey(), sig.toEntry())
         }
 
         /**
+         * Tries to apply the change applied by this [DataEvent.Update] to the [PQIndex] underlying this [PQIndex.Tx]. This method implements the
+         * [PQIndex]'es write model: UPDATES are always applied using the existing quantizer.
          *
+         * @param event The [DataEvent.Update] to apply.
+         * @return True if change could be applied, false otherwise.
          */
-        override fun tryApply(operation: Operation.DataManagementOperation.UpdateOperation): Boolean {
-            return false
+        override fun tryApply(event: DataEvent.Update): Boolean {
+            val oldValue = event.data[this.columns[0]]?.first
+            val newValue = event.data[this.columns[0]]?.second
+
+            /* Obtain marks and update them. */
+            return if (newValue is RealVectorValue<*>) { /* Case 1: New value is not null, i.e., update to new value. */
+                val newSig = this.quantizer.quantize(newValue as VectorValue<*>)
+                this.dataStore.put(this.context.txn.xodusTx, event.tupleId.toKey(), newSig.toEntry())
+            } else if (oldValue is RealVectorValue<*>) { /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
+                this.dataStore.delete(this.context.txn.xodusTx, event.tupleId.toKey())
+            } else { /* Case 3: There is no value, there was no value, proceed. */
+                true
+            }
         }
 
         /**
+         * Tries to apply the change applied by this [DataEvent.Delete] to the [PQIndex] underlying this [PQIndex.Tx]. This method implements the
+         * [PQIndex]'es write model: DELETEs are always applied using the existing quantizer.
          *
+         * @param event The [DataEvent.Delete] to apply.
+         * @return True if change could be applied, false otherwise.
          */
-        override fun tryApply(operation: Operation.DataManagementOperation.DeleteOperation): Boolean {
-            return false
+        override fun tryApply(event: DataEvent.Delete): Boolean {
+            return event.data[this.columns[0]] == null || this.dataStore.delete(this.context.txn.xodusTx, event.tupleId.toKey())
         }
 
         /**
-         * Performs a lookup through this [PQIndex.Tx] and returns a [Iterator] of all [Record]s that match the [Predicate].
+         * Performs a lookup through this [PQIndex.Tx] and returns a [Iterator] of all [Tuple]s that match the [Predicate].
          * Only supports [ProximityPredicate]s.
          *
          * <strong>Important:</strong> The [Iterator] is not thread safe! It remains to the
@@ -282,107 +296,10 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate): Cursor<Record> = this.txLatch.withLock {
-            object : Cursor<Record> {
-                /** Local [PQIndexConfig] instance. */
-                private val config = this@Tx.config
-
-                /** Cast to [ProximityPredicate] (if such a cast is possible).  */
-                private val predicate = if (predicate is ProximityPredicate) {
-                    predicate
-                } else {
-                    throw QueryException.UnsupportedPredicateException("Index '${this@PQIndex.name}' (PQ Index) does not support predicates of type '${predicate::class.simpleName}'.")
-                }
-
-                /** The [ProductQuantizer] instance used for this [Cursor]. */
-                private val pq = ProductQuantizer.loadFromConfig(this.predicate.distance, this.config)
-
-                /** Internal [EntityTx] used to access actual values. */
-                private val entityTx = this@Tx.context.getTx(this@PQIndex.parent) as EntityTx
-
-                /** Prepares [PQLookupTable]s for the given query vector(s). */
-                private val lookupTable: PQLookupTable = this.pq.createLookupTable(this.predicate.query.value as VectorValue<*>)
-
-                /** The [HeapSelection] use for finding the top k entries. */
-                private var selection = when(this.predicate) {
-                    is ProximityPredicate.NNS -> HeapSelection(this.predicate.k, RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
-                    is ProximityPredicate.FNS -> HeapSelection(this.predicate.k, RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.DESCENDING))
-                }
-
-                /** The current [Cursor] position. */
-                private var position = -1L
-
-                /**
-                 * Moves the internal cursor and return true, as long as new candidates appear.
-                 */
-                override fun moveNext(): Boolean {
-                    if (this.selection.added == 0L) this.prepare()
-                    return (++this.position) < this.selection.size
-                }
-
-                /**
-                 * Returns the current [TupleId] this [Cursor] is pointing to.
-                 *
-                 * @return [TupleId]
-                 */
-                override fun key(): TupleId = this.selection[this.position].tupleId
-
-                /**
-                 * Returns the current [Record] this [Cursor] is pointing to.
-                 *
-                 * @return [TupleId]
-                 */
-                override fun value(): Record = this.selection[this.position]
-
-                /**
-                 *
-                 */
-                override fun close() { }
-
-                /**
-                 * Executes the kNN and prepares the results to return by this [Iterator].
-                 */
-                private fun prepare() {
-                    /* Prepare data structures for NNS. */
-                    val preNNSSize = (this.predicate.k * 1.15).toLong() /* Pre-kNN size is 15% larger than k. */
-                    val comparator = when (this.predicate) {
-                        is ProximityPredicate.NNS -> Comparator<Pair<LongArray, Double>> { o1, o2 -> o1.second.compareTo(o2.second) }
-                        is ProximityPredicate.FNS -> Comparator<Pair<LongArray, Double>> { o1, o2 -> -o1.second.compareTo(o2.second) }
-                    }
-                    val preNNSSelection = HeapSelection(preNNSSize, comparator)
-                    val produces = this@Tx.columnsFor(predicate).toTypedArray()
-
-                    /* Phase 1: Perform pre-NNS based on signatures. */
-                    val subTx = this@Tx.context.xodusTx.readonlySnapshot
-                    val cursor = this@Tx.dataStore.openCursor(subTx)
-                    while (cursor.next) {
-                        val signature = PQSignature.Binding.entryToValue(cursor.key)
-                        val approximation = this.lookupTable.approximateDistance(signature)
-                        if (preNNSSelection.added < preNNSSize || preNNSSelection.peek()!!.second > approximation) {
-                            val tupleIds = mutableListOf<TupleId>()
-                            do {
-                                tupleIds.add(LongBinding.compressedEntryToLong(cursor.value))
-                            } while (cursor.nextDup) /* Collect all duplicates. */
-                            preNNSSelection.offer(tupleIds.toLongArray() to approximation)
-                        }
-                    }
-
-                    /* Closes the cursor. */
-                    cursor.close()
-                    subTx.abort()
-
-                    /* Phase 2: Perform exact kNN based on pre-kNN results. */
-                    val query = this.predicate.query.value as VectorValue<*>
-                    for (j in 0 until preNNSSelection.size) {
-                        val tupleIds = preNNSSelection[j].first
-                        for (tupleId in tupleIds) {
-                            val value = this.entityTx.read(tupleId, this@Tx.columns)[0] as VectorValue<*>
-                            val distance = this.predicate.distance(query, value)
-                            this.selection.offer(StandaloneRecord(tupleId, produces, arrayOf(distance)))
-                        }
-                    }
-                }
-            }
+        @Suppress("UNCHECKED_CAST")
+        override fun filter(predicate: Predicate): Cursor<Tuple> = this.txLatch.withLock {
+            val entityTx = this@PQIndex.parent.newTx(this.context)
+            filter(predicate,entityTx.smallestTupleId() .. entityTx.largestTupleId())
         }
 
         /**
@@ -392,30 +309,9 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> {
-            throw UnsupportedOperationException("The PQIndex does not support ranged filtering!")
-        }
-
-        /**
-         * Collects and returns a subset of the available data for learning and training.
-         *
-         * @param txn The [EntityTx] used to obtain the learning data.
-         * @return List of [Record]s used for learning.
-         */
-        private fun acquireLearningData(txn: EntityTx, random: RandomGenerator): List<VectorValue<*>> {
-            val learningData = LinkedList<VectorValue<*>>()
-            val learningDataFraction = this@Tx.config.sampleSize.toDouble() / txn.count()
-            val cursor = txn.cursor(this.columns)
-            cursor.forEach {
-                if (random.nextDouble() <= learningDataFraction) {
-                    val value = it[this.columns[0]]
-                    if (value is VectorValue<*>) {
-                        learningData.add(value)
-                    }
-                }
-            }
-            cursor.close()
-            return learningData
+        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Tuple> = this.txLatch.withLock {
+            require(predicate is ProximityPredicate.Scan) { "PQIndex can only be used with a SCAN type proximity predicate. This is a programmer's error!" }
+            PQIndexCursor(partition, predicate, this)
         }
     }
 }

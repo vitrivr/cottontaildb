@@ -1,20 +1,19 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index
 
-import org.vitrivr.cottontail.core.queries.QueryHint
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.functions.math.score.FulltextScore
 import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.values.DoubleValue
-import org.vitrivr.cottontail.dbms.index.IndexState
-import org.vitrivr.cottontail.dbms.index.IndexTx
+import org.vitrivr.cottontail.dbms.index.basic.IndexState
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNodeUtilities
+import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.function.FunctionPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.predicates.FilterPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.SortPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.InMemorySortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntityScanPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.IndexScanPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhysicalOperatorNode
@@ -28,7 +27,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * - Function: Executed function must be the [FulltextScore] function.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.1
  */
 object FulltextIndexRule : RewriteRule {
 
@@ -41,7 +40,6 @@ object FulltextIndexRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean = node is FunctionPhysicalOperatorNode
         && node.function.function is FulltextScore
         && node.input is EntityScanPhysicalOperatorNode
-        && !ctx.hints.contains(QueryHint.NoIndex)
 
     /**
      * Applies this [FulltextIndexRule], transforming the execution of a [FulltextScore] function by an index scan.
@@ -63,30 +61,37 @@ object FulltextIndexRule : RewriteRule {
 
         val probingArgument = node.function.arguments.filterIsInstance<Binding.Column>().singleOrNull() ?: return null
         val queryString = node.function.arguments.filterIsInstance<Binding.Literal>().singleOrNull() ?: return null
-        val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Match(probingArgument, queryString), false)
+        val predicate = BooleanPredicate.Comparison(ComparisonOperator.Match(probingArgument, queryString))
+
+        /* This rule does not heed index hints, because it can lead the planner to not produce a plan at all. */
         val candidate = scan.entity.listIndexes().map {
-            scan.entity.context.getTx(scan.entity.indexForName(it)) as IndexTx
+            scan.entity.indexForName(it).newTx(ctx)
         }.find {
             it.state != IndexState.DIRTY && it.canProcess(predicate)
         }
-        if (candidate != null) {
-            val produces = candidate.columnsFor(predicate)
-            val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, candidate, predicate, listOf(Pair(node.out, produces[0])))
-            val fetch = FetchPhysicalOperatorNode(indexScan, scan.entity, scan.fetch.filter { !produces.contains(it.second) })
-            if (node.output == null) return fetch
-            return OperatorNodeUtilities.chainIf(fetch, node.output!!) {
-                when (it) {
-                    is SortPhysicalOperatorNode -> it.traits[OrderTrait] != indexScan.traits[OrderTrait] /* SortPhysicalOperatorNode is only retained, if order is different from index order. */
-                    is FilterPhysicalOperatorNode -> {
-                        if (it.predicate is BooleanPredicate.Atomic && it.predicate.operator is ComparisonOperator.Binary.Greater && !it.predicate.not) {
-                            val op = it.predicate.operator as ComparisonOperator.Binary.Greater
-                            ((op.left is Binding.Column && (op.left as Binding.Column).column == indexScan.columns.first() && op.right.value == DoubleValue.ZERO) ||
-                            (op.right is Binding.Column && (op.right as Binding.Column).column == indexScan.columns.first() && op.left.value == DoubleValue.ZERO)).not()
-                        } else {
-                            true
+
+        with(MissingTuple) {
+            with(ctx.bindings) {
+                if (candidate != null) {
+                    val produces = candidate.columnsFor(predicate)
+                    val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, candidate, predicate, listOf(Pair(node.out, produces[0])))
+                    val fetch = FetchPhysicalOperatorNode(indexScan, scan.entity, scan.fetch.filter { !produces.contains(it.second) })
+                    if (node.output == null) return fetch
+                    return OperatorNodeUtilities.chainIf(fetch, node.output!!) {
+                        when (it) {
+                            is InMemorySortPhysicalOperatorNode -> it.traits[OrderTrait] != indexScan.traits[OrderTrait] /* SortPhysicalOperatorNode is only retained, if order is different from index order. */
+                            is FilterPhysicalOperatorNode -> {
+                                if (it.predicate is BooleanPredicate.Comparison && it.predicate.operator is ComparisonOperator.Greater) {
+                                    val op = it.predicate.operator as ComparisonOperator.Greater
+                                    ((op.left is Binding.Column && (op.left as Binding.Column).column == indexScan.columns.first() && op.right.getValue() == DoubleValue.ZERO) ||
+                                            (op.right is Binding.Column && (op.right as Binding.Column).column == indexScan.columns.first() && op.left.getValue() == DoubleValue.ZERO)).not()
+                                } else {
+                                    true
+                                }
+                            }
+                            else -> true
                         }
                     }
-                    else -> true
                 }
             }
         }

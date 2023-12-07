@@ -8,7 +8,6 @@ import org.apache.lucene.store.IndexOutput
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
-import org.vitrivr.cottontail.utilities.math.random.nextLong
 
 /**
  * A series of unit tests for the [XodusDirectory].
@@ -25,8 +24,8 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
      */
     @Test
     fun testSingleTxRequestAndRenameFile() {
-        val txn = this.catalogue.environment.beginTransaction()
-        val directory = XodusDirectory(this.catalogue.vfs, "test", txn)
+        val txn = this.catalogue.transactionManager.environment.beginTransaction()
+        val directory = XodusDirectory(this.catalogue.transactionManager.vfs, "test", txn)
 
         /* Prepare data to write. */
         val output = directory.createOutput("test", IOContext())
@@ -59,8 +58,8 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
     @Test
     fun testSingleTxWriteAndRead() {
         /* Prepare directories. */
-        val txn = this.catalogue.environment.beginTransaction()
-        val directory = XodusDirectory(this.catalogue.vfs, "test", txn)
+        val txn = this.catalogue.transactionManager.environment.beginTransaction()
+        val directory = XodusDirectory(this.catalogue.transactionManager.vfs, "test", txn)
         val referenceDirectory = ByteBuffersDirectory()
 
         /* Prepare data to write. */
@@ -104,8 +103,8 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
     @Test
     fun testSingleTxBatchedWriteAndRead() {
         /* Prepare directories. */
-        val txn = this.catalogue.environment.beginTransaction()
-        val directory = XodusDirectory(this.catalogue.vfs, "test", txn)
+        val txn = this.catalogue.transactionManager.environment.beginTransaction()
+        val directory = XodusDirectory(this.catalogue.transactionManager.vfs, "test", txn)
         val referenceDirectory = ByteBuffersDirectory()
 
         /* Prepare data to write. */
@@ -154,8 +153,8 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
     @Test
     fun testSingleTxBatchedWriteAndSlicedRead() {
         /* Prepare directories. */
-        val txn = this.catalogue.environment.beginTransaction()
-        val directory = XodusDirectory(this.catalogue.vfs, "test", txn)
+        val txn = this.catalogue.transactionManager.environment.beginTransaction()
+        val directory = XodusDirectory(this.catalogue.transactionManager.vfs, "test", txn)
         val referenceDirectory = ByteBuffersDirectory()
 
         /* Prepare data to write. */
@@ -217,8 +216,8 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
     @Test
     fun testSingleTxBatchedWriteAndSeekRead() {
         /* Prepare directories. */
-        val txn = this.catalogue.environment.beginTransaction()
-        val directory = XodusDirectory(this.catalogue.vfs, "test", txn)
+        val txn = this.catalogue.transactionManager.environment.beginTransaction()
+        val directory = XodusDirectory(this.catalogue.transactionManager.vfs, "test", txn)
         val referenceDirectory = ByteBuffersDirectory()
 
         /* Prepare data to write. */
@@ -275,8 +274,8 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
     @Test
     fun testMultiTxBatchedWriteAndRead() {
         /* Prepare directories. */
-        val txn1 = this.catalogue.environment.beginTransaction()
-        val directory = XodusDirectory(this.catalogue.vfs, "test", txn1)
+        val txn1 = this.catalogue.transactionManager.environment.beginTransaction()
+        val directory = XodusDirectory(this.catalogue.transactionManager.vfs, "test", txn1)
         val referenceDirectory = ByteBuffersDirectory()
 
         /* Prepare data to write. */
@@ -306,8 +305,8 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
         txn1.commit()
 
         /* Open new Txn and XodusDirectory. */
-        val txn2 = this.catalogue.environment.beginTransaction()
-        val directory2 = XodusDirectory(this.catalogue.vfs, "test", txn2)
+        val txn2 = this.catalogue.transactionManager.environment.beginTransaction()
+        val directory2 = XodusDirectory(this.catalogue.transactionManager.vfs, "test", txn2)
 
         /** Read data in txn2. */
         val input = directory2.openInput("test", IOContext())

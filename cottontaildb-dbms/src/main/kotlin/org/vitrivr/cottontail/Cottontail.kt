@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail
 
+import jdk.incubator.vector.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.config.Config
@@ -35,6 +36,23 @@ fun main(args: Array<String>) {
     /* Try to start Cottontail DB */
     try {
         val config: Config = loadConfig(findConfigPathOrdered(args))
+
+        /* Check for SIMD support, if flag has been set. */
+        if (config.execution.simd) {
+            try {
+                println("Cottontail DB is running with SIMD extensions through the Java Vector API. This feature is experimental!")
+                println("(Byte) Preferred: ${ByteVector.SPECIES_MAX}. Maximum: ${ByteVector.SPECIES_MAX}")
+                println("(Short) Preferred: ${ShortVector.SPECIES_MAX}. Maximum: ${ShortVector.SPECIES_MAX}")
+                println("(Int) Preferred: ${IntVector.SPECIES_MAX}. Maximum: ${IntVector.SPECIES_MAX}")
+                println("(Long) Preferred: ${LongVector.SPECIES_MAX}. Maximum: ${LongVector.SPECIES_MAX}")
+                println("(Float) Preferred: ${FloatVector.SPECIES_MAX}. Maximum: ${FloatVector.SPECIES_MAX}t")
+                println("(Double) Preferred: ${DoubleVector.SPECIES_MAX}. Maximum: ${DoubleVector.SPECIES_MAX}")
+            } catch (e: NoClassDefFoundError) {
+                System.err.println("Failed to start Cottontail DB due to error: No support for Java Vector API. Please unset 'execution.simd' flag in config.")
+                exitProcess(1)
+            }
+        }
+
         standalone(config)
     } catch (e: Throwable) {
         System.err.println("Failed to start Cottontail DB due to error:")
@@ -129,7 +147,7 @@ fun standalone(config: Config) {
     }
 
     println(
-        "Cottontail DB server is up and running at port ${config.server.port}! Hop along... (catalogue: ${server.catalogue.version}, pid: ${
+        "Cottontail DB server is up and running at port ${config.server.port}! Hop along... (catalogue: ${DBOVersion.current()}, pid: ${
             ProcessHandle.current().pid()
         })"
     )

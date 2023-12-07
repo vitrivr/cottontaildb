@@ -1,0 +1,99 @@
+<div class="content">
+
+    <mat-toolbar class="sidebar-toolbar">
+      <div>
+        <button mat-icon-button (click)="connect()" [matTooltip]="'Establish new connection.'">
+          <mat-icon>link</mat-icon>
+        </button>
+
+        <button mat-icon-button *ngIf="selectedNode?.type?.valueOf() == 0"  (click)="disconnect(selectedNode!!)"[matTooltip]="'Disconnect from ' + selectedNode?.name+ '.'">
+          <mat-icon>link_off</mat-icon>
+        </button>
+      </div>
+
+      <div class="spacer-flex"></div>
+
+      <div *ngIf="selectedNode?.type?.valueOf() == 0" >
+        <button mat-icon-button (click)="createSchema(selectedNode!!)" [matTooltip]="'Create new schema.'">
+          <mat-icon>add_circle</mat-icon>
+        </button>
+      </div>
+
+      <div *ngIf="selectedNode?.type?.valueOf() == 1" >
+        <button mat-icon-button (click)="createSchema(selectedNode!!)" [matTooltip]="'Create new entity.'">
+          <mat-icon>add_circle</mat-icon>
+        </button>
+
+        <button mat-icon-button (click)="dropSchema(selectedNode!!)" [matTooltip]="'Drop schema ' + selectedNode?.name + '.'">
+          <mat-icon>delete_forever</mat-icon>
+        </button>
+      </div>
+
+      <div *ngIf="selectedNode?.type?.valueOf() == 2" >
+        <button mat-icon-button (click)="createSchema(selectedNode!!)" [matTooltip]="'Create new entity.'">
+          <mat-icon>add_circle</mat-icon>
+        </button>
+
+        <button mat-icon-button (click)="dropEntity(selectedNode!!)" [matTooltip]="'Drop entity ' + selectedNode?.name + '.'">
+          <mat-icon>delete_forever</mat-icon>
+        </button>
+      </div>
+    </mat-toolbar>
+
+    <!-- Connection tree structure. -->
+    <mat-tree [dataSource]="dataSource" [treeControl]="treeControl" class="tree">
+
+      <mat-tree-node *matTreeNodeDef="let node" matTreeNodeToggle>
+        {{node.name}}
+      </mat-tree-node>
+
+      <!-- Handle connection tree nodes -->
+      <mat-tree-node *matTreeNodeDef="let node; when: isConnection" (click)="nodeSelected(node)" [class]="node == selectedNode ? 'selected' : ''">
+        <div class="mat-tree-node">
+          <button mat-button [attr.aria-label]="'Toggle ' + node.name" matTreeNodeToggle>
+            <mat-icon class="mat-icon-rtl-mirror">
+              {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
+            </mat-icon>
+            <mat-icon>power</mat-icon>
+          </button>
+
+          <span>
+            <strong>{{node.name}}</strong>
+          </span>
+
+          <mat-spinner *ngIf="node.isLoading" mode="indeterminate" [diameter]="20"></mat-spinner>
+        </div>
+      </mat-tree-node>
+
+      <!-- Handle schema tree nodes -->
+      <mat-tree-node *matTreeNodeDef="let node; when: isSchema" matTreeNodePadding (click)="nodeSelected(node)" [class]="node == selectedNode ? 'selected' : ''">
+        <div>
+          <button mat-button [attr.aria-label]="'Toggle ' + node.name" matTreeNodeToggle >
+            <mat-icon class="mat-icon-rtl-mirror">
+              {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
+            </mat-icon>
+          </button>
+
+          <span>
+            <strong>{{node.name}}</strong>
+          </span>
+        </div>
+      </mat-tree-node>
+
+      <!-- Handle schema tree nodes -->
+      <mat-tree-node *matTreeNodeDef="let node; when: isEntity" matTreeNodePadding (click)="nodeSelected(node)"  [class]="node == selectedNode ? 'selected' : ''">
+        <div>
+          <button mat-button [attr.aria-label]="'Toggle ' + node.name" matTreeNodeToggle >
+            <mat-icon class="mat-icon-rtl-mirror">
+              {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
+            </mat-icon>
+          </button>
+
+          <span>
+            <strong>{{node.name}}</strong>
+          </span>
+        </div>
+      </mat-tree-node>
+
+    </mat-tree>
+</div>

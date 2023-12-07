@@ -7,10 +7,10 @@ import org.vitrivr.cottontail.core.queries.functions.FunctionGenerator
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.*
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.core.values.types.VectorValue
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -57,7 +57,7 @@ sealed class HaversineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vec
 
     /** The [Cost] of applying this [HaversineDistance]. */
     override val cost: Cost
-        get() = (Cost.FLOP * 27.0f + Cost.MEMORY_ACCESS * 22.0f) * this.d
+        get() = (Cost.FLOP * 27.0f + Cost.MEMORY_ACCESS * 22.0f) * this.vectorSize
 
     /**
      * Calculates the haversine distance between two points a, b.

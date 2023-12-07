@@ -1,8 +1,13 @@
 {
-  "root": "./cottontaildb-data",
+  "root": "./cottontaildb-data-evaluation",
   "mapdb": {
     "enableMmap": true,
     "forceUnmap": true,
     "pageShift": 22
+  },
+  "statistics" : {
+    "threshold" : 1.0,
+    "probability" : 0.5,
+    "randomGeneratorName": "L32X64MixRandom"
   }
 }

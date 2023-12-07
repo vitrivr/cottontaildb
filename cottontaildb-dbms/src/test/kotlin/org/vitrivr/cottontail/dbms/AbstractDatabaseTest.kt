@@ -39,19 +39,15 @@ abstract class AbstractDatabaseTest {
     /** [Name.SchemaName] of the test schema. */
     protected val schemaName = Name.SchemaName.create("test")
 
-    /** Catalogue used for testing. */
-    protected var catalogue: DefaultCatalogue = DefaultCatalogue(this.config)
-
     /** The [ExecutionManager] used for tests. */
     private val execution = ExecutionManager(this.config)
 
-    /** The [TransactionManager] used for this [CatalogueTest] instance. */
-    protected val manager = TransactionManager(
-        this.execution,
-        this.config.execution.transactionTableSize,
-        this.config.execution.transactionHistorySize,
-        this.catalogue
-    )
+    /** Catalogue used for testing. */
+    protected var catalogue: DefaultCatalogue = DefaultCatalogue(this.config, this.execution)
+
+    /** Pointer to the underlying [TransactionManager] for convenience sake. */
+    protected val manager: TransactionManager
+        get() = this.catalogue.transactionManager
 
     /** The [Logger] instance used by this [AbstractDatabaseTest]. */
     protected val logger = LOGGER

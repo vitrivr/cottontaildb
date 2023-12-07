@@ -7,11 +7,11 @@ import org.vitrivr.cottontail.core.queries.functions.FunctionGenerator
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.types.NumericValue
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.*
-import org.vitrivr.cottontail.core.values.types.NumericValue
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.core.values.types.VectorValue
 
 /**
  * Generates the vector sum over the given [VectorValue].

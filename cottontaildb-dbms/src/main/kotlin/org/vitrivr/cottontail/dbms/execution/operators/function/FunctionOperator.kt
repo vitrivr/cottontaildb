@@ -1,23 +1,22 @@
 package org.vitrivr.cottontail.dbms.execution.operators.function
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import org.vitrivr.cottontail.core.basics.Record
+import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.functions.Function
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
-import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
  * A [Operator.PipelineOperator] used during query execution. It executes a defined [Function] and generates a new [ColumnDef] from its results.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
-class FunctionOperator(parent: Operator, val function: Binding.Function, val out: Binding.Column) : Operator.PipelineOperator(parent) {
+class FunctionOperator(parent: Operator, private val function: Binding.Function, private val out: Binding.Column, override val context: QueryContext) : Operator.PipelineOperator(parent) {
 
     /** The column produced by this [FunctionOperator] is determined by the [Function]'s signature. */
     override val columns: List<ColumnDef<*>> = this.parent.columns + this.out.column
@@ -28,26 +27,25 @@ class FunctionOperator(parent: Operator, val function: Binding.Function, val out
     /**
      * Converts this [FunctionOperator] to a [Flow] and returns it.
      *
-     * @param context The [DefaultQueryContext] used for execution
      * @return [Flow] representing this [FunctionOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
-        /* Prepare empty array that acts a holder for values. */
-        val columns = this.columns.toTypedArray()
-        return this.parent.toFlow(context).map { record ->
-            /* Materialize new values array. */
-            val values = Array(this.columns.size) {
-                if (it < this.columns.size - 1) {
-                    record[it]
-                } else {
-                    this@FunctionOperator.function.value
+    override fun toFlow(): Flow<Tuple> = flow {
+        val outColumns = this@FunctionOperator.columns.toTypedArray()
+        val incoming = this@FunctionOperator.parent.toFlow()
+        with(this@FunctionOperator.context.bindings) {
+            incoming.collect { record ->
+                with(record) {
+                    /* Materialize new values array. */
+                    val outValues = Array(outColumns.size) {
+                        if (it < outColumns.size - 1) {
+                            this[it]
+                        } else {
+                            this@FunctionOperator.function.getValue()
+                        }
+                    }
+                    emit(StandaloneTuple(record.tupleId, outColumns, outValues))
                 }
             }
-
-            /* Generate and return record. Important: Make new record available to binding context. */
-            val rec = StandaloneRecord(record.tupleId, columns, values)
-            this.function.context.update(rec)
-            rec
         }
     }
 }

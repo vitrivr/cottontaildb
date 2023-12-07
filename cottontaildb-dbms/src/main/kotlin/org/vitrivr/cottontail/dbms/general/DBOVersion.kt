@@ -17,5 +17,12 @@ enum class DBOVersion {
     V2_0,
 
     /** The third, iteration of the Cottontail DB file organisation, which is based on JetBrains Xodus. */
-    V3_0
+    V3_0,
+
+    /** The fourth, iteration of the Cottontail DB file organisation, which is based on JetBrains Xodus. */
+    V3_1;
+
+    companion object {
+        fun current() = DBOVersion.V3_1
+    }
 }

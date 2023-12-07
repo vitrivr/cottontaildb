@@ -3,9 +3,9 @@ package org.vitrivr.cottontail.dbms.column
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.general.Tx
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
  * A [Tx] that operates on a single [Column]. [Tx]s are a unit of isolation for data operations (read/write).
@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
  * level of isolation.
  *
  * @author Ralph Gasser
- * @version 3.1.0
+ * @version 4.0.0
  */
 interface ColumnTx<T : Value> : Tx {
     /** Reference to the [Column] this [ColumnTx] belongs to. */
@@ -26,20 +26,6 @@ interface ColumnTx<T : Value> : Tx {
         get() = this.dbo.columnDef
 
     /**
-     * Returns the smallest [TupleId] held by the [Column] backing this [ColumnTx].
-     *
-     * @return [TupleId] The smallest [TupleId] held by the [Column] backing this [ColumnTx].
-     */
-    fun smallestTupleId(): TupleId
-
-    /**
-     * Returns the largest [TupleId] held by the [Column] backing this [ColumnTx].
-     *
-     * @return [TupleId] The largest [TupleId] held by the [Column] backing this [ColumnTx].
-     */
-    fun largestTupleId(): TupleId
-
-    /**
      * Gets and returns [ValueStatistics] for the [Column] backing this [ColumnTx]
      *
      * @return [ValueStatistics].
@@ -47,47 +33,12 @@ interface ColumnTx<T : Value> : Tx {
     fun statistics(): ValueStatistics<T>
 
     /**
-     * Returns the number of entries in the [Column] backing this [ColumnTx].
-     *
-     * @return Number of entries in [Column].
-     */
-    fun count(): Long
-
-    /**
-     * Opens a new [Cursor] for this [ColumnTx].
-     *
-     * @return [Cursor]
-     */
-    fun cursor(): Cursor<T?>
-
-    /**
-     * Opens a new [Cursor] for this [ColumnTx].
-     *
-     * @param partition The [LongRange] specifying the [TupleId]s that should be scanned.
-     * @return [Cursor]
-     */
-    fun cursor(partition: LongRange): Cursor<T?>
-
-    /**
-     * Returns true if this [Column] contains the given [TupleId] and false otherwise.
-     *
-     * This method merely checks the existence of the [TupleId] within the [Column], the
-     * [Value] held may still be null. If this method returns true, then [ColumnTx.get] will
-     * either return a [Value] or nul. However, if this method returns false, then [ColumnTx]
-     * will throw an exception for that [TupleId].
-     *
-     * @param tupleId The [TupleId] of the desired entry
-     * @return True if entry exists, false otherwise,
-     */
-    fun contains(tupleId: TupleId): Boolean
-
-    /**
      * Gets and returns an entry from this [Column].
      *
      * @param tupleId The [TupleId] of the desired entry
      * @return The desired entry.
      */
-    fun get(tupleId: TupleId): T?
+    fun read(tupleId: TupleId): T?
 
     /**
      * Updates the entry with the specified [TupleId] and sets it to the new [Value].
@@ -96,27 +47,20 @@ interface ColumnTx<T : Value> : Tx {
      * @param value The new [Value]
      * @return The old [Value]
      */
-    fun add(tupleId: TupleId, value: T?): Boolean
+    fun write(tupleId: TupleId, value: T): T?
 
     /**
-     * Updates the entry with the specified [TupleId] and sets it to the new [Value].
+     * Deletes the entry with the specified [TupleId] .
      *
-     * @param tupleId The [TupleId] of the entry that should be updated.
-     * @param value The new [Value]
+     * @param tupleId The [TupleId] of the entry that should be deleted.
      * @return The old [Value]
-     */
-    fun update(tupleId: TupleId, value: T?): T?
-
-    /**
-     * Deletes the entry with the specified [TupleId] and sets it to the new value.
-     *
-     * @param tupleId The ID of the record that should be updated
-     * @return The old [Value]*
      */
     fun delete(tupleId: TupleId): T?
 
     /**
-     * Clears the [Column] underlying this [ColumnTx] and removes all entries it contains.
+     * Returns a [Cursor] for the [Column] underpinning this [ColumnTx].
+     *
+     * @return [Cursor]
      */
-    fun clear()
+    fun cursor(): Cursor<T?>
 }

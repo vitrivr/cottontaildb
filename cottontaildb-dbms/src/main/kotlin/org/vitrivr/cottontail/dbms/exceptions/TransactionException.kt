@@ -13,12 +13,6 @@ import org.vitrivr.cottontail.dbms.general.Tx
  */
 sealed class TransactionException(message: String) : DatabaseException(message) {
 
-    /** Thrown if [Tx] object could not be created because enclosing DBO was closed.
-     *
-     * @param tid The [TransactionId] of the [Tx] in which this error occurred.
-     */
-    class DBOClosed(tid: TransactionId, dbo: DBO) : TransactionException("Tx object for transaction $tid could not be created for DBO '${dbo.name}': Enclosing DBO was closed.")
-
     /**
      * COMMIT could not be executed because.
      *
@@ -41,4 +35,11 @@ sealed class TransactionException(message: String) : DatabaseException(message) 
      * @param tid The [TransactionId] of the [Tx] in which this error occurred.
      */
     class InConflict(tid: TransactionId) : TransactionException("Transaction $tid could not be committed because of conflict with another transaction.")
+
+    /**
+     * Thrown if a [Transaction] could not be started due to a timeout while waiting for the lock.
+     *
+     * @param tid The [TransactionId] of the [Tx] in which this error occurred.
+     */
+    class Timeout(tid: TransactionId) : TransactionException("Transaction $tid could not be started because of a timeout while waiting for the lock.")
 }

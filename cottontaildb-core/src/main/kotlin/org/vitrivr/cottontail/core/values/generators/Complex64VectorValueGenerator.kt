@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.core.values.generators
 
-import org.apache.commons.math3.random.RandomGenerator
+import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.Complex64VectorValue
-import org.vitrivr.cottontail.core.values.types.VectorValue
+import java.util.random.RandomGenerator
 
 /**
  * A [VectorValueGenerator] for [Complex64VectorValue]s.
@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.core.values.types.VectorValue
  * @author Ralph Gasser
  * @version 1.0.0
  */
-object Complex64VectorValueGenerator: VectorValueGenerator<Complex64VectorValue>  {
+object Complex64VectorValueGenerator: VectorValueGenerator<Complex64VectorValue> {
     /**
      * Generates a [Complex64VectorValue] of the given size initialized with random numbers.
      *

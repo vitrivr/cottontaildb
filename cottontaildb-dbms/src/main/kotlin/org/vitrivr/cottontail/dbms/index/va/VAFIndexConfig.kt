@@ -1,11 +1,9 @@
 package org.vitrivr.cottontail.dbms.index.va
 
-import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.util.LightOutputStream
-import org.vitrivr.cottontail.dbms.index.IndexConfig
-import org.vitrivr.cottontail.dbms.index.va.signature.VAFMarks
+import org.vitrivr.cottontail.dbms.index.basic.IndexConfig
 import java.io.ByteArrayInputStream
 
 /**
@@ -14,9 +12,9 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-data class VAFIndexConfig(val marksPerDimension: Int, val marks: VAFMarks? = null): IndexConfig<VAFIndex> {
+data class VAFIndexConfig(val marksPerDimension: Int): IndexConfig<VAFIndex> {
     companion object {
-        const val KEY_MARKS_PER_DIMENSION = "marks_per_dimension"
+        const val KEY_MARKS_PER_DIMENSION = "vaf.marks_per_dimension"
     }
 
     /**
@@ -25,22 +23,20 @@ data class VAFIndexConfig(val marksPerDimension: Int, val marks: VAFMarks? = nul
     object Binding: ComparableBinding() {
         override fun readObject(stream: ByteArrayInputStream): Comparable<VAFIndexConfig> = VAFIndexConfig(
             IntegerBinding.readCompressed(stream),
-            if (BooleanBinding.BINDING.readObject(stream)) {
-                VAFMarks.Binding.readObject(stream)
-            } else {
-                null
-            }
         )
 
         override fun writeObject(output: LightOutputStream, `object`: Comparable<VAFIndexConfig>) {
             require(`object` is VAFIndexConfig) { "VAFIndexConfig.Binding can only be used to serialize instances of VAFIndexConfig." }
             IntegerBinding.writeCompressed(output, `object`.marksPerDimension)
-            if (`object`.marks != null) {
-                BooleanBinding.BINDING.writeObject(output, true)
-                VAFMarks.Binding.writeObject(output, `object`.marks)
-            } else {
-                BooleanBinding.BINDING.writeObject(output, false)
-            }
         }
     }
+
+    /**
+     * Converts this [VAFIndexConfig] to a [Map] of key-value pairs.
+     *
+     * @return [Map]
+     */
+    override fun toMap(): Map<String, String> = mapOf(
+        KEY_MARKS_PER_DIMENSION to this.marksPerDimension.toString(),
+    )
 }

@@ -1,11 +1,11 @@
 package org.vitrivr.cottontail.dbms.entity.serialization
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.BooleanVectorValue
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.generators.BooleanVectorValueGenerator
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.test.TestConstants
 import java.util.*
 
@@ -30,11 +30,11 @@ class BooleanVectorValueSerializationTest : AbstractSerializationTest() {
     override val name: String = "BooleanVectorSerialization($d)"
 
     /**
-     * Generates the next [StandaloneRecord] and returns it.
+     * Generates the next [StandaloneTuple] and returns it.
      */
-    override fun nextRecord(i: Int): StandaloneRecord {
+    override fun nextRecord(i: Int): StandaloneTuple {
         val id = IntValue(i)
         val vector = BooleanVectorValueGenerator.random(this.d, this.random)
-        return StandaloneRecord(0L, columns = this.columns, values = arrayOf(id, vector))
+        return StandaloneTuple(0L, columns = this.columns, values = arrayOf(id, vector))
     }
 }

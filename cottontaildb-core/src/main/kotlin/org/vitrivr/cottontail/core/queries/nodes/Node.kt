@@ -10,21 +10,12 @@ import org.vitrivr.cottontail.core.queries.Digest
  */
 interface Node {
     /**
-     * Creates a copy of this [Node]. The copy must be built in such a ways, that all relevant data structures
-     * that may be accessed concurrently, are copied.
+     * Calculates and returns the [Digest] for this [Node], which is used for caching and re-use of query plans
      *
-     * @return Copy of this [Node]
-     */
-    fun copy(): Node
-
-    /**
-     * Calculates and returns the digest for this [Node]. The digest is similar
-     * to [hashCode] and follows similar semantics: If two [Node]s are considered equal
-     * in the eye of any query execution component, it should return the same digest.
+     * The [Digest] is similar to [hashCode] and it follows similar semantics: If two [Node]s are considered
+     * equal in the eye of any query execution component, it should return the same [Digest].
      *
-     * Used for caching and re-use of query plans.
-     *
-     * @return  [Digest] of this [Node]
+     * @return [Digest] of this [Node]
      */
     fun digest(): Digest
 }

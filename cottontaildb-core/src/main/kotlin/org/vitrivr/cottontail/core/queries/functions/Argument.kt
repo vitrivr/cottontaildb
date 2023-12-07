@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.core.queries.functions
 
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.Value
 
 /**
  * An [Argument] used in a [Signature].

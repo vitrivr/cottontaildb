@@ -2,19 +2,26 @@ package org.vitrivr.cottontail.test
 
 import org.apache.commons.lang3.RandomStringUtils
 import org.vitrivr.cottontail.client.SimpleClient
-import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.client.language.dml.BatchInsert
 import org.vitrivr.cottontail.client.language.dml.Insert
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.test.TestConstants.DOUBLE_COLUMN_NAME
+import org.vitrivr.cottontail.test.TestConstants.ID_COLUMN_NAME
 import org.vitrivr.cottontail.test.TestConstants.INT_COLUMN_NAME
 import org.vitrivr.cottontail.test.TestConstants.STRING_COLUMN_NAME
+import org.vitrivr.cottontail.test.TestConstants.TWOD_COLUMN_NAME
 import kotlin.random.Random
 
-
+/**
+ *
+ *
+ * @author Silvan Heller & Ralph Gasser
+ * @version 1.2.0
+ */
 object GrpcTestUtils {
 
     /**
@@ -23,7 +30,7 @@ object GrpcTestUtils {
      * @param client [SimpleClient] to use.
      */
     fun createTestSchema(client: SimpleClient) {
-        client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
+        client.create(CreateSchema(TestConstants.TEST_SCHEMA))
     }
 
     /**
@@ -34,7 +41,7 @@ object GrpcTestUtils {
     fun dropTestSchema(client: SimpleClient) {
         /* Teardown */
         try {
-            client.drop(DropSchema(TestConstants.TEST_SCHEMA.fqn))
+            client.drop(DropSchema(TestConstants.TEST_SCHEMA))
         } catch (e: Exception) {
             System.err.println("Failed to drop test schema ${TestConstants.TEST_SCHEMA} due to exception: ${e.message}.")
         }
@@ -46,10 +53,11 @@ object GrpcTestUtils {
      * @param client [SimpleClient] to use.
      */
     fun createTestEntity(client: SimpleClient) {
-        val create = CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn)
-            .column(STRING_COLUMN_NAME, Type.STRING)
-            .column(INT_COLUMN_NAME, Type.INTEGER)
-            .column(DOUBLE_COLUMN_NAME, Type.DOUBLE)
+        val create = CreateEntity(TestConstants.TEST_ENTITY_NAME)
+            .column(Name.ColumnName.parse(ID_COLUMN_NAME), Types.Long, nullable = false, autoIncrement = true)
+            .column(Name.ColumnName.parse(STRING_COLUMN_NAME), Types.String, nullable = false)
+            .column(Name.ColumnName.parse(INT_COLUMN_NAME), Types.Int, nullable = true)
+            .column(Name.ColumnName.parse(DOUBLE_COLUMN_NAME), Types.Double, nullable = true)
         client.create(create)
     }
 
@@ -59,10 +67,11 @@ object GrpcTestUtils {
      * @param client [SimpleClient] to use.
      */
     fun createTestVectorEntity(client: SimpleClient) {
-        val create = CreateEntity(TestConstants.TEST_VECTOR_ENTITY_NAME.fqn)
-            .column(STRING_COLUMN_NAME, Type.STRING)
-            .column(INT_COLUMN_NAME, Type.INTEGER)
-            .column(TestConstants.TWOD_COLUMN_NAME, Type.FLOAT_VECTOR, 2)
+        val create = CreateEntity(TestConstants.TEST_VECTOR_ENTITY_NAME)
+            .column(Name.ColumnName.parse(ID_COLUMN_NAME), Types.Long, autoIncrement = true)
+            .column(Name.ColumnName.parse(STRING_COLUMN_NAME), Types.String, nullable = false)
+            .column(Name.ColumnName.parse(INT_COLUMN_NAME), Types.Int, nullable = true)
+            .column(Name.ColumnName.parse(TWOD_COLUMN_NAME), Types.FloatVector(2), nullable = true)
         client.create(create)
     }
 
@@ -72,10 +81,11 @@ object GrpcTestUtils {
      * @param client [SimpleClient] to use.
      */
     fun populateTestEntity(client: SimpleClient) {
-        val batch = BatchInsert().into(TestConstants.TEST_ENTITY_NAME.fqn).columns(STRING_COLUMN_NAME, INT_COLUMN_NAME, DOUBLE_COLUMN_NAME)
+        val batch = BatchInsert(TestConstants.TEST_ENTITY_NAME).columns(ID_COLUMN_NAME, STRING_COLUMN_NAME, INT_COLUMN_NAME, DOUBLE_COLUMN_NAME)
         val random = Random.Default
         repeat(TestConstants.TEST_COLLECTION_SIZE) {
-            batch.append(
+            batch.any(
+                null,
                 RandomStringUtils.randomAlphabetic(5),
                 random.nextInt(0, 100),
                 random.nextDouble(1.0)
@@ -85,7 +95,7 @@ object GrpcTestUtils {
     }
 
     fun insertIntoTestEntity(client: SimpleClient, string: String = RandomStringUtils.randomAlphabetic(5), int: Int = Random.nextInt(0, 100), double: Double = Random.nextDouble(1.0)) {
-        val insert = Insert().into(TestConstants.TEST_ENTITY_NAME.fqn).values(Pair(STRING_COLUMN_NAME, string), Pair(INT_COLUMN_NAME, int), Pair(DOUBLE_COLUMN_NAME, double))
+        val insert = Insert(TestConstants.TEST_ENTITY_NAME).any(Pair(STRING_COLUMN_NAME, string), Pair(INT_COLUMN_NAME, int), Pair(DOUBLE_COLUMN_NAME, double))
         client.insert(insert)
     }
 
@@ -93,8 +103,9 @@ object GrpcTestUtils {
      * Creates a Lucene index on the [TestConstants.TEST_ENTITY_NAME].
      */
     fun createLuceneIndexOnTestEntity(client: SimpleClient) {
-        client.create(CreateIndex(TestConstants.TEST_ENTITY_NAME.fqn, STRING_COLUMN_NAME, CottontailGrpc.IndexType.LUCENE))
-        client.optimize(OptimizeEntity(TestConstants.TEST_ENTITY_NAME.fqn))
+        val name = "lucene-index"
+        client.create(CreateIndex(TestConstants.TEST_ENTITY_NAME, CottontailGrpc.IndexType.LUCENE).column(STRING_COLUMN_NAME).name(name))
+        client.rebuild(RebuildIndex("${TestConstants.TEST_ENTITY_NAME.fqn}.$name"))
     }
 
     /**
@@ -103,14 +114,15 @@ object GrpcTestUtils {
      * @param client [SimpleClient] to use.
      */
     fun populateVectorEntity(client: SimpleClient) {
-        val batch = BatchInsert().into(TestConstants.TEST_VECTOR_ENTITY_NAME.fqn)
-            .columns(STRING_COLUMN_NAME, INT_COLUMN_NAME, TestConstants.TWOD_COLUMN_NAME)
+        val batch = BatchInsert(TestConstants.TEST_VECTOR_ENTITY_NAME.fqn)
+            .columns(ID_COLUMN_NAME, STRING_COLUMN_NAME, INT_COLUMN_NAME,  TWOD_COLUMN_NAME)
         val random = Random.Default
         repeat(TestConstants.TEST_COLLECTION_SIZE) {
             val lat = random.nextFloat() + random.nextInt(0, 50)
             val lon = random.nextFloat() + random.nextInt(0, 50)
             val arr = floatArrayOf(lat, lon)
-            batch.append(
+            batch.any(
+                null,
                 RandomStringUtils.randomAlphabetic(5),
                 random.nextInt(0, 10),
                 arr

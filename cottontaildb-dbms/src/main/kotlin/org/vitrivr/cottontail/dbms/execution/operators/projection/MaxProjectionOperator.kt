@@ -4,31 +4,30 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onEach
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.tuple.StandaloneTuple
+import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.RealValue
+import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.*
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
 import org.vitrivr.cottontail.dbms.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
-import kotlin.math.max
 
 /**
  * A [Operator.PipelineOperator] used during query execution. It tracks the MAX (maximum) it has
- * encountered so far for each column and returns it as a [Record].
+ * encountered so far for each column and returns it as a [Tuple].
  *
  * The [MaxProjectionOperator] retains the [Types] of the incoming entries! Only produces a
- * single [Record]. Acts as pipeline breaker.
+ * single [Tuple]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 2.0.1
  */
-class MaxProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : Operator.PipelineOperator(parent) {
+class MaxProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
 
     /** [MaxProjectionOperator] does act as a pipeline breaker. */
     override val breaker: Boolean = true
@@ -50,46 +49,32 @@ class MaxProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : O
     /**
      * Converts this [CountProjectionOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [CountProjectionOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
-        val parentFlow = this.parent.toFlow(context)
-        val columns = this.columns.toTypedArray()
-        return flow {
-            /* Prepare holder of type double, which can hold all types of values and collect incoming flow */
-            val max = this@MaxProjectionOperator.parentColumns.map { Double.MIN_VALUE }.toTypedArray()
-            parentFlow.onEach {
-                this@MaxProjectionOperator.parentColumns.forEachIndexed { i, c ->
-                    max[i] = when (val value = it[c]) {
-                        is ByteValue -> max(max[i], value.value.toDouble())
-                        is ShortValue -> max(max[i], value.value.toDouble())
-                        is IntValue -> max(max[i], value.value.toDouble())
-                        is LongValue -> max(max[i], value.value.toDouble())
-                        is FloatValue -> max(max[i], value.value.toDouble())
-                        is DoubleValue -> max(max[i], value.value)
-                        null -> max[i]
-                        else -> throw ExecutionException.OperatorExecutionException(this@MaxProjectionOperator, "The provided column $c cannot be used for a MAX projection. ")
-                    }
-                }
-            }.collect()
+    @Suppress("UNCHECKED_CAST")
+    override fun toFlow(): Flow<Tuple> = flow {
+        val incoming = this@MaxProjectionOperator.parent.toFlow()
+        val columns = this@MaxProjectionOperator.columns.toTypedArray()
 
-            /* Convert to original value type. */
-            val results = Array<Value?>(max.size) {
-                val column = this@MaxProjectionOperator.parentColumns[it]
-                when (column.type) {
-                    Types.Byte -> ByteValue(max[it])
-                    Types.Short -> ShortValue(max[it])
-                    Types.Int -> IntValue(max[it])
-                    Types.Long -> LongValue(max[it])
-                    Types.Float -> FloatValue(max[it])
-                    Types.Double -> DoubleValue(max[it])
-                    else -> throw ExecutionException.OperatorExecutionException(this@MaxProjectionOperator, "The provided column $column cannot be used for a MAX projection.")
-                }
+        /* Prepare holder of type double, which can hold all types of values and collect incoming flow */
+        val results: Array<RealValue<*>> = this@MaxProjectionOperator.parentColumns.map {
+            when(it.type) {
+                is Types.Byte -> ByteValue.MIN_VALUE
+                is Types.Short -> ShortValue.MIN_VALUE
+                is Types.Int -> IntValue.MIN_VALUE
+                is Types.Long -> LongValue.MIN_VALUE
+                is Types.Float -> FloatValue.MIN_VALUE
+                is Types.Double -> DoubleValue.MIN_VALUE
+                else -> throw IllegalArgumentException("Column $it is not supported by t he MaxProjectionOperator. This is a programmer's error!")
             }
+        }.toTypedArray()
+        incoming.onEach { r ->
+            for ((i, c) in this@MaxProjectionOperator.parentColumns.withIndex()) {
+                results[i] = RealValue.max(results[i], r[c] as RealValue<*>)
+            }
+        }.collect()
 
-            /** Emit record. */
-            emit(StandaloneRecord(0L, columns, results))
-        }
+        /** Emit record. */
+        emit(StandaloneTuple(0L, columns, results as Array<Value?>))
     }
 }

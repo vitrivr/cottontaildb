@@ -3,12 +3,12 @@ package org.vitrivr.cottontail.server.grpc
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import org.junit.jupiter.api.*
-import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.test.AbstractClientTest
 import org.vitrivr.cottontail.test.GrpcTestUtils
 import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.test.TestConstants.DBO_CONSTANT
+import kotlin.Result.Companion.success
 import kotlin.time.ExperimentalTime
 
 /**
@@ -144,11 +144,34 @@ class DDLServiceTest : AbstractClientTest() {
         }
     }
 
+    /**
+     * Creates an entity with a vector field of size 0, which should cause an exception.
+     */
+    @Test
+    fun createInvalidEntity() {
+        try {
+            client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
+            client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", "STRING").column("id", "FLOAT_VECTOR",0))
+            fail("Creating entity ${TestConstants.TEST_ENTITY_NAME.fqn} should have failed with an exception")
+        } catch (e: StatusRuntimeException) {
+            success("Creating entity ${TestConstants.TEST_ENTITY_NAME.fqn} failed with status " + e.status)
+        } catch (e: IllegalArgumentException) {
+            success("Creating entity ${TestConstants.TEST_ENTITY_NAME.fqn} failed with exception " + e.message)
+        } finally {
+            client.drop(DropSchema(TestConstants.TEST_SCHEMA.fqn))
+
+            /* Make sure, that no transaction or locks are dangling. */
+            val locks = this.client.locks()
+            Assertions.assertFalse(locks.hasNext())
+            locks.close()
+        }
+    }
+
     @Test
     fun createAndListEntity() {
         try {
             client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
-            client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", Type.STRING))
+            client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", "STRING"))
             val names = entityNames()
             assert(names.contains(TestConstants.TEST_ENTITY_NAME.fqn)) { "Returned entity names do not contain ${TestConstants.TEST_ENTITY_NAME.fqn}." }
         } catch (e: StatusRuntimeException) {
@@ -167,7 +190,7 @@ class DDLServiceTest : AbstractClientTest() {
     fun createAndVerifyAboutEntity() {
         try {
             this.client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
-            this.client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", Type.STRING))
+            this.client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", "STRING"))
             val about = this.client.about(AboutEntity(TestConstants.TEST_ENTITY_NAME.fqn))
             assert(about.hasNext()) { "could not verify existence with about message" }
         } catch (e: StatusRuntimeException) {
@@ -189,7 +212,7 @@ class DDLServiceTest : AbstractClientTest() {
     fun createAndDropEntity() {
         try {
             client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
-            client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", Type.STRING))
+            client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", "STRING"))
             client.drop(DropEntity(TestConstants.TEST_ENTITY_NAME.fqn))
             val names = entityNames()
             assert(!names.contains(TestConstants.TEST_ENTITY_NAME.fqn)) { "Returned entity names do not contain ${TestConstants.TEST_ENTITY_NAME}." }
@@ -212,7 +235,7 @@ class DDLServiceTest : AbstractClientTest() {
     fun createAndDropEntityWithWarren() {
         try {
             client.create(CreateSchema(TestConstants.TEST_SCHEMA.fqn))
-            client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", Type.STRING))
+            client.create(CreateEntity(TestConstants.TEST_ENTITY_NAME.fqn).column("id", "STRING"))
             client.drop(DropEntity(TestConstants.TEST_ENTITY_NAME.fqn))
             val names = entityNames()
             assert(!names.contains(TestConstants.TEST_ENTITY_NAME.fqn)) { "Returned entity names do not contain ${TestConstants.TEST_ENTITY_NAME}." }

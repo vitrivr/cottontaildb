@@ -2,11 +2,9 @@ package org.vitrivr.cottontail.utilities.selection
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
-import org.vitrivr.cottontail.utilities.extensions.nextFloat
 import java.lang.Float.max
 import java.lang.Float.min
 import java.util.*
-import kotlin.Comparator
 
 /**
  * Simple test case for [HeapSelection] class, which is used when sorting and limiting data collections.
@@ -29,7 +27,7 @@ class HeapSelectionTest {
             selection.offer(value)
             min = min(value, min)
         }
-        Assertions.assertTrue(selection[0L] == min)
+        Assertions.assertTrue(selection.get(0) == min)
     }
 
     /**
@@ -45,7 +43,7 @@ class HeapSelectionTest {
             selection.offer(value)
             max = max(value, max)
         }
-        Assertions.assertTrue(selection[0L] == max)
+        Assertions.assertTrue(selection.get(0) == max)
     }
 
     /**
@@ -55,8 +53,8 @@ class HeapSelectionTest {
     fun testWithIntAscending() {
         val selection = HeapSelection(100, Comparator<Int> { o1, o2 -> o1.compareTo(o2) })
         (0 until 100000).toList().shuffled().forEach { selection.offer(it) }
-        for (i in 0 until 100) {
-            Assertions.assertTrue(selection[i.toLong()] == i)
+        for ((i, v) in selection.withIndex()) {
+            Assertions.assertTrue(selection[i] == v)
         }
     }
 
@@ -67,8 +65,8 @@ class HeapSelectionTest {
     fun testWithIntDescending() {
         val selection = HeapSelection(100, Comparator<Int> { o1, o2 -> -o1.compareTo(o2) })
         (0 until 100000).toList().shuffled().forEach { selection.offer(it) }
-        for (i in 0 until 100) {
-            Assertions.assertTrue(selection[i.toLong()] == 99999 - i)
+        for ((i, v) in selection.withIndex()) {
+            Assertions.assertTrue(selection[i] == v)
         }
     }
 }

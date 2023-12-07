@@ -104,8 +104,8 @@ class Lock<T> internal constructor(private val waitForGraph: WaitForGraph, val o
             this.waitForGraph.detectDeadlock(txn)
             this.waiters.await()
         }
-        check(this.sharedLockCount.compareAndSet(1, 0)) { "Transaction ${txn.txId} failed to upgrade lock $this: expected one shared lock (own)." }
-        check(this.isExclusivelyLocked.compareAndSet(false, true)) { "Transaction ${txn.txId} failed to upgrade lock $this: non-exclusive lock." }
+        check(this.sharedLockCount.compareAndSet(1, 0)) { "Transaction ${txn.transactionId} failed to upgrade lock $this: expected one shared lock (own)." }
+        check(this.isExclusivelyLocked.compareAndSet(false, true)) { "Transaction ${txn.transactionId} failed to upgrade lock $this: non-exclusive lock." }
     }
 
     /**
@@ -136,7 +136,7 @@ class Lock<T> internal constructor(private val waitForGraph: WaitForGraph, val o
             this.waitForGraph.detectDeadlock(txn)
             this.waiters.await()
         }
-        check(this.isExclusivelyLocked.compareAndSet(false, true)) { "Transaction ${txn.txId} failed to acquire lock $this: Lock is being held exclusively." }
+        check(this.isExclusivelyLocked.compareAndSet(false, true)) { "Transaction ${txn.transactionId} failed to acquire lock $this: Lock is being held exclusively." }
         this.owners.add(txn)
         txn.addLock(this)
     }

@@ -5,12 +5,12 @@ import io.grpc.StatusRuntimeException
 import org.apache.commons.lang3.RandomStringUtils
 import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.*
+import org.junit.platform.commons.function.Try.success
 import org.vitrivr.cottontail.client.language.basics.Direction
-import org.vitrivr.cottontail.client.language.basics.Type
-import org.vitrivr.cottontail.client.language.basics.predicate.Expression
+import org.vitrivr.cottontail.client.language.basics.predicate.Compare
 import org.vitrivr.cottontail.client.language.ddl.CreateEntity
 import org.vitrivr.cottontail.client.language.ddl.CreateIndex
-import org.vitrivr.cottontail.client.language.ddl.OptimizeEntity
+import org.vitrivr.cottontail.client.language.ddl.RebuildIndex
 import org.vitrivr.cottontail.client.language.dml.BatchInsert
 import org.vitrivr.cottontail.client.language.dml.Delete
 import org.vitrivr.cottontail.client.language.dml.Insert
@@ -28,7 +28,6 @@ import org.vitrivr.cottontail.test.TestConstants.TEST_ENTITY_NAME
 import org.vitrivr.cottontail.test.TestConstants.TEST_SCHEMA
 import org.vitrivr.cottontail.test.TestConstants.TEST_VECTOR_ENTITY_NAME
 import org.vitrivr.cottontail.test.TestConstants.TWOD_COLUMN_NAME
-import org.vitrivr.cottontail.utilities.math.random.nextInt
 import kotlin.time.ExperimentalTime
 
 /**
@@ -68,9 +67,9 @@ class DMLServiceTest : AbstractClientTest() {
         /* Start large insert. */
         val txId = this.client.begin()
         repeat(entries / batchSize) { i ->
-            val batch = BatchInsert().into(TEST_ENTITY_NAME.fqn).columns(INT_COLUMN_NAME, STRING_COLUMN_NAME, DOUBLE_COLUMN_NAME)
+            val batch = BatchInsert(TEST_ENTITY_NAME).columns(INT_COLUMN_NAME, STRING_COLUMN_NAME, DOUBLE_COLUMN_NAME)
             repeat(batchSize) { j ->
-                batch.append(i * j, RandomStringUtils.randomAlphanumeric(stringLength), 1.0)
+                batch.any(i * j, RandomStringUtils.randomAlphanumeric(stringLength), 1.0)
             }
             this.client.insert(batch.txId(txId))
         }
@@ -95,8 +94,8 @@ class DMLServiceTest : AbstractClientTest() {
         /* Start large insert. */
         val txId = this.client.begin()
         repeat(entries / batchSize) { i ->
-            val batch = BatchInsert().into(TEST_ENTITY_NAME.fqn).columns(INT_COLUMN_NAME, STRING_COLUMN_NAME, DOUBLE_COLUMN_NAME).txId(txId)
-            repeat(batchSize) { j -> batch.append(i * j, RandomStringUtils.randomAlphanumeric(stringLength), 1.0) }
+            val batch = BatchInsert(TEST_ENTITY_NAME).columns(INT_COLUMN_NAME, STRING_COLUMN_NAME, DOUBLE_COLUMN_NAME).txId(txId)
+            repeat(batchSize) { j -> batch.any(i * j, RandomStringUtils.randomAlphanumeric(stringLength), 1.0) }
             this.client.insert(batch)
         }
 
@@ -114,7 +113,7 @@ class DMLServiceTest : AbstractClientTest() {
         val random = JDKRandomGenerator()
         val tx1 = this.client.begin()
         val string1 = RandomStringUtils.randomAlphabetic(6)
-        val insert1 = Insert(TEST_VECTOR_ENTITY_NAME.fqn).values(
+        val insert1 = Insert(TEST_VECTOR_ENTITY_NAME.fqn).any(
             STRING_COLUMN_NAME to string1,
             INT_COLUMN_NAME to random.nextInt(0, 10),
             TWOD_COLUMN_NAME to floatArrayOf(0.0f, 0.0f)
@@ -122,14 +121,14 @@ class DMLServiceTest : AbstractClientTest() {
         this.client.insert(insert1)
 
         /* Check results; insert 1 should exist. */
-        val result1 = this.client.query(Query(TEST_VECTOR_ENTITY_NAME.fqn).where(Expression(STRING_COLUMN_NAME, "=", string1)).count())
+        val result1 = this.client.query(Query(TEST_VECTOR_ENTITY_NAME.fqn).where(Compare(STRING_COLUMN_NAME, "=", string1)).count())
         Assertions.assertEquals(0L, result1.next().asLong(0))
 
         /* Execute commits and check. */
         Assertions.assertDoesNotThrow { this.client.commit(tx1) }
 
         /* Check results; insert 2 should not exist. */
-        val result2 = this.client.query(Query(TEST_VECTOR_ENTITY_NAME.fqn).where(Expression(STRING_COLUMN_NAME, "=", string1)).count())
+        val result2 = this.client.query(Query(TEST_VECTOR_ENTITY_NAME.fqn).where(Compare(STRING_COLUMN_NAME, "=", string1)).count())
         Assertions.assertEquals(1L, result2.next().asLong(0))
     }
 
@@ -141,14 +140,14 @@ class DMLServiceTest : AbstractClientTest() {
         val newValue = RandomStringUtils.randomAlphabetic(4)
 
         /* Perform update and sanity checks. */
-        val update = Update().from(TEST_ENTITY_NAME.fqn).values(Pair(STRING_COLUMN_NAME, newValue))
+        val update = Update(TEST_ENTITY_NAME).any(Pair(STRING_COLUMN_NAME, newValue))
         val r1 = this.client.update(update)
         Assertions.assertTrue(r1.hasNext())
         val el1 = r1.next()
         Assertions.assertEquals(TEST_COLLECTION_SIZE.toLong(), el1.asLong(0))
 
         /* Query and check values. */
-        val select = Query().select("*").from(TEST_ENTITY_NAME.fqn)
+        val select = Query(TEST_ENTITY_NAME).select("*")
         val r2 = this.client.query(select)
         for (el2 in r2) {
             Assertions.assertEquals(newValue, el2.asString(STRING_COLUMN_NAME))
@@ -162,19 +161,19 @@ class DMLServiceTest : AbstractClientTest() {
     fun testSingleTxUpdateWithCommitAndQuery() {
         /* Query and update values. */
         val txId = this.client.begin()
-        val s1 = Query().from(TEST_ENTITY_NAME.fqn).order(STRING_COLUMN_NAME, Direction.ASC).limit(100).txId(txId)
+        val s1 = Query(TEST_ENTITY_NAME).order(STRING_COLUMN_NAME, Direction.ASC).limit(100).txId(txId)
         val r1 = this.client.query(s1)
         for (el1 in r1) {
             /* Determine how many rows will be affected. */
-            val count = Query().from(TEST_ENTITY_NAME.fqn)
-                .where(Expression(STRING_COLUMN_NAME, "=", el1.asString(STRING_COLUMN_NAME)!!))
+            val count = Query(TEST_ENTITY_NAME)
+                .where(Compare(STRING_COLUMN_NAME, "=", el1.asString(STRING_COLUMN_NAME)!!))
                 .count()
             val c = this.client.query(count).next().asLong(0)
 
             /* Execute the update. */
-            val update = Update().from(TEST_ENTITY_NAME.fqn)
-                .values(Pair(INT_COLUMN_NAME, -1))
-                .where(Expression(STRING_COLUMN_NAME, "=", el1.asString(STRING_COLUMN_NAME)!!))
+            val update = Update(TEST_ENTITY_NAME)
+                .any(Pair(INT_COLUMN_NAME, -1))
+                .where(Compare(STRING_COLUMN_NAME, "=", el1.asString(STRING_COLUMN_NAME)!!))
                 .txId(txId)
             val r2 = this.client.update(update)
             Assertions.assertTrue(r2.hasNext())
@@ -184,7 +183,7 @@ class DMLServiceTest : AbstractClientTest() {
         this.client.commit(txId)
 
         /* Query and check values. */
-        val select = Query().select("*").from(TEST_ENTITY_NAME.fqn).order(STRING_COLUMN_NAME, Direction.ASC).limit(100)
+        val select = Query(TEST_ENTITY_NAME).select("*").order(STRING_COLUMN_NAME, Direction.ASC).limit(100)
         val r2 = this.client.query(select)
         for (el2 in r2) {
             Assertions.assertEquals(-1, el2.asInt(INT_COLUMN_NAME))
@@ -198,19 +197,19 @@ class DMLServiceTest : AbstractClientTest() {
     fun testSingleTxUpdateWithRollbackAndQuery() {
         /* Query and update values. */
         val txId = this.client.begin()
-        val s1 = Query().select("*").from(TEST_ENTITY_NAME.fqn).order(STRING_COLUMN_NAME, Direction.ASC).limit(100).txId(txId)
+        val s1 = Query(TEST_ENTITY_NAME).select("*").order(STRING_COLUMN_NAME, Direction.ASC).limit(100).txId(txId)
         val r1 = this.client.query(s1)
         for (el1 in r1) {
             /* Determine how many rows will be affected. */
-            val count = Query().from(TEST_ENTITY_NAME.fqn)
-                .where(Expression(STRING_COLUMN_NAME, "=", el1.asString(STRING_COLUMN_NAME)!!))
+            val count = Query(TEST_ENTITY_NAME)
+                .where(Compare(STRING_COLUMN_NAME, "=", el1.asString(STRING_COLUMN_NAME)!!))
                 .count()
             val c = this.client.query(count).next().asLong(0)
 
             /* Execute the update. */
-            val update = Update().from(TEST_ENTITY_NAME.fqn)
-                .values(Pair(INT_COLUMN_NAME, -1))
-                .where(Expression(STRING_COLUMN_NAME, "=", el1.asString(STRING_COLUMN_NAME)!!))
+            val update = Update(TEST_ENTITY_NAME)
+                .any(Pair(INT_COLUMN_NAME, -1))
+                .where(Compare(STRING_COLUMN_NAME, "=", el1.asString(STRING_COLUMN_NAME)!!))
                 .txId(txId)
             val r2 = this.client.update(update)
             Assertions.assertTrue(r2.hasNext())
@@ -220,7 +219,7 @@ class DMLServiceTest : AbstractClientTest() {
         this.client.rollback(txId)
 
         /* Query and check values. */
-        val select = Query().select("*").from(TEST_ENTITY_NAME.fqn).order(STRING_COLUMN_NAME, Direction.ASC).limit(100)
+        val select = Query(TEST_ENTITY_NAME).select("*").order(STRING_COLUMN_NAME, Direction.ASC).limit(100)
         val r2 = this.client.query(select)
         for (el2 in r2) {
             Assertions.assertNotEquals(-1, el2.asInt(INT_COLUMN_NAME))
@@ -238,8 +237,8 @@ class DMLServiceTest : AbstractClientTest() {
         val repeatBatchInsert = 100
         val stringLength = 200
         var txId = client.begin()
-        this.client.create(CreateEntity(entityName.fqn).column(STRING_COLUMN_NAME, Type.STRING).txId(txId))
-        this.client.create(CreateIndex(entityName.fqn, STRING_COLUMN_NAME, CottontailGrpc.IndexType.LUCENE).txId(txId))
+        this.client.create(CreateEntity(entityName).column(STRING_COLUMN_NAME, "STRING").txId(txId))
+        this.client.create(CreateIndex(entityName, CottontailGrpc.IndexType.LUCENE).column(STRING_COLUMN_NAME).name("lucene-index").txId(txId))
         this.client.commit(txId)
 
         // we have an outer loop to check if optimization is the problem.
@@ -247,16 +246,16 @@ class DMLServiceTest : AbstractClientTest() {
         repeat(10) {
             repeat(repeatBatchInsert / 10) {
                 txId = this.client.begin()
-                val batch = BatchInsert().into(entityName.fqn).columns(STRING_COLUMN_NAME).txId(txId)
+                val batch = BatchInsert(entityName).columns(STRING_COLUMN_NAME).txId(txId)
                 repeat(batchCount) {
-                    batch.append(
+                    batch.any(
                         RandomStringUtils.randomAlphanumeric(stringLength),
                     )
                 }
                 this.client.insert(batch)
                 this.client.commit(txId)
             }
-            this.client.optimize(OptimizeEntity(entityName.fqn))
+            this.client.rebuild(RebuildIndex(entityName.index("lucene-index").fqn))
         }
         Assertions.assertEquals(repeatBatchInsert * batchCount, countElements(this.client, entityName)!!.toInt())
     }
@@ -267,20 +266,20 @@ class DMLServiceTest : AbstractClientTest() {
         val entryString = "one"
         var txId = client.begin()
         //create entity with one column
-        this.client.create(CreateEntity(entityName.fqn).column(STRING_COLUMN_NAME, Type.STRING).txId(txId))
+        this.client.create(CreateEntity(entityName).column(STRING_COLUMN_NAME, "STRING").txId(txId))
         this.client.commit(txId)
 
         //insert four times the same entry
         repeat(4) {
             txId = this.client.begin()
-            val insert = Insert().into(entityName.fqn).value(STRING_COLUMN_NAME, entryString).txId(txId)
+            val insert = Insert(entityName).any(STRING_COLUMN_NAME, entryString).txId(txId)
             this.client.insert(insert)
             this.client.commit(txId)
         }
 
         // after deletion, we expect there to be 0 entries left
         txId = this.client.begin()
-        val delete = Delete().from(entityName.fqn).where(Expression(STRING_COLUMN_NAME, "=", entryString)).txId(txId)
+        val delete = Delete(entityName).where(Compare(STRING_COLUMN_NAME, "=", entryString)).txId(txId)
         this.client.delete(delete)
         this.client.commit(txId)
         Assertions.assertEquals(0, countElements(this.client, entityName)!!.toInt())
@@ -292,8 +291,8 @@ class DMLServiceTest : AbstractClientTest() {
         val entryString = "one"
         var txId = client.begin()
         //create entity with one column which is supposed to be unique
-        this.client.create(CreateEntity(entityName.fqn).column(STRING_COLUMN_NAME, Type.STRING).txId(txId))
-        this.client.create(CreateIndex(entityName.fqn, STRING_COLUMN_NAME, CottontailGrpc.IndexType.BTREE_UQ).txId(txId))
+        this.client.create(CreateEntity(entityName.fqn).column(STRING_COLUMN_NAME, "STRING").txId(txId))
+        this.client.create(CreateIndex(entityName, CottontailGrpc.IndexType.BTREE_UQ).column(STRING_COLUMN_NAME).txId(txId))
         this.client.commit(txId)
 
         // this should probably already fail
@@ -301,7 +300,7 @@ class DMLServiceTest : AbstractClientTest() {
         repeat(4) {
             try {
                 txId = this.client.begin()
-                val insert = Insert().into(entityName.fqn).value(STRING_COLUMN_NAME, entryString).txId(txId)
+                val insert = Insert(entityName).any(STRING_COLUMN_NAME, entryString).txId(txId)
                 this.client.insert(insert)
                 this.client.commit(txId)
             } catch (e: StatusRuntimeException){
@@ -313,9 +312,34 @@ class DMLServiceTest : AbstractClientTest() {
 
         // in the failed state, deleting the entries does not work (!)
         txId = this.client.begin()
-        val delete = Delete().from(entityName.fqn).where(Expression(STRING_COLUMN_NAME, "=", entryString)).txId(txId)
+        val delete = Delete(entityName).where(Compare(STRING_COLUMN_NAME, "=", entryString)).txId(txId)
         this.client.delete(delete)
         this.client.commit(txId)
         Assertions.assertEquals(0, countElements(this.client, entityName)!!.toInt())
+    }
+
+    /**
+     * Performs a large number of INSERTs in a single transaction and checks the count before and afterwards.
+     */
+    @Test
+    fun testInvalidNullInsert() {
+        val entries = TEST_COLLECTION_SIZE * 5
+        val batchSize = 1000
+
+        /* Start large insert. */
+        val txId = this.client.begin()
+        try {
+            repeat(entries / batchSize) { i ->
+                val batch = BatchInsert(TEST_ENTITY_NAME).columns(INT_COLUMN_NAME, STRING_COLUMN_NAME, DOUBLE_COLUMN_NAME)
+                repeat(batchSize) { j ->
+                    batch.any(i * j, null, 1.0)
+                }
+                this.client.insert(batch.txId(txId))
+            }
+        } catch (e: StatusRuntimeException) {
+            success("Creating entity ${TEST_ENTITY_NAME.fqn} failed with exception " + e.message)
+        } finally {
+            this.client.rollback(txId)
+        }
     }
 }

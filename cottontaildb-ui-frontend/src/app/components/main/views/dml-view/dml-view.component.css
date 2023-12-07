@@ -1,0 +1,10 @@
+.dml-view{
+  display: flex;
+  flex-direction: column;
+}
+.dml-view > * {
+  margin-bottom: 10px;
+}
+mat-button-toggle-group{
+  width: fit-content;
+}

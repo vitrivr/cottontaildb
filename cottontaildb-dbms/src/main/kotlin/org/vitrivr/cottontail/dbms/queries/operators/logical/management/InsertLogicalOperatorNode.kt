@@ -1,12 +1,13 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.management
 
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.management.InsertOperator
-import org.vitrivr.cottontail.dbms.queries.operators.logical.NullaryLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.management.InsertPhysicalOperatorNode
 
 /**
@@ -15,7 +16,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.management.InsertP
  * @author Ralph Gasser
  * @version 2.5.0
  */
-class InsertLogicalOperatorNode(override val groupId: GroupId, val entity: EntityTx, val records: MutableList<Record>) : NullaryLogicalOperatorNode() {
+class InsertLogicalOperatorNode(override val groupId: GroupId, val entity: EntityTx, val tuples: MutableList<Tuple>) : NullaryLogicalOperatorNode() {
 
     companion object {
         private const val NODE_NAME = "Insert"
@@ -36,28 +37,23 @@ class InsertLogicalOperatorNode(override val groupId: GroupId, val entity: Entit
      *
      * @return Copy of this [InsertLogicalOperatorNode].
      */
-    override fun copy() = InsertLogicalOperatorNode(this.groupId, this.entity, this.records)
+    override fun copy() = InsertLogicalOperatorNode(this.groupId, this.entity, this.tuples)
 
     /**
      * Returns a [InsertPhysicalOperatorNode] representation of this [InsertLogicalOperatorNode]
      *
      * @return [InsertPhysicalOperatorNode]
      */
-    override fun implement() = InsertPhysicalOperatorNode(this.groupId, this.entity, this.records)
+    override fun implement() = InsertPhysicalOperatorNode(this.groupId, this.entity, this.tuples)
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is InsertLogicalOperatorNode) return false
-
-        if (entity != other.entity) return false
-        if (records != other.records) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = entity.hashCode()
-        result = 31 * result + records.hashCode()
+    /**
+     * Generates and returns a [Digest] for this [InsertLogicalOperatorNode].
+     *
+     * @return [Digest]
+     */
+    override fun digest(): Digest {
+        var result = this.entity.dbo.name.hashCode().toLong()
+        result += 33L * result + this.tuples.hashCode()
         return result
     }
 }

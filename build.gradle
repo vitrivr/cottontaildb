@@ -1,8 +1,12 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
+    id 'idea'
     id "org.jetbrains.kotlin.jvm" version "$version_kotlin"
     id "org.jetbrains.kotlin.plugin.serialization" version "$version_kotlin"
     id "com.github.johnrengelman.shadow" version "7.1.2"
-    id 'idea'
+    id "org.openapi.generator" version "6.2.0"
+    id "de.undercouch.download" version "5.4.0"
 }
 
 apply plugin: 'distribution'
@@ -41,17 +45,33 @@ subprojects {
     apply plugin: 'java-library'
     apply plugin: 'java-test-fixtures'
 
+    /* Source requires Java 17, to run Cottontail DB we require Java 11. */
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_11
+
+    /* Compiler options for Kotlin. */
     compileKotlin {
-        kotlinOptions.jvmTarget = "1.8"
-        kotlinOptions {
-            freeCompilerArgs = ["-Xinline-classes"]
-        }
+        compilerOptions.freeCompilerArgs.add("-Xcontext-receivers")
+        compilerOptions.jvmTarget = JvmTarget.JVM_11
     }
+
+    /* Compiler options for Kotlin when running tests. */
     compileTestKotlin {
-        kotlinOptions.jvmTarget = "1.8"
+        compilerOptions.freeCompilerArgs.add("-Xcontext-receivers")
+        compilerOptions.jvmTarget = JvmTarget.JVM_11
+    }
+
+    compileTestFixturesKotlin {
+        compilerOptions.freeCompilerArgs.add("-Xcontext-receivers")
+        compilerOptions.jvmTarget = JvmTarget.JVM_11
+    }
+
+    kotlin {
+        jvmToolchain(17)
     }
 
     java {
+        toolchain.languageVersion.set(JavaLanguageVersion.of(17))
         withJavadocJar()
         withSourcesJar()
     }
@@ -71,12 +91,12 @@ subprojects {
     }
 
     /* Important warnings that are currently missing simply because there are too many: "cast", "rawtypes". Ideally, "all" should be used in the future. */
-    def enabledWarnings = ["-Xlint:deprecation", "-Xlint:empty", "-Xlint:overrides", "-Xlint:serial", "-Xlint:static", "-Xlint:unchecked", "-Xlint:varargs"]
+    def javaCompilerOptions = []
     compileJava {
         options.encoding = 'UTF-8'
-        options.compilerArgs += enabledWarnings
+        options.compilerArgs += javaCompilerOptions
     }
-    compileTestJava.options.compilerArgs += enabledWarnings
+    compileTestJava.options.compilerArgs += javaCompilerOptions
 
     /* Common dependencies. */
     dependencies {
@@ -84,16 +104,10 @@ subprojects {
         implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
         implementation group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: version_kotlin
         implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: version_kotlinx_coroutines
-        implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-json-jvm', version: version_kotlinx_json_jvm
-
-        ///// Cottontail DB Driver + gRPC dependencies
-        implementation group: 'org.vitrivr', name: 'cottontaildb-proto', version: version_cottontaildb_driver
-        implementation group: 'io.grpc', name: 'grpc-all', version: version_grpc
-        implementation group: 'io.grpc', name: 'grpc-kotlin-stub', version: version_grpc_kotlin
-        implementation group: 'com.google.protobuf', name: 'protobuf-java', version: version_protobuf
+        implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-json-jvm', version: version_kotlinx_serialization
 
         ////// Log4j2 & SLF4j
-        implementation group: 'org.slf4j', name: 'slf4j-api', version:  version_slf4j
+        implementation group: 'org.slf4j', name: 'slf4j-api', version: version_slf4j
         implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: version_log4j2
         implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: version_log4j2
         implementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j2-impl', version: version_log4j2
@@ -113,15 +127,18 @@ distributions {
             into('bin') {
                 from { project(':cottontaildb-dbms').startScripts.outputs.files }
                 from { project(':cottontaildb-cli').startScripts.outputs.files }
+                from { project(':cottontaildb-ui-backend').startScripts.outputs.files }
                 fileMode = 0755
             }
             into('lib') {
                 def libs = []
                 libs << project(':cottontaildb-dbms').configurations.runtimeClasspath
                 libs << project(':cottontaildb-cli').configurations.runtimeClasspath
+                libs << project(':cottontaildb-ui-backend').configurations.runtimeClasspath
                 from libs
                 from project(':cottontaildb-dbms').jar
                 from project(':cottontaildb-cli').jar
+                from project(':cottontaildb-ui-backend').jar
             }
         }
     }

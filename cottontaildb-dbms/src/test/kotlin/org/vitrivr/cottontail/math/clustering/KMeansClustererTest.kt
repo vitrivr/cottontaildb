@@ -8,10 +8,9 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.utilities.VectorUtility
 import org.vitrivr.cottontail.utilities.math.clustering.KMeansClusterer
-import org.vitrivr.cottontail.utilities.math.random.nextInt
 
 /**
  * A unit test for [KMeansClusterer].

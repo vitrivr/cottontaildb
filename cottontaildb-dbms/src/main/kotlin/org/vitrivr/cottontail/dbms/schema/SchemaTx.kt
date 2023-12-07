@@ -1,9 +1,10 @@
 package org.vitrivr.cottontail.dbms.schema
 
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.dbms.column.ColumnMetadata
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.general.Tx
+import org.vitrivr.cottontail.dbms.sequence.Sequence
 
 /**
  * A [Tx] that operates on a single [DefaultSchema].
@@ -11,33 +12,47 @@ import org.vitrivr.cottontail.dbms.general.Tx
  * [Tx]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 3.1.0
+ * @version 4.0.0
  */
 interface SchemaTx : Tx {
     /**
-     * Returns a list of [Entity] held by this [Schema].
+     * Returns a list of [Name.EntityName] held by this [Schema].
      *
-     * @return [List] of all [Entity].
+     * @return [List] of all [Name.EntityName].
      */
     fun listEntities(): List<Name.EntityName>
 
     /**
-     * Returns an instance of [Entity] if such an instance exists. If the [Entity] has been loaded before,
-     * that [Entity] is re-used. Otherwise, the [Entity] will be loaded from disk.
+     * Returns a list of [Name.SequenceName] held by this [Schema].
      *
-     * @param name Name of the [Entity] to access.
+     * @return [List] of all [Name.SequenceName].
+     */
+    fun listSequence(): List<Name.SequenceName>
+
+    /**
+     * Returns an instance of [Entity] if such an instance exists.
+     *
+     * @param name [Name.EntityName] of the [Entity] to access.
      * @return [Entity]
      */
     fun entityForName(name: Name.EntityName): Entity
 
     /**
+     * Returns an instance of [Sequence] if such an instance exists.
+     *
+     * @param name [Name.SequenceName] of the [Sequence] to access.
+     * @return [Sequence]
+     */
+    fun sequenceForName(name: Name.SequenceName): Sequence
+
+    /**
      * Creates a new [Entity] in this [DefaultSchema].
      *
      * @param name The name of the [Entity] that should be created.
-     * @param columns List of [ColumnDef] that specify the columns to create.
+     * @param columns [List] of [Name.ColumnName] to [ColumnMetadata] [Pair]s that specify the columns to create in order.
      * @return Newly created [Entity] for use in context of this [Tx]
      */
-    fun createEntity(name: Name.EntityName, vararg columns: ColumnDef<*>): Entity
+    fun createEntity(name: Name.EntityName, columns: List<Pair<Name.ColumnName, ColumnMetadata>>): Entity
 
     /**
      * Drops an [Entity] in the [Schema] underlying this [SchemaTx].
@@ -52,4 +67,19 @@ interface SchemaTx : Tx {
      * @param name The name of the [Entity] that should be truncated.
      */
     fun truncateEntity(name: Name.EntityName)
+
+    /**
+     * Creates a new [Sequence] in this [Schema].
+     *
+     * @param name The name of the [Sequence] that should be created.
+     * @return Newly created [Sequence] for use in context of this [Tx]
+     */
+    fun createSequence(name: Name.SequenceName): Sequence
+
+    /**
+     * Drops an [Sequence] in this [Schema].
+     *
+     * @param name The name of the [Name.SequenceName] that should be dropped.
+     */
+    fun dropSequence(name: Name.SequenceName)
 }

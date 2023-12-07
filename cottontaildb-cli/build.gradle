@@ -1,28 +1,37 @@
-/* Plugins. */
-apply plugin: 'application'
-apply plugin: 'com.github.johnrengelman.shadow'
+plugins {
+    id "application"
+    id "com.github.johnrengelman.shadow"
+    id "org.jetbrains.kotlin.plugin.serialization" version "$version_kotlin"
+}
+
 
 /* C(arrot)LI dependencies. */
 dependencies {
     api project(':cottontaildb-core')
 
-    ////// CLI & Terminal
+    /* CLI & Terminal. */
     implementation group: 'org.jline', name: 'jline', version: version_jline
     implementation group: 'org.jline', name: 'jline-terminal-jna', version: version_jline
     implementation group: 'com.github.ajalt.clikt', name: 'clikt', version: version_clikt
     implementation group: 'com.jakewharton.picnic', name: 'picnic', version: version_picnic
 
-    ////// CSV support
-    implementation group: 'com.github.doyaaaaaken', name: 'kotlin-csv-jvm', version: '1.3.0'
+    /* JSON, PROTOBUF and CSV support for kotlinx.serialization. */
+    implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-json-jvm', version: version_kotlinx_serialization
+    implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-protobuf-jvm', version: version_kotlinx_serialization
+    implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-cbor-jvm', version: version_kotlinx_serialization
+    implementation group: 'de.brudaswen.kotlinx.serialization', name: 'kotlinx-serialization-csv', version: version_kotlinx_serialization_csv
 
-    ////// Test Fixtures from Cottontail DB core.
+    /* Apache Commons Compress. */
+    implementation group: 'org.apache.commons', name: 'commons-compress', version: version_commons_compress
+
+    /* Test Fixtures from Cottontail DB core. */
     testImplementation(testFixtures(project(":cottontaildb-dbms")))
 }
 
 /* General application attributes. */
 application {
     applicationName = 'carrotli'
-    applicationDefaultJvmArgs = ["-Xms256M", "-Xmx1G"]
+    applicationDefaultJvmArgs = ["-Xms512M", "-Xmx2G"]
     mainClassName = 'org.vitrivr.cottontail.CarrotliKt'
 }
 
@@ -38,7 +47,6 @@ idea {
 
 tasks.withType(Test) {
     useJUnitPlatform()
-    jvmArgs '--enable-preview'
 }
 
 //// Change name for distribution to C(arrot)LI.

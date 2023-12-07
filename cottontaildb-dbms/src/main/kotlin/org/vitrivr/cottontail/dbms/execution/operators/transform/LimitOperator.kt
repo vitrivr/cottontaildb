@@ -1,19 +1,19 @@
 package org.vitrivr.cottontail.dbms.execution.operators.transform
 
 import kotlinx.coroutines.flow.Flow
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.basics.take
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
- * An [Operator.PipelineOperator] used during query execution. Limit the number of outgoing [Record]s.
+ * An [Operator.PipelineOperator] used during query execution. Limit the number of outgoing [Tuple]s.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 2.0.0
  */
-class LimitOperator(parent: Operator, val limit: Long) : Operator.PipelineOperator(parent) {
+class LimitOperator(parent: Operator, private val limit: Long, override val context: QueryContext) : Operator.PipelineOperator(parent) {
 
     /** Columns returned by [LimitOperator] depend on the parent [Operator]. */
     override val columns: List<ColumnDef<*>>
@@ -25,9 +25,8 @@ class LimitOperator(parent: Operator, val limit: Long) : Operator.PipelineOperat
     /**
      * Converts this [LimitOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [LimitOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record>
-        = this.parent.toFlow(context).take(this.limit)
+    override fun toFlow(): Flow<Tuple>
+        = this.parent.toFlow().take(this.limit)
 }

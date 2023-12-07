@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.index.va.bounds
 
-import org.vitrivr.cottontail.core.values.types.RealVectorValue
+import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import kotlin.math.absoluteValue
@@ -14,78 +14,90 @@ import kotlin.math.max
  * [1] Weber, R. and Blott, S., 1997. An approximation based data structure for similarity search (No. 9141, p. 416). Technical Report 24, ESPRIT Project HERMES.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.3.0
  */
-class L1Bounds(query: RealVectorValue<*>, marks: VAFMarks) : Bounds {
+class L1Bounds(query: RealVectorValue<*>, marks: VAFMarks) : Bounds() {
 
-    /** Lower bound of this [L1Bounds]. */
-    override var lb = 0.0
-        private set
+    /** [VAFSignature] for the query [RealVectorValue]. */
+    override val query = DoubleArray(query.logicalSize) { query[it].asDouble().value }
 
-    /** Upper bound of this [L1Bounds]. */
-    override var ub = 0.0
-        private set
+    /** [VAFSignature] for the query [RealVectorValue]. */
+    override val rq = marks.getSignature(query)
 
-    /** Cells for the query [RealVectorValue]. */
-    private val rq = marks.getSignature(query)
-
-    /**
-     * Internal lookup table for pre-calculated values used in bounds calculation.
-     *
-     * Simplification and deviation from [1], because for L1 there is only one value here.
-     *
-     * abs(qj - marks.marks[j][m]) == abs(marks.marks[j][m] - qj)
-     */
-    private val lat = Array(marks.marks.size) { j ->
+    /** Internal lookup table for pre-calculated values used in bounds calculation. */
+    private val lat = Array(query.logicalSize) { j ->
         val qj = query[j].value.toDouble()
-
-        Array(marks.marks[j].size) { m -> (qj - marks.marks[j][m]).absoluteValue }
+        DoubleArray(marks.marks[j].size) {
+            (qj - marks.marks[j][it]).absoluteValue
+        }
     }
 
     /**
-     * Updates the lower and upper bounds of this [L1Bounds] for the given [VAFSignature].
+     * Calculates and returns the lower bounds for this [L1Bounds].
      *
-     * @param signature The [VAFSignature] to calculate the bounds for.
+     * @param signature [VAFSignature] to calculate bounds for.
+     * @param threshold Threshold for early abort.
+     * @return Lower bound.
      */
-    override fun update(signature: VAFSignature): L1Bounds {
-        this.lb = 0.0
-        this.ub = 0.0
-        for ((j, rij) in signature.cells.withIndex()) {
-            when {
-                rij < this.rq[j] -> {
-                    this.lb += this.lat[j][rij + 1]
-                    this.ub += this.lat[j][rij.toInt()]
-                }
-                rij == this.rq[j] -> {
-                    this.ub += max(this.lat[j][rij.toInt()], this.lat[j][rij + 1])
-                }
-                rij > this.rq[j] -> {
-                    this.lb += this.lat[j][rij.toInt()]
-                    this.ub += this.lat[j][rij + 1]
-                }
+    override fun lb(signature: VAFSignature, threshold: Double): Double {
+        var sum = 0.0
+        for (i in 0 until signature.size()) {
+            val rij = signature[i]
+            if (rij < this.rq[i]) {
+                sum += this.lat[i][rij + 1]
+                if (sum > threshold) break
+            } else if (rij > this.rq[i]) {
+                sum += this.lat[i][rij]
+                if (sum > threshold) break
             }
         }
-        return this
+        return sum
     }
 
     /**
-     * Checks if the given [VAFSignature] is a VA-SSA candidate according to [1] by comparing the
-     * lower bounds estimation to the given threshold and returns true if so and false otherwise.
+     * Calculates and returns the upper bounds for this [L1Bounds].
      *
-     * @param signature The [VAFSignature] to check.
-     * @param threshold The threshold for a [VAFSignature] to be deemed a candidate. Can be used for early stopping.
-     * @return True if [VAFSignature] is a candidate, false otherwise.
+     * @param signature [VAFSignature] to calculate bounds for.
+     * @param threshold Threshold for early abort.
+     * @return Upper bound.
      */
-    override fun isVASSACandidate(signature: VAFSignature, threshold: Double): Boolean {
-        var lb = threshold
-        for ((j, rij) in signature.cells.withIndex()) {
-            if (rij < this.rq.cells[j]) {
-                lb -= this.lat[j][rij + 1]
-            } else if (rij > this.rq.cells[j]) {
-                lb -= this.lat[j][rij.toInt()]
+    override fun ub(signature: VAFSignature, threshold: Double): Double {
+        var sum = 0.0
+        for (i in 0 until signature.size()) {
+            val rij = signature[i]
+            sum += if (rij < this.rq[i]) {
+                this.lat[i][rij]
+            } else if (rij > this.rq[i]) {
+                this.lat[i][rij + 1]
+            } else {
+                max(this.lat[i][rij + 1], this.lat[i][rij])
             }
-            if (lb < 0) return false
+            if (sum > threshold) break
         }
-        return true
+        return sum
+    }
+
+    /**
+     * Calculates and returns the bounds for this [L1Bounds].
+     *
+     * @param signature [VAFSignature] to calculate bounds for.
+     * @return Bounds
+     */
+    override fun bounds(signature: VAFSignature): Pair<Double,Double> {
+        var lb = 0.0
+        var ub = 0.0
+        for (i in 0 until signature.size()) {
+            val rij = signature[i]
+            if (rij < this.rq[i]) {
+                lb += this.lat[i][rij + 1]
+                ub += this.lat[i][rij]
+            } else if (rij > this.rq[i]) {
+                lb += this.lat[i][rij]
+                ub += this.lat[i][rij + 1]
+            } else {
+                ub += max(this.lat[i][rij + 1], this.lat[i][rij])
+            }
+        }
+        return Pair(lb, ub)
     }
 }
