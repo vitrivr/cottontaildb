@@ -30,10 +30,10 @@ value class UuidValue(override val value: UUID) : ScalarValue<UUID>, PublicValue
     /**
      * Constructs a [UuidValue] from two longs.
      *
-     * @param leastSignificant The [Long] representing the least significant bits.
-     * @param mostSignificant The [Long] representing the most significant bits.
+     * @param mostSigBits The [Long] representing the most significant bits.
+     * @param leastSigBits The [Long] representing the least significant bits.
      */
-    constructor(leastSignificant: Long, mostSignificant: Long):  this(UUID(leastSignificant, mostSignificant))
+    constructor(mostSigBits: Long, leastSigBits: Long):  this(UUID(mostSigBits, leastSigBits))
 
     /** The [Types] of this [StringValue]. */
     override val type: Types<*>
@@ -42,6 +42,14 @@ value class UuidValue(override val value: UUID) : ScalarValue<UUID>, PublicValue
     /** The logical size of this [UuidValue] .*/
     override val logicalSize: Int
         get() = this.type.logicalSize
+
+    /** Accessor for most significant bits of [UuidValue]. */
+    val mostSignificantBits: Long
+        get() = this.value.mostSignificantBits
+
+    /** Accessor for least significant bits of [UuidValue]. */
+    val leastSignificantBits: Long
+        get() = this.value.leastSignificantBits
 
     /**
      * Compares this [UuidValue] to another [Value]. Returns -1, 0 or 1 of other value is smaller,
