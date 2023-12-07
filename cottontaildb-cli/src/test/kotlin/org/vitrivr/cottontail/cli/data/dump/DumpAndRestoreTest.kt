@@ -53,19 +53,19 @@ class DumpAndRestoreTest : AbstractClientTest() {
             }
         }
 
-        /* Assert existence of datbase dump. */
+        /* Assert existence of database dump. */
         assert(Files.exists(path))
         assert(Files.size(path) > 1)
 
         /* Drop and restore entity. */
-        Restorer.Zip(this.client, path).use {r ->
+        Restorer.Zip(this.client, path, TestConstants.TEST_SCHEMA).use {r ->
             TestConstants.ALL_ENTITY_NAMES.forEachIndexed { index, entityName ->
                 /* Number of entries and entries dumped must be equal. */
                 Assertions.assertEquals(dumps[index], countElements(this.client, entityName))
 
                 /* Drop and restore. */
                 this.client.drop(DropEntity(entityName))
-                val mf = r.manifest.entites.find { it.name == entityName } ?: fail("Could not find manifest entry for $entityName.")
+                val mf = r.manifest.entites.find { TestConstants.TEST_SCHEMA.entity(it.name) == entityName } ?: fail("Could not find manifest entry for $entityName.")
                 r.restore(mf)
 
                 /* Number of dumped and entries restored must be equal. */
@@ -94,7 +94,7 @@ class DumpAndRestoreTest : AbstractClientTest() {
         }
 
         /* Dump entity. */
-        val dumps = Dumper.Zip(this.client, path, format, TestConstants.TEST_COLLECTION_SIZE/ 4).use {
+        Dumper.Zip(this.client, path, format, TestConstants.TEST_COLLECTION_SIZE/ 4).use {
             it.dump(TEST_ENTITY_NAME)
         }
 
@@ -102,8 +102,8 @@ class DumpAndRestoreTest : AbstractClientTest() {
         this.client.drop(DropEntity(TEST_ENTITY_NAME))
 
         /* Restore entity. */
-        Restorer.Zip(this.client, path).use { r ->
-            val mf = r.manifest.entites.find { it.name == TEST_ENTITY_NAME } ?: fail("Could not find manifest entry for $TEST_ENTITY_NAME.")
+        Restorer.Zip(this.client, path, TestConstants.TEST_SCHEMA).use { r ->
+            val mf = r.manifest.entites.find { TestConstants.TEST_SCHEMA.entity(it.name) == TEST_ENTITY_NAME } ?: fail("Could not find manifest entry for $TEST_ENTITY_NAME.")
             r.restore(mf)
         }
 
