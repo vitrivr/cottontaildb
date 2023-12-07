@@ -423,6 +423,9 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                 deleted[column.columnDef] = column.newTx(this.context).delete(tupleId)
             }
 
+            /* Unset tupleId in bitmap. */
+            this.bitmap.set(this.context.txn.xodusTx, tupleId, false)
+
             /* Issue DataChangeEvent.DeleteDataChangeEvent and update indexes + statistics. */
             val event = DataEvent.Delete(this@DefaultEntity.name, tupleId, deleted)
             for (index in this.indexes.values) {
