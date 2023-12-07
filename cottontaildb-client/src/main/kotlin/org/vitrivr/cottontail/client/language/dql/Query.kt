@@ -50,13 +50,6 @@ class Query(entity: Name.EntityName): LanguageFeature() {
     }
 
     /**
-     * Returns the serialized message size in bytes of this [Query]
-     *
-     * @return The size in bytes of this [Query].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
-
-    /**
      * Adds a SELECT projection for a column to this [Query]. Call this method repeatedly to add multiple projections.
      *
      * @param column The name of the column to select.

@@ -103,11 +103,4 @@ class CreateEntity(val name: Name.EntityName): LanguageFeature() {
         this.builder.mayExist = true
         return this
     }
-
-    /**
-     * Returns the serialized message size in bytes of this [CreateEntity]
-     *
-     * @return The size in bytes of this [CreateEntity].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
 }

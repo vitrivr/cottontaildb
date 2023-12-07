@@ -47,11 +47,4 @@ class CreateSchema(name: Name.SchemaName): LanguageFeature() {
         this.builder.mayExist = true
         return this
     }
-
-    /**
-     * Returns the serialized message size in bytes of this [CreateSchema]
-     *
-     * @return The size in bytes of this [CreateSchema].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
 }

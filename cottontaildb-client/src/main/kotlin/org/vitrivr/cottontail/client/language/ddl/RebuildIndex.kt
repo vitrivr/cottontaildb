@@ -49,11 +49,4 @@ class RebuildIndex(name: Name.IndexName): LanguageFeature() {
         this.builder.async = true
         return this
     }
-
-    /**
-     * Returns the serialized message size in bytes of this [RebuildIndex]
-     *
-     * @return The size in bytes of this [RebuildIndex].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
 }

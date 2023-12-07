@@ -37,11 +37,4 @@ class EntityStatistics(name: Name.EntityName): LanguageFeature() {
         this.builder.metadataBuilder.queryId = queryId
         return this
     }
-
-    /**
-     * Returns the serialized message size in bytes of this [EntityStatistics]
-     *
-     * @return The size in bytes of this [EntityStatistics].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
 }

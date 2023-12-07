@@ -51,11 +51,4 @@ class AnalyzeEntity(name: Name.EntityName): LanguageFeature() {
         this.builder.async = true
         return this
     }
-
-    /**
-     * Returns the serialized message size in bytes of this [AnalyzeEntity]
-     *
-     * @return The size in bytes of this [AnalyzeEntity].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
 }

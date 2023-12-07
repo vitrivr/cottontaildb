@@ -36,11 +36,4 @@ class DropIndex(name: Name.IndexName): LanguageFeature() {
         this.builder.metadataBuilder.queryId = queryId
         return this
     }
-
-    /**
-     * Returns the serialized message size in bytes of this [DropIndex]
-     *
-     * @return The size in bytes of this [DropIndex].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
 }

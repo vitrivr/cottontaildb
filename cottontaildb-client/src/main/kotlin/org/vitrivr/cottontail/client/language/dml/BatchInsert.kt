@@ -18,8 +18,16 @@ class BatchInsert(entity: Name.EntityName): LanguageFeature() {
 
     constructor(entity: String): this(Name.EntityName.parse(entity))
 
-    /** Internal [CottontailGrpc.DeleteMessage.Builder]. */
+    /** Internal [CottontailGrpc.BatchInsertMessage.Builder]. */
     internal val builder = CottontailGrpc.BatchInsertMessage.newBuilder()
+
+    /** Field capturing the serialized size of this [BatchInsert]. */
+    private var headerSize: Int = 0
+        private set
+
+    /** Field capturing the serialized size of this [BatchInsert]. */
+    private var valueSize: Int = 0
+        private set
 
     init {
         this.builder.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(entity.proto())))
@@ -46,13 +54,6 @@ class BatchInsert(entity: Name.EntityName): LanguageFeature() {
     }
 
     /**
-     * Returns the serialized message size in bytes of this [BatchInsert]
-     *
-     * @return The size in bytes of this [BatchInsert].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
-
-    /**
      * Adds a column to this [BatchInsert].
      *
      * @param columns The name of the columns this [BatchInsert] should insert into.
@@ -61,7 +62,9 @@ class BatchInsert(entity: Name.EntityName): LanguageFeature() {
     fun columns(vararg columns: Name.ColumnName): BatchInsert {
         this.builder.clearColumns()
         for (c in columns) {
-            this.builder.addColumns(c.proto())
+            val proto = c.proto()
+            this.builder.addColumns(proto)
+            this.headerSize += proto.serializedSize
         }
         return this
     }
@@ -93,9 +96,10 @@ class BatchInsert(entity: Name.EntityName): LanguageFeature() {
         for (v in values) {
             insert.addValues(v?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder()).build())
         }
-        val built = insert.build()
-        return if (this.serializedSize() + built.serializedSize < Constants.MAX_PAGE_SIZE_BYTES) {
-            this.builder.addInserts(built)
+        val builtInserts = insert.build()
+        return if (this.estimatedSize() + builtInserts.serializedSize < Constants.MAX_PAGE_SIZE_BYTES) {
+            this.builder.addInserts(builtInserts)
+            this.valueSize += builtInserts.serializedSize
             true
         } else {
             false
@@ -106,8 +110,16 @@ class BatchInsert(entity: Name.EntityName): LanguageFeature() {
      * Clears all appended data from this [BatchInsert] object. Making it possible to re-use the same object to perform multiple INSERTs.
      */
     fun clear() {
+        this.valueSize = 0
         this.builder.clearInserts()
     }
+
+    /**
+     * Returns the estimated message size in bytes of this [BatchInsert]
+     *
+     * @return The estimated size in bytes of this [BatchInsert].
+     */
+    fun estimatedSize() = this.headerSize + this.valueSize
 
     /**
      * Returns the number of insert values in this [BatchInsert] message.

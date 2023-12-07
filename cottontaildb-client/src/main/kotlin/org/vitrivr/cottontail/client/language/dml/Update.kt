@@ -46,13 +46,6 @@ class Update(entity: Name.EntityName): LanguageFeature() {
     }
 
     /**
-     * Returns the serialized message size in bytes of this [Update]
-     *
-     * @return The size in bytes of this [Update].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
-
-    /**
      * Adds a WHERE-clause to this [Update].
      *
      * @param predicate The [Predicate] that specifies the conditions that need to be met for an [Update].

@@ -43,11 +43,4 @@ class ListEntities(name: Name.SchemaName? = null): LanguageFeature() {
         this.builder.metadataBuilder.queryId = queryId
         return this
     }
-
-    /**
-     * Returns the serialized message size in bytes of this [ListEntities]
-     *
-     * @return The size in bytes of this [ListEntities].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
 }

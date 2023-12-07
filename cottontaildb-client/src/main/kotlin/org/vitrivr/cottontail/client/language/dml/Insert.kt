@@ -45,13 +45,6 @@ class Insert(entity: Name.EntityName): LanguageFeature() {
     }
 
     /**
-     * Returns the serialized message size in bytes of this [Insert]
-     *
-     * @return The size in bytes of this [Insert].
-     */
-    override fun serializedSize() = this.builder.build().serializedSize
-
-    /**
      * Adds a value assignments this [Insert]. This method is cumulative, i.e., invoking
      * this method multiple times appends another assignment each time.
      *
