@@ -104,7 +104,7 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
             val catalogueTx = this.catalogue.newTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
-            schemaTx.createEntity(this.entityName, this.columns.associate { it.name to ColumnMetadata(it.type, Compression.NONE, it.nullable, it.primary, it.autoIncrement) })
+            schemaTx.createEntity(this.entityName, this.columns.map { it.name to ColumnMetadata(it.type, Compression.NONE, it.nullable, it.primary, it.autoIncrement) })
             txn.commit()
         } catch (e: Throwable) {
             txn.rollback()

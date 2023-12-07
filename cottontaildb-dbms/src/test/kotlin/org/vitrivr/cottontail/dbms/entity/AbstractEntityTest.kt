@@ -78,7 +78,7 @@ abstract class AbstractEntityTest: AbstractDatabaseTest() {
             val catalogueTx = this.catalogue.newTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
-            schemaTx.createEntity(e.first, e.second.associate { it.name to ColumnMetadata(it.type, Compression.NONE, it.nullable, it.primary, it.autoIncrement) })
+            schemaTx.createEntity(e.first, e.second.map { it.name to ColumnMetadata(it.type, Compression.NONE, it.nullable, it.primary, it.autoIncrement) })
         }
         txn.commit()
     }
