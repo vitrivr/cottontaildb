@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.data
 
 import kotlinx.serialization.BinaryFormat
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.StringFormat
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.encodeToString
@@ -21,7 +22,6 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.data.Manifest.Companion.MANIFEST_FILE_NAME
-import org.vitrivr.cottontail.serialization.TupleListSerializer
 import org.vitrivr.cottontail.serialization.listSerializer
 import java.io.Closeable
 import java.io.OutputStream
@@ -65,13 +65,12 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
      *
      * @param list The [List] of [Tuple]s to write.
      * @param stream The [OutputStream] to write to.
-     * @param serializer The [TupleListSerializer] to use for serialization.
+     * @param serializer The [KSerializer] to use for serialization.
      */
-    protected fun writeBatch(list: List<Tuple>, stream: OutputStream, serializer: TupleListSerializer) {
-        val listSerializer = ListSerializer(serializer)
+    protected fun writeBatch(list: List<Tuple>, stream: OutputStream, serializer: KSerializer<List<Tuple>>) {
         when(val format = this.manifest.format.format) {
-            is BinaryFormat -> stream.write(format.encodeToByteArray(listSerializer, list))
-            is StringFormat -> stream.write(format.encodeToString(listSerializer, list).toByteArray())
+            is BinaryFormat -> stream.write(format.encodeToByteArray(serializer, list))
+            is StringFormat -> stream.write(format.encodeToString(serializer, list).toByteArray())
             else -> throw IllegalArgumentException("Unsupported format $format.")
         }
     }
@@ -96,7 +95,10 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
             if (it.asString(COLUMN_NAME_CLASS) == "COLUMN") {
                 columns.add(ColumnDef(
                     Name.ColumnName.parse(it.asString(COLUMN_NAME_DBO)!!),
-                    Types.forName(it.asString(COLUMN_NAME_TYPE)!!, it.asInt(COLUMN_NAME_SIZE)!!),
+                    Types.forName(
+                        it.asString(COLUMN_NAME_TYPE)!!,
+                        it.asInt(COLUMN_NAME_SIZE)!!
+                    ),
                     it.asBoolean(COLUMN_NAME_NULLABLE)!!
                 ))
             }
@@ -143,7 +145,7 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
             var batch = 0L
 
             /* The serializer used for dumping the data. */
-            val serializer = e.columns.listSerializer()
+            val serializer = ListSerializer(e.columns.listSerializer())
 
             /* Read data and write it to archive. */
             while (results.hasNext()) {
@@ -213,7 +215,7 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
             val e = loadEntityInformation(entity)
 
             /* The serializer used for dumping the data. */
-            val serializer = e.columns.listSerializer()
+            val serializer = ListSerializer(e.columns.listSerializer())
 
             /* Start dumping the entity in batches. */
             val buffer = mutableListOf<Tuple>()
@@ -227,8 +229,11 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
                 dumped += 1L
                 if (dumped % this.manifest.batchSize == 0L) {
                     this.stream.putArchiveEntry(ZipArchiveEntry("${entity.entityName}.$batch.${this.manifest.format.suffix}"))
-                    this.writeBatch(buffer, this.stream, serializer)
-                    this.stream.closeArchiveEntry()
+                    try {
+                        this.writeBatch(buffer, this.stream, serializer)
+                    } finally {
+                        this.stream.closeArchiveEntry()
+                    }
                     batch += 1
                     buffer.clear()
                 }
@@ -237,8 +242,11 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
             /* Write final batch. */
             if (buffer.isNotEmpty()) {
                 this.stream.putArchiveEntry(ZipArchiveEntry("${entity.entityName}.$batch.${this.manifest.format.suffix}"))
-                this.writeBatch(buffer, this.stream, serializer)
-                this.stream.closeArchiveEntry()
+                try {
+                    this.writeBatch(buffer, this.stream, serializer)
+                } finally {
+                    this.stream.closeArchiveEntry()
+                }
                 batch += 1
             }
 
