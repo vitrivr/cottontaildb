@@ -24,11 +24,9 @@ class DropIndexCommand(client: SimpleClient) : AbstractIndexCommand(client, name
     /** Flag that can be used to directly provide confirmation. */
     private val confirm: Boolean by option("-c", "--confirm", help = "Directly provides the confirmation option.").flag()
 
-    /** The [YesNoPrompt] used by the [DropIndexCommand] */
-    private val prompt = YesNoPrompt("Do you really want to drop the index ${this.indexName} [y/N]?", this.terminal, default = false)
-
     override fun exec() {
-        if (this.confirm || this.prompt.ask() == true) {
+        val prompt = YesNoPrompt("Do you really want to drop the index ${this.indexName} [y/N]?", this.terminal, default = false)
+        if (this.confirm || prompt.ask() == true) {
             try {
                 val timedTable = measureTimedValue {
                     TabulationUtilities.tabulate(this.client.drop(DropIndex(this.indexName.toString())))

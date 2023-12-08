@@ -49,11 +49,9 @@ class TruncateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client
         help = "Directly provides the confirmation option. Set to true, no interactive prompt is given"
     ).flag()
 
-    /** The [YesNoPrompt] used by the [TruncateEntityCommand] */
-    private val prompt = YesNoPrompt("Do you really want to truncate the entity $entityName [y/N]?", this.terminal, default = false)
-
     override fun exec()  {
-        if (this.confirm || this.prompt.ask() == true) {
+        val prompt = YesNoPrompt("Do you really want to truncate the entity $entityName [y/N]?", this.terminal, default = false)
+        if (this.confirm || prompt.ask() == true) {
             truncate(this.entityName, this.client)
         } else {
             println("Truncate entity aborted.")

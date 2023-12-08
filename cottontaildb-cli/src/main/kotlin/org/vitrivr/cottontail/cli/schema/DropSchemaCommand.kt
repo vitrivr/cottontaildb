@@ -26,11 +26,9 @@ class DropSchemaCommand(client: SimpleClient) : AbstractSchemaCommand(client, na
         help = "Directly provides the confirmation option."
     ).flag()
 
-    /** The [YesNoPrompt] used by the [DropSchemaCommand] */
-    private val prompt = YesNoPrompt("Do you really want to drop the schema ${this.schemaName} [y/N]?", this.terminal, default = false)
-
     override fun exec() {
-        if (this.confirm || this.prompt.ask() == true) {
+        val prompt = YesNoPrompt("Do you really want to drop the schema ${this.schemaName} [y/N]?", this.terminal, default = false)
+        if (this.confirm || prompt.ask() == true) {
             /* Execute query. */
             val timedTable = measureTimedValue {
                 TabulationUtilities.tabulate(this.client.drop(DropSchema(this.schemaName.toString())))
