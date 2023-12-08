@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.cli
 
 import com.github.ajalt.clikt.core.*
-import com.github.ajalt.clikt.output.MordantHelpFormatter
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import io.grpc.StatusException
@@ -82,7 +81,8 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
         println()
     } catch (e: Exception) {
         when (e) {
-            is NoSuchSubcommand,
+            is PrintHelpMessage -> println(e.context?.command?.getFormattedHelp())
+            is NoSuchSubcommand -> println("Command not found.")
             is MissingArgument,
             is MissingOption,
             is BadParameterValue,
@@ -249,16 +249,11 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
         }
 
         init {
-            context {
-                helpFormatter = {
-                    MordantHelpFormatter(it)
-                }
-            }
             subcommands(
                 /* Schema related commands. */
                 object : NoOpCliktCommand(
                     name = "schema",
-                    help = "Groups commands that act on Cottontail DB  schemas. Usually requires the schema's qualified name",
+                    help = "Groups commands that act on Cottontail DB  schemas. Usually requires the schema's qualified name.",
                     epilog = "Schema related commands usually have the form: schema <command> <name>, e.g., `schema list schema_name` Check help for command specific parameters.",
                     invokeWithoutSubcommand = true,
                     printHelpOnEmptyArgs = true
