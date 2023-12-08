@@ -104,6 +104,7 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
          *
          * @return [ValueStatistics].
          */
+        @Suppress("UNCHECKED_CAST")
         override fun statistics(): ValueStatistics<T> = this.txLatch.withLock {
             val statistics = this@FixedLengthColumn.catalogue.statisticsManager[this@FixedLengthColumn.name]?.statistics as? ValueStatistics<T>
             if (statistics != null) return statistics

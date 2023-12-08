@@ -97,7 +97,6 @@ class ExplainQueryOperator(private val candidates: Map<GroupId,List<Pair<Operato
                 is UnaryPhysicalOperatorNode -> this.enumerate(list, newPath, node.input)
                 is BinaryPhysicalOperatorNode -> this.enumerate(list, newPath, node.left, node.right)
                 is NAryPhysicalOperatorNode -> this.enumerate(list, newPath, *node.inputs.toTypedArray())
-                else -> { /* No op. */ }
             }
         }
         return list
