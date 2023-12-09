@@ -152,7 +152,7 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
                 buffer.add(results.next())
                 dumped += 1L
                 if (dumped % this.manifest.batchSize == 0L) {
-                    Files.newOutputStream(this.output.resolve("${entity.entityName}.${batch}.${this.manifest.format.suffix}"), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use {
+                    Files.newOutputStream(this.output.resolve("${entity.entity}.${batch}.${this.manifest.format.suffix}"), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use {
                         this.writeBatch(buffer, it, serializer)
                     }
                     batch += 1
@@ -162,7 +162,7 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
 
             /* Write final batch. */
             if (buffer.isNotEmpty()) {
-                Files.newOutputStream(this.output.resolve("${entity.entityName}.${batch}.${this.manifest.format.suffix}"), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use {
+                Files.newOutputStream(this.output.resolve("${entity.entity}.${batch}.${this.manifest.format.suffix}"), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use {
                     this.writeBatch(buffer, it, serializer)
                 }
                 batch += 1
@@ -228,7 +228,7 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
                 buffer.add(results.next())
                 dumped += 1L
                 if (dumped % this.manifest.batchSize == 0L) {
-                    this.stream.putArchiveEntry(ZipArchiveEntry("${entity.entityName}.$batch.${this.manifest.format.suffix}"))
+                    this.stream.putArchiveEntry(ZipArchiveEntry("${entity.entity}.$batch.${this.manifest.format.suffix}"))
                     try {
                         this.writeBatch(buffer, this.stream, serializer)
                     } finally {
@@ -241,7 +241,7 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
 
             /* Write final batch. */
             if (buffer.isNotEmpty()) {
-                this.stream.putArchiveEntry(ZipArchiveEntry("${entity.entityName}.$batch.${this.manifest.format.suffix}"))
+                this.stream.putArchiveEntry(ZipArchiveEntry("${entity.entity}.$batch.${this.manifest.format.suffix}"))
                 try {
                     this.writeBatch(buffer, this.stream, serializer)
                 } finally {

@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onCompletion
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.client.language.basics.Constants
+import org.vitrivr.cottontail.client.language.extensions.proto
 import org.vitrivr.cottontail.core.proto
 import org.vitrivr.cottontail.core.toTuple
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
@@ -23,7 +24,6 @@ import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.utilities.extensions.proto
 import java.util.*
 import kotlin.time.DurationUnit
 import kotlin.time.ExperimentalTime

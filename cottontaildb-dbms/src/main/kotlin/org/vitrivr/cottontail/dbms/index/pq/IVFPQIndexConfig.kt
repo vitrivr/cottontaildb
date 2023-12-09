@@ -54,7 +54,7 @@ class IVFPQIndexConfig(val distance: Name.FunctionName, val numCoarseCentroids: 
      */
     object Binding: ComparableBinding() {
         override fun readObject(stream: ByteArrayInputStream) = IVFPQIndexConfig(
-            Name.FunctionName(StringBinding.BINDING.readObject(stream)),
+            Name.FunctionName.create(StringBinding.BINDING.readObject(stream)),
             IntegerBinding.readCompressed(stream),
             IntegerBinding.readCompressed(stream),
             IntegerBinding.readCompressed(stream),

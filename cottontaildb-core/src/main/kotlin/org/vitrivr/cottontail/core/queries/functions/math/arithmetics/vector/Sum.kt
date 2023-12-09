@@ -22,7 +22,7 @@ import org.vitrivr.cottontail.core.values.*
 sealed class Sum<T : NumericValue<*>>(val type: Types.Vector<*,T>): Function<T> {
 
     companion object : FunctionGenerator<NumericValue<*>> {
-        private val FUNCTION_NAME = Name.FunctionName("vsum")
+        private val FUNCTION_NAME = Name.FunctionName.create("vsum")
 
         override val signature: Signature.Open
             get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector))

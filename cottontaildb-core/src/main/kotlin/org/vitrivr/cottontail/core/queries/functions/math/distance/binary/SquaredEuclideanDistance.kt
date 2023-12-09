@@ -22,7 +22,7 @@ import kotlin.math.pow
 sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): MinkowskiDistance<T>(type) {
 
     companion object: FunctionGenerator<DoubleValue> {
-        val FUNCTION_NAME = Name.FunctionName("squaredeuclidean")
+        val FUNCTION_NAME = Name.FunctionName.create("squaredeuclidean")
 
         override val signature: Signature.Open
             get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector))

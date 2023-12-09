@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.serialization.TupleListSerializer
-import org.vitrivr.cottontail.serialization.listSerializer
+import org.vitrivr.cottontail.serialization.serializer
 import java.io.Closeable
 import java.io.InputStream
 import java.nio.charset.Charset
@@ -51,7 +51,7 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
      */
     fun iterator(entity: Manifest.Entity): Iterator<Tuple>  {
         val e = this.manifest.entites.find { it == entity } ?: throw IllegalArgumentException("Could not find entry for entity $entity in database dump.")
-        val serializer = ListSerializer(entity.columns.listSerializer())
+        val serializer = ListSerializer(entity.columns.serializer())
         return object: Iterator<Tuple> {
             private var batchIndex = 0L
             private val buffer = LinkedList<Tuple>()
@@ -171,7 +171,7 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
          * @return [List] of [Tuple]s read.
          */
         override fun loadBatch(e: Manifest.Entity, serializer: KSerializer<List<Tuple>>, batchIndex: Long): List<Tuple> {
-            return Files.newInputStream(output.resolve("${this.schema.schemaName}.${e.name}.${batchIndex}.${this.manifest.format.suffix}"), StandardOpenOption.READ).use {
+            return Files.newInputStream(output.resolve("${this.schema.schema}.${e.name}.${batchIndex}.${this.manifest.format.suffix}"), StandardOpenOption.READ).use {
                 this.read(it, serializer)
             }
         }
