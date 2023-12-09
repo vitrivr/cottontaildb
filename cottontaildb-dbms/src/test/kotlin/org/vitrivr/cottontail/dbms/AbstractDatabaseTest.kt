@@ -36,7 +36,7 @@ abstract class AbstractDatabaseTest {
     }
 
     /** [Name.SchemaName] of the test schema. */
-    protected val schemaName = Name.SchemaName("test")
+    protected val schemaName = Name.SchemaName.create("test")
 
     /** The [ExecutionManager] used for tests. */
     private val execution = ExecutionManager(this.config)

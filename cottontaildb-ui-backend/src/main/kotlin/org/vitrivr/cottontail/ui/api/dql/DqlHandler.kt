@@ -66,7 +66,7 @@ fun previewEntity(context: Context) {
         }
         val iterator: TupleIterator = client.query(query)
         val results = iterator.drainToList { t -> t.values().filterIsInstance<PublicValue?>().toTypedArray() }
-        context.json(Resultset(iterator.columns.map { Column(it.name.schemaName, it.type) }, results, count))
+        context.json(Resultset(iterator.columns.map { Column(it.name.schema, it.type) }, results, count))
     } catch (e: StatusRuntimeException) {
         when (e.status.code) {
             Status.Code.NOT_FOUND -> throw ErrorStatusException(404, "The requested entity '${schemaName}.${entityName} could not be found.")

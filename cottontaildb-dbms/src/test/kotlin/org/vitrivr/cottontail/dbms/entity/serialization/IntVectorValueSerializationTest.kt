@@ -17,7 +17,7 @@ import java.util.*
  */
 class IntVectorValueSerializationTest : AbstractSerializationTest() {
     /** Create a random vector between 2 and 2048 dimensions. */
-    private val d = SplittableRandom().nextInt(2, TestConstants.largeVectorMaxDimension)
+    private val d = SplittableRandom().nextInt(2, TestConstants.LARGE_VECTOR_MAX_DIMENSION)
 
     /** Columns tested by this [IntVectorValueSerializationTest]. */
     override val columns: Array<ColumnDef<*>> = arrayOf(

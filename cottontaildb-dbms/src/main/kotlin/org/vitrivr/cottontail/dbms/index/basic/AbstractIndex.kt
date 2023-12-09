@@ -169,7 +169,7 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
             if (state != this.state) {
                 val name = NameBinding.Index.toEntry(this@AbstractIndex.name)
                 val store = IndexMetadata.store(this@AbstractIndex.catalogue, this.context.txn.xodusTx)
-                val entry = IndexMetadata(this@AbstractIndex.type, state, this.columns.map { it.name.columnName }, this.config)
+                val entry = IndexMetadata(this@AbstractIndex.type, state, this.columns.map { it.name.column }, this.config)
                 if (store.put(this.context.txn.xodusTx, name, IndexMetadata.toEntry(entry))) {
                     this.state = state
                     this.context.txn.signalEvent(IndexEvent.State(this@AbstractIndex.name, this@AbstractIndex.type, state))

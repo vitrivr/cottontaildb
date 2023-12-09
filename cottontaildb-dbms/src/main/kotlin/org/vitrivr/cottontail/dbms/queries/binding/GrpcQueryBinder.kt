@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.binding
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
+import org.vitrivr.cottontail.client.language.extensions.parse
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.binding.Binding
@@ -35,7 +36,6 @@ import org.vitrivr.cottontail.dbms.queries.operators.logical.transform.LimitLogi
 import org.vitrivr.cottontail.dbms.queries.operators.logical.transform.SkipLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.utilities.extensions.fqn
 
 /**
  * This helper class parses and binds queries issued through the gRPC endpoint.
@@ -126,7 +126,7 @@ object GrpcQueryBinder {
 
         /* Parse columns to INSERT. */
         val columns = Array<ColumnDef<*>>(insert.elementsCount) {
-            val columnName = insert.elementsList[it].column.fqn()
+            val columnName = insert.elementsList[it].column.parse()
             entityTx.columnForName(columnName).columnDef
         }
         val values = Array(insert.elementsCount) {
@@ -162,7 +162,7 @@ object GrpcQueryBinder {
 
         /* Parse columns to BATCH INSERT. */
         val columns = Array<ColumnDef<*>>(insert.columnsCount) {
-            val columnName = insert.columnsList[it].fqn()
+            val columnName = insert.columnsList[it].parse()
             entityTx.columnForName(columnName).columnDef
         }
 
@@ -202,7 +202,7 @@ object GrpcQueryBinder {
 
         /* Parse values to update. */
         val values = update.updatesList.map {
-            val column = root.findUniqueColumnForName(it.column.fqn())
+            val column = root.findUniqueColumnForName(it.column.parse())
             val value = when (it.value.expCase) {
                 CottontailGrpc.Expression.ExpCase.LITERAL -> {
                     val v = it.value.literal.toValue()
@@ -212,7 +212,7 @@ object GrpcQueryBinder {
                         this@QueryContext.bindings.bind(v)
                     }
                 }
-                CottontailGrpc.Expression.ExpCase.COLUMN -> this@QueryContext.bindings.bind(root.findUniqueColumnForName(it.value.column.fqn()))
+                CottontailGrpc.Expression.ExpCase.COLUMN -> this@QueryContext.bindings.bind(root.findUniqueColumnForName(it.value.column.parse()))
                 CottontailGrpc.Expression.ExpCase.EXP_NOT_SET ->  this@QueryContext.bindings.bindNull(column.type)
                 CottontailGrpc.Expression.ExpCase.FUNCTION -> throw QueryException.QuerySyntaxException("Function expressions are not yet not supported as values in update statements.") /* TODO. */
                 else -> throw QueryException.QuerySyntaxException("Failed to bind value for column '${column}': Unsupported expression!")
@@ -275,7 +275,7 @@ object GrpcQueryBinder {
                 val entityTx = entity.newTx(this@QueryContext)
                 val fetch = entityTx.listColumns().map { def ->
                     val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && (c.value as Name.ColumnName).matches(def.name) }
-                    if (name == null || name.key.columnName == Name.WILDCARD) {
+                    if (name == null || name.key.column == Name.WILDCARD) {
                         this@QueryContext.bindings.bind(def) to def
                     } else {
                         this@QueryContext.bindings.bind(def.copy(name = name.key)) to def
@@ -288,7 +288,7 @@ object GrpcQueryBinder {
                 val entityTx = entity.newTx(this@QueryContext)
                 val fetch = entityTx.listColumns().map { def ->
                     val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && (c.value as Name.ColumnName).matches(def.name) }
-                    if (name == null || name.key.columnName == Name.WILDCARD) {
+                    if (name == null || name.key.column == Name.WILDCARD) {
                         this@QueryContext.bindings.bind(def) to def
                     } else {
                         this@QueryContext.bindings.bind(def.copy(name = name.key)) to def
@@ -311,7 +311,7 @@ object GrpcQueryBinder {
      */
     context(QueryContext)
     private fun parseAndBindEntity(entity: CottontailGrpc.EntityName): Entity {
-        val name = entity.fqn()
+        val name = entity.parse()
         val catalogueTx = this@QueryContext.catalogue.newTx(this@QueryContext)
         val schemaTx = catalogueTx.schemaForName(name.schema()).newTx(this@QueryContext)
         return schemaTx.entityForName(name)
@@ -431,7 +431,7 @@ object GrpcQueryBinder {
             }
         }
         CottontailGrpc.Expression.ExpCase.LITERALLIST -> this@QueryContext.bindings.bind(expression.literalList.literalList.mapNotNull { it.toValue() })
-        CottontailGrpc.Expression.ExpCase.COLUMN -> this@QueryContext.bindings.bind(input.findUniqueColumnForName(expression.column.fqn()))
+        CottontailGrpc.Expression.ExpCase.COLUMN -> this@QueryContext.bindings.bind(input.findUniqueColumnForName(expression.column.parse()))
         CottontailGrpc.Expression.ExpCase.FUNCTION -> parseAndBindFunction(input, expression.function)
         CottontailGrpc.Expression.ExpCase.QUERY -> {
             val subquery = this.bind(expression.query,)
@@ -461,14 +461,14 @@ object GrpcQueryBinder {
                         this@QueryContext.bindings.bind(v)
                     }
                 }
-                CottontailGrpc.Expression.ExpCase.COLUMN -> this@QueryContext.bindings.bind(input.findUniqueColumnForName(a.column.fqn()))
+                CottontailGrpc.Expression.ExpCase.COLUMN -> this@QueryContext.bindings.bind(input.findUniqueColumnForName(a.column.parse()))
                 CottontailGrpc.Expression.ExpCase.FUNCTION ->  parseAndBindFunction(input, a.function)
                 else -> throw QueryException.QuerySyntaxException("Function argument at position $i is malformed.")
             }
         }
 
         /* Try tp resolve signature and obtain function object. */
-        val signature = Signature.SemiClosed(function.name.fqn(), arguments.map { Argument.Typed(it.type) }.toTypedArray())
+        val signature = Signature.SemiClosed(function.name.parse(), arguments.map { Argument.Typed(it.type) }.toTypedArray())
         val functionInstance = this@QueryContext.catalogue.functions.obtain(signature)
         return this@QueryContext.bindings.bind(functionInstance, arguments)
     }
@@ -482,7 +482,7 @@ object GrpcQueryBinder {
      * @return The resulting [SortLogicalOperatorNode].
      */
     private fun parseAndBindOrder(input: OperatorNode.Logical, order: CottontailGrpc.Order): OperatorNode.Logical {
-        val sortOn = order.componentsList.map { input.findUniqueColumnForName(it.column.fqn()) to SortOrder.valueOf(it.direction.toString()) }
+        val sortOn = order.componentsList.map { input.findUniqueColumnForName(it.column.parse()) to SortOrder.valueOf(it.direction.toString()) }
         return SortLogicalOperatorNode(input, sortOn)
     }
 
@@ -513,7 +513,7 @@ object GrpcQueryBinder {
         }
         Projection.COUNT -> {
             val columnName = projection.keys.first()
-            val columnDef = ColumnDef(Name.ColumnName(columnName.schemaName, columnName.entityName,"count(${columnName.columnName})"), Types.Long, false)
+            val columnDef = ColumnDef(Name.ColumnName.create(columnName.schema, columnName.entity,"count(${columnName.column})"), Types.Long, false)
             CountProjectionLogicalOperatorNode(input, this@QueryContext.bindings.bind(columnDef))
         }
         Projection.COUNT_DISTINCT -> {
@@ -522,12 +522,12 @@ object GrpcQueryBinder {
             }.map {
                 it.name to true
             }
-            val columnDef = ColumnDef(Name.ColumnName(fields.first().first.schemaName, fields.first().first.entityName,"count(${fields.joinToString(",") { it.first.columnName }})"), Types.Long, false)
+            val columnDef = ColumnDef(Name.ColumnName.create(fields.first().first.schema, fields.first().first.entity,"count(${fields.joinToString(",") { it.first.column }})"), Types.Long, false)
             CountProjectionLogicalOperatorNode(SelectDistinctProjectionLogicalOperatorNode(input, fields, this@QueryContext.catalogue.config), this@QueryContext.bindings.bind(columnDef))
         }
         Projection.EXISTS -> {
             val columnName = projection.keys.first()
-            val columnDef = ColumnDef(Name.ColumnName(columnName.schemaName, columnName.entityName, "exists(${columnName.columnName})"), Types.Long, false)
+            val columnDef = ColumnDef(Name.ColumnName.create(columnName.schema, columnName.entity, "exists(${columnName.column})"), Types.Long, false)
             ExistsProjectionLogicalOperatorNode(input, this@QueryContext.bindings.bind(columnDef))
         }
         Projection.SUM,
@@ -565,21 +565,21 @@ object GrpcQueryBinder {
 
                     /* Determine final name of column. */
                     val finalName = when {
-                        e.hasAlias() -> e.alias.fqn()
+                        e.hasAlias() -> e.alias.parse()
                         simplify -> Name.ColumnName(e.expression.column.name)
-                        else -> e.expression.column.fqn()
+                        else -> e.expression.column.parse()
                     }
 
                     /* Check for uniqueness and assign. */
                     if (map.contains(finalName)) {
                         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Duplicate projection element $finalName at index $i.")
                     }
-                    map[finalName] = e.expression.column.fqn()
+                    map[finalName] = e.expression.column.parse()
                 }
                 CottontailGrpc.Expression.ExpCase.FUNCTION -> {
                     /* Sanity check; star projections can't have aliases. */
                     val finalName = when {
-                        e.hasAlias() -> e.alias.fqn()
+                        e.hasAlias() -> e.alias.parse()
                         else -> Name.ColumnName(e.expression.function.name.name)
                     }
 
@@ -587,11 +587,11 @@ object GrpcQueryBinder {
                     if (map.contains(finalName)) {
                         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Duplicate projection element $finalName at index $i.")
                     }
-                    map[finalName] = e.expression.function.name.fqn()
+                    map[finalName] = e.expression.function.name.parse()
                 }
                 CottontailGrpc.Expression.ExpCase.LITERAL -> {
                     if(!e.hasAlias()) throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Projection element at index $i is malformed.")
-                    val finalName = e.alias.fqn()
+                    val finalName = e.alias.parse()
                     map[finalName] = null
                 }
                 else -> throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Projection element at index $i is malformed.")

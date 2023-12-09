@@ -18,10 +18,10 @@ abstract class AbstractSchemaCommand(protected val client: SimpleClient, name: S
     protected val schemaName: Name.SchemaName by argument(name = "schema", help = "The schema name targeted by the command. Has the form of [\"warren\"].<schema>.").convert {
         val split = it.split(Name.DELIMITER)
         when(split.size) {
-            1 -> Name.SchemaName(split[0])
+            1 -> Name.SchemaName.create(split[0])
             2 -> {
                 require(split[0] == Name.ROOT) { "Invalid root qualifier ${split[0]}!" }
-                Name.SchemaName(split[1])
+                Name.SchemaName.create(split[1])
             }
             else -> throw IllegalArgumentException("'$it' is not a valid schema name.")
         }

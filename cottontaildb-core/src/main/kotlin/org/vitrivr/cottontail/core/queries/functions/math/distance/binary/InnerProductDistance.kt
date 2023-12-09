@@ -21,7 +21,7 @@ import org.vitrivr.cottontail.core.values.*
 sealed class InnerProductDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): VectorDistance<T>(type) {
 
     companion object: FunctionGenerator<DoubleValue> {
-        val FUNCTION_NAME = Name.FunctionName("dotp")
+        val FUNCTION_NAME = Name.FunctionName.create("dotp")
 
         override val signature: Signature.Open
             get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector))

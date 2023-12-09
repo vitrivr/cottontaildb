@@ -49,7 +49,7 @@ class CreateIndex(name: Name.EntityName, type: CottontailGrpc.IndexType): Langua
      * @return this [CreateIndex]
      */
     fun column(column: Name.ColumnName): CreateIndex {
-        this.builder.addColumns(column.columnName)
+        this.builder.addColumns(column.column)
         return this
     }
 

@@ -171,7 +171,7 @@ abstract class Restorer(protected val client: SimpleClient, protected val output
          * @return [List] of [Tuple]s read.
          */
         override fun loadBatch(e: Manifest.Entity, serializer: KSerializer<List<Tuple>>, batchIndex: Long): List<Tuple> {
-            return Files.newInputStream(output.resolve("${this.schema.schemaName}.${e.name}.${batchIndex}.${this.manifest.format.suffix}"), StandardOpenOption.READ).use {
+            return Files.newInputStream(output.resolve("${this.schema.schema}.${e.name}.${batchIndex}.${this.manifest.format.suffix}"), StandardOpenOption.READ).use {
                 this.read(it, serializer)
             }
         }
