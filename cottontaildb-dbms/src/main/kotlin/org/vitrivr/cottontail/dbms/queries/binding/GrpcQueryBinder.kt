@@ -344,11 +344,11 @@ object GrpcQueryBinder {
         CottontailGrpc.Predicate.PredicateCase.COMPARISON -> parseAndBindComparison(input, predicate.comparison)
         CottontailGrpc.Predicate.PredicateCase.AND -> BooleanPredicate.And(
             parseAndBindPredicate(input, predicate.and.p1),
-            parseAndBindPredicate(input, predicate.and.p1)
+            parseAndBindPredicate(input, predicate.and.p2)
         )
         CottontailGrpc.Predicate.PredicateCase.OR -> BooleanPredicate.Or(
             parseAndBindPredicate(input, predicate.or.p1),
-            parseAndBindPredicate(input, predicate.or.p1)
+            parseAndBindPredicate(input, predicate.or.p2)
         )
         CottontailGrpc.Predicate.PredicateCase.NOT -> BooleanPredicate.Not(
             parseAndBindPredicate(input, predicate.not.p),
