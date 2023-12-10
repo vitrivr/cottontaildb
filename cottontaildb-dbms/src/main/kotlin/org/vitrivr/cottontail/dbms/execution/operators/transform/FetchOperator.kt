@@ -36,7 +36,7 @@ class FetchOperator(parent: Operator, private val entity: EntityTx, private val 
         val columns = this@FetchOperator.columns.toTypedArray()
         val incoming = this@FetchOperator.parent.toFlow()
         val txs = fetch.map {
-            this@FetchOperator.entity.columnForName(it.name).newTx(this@FetchOperator.context)
+            this@FetchOperator.entity.columnForName(it.name).newTx(this@FetchOperator.context).cursor()
         }
 
         val numberOfInputColumns = this@FetchOperator.parent.columns.size
@@ -45,7 +45,12 @@ class FetchOperator(parent: Operator, private val entity: EntityTx, private val 
                 if (it < numberOfInputColumns) {
                     record[it]
                 } else {
-                    txs[it-numberOfInputColumns].read(record.tupleId)
+                    val cursor = txs[it-numberOfInputColumns]
+                    if (cursor.moveTo(record.tupleId)) {
+                        cursor.value()
+                    } else {
+                        null
+                    }
                 }
             }
             emit(StandaloneTuple(record.tupleId, columns, values))
