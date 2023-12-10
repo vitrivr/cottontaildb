@@ -289,7 +289,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
     /**
      * An (experimental) [VAFCursor] implementation for range search.
      */
-    class ENN(partition: LongRange, predicate: ProximityPredicate.ENN, index: VAFIndex.Tx) : VAFCursor<ProximityPredicate.ENN>(partition, predicate, index) {
+    class ENN(partition: LongRange, predicate: ProximityPredicate.ENN, index: VAFIndex.Tx) : CachedVAFCursor<ProximityPredicate.ENN>(partition, predicate, index) {
 
         override fun moveNext(): Boolean {
             while (this.boc.compareAndExchange(true, false) || (this.cursor.next && this.cursor.key < this.endKey)) {
