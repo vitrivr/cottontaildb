@@ -68,7 +68,7 @@ interface Tuple {
      * @param column The simple name to check.
      * @return The column index or -1. of name is not part of this [Tuple].
      */
-    fun indexOf(column: String): Int = this.columns.indexOfFirst { it.name.simple == column }
+    fun indexOf(column: String): Int = this.columns.indexOfFirst { it.name.simple.equals(column, true)  }
 
     /**
      * Retrieves the [Value] for the specified column index from this [Tuple].
