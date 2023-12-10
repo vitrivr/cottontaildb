@@ -9,7 +9,10 @@ import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.events.*
+import org.vitrivr.cottontail.dbms.events.ColumnEvent
+import org.vitrivr.cottontail.dbms.events.DataEvent
+import org.vitrivr.cottontail.dbms.events.EntityEvent
+import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
@@ -225,6 +228,7 @@ class StatisticsManager(private val catalogue: DefaultCatalogue, private val man
             Types.Int -> IntMetricsCollector(config)
             Types.Long -> LongMetricsCollector(config)
             Types.String -> StringMetricsCollector(config)
+            Types.Uuid -> UuidMetricsCollector(config)
             Types.ByteString -> ByteStringMetricsCollector(config)
             Types.Complex32 -> Complex32MetricsCollector(config)
             Types.Complex64 -> Complex64MetricsCollector(config)
