@@ -28,11 +28,9 @@ class DropEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, na
         help = "Directly provides the confirmation option."
     ).flag()
 
-    /** The [YesNoPrompt] used by the [DropEntityCommand] */
-    private val prompt = YesNoPrompt("Do you really want to drop the entity ${this.entityName} [y/N]?", this.terminal, default = false)
-
     override fun exec() {
-        if (this.confirm || this.prompt.ask() == true) {
+        val prompt = YesNoPrompt("Do you really want to drop the entity ${this.entityName} [y/N]?", this.terminal, default = false)
+        if (this.confirm || prompt.ask() == true) {
             try {
                 val timedTable = measureTimedValue {
                     TabulationUtilities.tabulate(this.client.drop(DropEntity(this.entityName.toString())))

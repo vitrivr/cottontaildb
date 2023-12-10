@@ -115,7 +115,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @param parameters The parameters to initialize the default [LSHIndexConfig] with.
          */
         override fun buildConfig(parameters: Map<String, String>): IndexConfig<LSHIndex> = LSHIndexConfig(
-            distance = parameters[LSHIndexConfig.KEY_DISTANCES]?.let { Name.FunctionName(it) } ?: LSHIndexConfig.DEFAULT_DISTANCE,
+            distance = parameters[LSHIndexConfig.KEY_DISTANCES]?.let { Name.FunctionName.create(it) } ?: LSHIndexConfig.DEFAULT_DISTANCE,
             buckets = parameters[LSHIndexConfig.KEY_NUM_BUCKETS]?.toInt() ?: 50,
             stages = parameters[LSHIndexConfig.KEY_NUM_STAGES]?.toInt() ?: 5,
             seed = parameters[LSHIndexConfig.KEY_SEED]?.toLong() ?: System.currentTimeMillis()

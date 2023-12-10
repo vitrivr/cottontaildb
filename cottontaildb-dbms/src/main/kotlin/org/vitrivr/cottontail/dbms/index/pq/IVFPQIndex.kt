@@ -112,7 +112,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          * @param parameters The parameters to initialize the default [IVFPQIndexConfig] with.
          */
         override fun buildConfig(parameters: Map<String, String>): IndexConfig<IVFPQIndex> = IVFPQIndexConfig(
-            parameters[IVFPQIndexConfig.KEY_DISTANCE]?.let { Name.FunctionName(it) } ?: EuclideanDistance.FUNCTION_NAME,
+            parameters[IVFPQIndexConfig.KEY_DISTANCE]?.let { Name.FunctionName.create(it) } ?: EuclideanDistance.FUNCTION_NAME,
             parameters[IVFPQIndexConfig.KEY_NUM_COARSE_CENTROIDS]?.toInt() ?: IVFPQIndexConfig.DEFAULT_COARSE_CENTROIDS,
             parameters[IVFPQIndexConfig.KEY_NUM_CENTROIDS]?.toInt() ?: IVFPQIndexConfig.DEFAULT_CENTROIDS,
             parameters[PQIndexConfig.KEY_NUM_SUBSPACES]?.toInt() ?: IVFPQIndexConfig.DEFAULT_SUBSPACES,

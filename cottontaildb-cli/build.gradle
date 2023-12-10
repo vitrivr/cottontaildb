@@ -1,6 +1,5 @@
 plugins {
     id "application"
-    id "com.github.johnrengelman.shadow"
     id "org.jetbrains.kotlin.plugin.serialization" version "$version_kotlin"
 }
 
@@ -33,10 +32,6 @@ application {
     applicationName = 'carrotli'
     applicationDefaultJvmArgs = ["-Xms512M", "-Xmx2G"]
     mainClassName = 'org.vitrivr.cottontail.CarrotliKt'
-}
-
-shadowJar {
-    mergeServiceFiles()
 }
 
 idea {

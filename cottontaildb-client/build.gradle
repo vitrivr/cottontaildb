@@ -1,13 +1,10 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    id "com.google.protobuf" version "0.9.2"
+    id "com.google.protobuf" version "0.9.4"
     id "org.jetbrains.kotlin.jvm" version "$version_kotlin"
     id "org.jetbrains.kotlin.plugin.serialization" version "$version_kotlin"
 }
-
-group 'org.vitrivr'
-version '0.16.0-SNAPSHOT'
 
 apply plugin: 'com.google.protobuf'
 apply plugin: 'idea'

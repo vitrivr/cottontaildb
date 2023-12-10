@@ -28,7 +28,7 @@ sealed class HyperplaneDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>):
      * The [FunctionGenerator] for the [HyperplaneDistance].
      */
     companion object: FunctionGenerator<DoubleValue> {
-        val FUNCTION_NAME = Name.FunctionName("hyperplane")
+        val FUNCTION_NAME = Name.FunctionName.create("hyperplane")
 
         override val signature: Signature.Open
             get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector, Argument.Numeric))

@@ -117,8 +117,6 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
                     next.inputs.drop(1).forEach { decomposition.putAll(this.decompose(it.copyWithExistingInput())) }
                     next = next.inputs.first()
                 }
-                else -> Unit
-
             }
         }
         return decomposition

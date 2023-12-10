@@ -48,7 +48,6 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
         val cols = entityTxn.listColumns()
         cols.forEach {
             val column = entityTxn.columnForName(it.name)
-            val columnTx = column.newTx(this@AboutEntityOperator.context)
             emit(
                 StandaloneTuple(rowId++, columns, arrayOf(
                 StringValue(it.name.toString()),

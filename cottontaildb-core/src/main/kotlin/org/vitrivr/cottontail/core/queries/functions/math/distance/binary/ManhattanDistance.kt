@@ -24,7 +24,7 @@ import kotlin.math.sqrt
 sealed class ManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): MinkowskiDistance<T>(type) {
 
     companion object: FunctionGenerator<DoubleValue> {
-        val FUNCTION_NAME = Name.FunctionName("manhattan")
+        val FUNCTION_NAME = Name.FunctionName.create("manhattan")
 
         override val signature: Signature.Open
             get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector))

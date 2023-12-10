@@ -243,7 +243,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             } else {
                 IndexState.DIRTY
             }
-            val indexEntry = IndexMetadata(type, state, columns.map { it.columnName }, configuration)
+            val indexEntry = IndexMetadata(type, state, columns.map { it.column }, configuration)
             if (!store.add(this.context.txn.xodusTx, NameBinding.Index.toEntry(name), IndexMetadata.toEntry(indexEntry))) {
                 throw DatabaseException.IndexAlreadyExistsException(name)
             }

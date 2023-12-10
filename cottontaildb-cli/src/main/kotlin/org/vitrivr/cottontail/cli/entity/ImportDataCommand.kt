@@ -14,7 +14,6 @@ import kotlinx.serialization.json.decodeToSequence
 import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.dml.BatchInsert
-import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.data.Format
@@ -35,27 +34,12 @@ import kotlin.time.measureTime
 @ExperimentalTime
 class ImportDataCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "import", help = "Used to import data into Cottontail DB.") {
 
-    companion object {
-        /**
-         * Imports the content of a file into the specified entity. This method has been separated from the [AboutEntityCommand] instance for testability.
-         *
-         * @param entityName The [Name.EntityName] of the entity to import into.
-         * @param input The path to the file that contains the data.
-         * @param format The [Format] of the data to import.
-         * @param client The [SimpleClient] to use.
-         * @param singleTransaction Flag indicating whether import should happen in a single transaction.
-         */
-        fun importData(entityName: Name.EntityName, input: Path, format: Format, client: SimpleClient, singleTransaction: Boolean) {
-
-        }
-    }
-
     /** The [Format] used for the import. */
     private val format: Format by option(
         "-f",
         "--format",
         help = "Format for used for data import (Options: ${
-            Format.values().joinToString(", ")
+            Format.entries.joinToString(", ")
         })."
     ).enum<Format>().required()
 

@@ -8,28 +8,35 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  *
  * @return [Name.FunctionName]
  */
-fun CottontailGrpc.FunctionName.parse(): Name.FunctionName = Name.FunctionName(this.name)
+fun CottontailGrpc.FunctionName.parse(): Name.FunctionName = Name.FunctionName.create(this.name)
 
 /**
  * Parses a [CottontailGrpc.SchemaName] into a parsable [Name.SchemaName]
  *
  * @return [Name.SchemaName]
  */
-fun CottontailGrpc.SchemaName.parse(): Name.SchemaName = Name.SchemaName(this.name)
+fun CottontailGrpc.SchemaName.parse(): Name.SchemaName = Name.SchemaName.create(this.name)
 
 /**
- * Parses a [CottontailGrpc.EntityName] into a parsable [Name.ColumnName]
+ * Parses a [CottontailGrpc.EntityName] into a [Name.EntityName]
  *
  * @return [Name.EntityName]
  */
-fun CottontailGrpc.EntityName.parse(): Name.EntityName = Name.EntityName(this.schema.name, this.name)
+fun CottontailGrpc.EntityName.parse(): Name.EntityName = Name.EntityName.create(this.schema.name, this.name)
+
+/**
+ * Parses a [CottontailGrpc.EntityName] into a [Name.IndexName]
+ *
+ * @return [Name.IndexName]
+ */
+fun CottontailGrpc.IndexName.parse(): Name.IndexName = Name.IndexName.create(this.entity.schema.name, this.entity.name, this.name)
 
 /**
  * Parses a [CottontailGrpc.ColumnName] into a parsable [Name.ColumnName]
  *
  * @return [Name.ColumnName]
  */
-fun CottontailGrpc.ColumnName.parse(): Name.ColumnName = Name.ColumnName(
+fun CottontailGrpc.ColumnName.parse(): Name.ColumnName = Name.ColumnName.create(
     if (this.hasEntity() && this.entity.hasSchema()) this.entity.schema.name else Name.WILDCARD,
     if (this.hasEntity()) this.entity.name else Name.WILDCARD,
     this.name
@@ -48,8 +55,8 @@ fun Name.SchemaName.proto(): CottontailGrpc.SchemaName = CottontailGrpc.SchemaNa
  * @return [CottontailGrpc.EntityName]
  */
 fun Name.EntityName.proto(): CottontailGrpc.EntityName = CottontailGrpc.EntityName.newBuilder()
-    .setName(this.entityName)
-    .setSchema(CottontailGrpc.SchemaName.newBuilder().setName(this.schemaName)).build()
+    .setName(this.entity)
+    .setSchema(CottontailGrpc.SchemaName.newBuilder().setName(this.schema)).build()
 
 /**
  * Converts a [Name.IndexName] into an [CottontailGrpc.IndexName]
@@ -57,9 +64,9 @@ fun Name.EntityName.proto(): CottontailGrpc.EntityName = CottontailGrpc.EntityNa
  * @return [CottontailGrpc.IndexName]
  */
 fun Name.IndexName.proto(): CottontailGrpc.IndexName = CottontailGrpc.IndexName.newBuilder()
-    .setName(this.indexName)
-    .setEntity(CottontailGrpc.EntityName.newBuilder().setName(this.entityName)
-    .setSchema(CottontailGrpc.SchemaName.newBuilder().setName(this.schemaName))).build()
+    .setName(this.index)
+    .setEntity(CottontailGrpc.EntityName.newBuilder().setName(this.entity)
+    .setSchema(CottontailGrpc.SchemaName.newBuilder().setName(this.schema))).build()
 
 /**
  * Converts a [Name.ColumnName] into an [CottontailGrpc.ColumnName]
@@ -67,9 +74,9 @@ fun Name.IndexName.proto(): CottontailGrpc.IndexName = CottontailGrpc.IndexName.
  * @return [CottontailGrpc.ColumnName]
  */
 fun Name.ColumnName.proto(): CottontailGrpc.ColumnName = CottontailGrpc.ColumnName.newBuilder()
-    .setName(this.columnName)
-    .setEntity(CottontailGrpc.EntityName.newBuilder().setName(this.entityName)
-    .setSchema(CottontailGrpc.SchemaName.newBuilder().setName(this.schemaName))).build()
+    .setName(this.column)
+    .setEntity(CottontailGrpc.EntityName.newBuilder().setName(this.entity)
+    .setSchema(CottontailGrpc.SchemaName.newBuilder().setName(this.schema))).build()
 
 /**
  * Converts a [Name.FunctionName] into an [CottontailGrpc.FunctionName]
@@ -77,4 +84,4 @@ fun Name.ColumnName.proto(): CottontailGrpc.ColumnName = CottontailGrpc.ColumnNa
  * @return [CottontailGrpc.FunctionName]
  */
 fun Name.FunctionName.proto(): CottontailGrpc.FunctionName
-    = CottontailGrpc.FunctionName.newBuilder().setName(this.functionName).build()
+    = CottontailGrpc.FunctionName.newBuilder().setName(this.function).build()

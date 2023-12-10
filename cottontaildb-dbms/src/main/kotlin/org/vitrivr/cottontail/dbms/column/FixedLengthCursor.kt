@@ -59,18 +59,36 @@ class FixedLengthCursor<T: Value>(column: FixedLengthColumn<T>.Tx): Cursor<T?> {
 
         /* Adjust tabletId. */
         val tabletId = tupleId ushr TABLET_SHR
-        val tabletIdx = (tupleId % TABLET_SIZE).toInt()
-        if (tabletId != this.tabletId) {
-            val tablet = this.cursor.getSearchKey(LongBinding.longToCompressedEntry(tabletId))
-            if (tablet != null) {
-                this.tablet = this.serializer.fromEntry(tablet)
-                this.tabletId = tabletId
-            } else {
-                return false
+        when(tabletId) {
+            this.tabletId -> {}
+            this.tabletId + 1 -> {
+                if (this.cursor.next) {
+                    this.tablet = this.serializer.fromEntry(this.cursor.value)
+                } else {
+                    return false
+                }
+            }
+            this.tabletId - 1 -> {
+                if (this.cursor.prev) {
+                    this.tablet = this.serializer.fromEntry(this.cursor.value)
+                } else {
+                    return false
+                }
+            }
+            else -> {
+                val tablet = this.cursor.getSearchKey(LongBinding.longToCompressedEntry(tabletId))
+                if (tablet != null) {
+                    this.tablet = this.serializer.fromEntry(tablet)
+                } else {
+                    return false
+                }
             }
         }
+
+        /* Update tupleId. */
+        this.tabletId = tabletId
         this.tupleId = tupleId
-        this.tabletIndex = tabletIdx
+        this.tabletIndex = (tupleId % TABLET_SIZE).toInt()
         return true
     }
 

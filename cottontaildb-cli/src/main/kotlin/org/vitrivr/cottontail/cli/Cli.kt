@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.cli
 
 import com.github.ajalt.clikt.core.*
-import com.github.ajalt.clikt.output.MordantHelpFormatter
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import io.grpc.StatusException
@@ -31,6 +30,7 @@ import org.vitrivr.cottontail.cli.system.ListTransactionsCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.ListEntities
 import org.vitrivr.cottontail.client.language.ddl.ListSchemas
+import org.vitrivr.cottontail.core.database.Name
 import java.io.IOException
 import java.util.regex.Pattern
 import kotlin.time.ExperimentalTime
@@ -82,11 +82,24 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
         println()
     } catch (e: Exception) {
         when (e) {
-            is NoSuchSubcommand,
-            is MissingArgument,
-            is MissingOption,
-            is BadParameterValue,
-            is NoSuchOption,
+            is PrintHelpMessage -> println(e.context?.command?.getFormattedHelp())
+            is NoSuchSubcommand ->  System.err.println("Command not found.")
+            is MissingArgument -> {
+                System.err.println("Missing argument:")
+                println(e.context?.command?.getFormattedHelp())
+            }
+            is MissingOption -> {
+                System.err.println("Missing option:")
+                println(e.context?.command?.getFormattedHelp())
+            }
+            is BadParameterValue -> {
+                System.err.println("Bad parameter value:")
+                println(e.context?.command?.getFormattedHelp())
+            }
+            is NoSuchOption -> {
+                System.err.println("No such option:")
+                println(e.context?.command?.getFormattedHelp())
+            }
             is UsageError -> println(e.localizedMessage)
             is StatusException, /* Exceptions reported by Cottontail DB via gRPC. */
             is StatusRuntimeException -> println(e.localizedMessage)
@@ -145,18 +158,18 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
         val entities = mutableListOf<String>()
         try {
             for (schema in this.client.list(ListSchemas())) {
-                val sfqn = schema.asString(0)!!
+                val sfqn = Name.SchemaName.parse(schema.asString(0)!!)
 
                 /* Schema name with and w/o 'warren.'. */
-                schemata.add(sfqn)
-                schemata.add("warren.$sfqn")
+                schemata.add(sfqn.toString())
+                schemata.add(sfqn.schema)
 
                 for (entity in this.client.list(ListEntities(sfqn))) {
-                    val efqn = node(entity.asString(0)!!)
+                    val efqn = Name.EntityName.parse(entity.asString(0)!!)
 
                     /* Entity name with and w/o 'warren.'. */
-                    entities.add("$sfqn.$efqn")
-                    entities.add("warren.$sfqn.$efqn")
+                    entities.add("${efqn.schema}.${efqn.entity}")
+                    entities.add("warren.${efqn.schema}.${efqn.entity}")
                 }
             }
         } catch (e: StatusRuntimeException) {
@@ -249,16 +262,11 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
         }
 
         init {
-            context {
-                helpFormatter = {
-                    MordantHelpFormatter(it)
-                }
-            }
             subcommands(
                 /* Schema related commands. */
                 object : NoOpCliktCommand(
                     name = "schema",
-                    help = "Groups commands that act on Cottontail DB  schemas. Usually requires the schema's qualified name",
+                    help = "Groups commands that act on Cottontail DB  schemas. Usually requires the schema's qualified name.",
                     epilog = "Schema related commands usually have the form: schema <command> <name>, e.g., `schema list schema_name` Check help for command specific parameters.",
                     invokeWithoutSubcommand = true,
                     printHelpOnEmptyArgs = true

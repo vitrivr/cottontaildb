@@ -23,7 +23,7 @@ import kotlin.math.sqrt
 sealed class CosineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): VectorDistance<T>(type) {
 
     companion object: FunctionGenerator<DoubleValue> {
-        val FUNCTION_NAME = Name.FunctionName("cosine")
+        val FUNCTION_NAME = Name.FunctionName.create("cosine")
 
         override val signature: Signature.Open
             get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector))

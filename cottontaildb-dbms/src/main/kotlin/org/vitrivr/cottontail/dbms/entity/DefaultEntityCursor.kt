@@ -23,6 +23,7 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
     }
 
     /** The wrapped [Cursor] to iterate over columns. */
+    @Suppress("UNCHECKED_CAST")
     private val txs: Array<Cursor<Value>> = Array(columns.size) {
         (entity.columnForName(columns[it].name).newTx(entity.context).cursor() as Cursor<Value>)
     }

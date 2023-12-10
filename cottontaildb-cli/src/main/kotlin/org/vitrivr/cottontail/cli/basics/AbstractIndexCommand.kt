@@ -17,10 +17,10 @@ abstract class AbstractIndexCommand(protected val client: SimpleClient, name: St
         val split = it.split(Name.DELIMITER)
         when(split.size) {
             1, 2 -> throw IllegalArgumentException("'$it' is not a valid entity name. Entity name must contain schema specified.")
-            3 -> Name.IndexName(split[0], split[1], split[2])
+            3 -> Name.IndexName.create(split[0], split[1], split[2])
             4 -> {
                 require(split[0] == Name.ROOT) { "Invalid root qualifier ${split[0]}!" }
-                Name.IndexName(split[1], split[2], split[3])
+                Name.IndexName.create(split[1], split[2], split[3])
             }
             else -> throw IllegalArgumentException("'$it' is not a valid entity name.")
         }

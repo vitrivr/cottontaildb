@@ -2,9 +2,9 @@ package org.vitrivr.cottontail.cli.schema
 
 import org.vitrivr.cottontail.cli.basics.AbstractSchemaCommand
 import org.vitrivr.cottontail.client.SimpleClient
+import org.vitrivr.cottontail.client.language.extensions.proto
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.utilities.TabulationUtilities
-import org.vitrivr.cottontail.utilities.extensions.proto
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 

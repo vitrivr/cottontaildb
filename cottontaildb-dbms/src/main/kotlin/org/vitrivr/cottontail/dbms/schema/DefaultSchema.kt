@@ -139,7 +139,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
 
             /* Check if entity already exists. */
             val store = EntityMetadata.store(this@DefaultSchema.catalogue, this.context.txn.xodusTx)
-            val entry = EntityMetadata(System.currentTimeMillis(), columns.map { it.first.columnName })
+            val entry = EntityMetadata(System.currentTimeMillis(), columns.map { it.first.column })
             if (!store.add(this.context.txn.xodusTx, NameBinding.Entity.toEntry(name), EntityMetadata.toEntry(entry))) {
                 throw DatabaseException.EntityAlreadyExistsException(name)
             }
@@ -156,7 +156,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
 
                 /* Create sequence. */
                 if (it.second.autoIncrement) {
-                    this.createSequence(this@DefaultSchema.name.sequence("${it.first.entityName}_${it.first.columnName}_auto"))
+                    this.createSequence(this@DefaultSchema.name.sequence("${it.first.entity}_${it.first.column}_auto"))
                 }
 
                 /* Create store for column data. */
@@ -200,7 +200,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
 
                 /* Drop sequence. */
                 if (it.autoIncrement) {
-                    this.dropSequence(this@DefaultSchema.name.sequence("${it.name.entityName}_${it.name.columnName}_auto"))
+                    this.dropSequence(this@DefaultSchema.name.sequence("${it.name.entity}_${it.name.column}_auto"))
                 }
 
                 /* Remove store for column. */
@@ -232,7 +232,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             entityTx.listColumns().forEach {
                 this@DefaultSchema.catalogue.transactionManager.environment.truncateStore("${name.storeName()}#bitmap", this.context.txn.xodusTx)
                 if (it.autoIncrement) {
-                    val sequenceTx = this.sequenceForName(this@DefaultSchema.name.sequence("${it.name.entityName}_${it.name.columnName}_auto")).newTx(this.context)
+                    val sequenceTx = this.sequenceForName(this@DefaultSchema.name.sequence("${it.name.entity}_${it.name.column}_auto")).newTx(this.context)
                     sequenceTx.reset()
                 }
             }

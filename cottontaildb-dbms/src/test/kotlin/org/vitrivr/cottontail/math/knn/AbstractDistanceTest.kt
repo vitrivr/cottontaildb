@@ -21,15 +21,15 @@ abstract class AbstractDistanceTest {
         /** Random set of dimensions used for generating test vectors. */
         @JvmStatic
         fun dimensions(): Stream<Arguments> = Stream.of(
-                Arguments.of(TestConstants.smallVectorMaxDimension),
-                Arguments.of(RANDOM.nextInt(1, TestConstants.smallVectorMaxDimension)),
-                Arguments.of(TestConstants.mediumVectorMaxDimension),
-                Arguments.of(RANDOM.nextInt(1, TestConstants.mediumVectorMaxDimension)),
-                Arguments.of(RANDOM.nextInt(1, TestConstants.mediumVectorMaxDimension)),
-                Arguments.of(TestConstants.largeVectorMaxDimension),
-                Arguments.of(RANDOM.nextInt(1, TestConstants.largeVectorMaxDimension)),
-                Arguments.of(RANDOM.nextInt(1, TestConstants.largeVectorMaxDimension)),
-                Arguments.of(RANDOM.nextInt(1, TestConstants.largeVectorMaxDimension))
+                Arguments.of(TestConstants.SMALL_VECTOR_MAX_DIMENSION),
+                Arguments.of(RANDOM.nextInt(1, TestConstants.SMALL_VECTOR_MAX_DIMENSION)),
+                Arguments.of(TestConstants.MEDIUM_VECTOR_MAX_DIMENSION),
+                Arguments.of(RANDOM.nextInt(1, TestConstants.MEDIUM_VECTOR_MAX_DIMENSION)),
+                Arguments.of(RANDOM.nextInt(1, TestConstants.MEDIUM_VECTOR_MAX_DIMENSION)),
+                Arguments.of(TestConstants.LARGE_VECTOR_MAX_DIMENSION),
+                Arguments.of(RANDOM.nextInt(1, TestConstants.LARGE_VECTOR_MAX_DIMENSION)),
+                Arguments.of(RANDOM.nextInt(1, TestConstants.LARGE_VECTOR_MAX_DIMENSION)),
+                Arguments.of(RANDOM.nextInt(1, TestConstants.LARGE_VECTOR_MAX_DIMENSION))
         )
 
         /** Logger used for the tests. */
