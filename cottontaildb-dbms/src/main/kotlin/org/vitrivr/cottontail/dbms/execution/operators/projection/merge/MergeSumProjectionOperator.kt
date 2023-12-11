@@ -6,7 +6,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.NumericValue
@@ -14,7 +14,6 @@ import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
-import org.vitrivr.cottontail.dbms.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
@@ -26,26 +25,18 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
  * Only produces a single [Tuple]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
-class MergeSumProjectionOperator(parents: List<Operator>, fields: List<Name.ColumnName>, override val context: QueryContext): Operator.MergingPipelineOperator(parents) {
+class MergeSumProjectionOperator(parents: List<Operator>, fields: List<Binding.Column>, override val context: QueryContext): Operator.MergingPipelineOperator(parents) {
 
     /** [MergeSumProjectionOperator] does act as a pipeline breaker. */
     override val breaker: Boolean = true
 
     /** Columns producedthis@MergeSumProjectionOperator]. */
-    override val columns: List<ColumnDef<*>> = this.parents.first().columns.mapNotNull { c ->
-        val match = fields.find { f -> f.matches(c.name) }
-        if (match != null) {
-            if (c.type !is Types.Numeric<*>) throw OperatorSetupException(this, "The provided column $match cannot be used for a ${Projection.SUM} projection because it has the wrong type.")
-            ColumnDef(c.name, Types.Double)
-        } else {
-            null
-        }
+    override val columns: List<ColumnDef<*>> = fields.map {
+        require(it.type is Types.Numeric) { "Projection of type ${Projection.SUM} can only be applied to numeric columns, which $fields isn't." }
+        it.column
     }
-
-    /** Parent [ColumnDef] to access and aggregate. */
-    private val parentColumns = this.parents.first().columns.filter { c -> fields.any { f -> f.matches(c.name) } }
 
     /**
      * Converts tthis@MergeSumProjectionOperator] to a [Flow] and returns it.
@@ -59,7 +50,7 @@ class MergeSumProjectionOperator(parents: List<Operator>, fields: List<Name.Colu
         val columns = this@MergeSumProjectionOperator.columns.toTypedArray()
 
         /* Prepare holder of type. */
-        val globalSum: Array<NumericValue<*>> = this@MergeSumProjectionOperator.parentColumns.map {
+        val globalSum: Array<NumericValue<*>> = this@MergeSumProjectionOperator.columns.map {
             when (it.type) {
                 is Types.Byte -> ByteValue.ZERO
                 is Types.Short -> ShortValue.ZERO
@@ -82,7 +73,7 @@ class MergeSumProjectionOperator(parents: List<Operator>, fields: List<Name.Colu
         val mutex = Mutex()
         val jobs = incoming.map { op ->
             launch {
-                val localSum: Array<NumericValue<*>> = this@MergeSumProjectionOperator.parentColumns.map {
+                val localSum: Array<NumericValue<*>> = this@MergeSumProjectionOperator.columns.map {
                     when (it.type) {
                         is Types.Byte -> ByteValue.ZERO
                         is Types.Short -> ShortValue.ZERO
@@ -96,12 +87,12 @@ class MergeSumProjectionOperator(parents: List<Operator>, fields: List<Name.Colu
                     }
                 }.toTypedArray()
                 op.toFlow().collect { r ->
-                    for ((i,c) in this@MergeSumProjectionOperator.parentColumns.withIndex()) {
+                    for ((i,c) in this@MergeSumProjectionOperator.columns.withIndex()) {
                         localSum[i] += r[c] as NumericValue<*>
                     }
                 }
                 mutex.withLock {
-                    for (i in this@MergeSumProjectionOperator.parentColumns.indices) {
+                    for (i in this@MergeSumProjectionOperator.columns.indices) {
                         globalSum[i] += localSum[i]
                     }
                 }

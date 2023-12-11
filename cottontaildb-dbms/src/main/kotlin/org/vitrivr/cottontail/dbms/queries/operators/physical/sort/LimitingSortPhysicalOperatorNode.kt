@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sort
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
@@ -22,9 +23,9 @@ import kotlin.math.min
  * top K entries. This is semantically equivalent to a ORDER BY XY LIMIT Z. Internally, a heap sort algorithm is employed for sorting.
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.9.0
  */
-class LimitingSortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<ColumnDef<*>, SortOrder>>, val limit: Int) : UnaryPhysicalOperatorNode(input) {
+class LimitingSortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<Binding.Column, SortOrder>>, val limit: Int) : UnaryPhysicalOperatorNode(input) {
     companion object {
         private const val NODE_NAME = "OrderAndLimit"
     }
@@ -34,7 +35,9 @@ class LimitingSortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<Co
         get() = NODE_NAME
 
     /** The [LimitingSortPhysicalOperatorNode] requires all [ColumnDef]s used on the ORDER BY clause. */
-    override val requires: List<ColumnDef<*>> = sortOn.map { it.first }
+    override val requires: List<Binding.Column> by lazy {
+        this.sortOn.map { it.first }
+    }
 
     /** The estimated size of the output produced by this [InMemorySortPhysicalOperatorNode]. */
     context(BindingContext, Tuple)
@@ -107,7 +110,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<Co
     override fun toOperator(ctx: QueryContext) = LimitingHeapSortOperator(this.input.toOperator(ctx), this.sortOn, this.limit, ctx)
 
     /** Generates and returns a [String] representation of this [InMemorySortPhysicalOperatorNode]. */
-    override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.name} ${it.second}" }},${this.limit}]"
+    override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.column.name} ${it.second}" }},${this.limit}]"
 
     /**
      * Generates and returns a [Digest] for this [LimitingSortPhysicalOperatorNode].

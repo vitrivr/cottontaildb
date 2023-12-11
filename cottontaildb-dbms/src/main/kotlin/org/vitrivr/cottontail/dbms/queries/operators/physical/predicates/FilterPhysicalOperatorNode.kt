@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.predicates
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
@@ -19,21 +20,23 @@ import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
  * A [UnaryPhysicalOperatorNode] that represents application of a [BooleanPredicate] on some intermediate result.
  *
  * @author Ralph Gasser
- * @version 2.4.0
+ * @version 2.9.0
  */
 class FilterPhysicalOperatorNode(input: Physical, val predicate: BooleanPredicate) : UnaryPhysicalOperatorNode(input) {
     companion object {
         private const val NODE_NAME = "Filter"
     }
 
-    /** The name of this [FilterOnSubSelectPhysicalOperatorNode]. */
+    /** The name of this [FilterPhysicalOperatorNode]. */
     override val name: String
         get() = NODE_NAME
 
     /** The [FilterPhysicalOperatorNode] requires all [ColumnDef]s used in the [ProximityPredicate]. */
-    override val requires: List<ColumnDef<*>> = this.predicate.columns.toList()
+    override val requires: List<Binding.Column> by lazy {
+        this.predicate.columns.toList()
+    }
 
-    /** The estimated output size of this [FilterOnSubSelectPhysicalOperatorNode]. Calculated based on [Selectivity] estimates. */
+    /** The estimated output size of this [FilterPhysicalOperatorNode]. Calculated based on [Selectivity] estimates. */
     context(BindingContext, Tuple)
     override val outputSize: Long
         get() = NaiveSelectivityCalculator.estimate(this.predicate, this.statistics).invoke(this.input.outputSize)

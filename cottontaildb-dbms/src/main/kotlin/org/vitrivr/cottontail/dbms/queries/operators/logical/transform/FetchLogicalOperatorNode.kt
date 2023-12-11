@@ -16,12 +16,16 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhy
  * that involve pruning the result set (e.g. filters or nearest neighbour search).
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.9.0
  */
-class FetchLogicalOperatorNode(input: Logical, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>) : UnaryLogicalOperatorNode(input) {
+class FetchLogicalOperatorNode(input: Logical, val entity: EntityTx, val fetch: List<Binding.Column>) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Fetch"
+    }
+
+    init {
+        require(this.fetch.all { it.physical != null }) { "FetchLogicalOperatorNode can only fetch physical columns."  }
     }
 
     /** The name of this [FetchLogicalOperatorNode]. */
@@ -29,12 +33,9 @@ class FetchLogicalOperatorNode(input: Logical, val entity: EntityTx, val fetch: 
         get() = NODE_NAME
 
     /** The [FetchLogicalOperatorNode] accesses the [ColumnDef] of its input + the columns to be fetched. */
-    override val physicalColumns: List<ColumnDef<*>>
-        get() = super.physicalColumns + this.fetch.map { it.second }
-
-    /** The [FetchLogicalOperatorNode] returns the [ColumnDef] of its input + the columns to be fetched. */
-    override val columns: List<ColumnDef<*>>
-        get() = super.columns + this.fetch.map { it.first.column }
+    override val columns: List<Binding.Column> by lazy {
+        super.columns + this.fetch
+    }
 
     /**
      * Creates a copy of this [FetchLogicalOperatorNode].
@@ -55,7 +56,7 @@ class FetchLogicalOperatorNode(input: Logical, val entity: EntityTx, val fetch: 
     override fun implement(): Physical = FetchPhysicalOperatorNode(this.input.implement(), this.entity, this.fetch)
 
     /** Generates and returns a [String] representation of this [FetchLogicalOperatorNode]. */
-    override fun toString() = "${super.toString()}(${this.fetch.joinToString(",") { it.second.name.toString() }})"
+    override fun toString() = "${super.toString()}(${this.fetch.joinToString(",") { it.physical!!.name.toString() }})"
 
     /**
      * Generates and returns a [Digest] for this [FetchLogicalOperatorNode].

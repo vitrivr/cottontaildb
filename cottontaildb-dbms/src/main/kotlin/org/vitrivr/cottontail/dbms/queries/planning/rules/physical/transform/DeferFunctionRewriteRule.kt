@@ -42,7 +42,7 @@ object DeferFunctionRewriteRule: RewriteRule {
 
         /* Check if we encounter a node that requires this column; if so defer function invocation. */
         while (next != null && next.groupId == originalGroupId) {
-            if (next.requires.contains(node.out.column)) {
+            if (next.requires.contains(node.out)) {
                 return if (next == node.output) {
                     null
                 } else {

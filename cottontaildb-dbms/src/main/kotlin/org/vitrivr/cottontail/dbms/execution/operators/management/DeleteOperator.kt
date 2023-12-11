@@ -26,8 +26,8 @@ class DeleteOperator(parent: Operator, private val entity: EntityTx, override va
     companion object {
         /** The columns produced by the [DeleteOperator]. */
         val COLUMNS: List<ColumnDef<*>> = listOf(
-            ColumnDef(Name.ColumnName("deleted"), Types.Long, false),
-            ColumnDef(Name.ColumnName("duration_ms"), Types.Double, false)
+            ColumnDef(Name.ColumnName.create("deleted"), Types.Long, false),
+            ColumnDef(Name.ColumnName.create("duration_ms"), Types.Double, false)
         )
     }
 

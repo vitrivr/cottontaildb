@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.basics
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
@@ -44,12 +45,8 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
     context(BindingContext, Tuple)    final override val totalCost: Cost
         get() = this.left.totalCost + this.right.totalCost + this.cost
 
-    /** By default, the [BinaryPhysicalOperatorNode] outputs the physical [ColumnDef] of its left input. Can be overridden! */
-    override val physicalColumns: List<ColumnDef<*>>
-        get() = this.left.physicalColumns
-
-    /** By default, the [BinaryPhysicalOperatorNode] outputs the [ColumnDef] of its left input. Can be overridden! */
-    override val columns: List<ColumnDef<*>>
+    /** By default, the [BinaryPhysicalOperatorNode] outputs the [Binding.Column] of its input. Can be overridden! */
+    override val columns: List<Binding.Column>
         get() = this.left.columns
 
     /** By default, the [BinaryPhysicalOperatorNode] inherits its [Trait]s from its left input. Can be overridden! */
@@ -61,7 +58,7 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
         get() = this.left.outputSize
 
     /** By default, a [BinaryPhysicalOperatorNode]'s has no specific requirements. Can be overridden! */
-    override val requires: List<ColumnDef<*>>
+    override val requires: List<Binding.Column>
         get() = emptyList()
 
     /** By default, a [BinaryPhysicalOperatorNode]'s statistics are retained from its left input. Can be overridden! */
@@ -90,8 +87,8 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
     final override fun copyWithOutput(vararg input: Physical): BinaryPhysicalOperatorNode {
         val copy = when (input.size) {
             2 -> this.copyWithNewInput(input[0], input[1])
-            1 -> this.copyWithNewInput(input[0], PlaceholderPhysicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns))
-            0-> this.copyWithNewInput(PlaceholderPhysicalOperatorNode(this.left.groupId, this.left.columns, this.left.physicalColumns), PlaceholderPhysicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns))
+            1 -> this.copyWithNewInput(input[0], PlaceholderPhysicalOperatorNode(this.right.groupId, this.right.columns))
+            0-> this.copyWithNewInput(PlaceholderPhysicalOperatorNode(this.left.groupId, this.left.columns), PlaceholderPhysicalOperatorNode(this.right.groupId, this.right.columns))
             else -> throw IllegalArgumentException("The input arity for BinaryPhysicalOperatorNode.copyWithOutput() must be smaller or equal to 2 but is ${input.size}. This is a programmer's error!")
         }
         this.output?.copyWithOutput(copy)
@@ -114,7 +111,7 @@ abstract class BinaryPhysicalOperatorNode(val left: Physical, val right: Physica
      */
     final override fun copyWithExistingGroupInput(vararg replacements: Physical): BinaryPhysicalOperatorNode = when (replacements.size) {
         1 -> this.copyWithNewInput(this.left.copyWithExistingGroupInput(), replacements[0])
-        0 -> this.copyWithNewInput(this.left.copyWithExistingGroupInput(), PlaceholderPhysicalOperatorNode(this.right.groupId, this.right.columns, this.right.physicalColumns))
+        0 -> this.copyWithNewInput(this.left.copyWithExistingGroupInput(), PlaceholderPhysicalOperatorNode(this.right.groupId, this.right.columns))
         else -> throw IllegalArgumentException("The input arity for BinaryPhysicalOperatorNode.copyWithGroupInputs() must be smaller or equal to 1 but is ${replacements.size}. This is a programmer's error!")
     }
 

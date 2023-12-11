@@ -8,6 +8,7 @@ import kotlinx.coroutines.sync.withLock
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -22,9 +23,9 @@ import java.util.concurrent.atomic.AtomicLong
  * This is often used in parallelized proximity based queries.
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.2.0
  */
-class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, private val limit: Int, override val context: QueryContext) : Operator.MergingPipelineOperator(parents) {
+class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<Binding.Column, SortOrder>>, private val limit: Int, override val context: QueryContext) : Operator.MergingPipelineOperator(parents) {
 
     companion object {
         /** [Logger] instance used by [MergeLimitingHeapSortOperator]. */
@@ -38,7 +39,7 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<C
     override val breaker: Boolean = true
 
     /** The [Comparator] used for sorting. */
-    private val comparator: Comparator<Tuple> = RecordComparator.fromList(sortOn)
+    private val comparator: Comparator<Tuple> = RecordComparator.fromList(sortOn.map { it.first.column to it.second })
 
     /**
      * Converts this [MergeLimitingHeapSortOperator] to a [Flow] and returns it.

@@ -20,9 +20,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperato
  * A [UpdatePhysicalOperatorNode] that formalizes a UPDATE operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 2.9.0
  */
-class UpdatePhysicalOperatorNode(input: Physical, val entity: EntityTx, val values: List<Pair<ColumnDef<*>, Binding>>) : UnaryPhysicalOperatorNode(input) {
+class UpdatePhysicalOperatorNode(input: Physical, val context: QueryContext, val entity: EntityTx, val values: List<Pair<Binding.Column, Binding>>) : UnaryPhysicalOperatorNode(input) {
     companion object {
         private const val NODE_NAME = "Update"
     }
@@ -32,17 +32,22 @@ class UpdatePhysicalOperatorNode(input: Physical, val entity: EntityTx, val valu
         get() = NODE_NAME
 
     /** The [UpdatePhysicalOperatorNode] produces the [ColumnDef]s defined in the [UpdateOperator]. */
-    override val columns: List<ColumnDef<*>> = UpdateOperator.COLUMNS
+    override val columns: List<Binding.Column> = UpdateOperator.COLUMNS.map {
+        this.context.bindings.bind(it, null)
+    }
 
     /** The [UpdatePhysicalOperatorNode] requires the [ColumnDef] that are being updated. */
-    override val requires: List<ColumnDef<*>> = this.values.map { it.first }
+    override val requires: List<Binding.Column> = this.values.map { it.first }
 
     /** The [UpdatePhysicalOperatorNode] produces a single record. */
     override val outputSize: Long = 1L
 
     /** The [Cost] of this [UpdatePhysicalOperatorNode]. */
-    context(BindingContext, Tuple)    override val cost: Cost
-        get() = ((Cost.DISK_ACCESS_WRITE + Cost.MEMORY_ACCESS) * (this.input.columns.sumOf { this.statistics[it]!!.avgWidth })) * (this.input.outputSize )
+    context(BindingContext, Tuple)
+    override val cost: Cost
+        get() = ((Cost.DISK_ACCESS_WRITE + Cost.MEMORY_ACCESS) * (this.input.columns.sumOf {
+            this.statistics[it.column]!!.avgWidth
+        })) * (this.input.outputSize )
 
     /** The [UpdatePhysicalOperatorNode] cannot be partitioned. */
     override val traits: Map<TraitType<*>, Trait> = mapOf(NotPartitionableTrait to NotPartitionableTrait)
@@ -55,7 +60,7 @@ class UpdatePhysicalOperatorNode(input: Physical, val entity: EntityTx, val valu
      */
     override fun copyWithNewInput(vararg input: Physical): UpdatePhysicalOperatorNode {
         require(input.size == 1) { "The input arity for UpdatePhysicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
-        return UpdatePhysicalOperatorNode(input = input[0], entity = this.entity, values = this.values)
+        return UpdatePhysicalOperatorNode(input = input[0], context = this.context, entity = this.entity, values = this.values)
     }
 
     /**
@@ -70,7 +75,7 @@ class UpdatePhysicalOperatorNode(input: Physical, val entity: EntityTx, val valu
      */
     override fun tryPartition(ctx: QueryContext, max: Int): Physical? = null
 
-    override fun toString(): String = "${super.toString()}[${this.values.map { it.first.name }.joinToString(",")}]"
+    override fun toString(): String = "${super.toString()}[${this.values.map { it.first.column.name }.joinToString(",")}]"
 
     /**
      * Generates and returns a [Digest] for this [UpdatePhysicalOperatorNode].

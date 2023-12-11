@@ -17,7 +17,6 @@ abstract class SystemPhysicalOperatorNode(override val name: String): NullaryPhy
     override val statistics: Map<ColumnDef<*>, ValueStatistics<*>> = emptyMap()
     override val outputSize: Long = 1
     override val groupId: GroupId = 0
-    override val physicalColumns: List<ColumnDef<*>> = emptyList()
     override val cost: Cost = Cost.ZERO
     override fun canBeExecuted(ctx: QueryContext): Boolean = true
 }

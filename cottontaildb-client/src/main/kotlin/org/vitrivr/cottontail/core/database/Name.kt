@@ -443,6 +443,14 @@ sealed interface Name: Comparable<Name> {
              * @return [ColumnName]
              */
             fun create(schema: String, entity: String, column: String) = ColumnName(schema.lowercase(), entity.lowercase(), column.lowercase())
+
+            /**
+             * Creates an simple [ColumnName]. Makes sure that all name components are lowercase.
+             *
+             * @param column The component of the [ColumnName].
+             * @return [ColumnName]
+             */
+            fun create(column: String) = ColumnName(WILDCARD, WILDCARD, column.lowercase())
         }
 
         init {
@@ -450,9 +458,6 @@ sealed interface Name: Comparable<Name> {
             require(!this.entity.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
             require(!this.column.contains(DELIMITER)) { "Name component cannot contain ${DELIMITER}."}
         }
-
-        /** Constructor for simple names. */
-        constructor(columnName: String): this(WILDCARD, WILDCARD, columnName)
 
         /** The fully qualified name of this [Name.IndexName]. */
         override val fqn: String

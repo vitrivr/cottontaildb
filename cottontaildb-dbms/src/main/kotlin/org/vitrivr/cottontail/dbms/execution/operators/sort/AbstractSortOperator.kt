@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.execution.operators.sort
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -12,7 +13,7 @@ import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
  * @author Ralph Gasser
  * @version 1.1.0
  */
-abstract class AbstractSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>, SortOrder>>) : Operator.PipelineOperator(parent) {
+abstract class AbstractSortOperator(parent: Operator, sortOn: List<Pair<Binding.Column, SortOrder>>) : Operator.PipelineOperator(parent) {
 
     /** The [AbstractSortOperator] retains the [ColumnDef] of the
      *  input. */
@@ -23,5 +24,5 @@ abstract class AbstractSortOperator(parent: Operator, sortOn: List<Pair<ColumnDe
     override val breaker: Boolean = true
 
     /** The [Comparator] used for sorting. */
-    protected val comparator: Comparator<Tuple> = RecordComparator.fromList(sortOn)
+    protected val comparator: Comparator<Tuple> = RecordComparator.fromList(sortOn.map { it.first.column to it.second })
 }

@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSInde
  * This is sometimes necessary, because certain replacements may generate unnecessary fetches (e.g. [NNSIndexScanClass1Rule])
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.4.0
  */
 object DeferFetchOnFetchRewriteRule: RewriteRule {
     /**
@@ -39,12 +39,12 @@ object DeferFetchOnFetchRewriteRule: RewriteRule {
         require(node is FetchPhysicalOperatorNode) { "Called DeferFetchOnFetchRewriteRule.rewrite() with node of type ${node.javaClass.simpleName}. This is a programmer's error!"}
 
         /* Copy tree up and until the fetch operation; append reduced FetchLogicalOperatorNode if not fetching of all nodes can be deferred. */
-        val candidates = node.fetch.map { it.first to it.second }.toMutableList()
+        val candidates = node.fetch.toMutableList()
         val originalGroupId = node.groupId
         var copy: OperatorNode.Physical = node.input.copyWithExistingInput()
 
         /* Check for early abort; if next node requires all candidates. */
-        if (candidates.all { node.output?.requires?.contains(it.first.column) == true }) {
+        if (candidates.all { node.output?.requires?.contains(it) == true }) {
             return null
         }
 
@@ -52,13 +52,13 @@ object DeferFetchOnFetchRewriteRule: RewriteRule {
         var next: OperatorNode.Physical? = node.output
         while (next != null && next.groupId == originalGroupId) {
             /* Append FetchLogicalOperatorNode for columns required by next element. */
-            val required = candidates.filter { it.first.column in next!!.requires }
+            val required = candidates.filter { it in next!!.requires }
             if (required.isEmpty()) {
                 /* Case 1: Next node has no requirement. Simply append node to tree. */
                 copy = append(copy, next)
             } else {
                 /* Case 2: Next node has a requirement. Fetch required (column)s and continue build-up. */
-                copy = FetchPhysicalOperatorNode(copy, node.entity, required.map { it.first to it.second })
+                copy = FetchPhysicalOperatorNode(copy, node.entity, required)
                 candidates.removeIf { required.contains(it) }
                 if (candidates.isEmpty()) {
                     copy = next.copyWithOutput(copy)

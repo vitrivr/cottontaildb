@@ -54,7 +54,7 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
         context(BindingContext)
         override fun prepare() { /* No op */ }
 
-        override val columns: Set<ColumnDef<*>> = emptySet()
+        override val columns: Set<Binding.Column> = emptySet()
 
         override val atomics: Set<Comparison> = emptySet()
         override fun isMatch(): Boolean = this.boolean
@@ -68,10 +68,10 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
     data class IsNull(val binding: Binding): BooleanPredicate {
         override val cost: Cost = Cost.MEMORY_ACCESS
         override val atomics: Set<BooleanPredicate> = setOf(this)
-        override val columns: Set<ColumnDef<*>> = ObjectOpenHashSet()
+        override val columns: Set<Binding.Column> = ObjectOpenHashSet()
         init {
             if (this.binding is Binding.Column) {
-                (this.columns as ObjectOpenHashSet).add(this.binding.column)
+                (this.columns as ObjectOpenHashSet).add(this.binding)
             }
         }
         context(BindingContext, Tuple)
@@ -95,14 +95,14 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
         override val atomics: Set<BooleanPredicate> = setOf(this)
 
         /** [Set] of [ColumnDef] this [Comparison] accesses. */
-        override val columns: Set<ColumnDef<*>> = ObjectOpenHashSet()
+        override val columns: Set<Binding.Column> = ObjectOpenHashSet()
 
         init {
             if (this.operator.left is Binding.Column) {
-                (this.columns as ObjectOpenHashSet).add((this.operator.left as Binding.Column).column)
+                (this.columns as ObjectOpenHashSet).add((this.operator.left as Binding.Column))
             }
             if (this.operator.right is Binding.Column) {
-                (this.columns as ObjectOpenHashSet).add((this.operator.right as Binding.Column).column)
+                (this.columns as ObjectOpenHashSet).add((this.operator.right as Binding.Column))
             }
         }
 
@@ -151,7 +151,7 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
     data class Not(val p: BooleanPredicate): BooleanPredicate {
         override val atomics: Set<BooleanPredicate>
             get() = this.p.atomics
-        override val columns: Set<ColumnDef<*>>
+        override val columns: Set<Binding.Column>
             get() = this.p.columns
         override val cost: Cost
             get() = this.p.cost
@@ -200,7 +200,7 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
             get() = this.p1.atomics + this.p2.atomics
 
         /** Set of [ColumnDef] that are affected by this [And]. */
-        override val columns: Set<ColumnDef<*>>
+        override val columns: Set<Binding.Column>
             get() = this.p1.columns + this.p2.columns
 
         /**
@@ -253,7 +253,7 @@ sealed interface BooleanPredicate : Predicate, StatefulNode, PreparableNode {
             get() = this.p1.atomics + this.p2.atomics
 
         /** Set of [ColumnDef] that are affected by this [And]. */
-        override val columns: Set<ColumnDef<*>>
+        override val columns: Set<Binding.Column>
             get() = this.p1.columns + this.p2.columns
 
         /**

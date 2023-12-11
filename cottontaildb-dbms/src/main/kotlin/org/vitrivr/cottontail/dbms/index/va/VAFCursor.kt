@@ -86,7 +86,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
 
         /* Obtain Tx object for column. */
         val entityTx: EntityTx = this.index.dbo.parent.newTx(this.index.context)
-        this.columnCursor = entityTx.columnForName(this.predicate.column.name).newTx(this.index.context).cursor() as Cursor<Value?>
+        this.columnCursor = entityTx.columnForName(this.predicate.column.physical!!.name).newTx(this.index.context).cursor() as Cursor<Value?>
 
         /* Move cursors to correct position. */
         if (this.indexCursor.getSearchKeyRange(this.startKey) == null) {
@@ -183,7 +183,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
          * @return Prepared [HeapSelection]
          */
         override fun prepareVASSA(): HeapSelection<Tuple> {
-            val localSelection = HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
+            val localSelection = HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn.column, SortOrder.ASCENDING))
             try {
                 /* First phase: Just add entries until we have k-results. */
                 var threshold: Double
@@ -229,7 +229,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
          * @return Prepared [HeapSelection]
          */
         override fun prepareVASSA(): HeapSelection<Tuple> {
-            val localSelection = HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.DESCENDING))
+            val localSelection = HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn.column, SortOrder.DESCENDING))
             try {
                 /* First phase: Just add entries until we have k-results. */
                 var threshold: Double

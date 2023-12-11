@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.context
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
 import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
@@ -10,7 +11,6 @@ import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionMetadata
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
@@ -36,15 +36,15 @@ class DefaultQueryContext(override val queryId: String, override val catalogue: 
     override val physical: List<OperatorNode.Physical>  = LinkedList()
 
     /** Output [ColumnDef] for the query held by this [DefaultQueryContext] (as per canonical plan). */
-    override val output: List<ColumnDef<*>>
-        get() = this.logical.first().columns
+    override val output: List<Binding.Column>
+        get() = this.logical.firstOrNull()?.columns ?: emptyList()
 
     /** Output order for the query held by this [DefaultQueryContext] (as per canonical plan). */
-    override val order: List<Pair<ColumnDef<*>, SortOrder>>
+    override val order: List<Pair<Binding.Column, SortOrder>>
         get() = this.logical.first()[OrderTrait]?.order ?: emptyList()
 
     /** [CostPolicy] is derived from [QueryHint] or global setting in that order. */
-    override val costPolicy: CostPolicy = this.hints.filterIsInstance(QueryHint.CostPolicy::class.java).singleOrNull() ?: this.catalogue.config.cost
+    override val costPolicy: CostPolicy = this.hints.filterIsInstance<QueryHint.CostPolicy>().singleOrNull() ?: this.catalogue.config.cost
 
     /** Internal counter used to obtain the next [GroupId]. */
     @Volatile
@@ -160,9 +160,9 @@ class DefaultQueryContext(override val queryId: String, override val catalogue: 
             get() = this@DefaultQueryContext.logical
         override val physical: List<OperatorNode.Physical>
             get() = this@DefaultQueryContext.physical
-        override val output: List<ColumnDef<*>>
+        override val output: List<Binding.Column>
             get() = this@DefaultQueryContext.output
-        override val order: List<Pair<ColumnDef<*>, SortOrder>>
+        override val order: List<Pair<Binding.Column, SortOrder>>
             get() = this@DefaultQueryContext.order
         override fun nextGroupId(): GroupId = this@DefaultQueryContext.nextGroupId()
         override fun register(plan: OperatorNode.Logical) = this@DefaultQueryContext.register(plan)

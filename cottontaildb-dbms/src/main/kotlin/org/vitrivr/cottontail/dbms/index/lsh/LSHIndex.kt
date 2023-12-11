@@ -178,8 +178,10 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @param predicate [Predicate] to check.
          * @return True if [Predicate] can be processed, false otherwise.
          */
-        override fun canProcess(predicate: Predicate): Boolean
-           = predicate is ProximityPredicate && predicate.column == this.columns[0] && predicate.distance is CosineDistance<*>
+        override fun canProcess(predicate: Predicate): Boolean = predicate is ProximityPredicate &&
+            predicate.distance is CosineDistance<*> &&
+            predicate.column.physical == this.columns[0]
+
 
         /**
          * Returns the map of [Trait]s this [LSHIndex] implements for the given [Predicate]s.
@@ -290,7 +292,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
             /* Performs some sanity checks. */
             init {
                 val config = this@Tx.config
-                if (this.predicate.columns.first() != this@Tx.columns[0] || this.predicate.distance.name != (config as LSHIndexConfig).distance) {
+                if (this.predicate.columns.first().physical != this@Tx.columns[0] || this.predicate.distance.name != (config as LSHIndexConfig).distance) {
                     throw QueryException.UnsupportedPredicateException("Index '${this@LSHIndex.name}' (lsh-index) does not support the provided predicate.")
                 }
 

@@ -16,12 +16,12 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * the specified [Entity]. Can  be used for late population of requested [ColumnDef]s.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
-class FetchOperator(parent: Operator, private val entity: EntityTx, private val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
+class FetchOperator(parent: Operator, private val entity: EntityTx, private val fetch: List<Binding.Column>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
 
     /** Columns returned by [FetchOperator] are a combination of the parent and the [FetchOperator]'s columns */
-    override val columns: List<ColumnDef<*>> = this.parent.columns + this.fetch.map { it.first.column }
+    override val columns: List<ColumnDef<*>> = this.parent.columns + this.fetch.map { it.column }
 
     /** [FetchOperator] does not act as a pipeline breaker. */
     override val breaker: Boolean = false
@@ -32,7 +32,7 @@ class FetchOperator(parent: Operator, private val entity: EntityTx, private val 
      * @return [Flow] representing this [FetchOperator]
      */
     override fun toFlow(): Flow<Tuple> = flow {
-        val fetch = this@FetchOperator.fetch.map { it.second }.toTypedArray()
+        val fetch = this@FetchOperator.fetch.map { it.physical!! }.toTypedArray()
         val columns = this@FetchOperator.columns.toTypedArray()
         val incoming = this@FetchOperator.parent.toFlow()
         val txs = fetch.map {

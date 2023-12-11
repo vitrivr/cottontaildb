@@ -14,5 +14,5 @@ abstract class AbstractProjectionLogicalOperatorOperator(input: Logical, val typ
     override val name: String = this.type.label()
 
     /** Generates and returns a [String] representation of this [SelectProjectionLogicalOperatorNode]. */
-    override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
+    override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.column.name.toString() }}]"
 }

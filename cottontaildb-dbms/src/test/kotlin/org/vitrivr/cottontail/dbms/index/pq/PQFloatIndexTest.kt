@@ -95,7 +95,9 @@ class PQFloatIndexTest : AbstractIndexTest() {
             (this.counter % this.numberOfClusters) + this.random.nextDouble(-1.0, 1.0).toFloat() /* Pre-clustered data. */
         })
         val function = this.catalogue.functions.obtain(Signature.Closed(distance, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Types.Double)) as VectorDistance<*>
-        val predicate = ProximityPredicate.Scan(column = this.indexColumn, distance = function, query = ctx.bindings.bind(query))
+        val idxCol = ctx.bindings.bind(this.indexColumn, this.indexColumn)
+        val distCol = ctx.bindings.bind(ColumnDef(Name.ColumnName.create("distance"), Types.Double), null)
+        val predicate = ProximityPredicate.Scan(column = idxCol, distanceColumn = distCol, distance = function, query = ctx.bindings.bind(query))
 
         /* Obtain necessary transactions. */
         val catalogueTx = this.catalogue.newTx(ctx)

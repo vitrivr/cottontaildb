@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
@@ -15,7 +16,6 @@ import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.management.InsertOperator
-import org.vitrivr.cottontail.dbms.execution.operators.management.UpdateOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.management.InsertLogicalOperatorNode
@@ -25,10 +25,10 @@ import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
  * A [InsertPhysicalOperatorNode] that formalizes a INSERT operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.6.0
+ * @version 2.9.0
  */
 @Suppress("UNCHECKED_CAST")
-class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: EntityTx, val tuples: MutableList<Tuple>) : NullaryPhysicalOperatorNode() {
+class InsertPhysicalOperatorNode(override val groupId: GroupId, val context: QueryContext, val entity: EntityTx, val tuples: MutableList<Tuple>) : NullaryPhysicalOperatorNode() {
     companion object {
         private const val NODE_NAME = "Insert"
     }
@@ -37,11 +37,10 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
     override val name: String
         get() = NODE_NAME
 
-    /** The physical [ColumnDef] accessed by the [InsertPhysicalOperatorNode]. */
-    override val physicalColumns: List<ColumnDef<*>> = this.entity.listColumns()
-
-    /** The [InsertPhysicalOperatorNode] produces the [ColumnDef]s defined in the [UpdateOperator]. */
-    override val columns: List<ColumnDef<*>> = InsertOperator.COLUMNS
+    /** The [InsertLogicalOperatorNode] produces the columns defined in the [InsertOperator] */
+    override val columns: List<Binding.Column> = InsertOperator.COLUMNS.map {
+        this.context.bindings.bind(it, null)
+    }
 
     /** The statistics for this [InsertPhysicalOperatorNode]. */
     override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
@@ -76,7 +75,7 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
      *
      * @return Copy of this [InsertLogicalOperatorNode].
      */
-    override fun copy() = InsertPhysicalOperatorNode(this.groupId, this.entity, this.tuples)
+    override fun copy() = InsertPhysicalOperatorNode(this.groupId, this.context, this.entity, this.tuples)
 
     /**
      * An [InsertPhysicalOperatorNode] is always executable

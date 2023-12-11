@@ -22,7 +22,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * The function must be a VectorDistance operating on a column (vector) and a literal (query)
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
 object NNSIndexScanClass1Rule : RewriteRule {
     /**
@@ -47,11 +47,15 @@ object NNSIndexScanClass1Rule : RewriteRule {
      */
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         /* Make sure, that node is a FetchLogicalOperatorNode. */
-        require(node is FunctionPhysicalOperatorNode) { "Called NNSIndexScanRule.apply() with node of type ${node.javaClass.simpleName} that is not a FunctionPhysicalOperatorNode. This is a programmer's error!"}
+        require(node is FunctionPhysicalOperatorNode) {
+            "Called NNSIndexScanRule.apply() with node of type ${node.javaClass.simpleName} that is not a FunctionPhysicalOperatorNode. This is a programmer's error!"
+        }
 
         /* Parse function and different parameters. */
         val function = node.function.function
-        require(function is VectorDistance<*>) { "Called NNSIndexScanClass1Rule.apply() with node that does not hold a vector distance. This is a programmer's error!"}
+        require(function is VectorDistance<*>) {
+            "Called NNSIndexScanClass1Rule.apply() with node that does not hold a vector distance. This is a programmer's error!"
+        }
 
         /* Parse query column and vector literal. */
         val queryColumn = node.function.arguments.filterIsInstance<Binding.Column>().singleOrNull() ?: return null
@@ -59,11 +63,13 @@ object NNSIndexScanClass1Rule : RewriteRule {
 
         /* Parse entity scan and physical column. */
         val scan = node.input
-        require(scan is EntityScanPhysicalOperatorNode) { "Called NNSIndexScanClass1Rule.apply() with node that does not follow an EntityScanPhysicalOperatorNode. This is a programmer's error!"}
-        val physicalQueryColumn = scan.fetch.singleOrNull { it.first == queryColumn }?.second ?: return null
+        require(scan is EntityScanPhysicalOperatorNode) {
+            "Called NNSIndexScanClass1Rule.apply() with node that does not follow an EntityScanPhysicalOperatorNode. This is a programmer's error!"
+        }
+        val physicalQueryColumn = scan.columns.singleOrNull { it == queryColumn } ?: return null
 
         /* Extract index hint and search for candidate. */
-        val predicate = ProximityPredicate.Scan(physicalQueryColumn, function, vectorLiteral)
+        val predicate = ProximityPredicate.Scan(physicalQueryColumn, node.out, function, vectorLiteral)
         val hint = ctx.hints.filterIsInstance<QueryHint.IndexHint>().firstOrNull() ?: QueryHint.IndexHint.All
         val candidate = scan.entity.listIndexes().map {
             scan.entity.indexForName(it).newTx(ctx)
@@ -75,9 +81,9 @@ object NNSIndexScanClass1Rule : RewriteRule {
         if (candidate != null) {
             val produces = candidate.columnsFor(predicate)
             val distanceColumn = predicate.distanceColumn
-            if (produces.contains(predicate.distanceColumn)) {
-                var replacement: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, candidate, predicate, listOf(Pair(node.out.copy(), distanceColumn)))
-                val newFetch = scan.fetch.filter { !produces.contains(it.second) && it != predicate.column }
+            if (produces.contains(predicate.distanceColumn.physical)) {
+                var replacement: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, listOf(node.out.copy(), distanceColumn), candidate, predicate)
+                val newFetch = scan.columns.filter { !produces.contains(it.physical) && it != predicate.column }
                 if (newFetch.isNotEmpty()) {
                     replacement = FetchPhysicalOperatorNode(replacement, scan.entity, newFetch)
                 }

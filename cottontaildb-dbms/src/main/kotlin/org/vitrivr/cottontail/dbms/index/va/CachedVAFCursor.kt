@@ -170,7 +170,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
         override fun prepareVASSA(): HeapSelection<Tuple> {
             val cache = this.index.dbo.catalogue.cache
             val signatures = cache.get<List<Pair<TupleId,VAFSignature>>>(CacheKey(this.index.dbo.name, this.partition)) ?: return prepareVASSAFromDisk()
-            val localSelection = HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
+            val localSelection = HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn.column, SortOrder.ASCENDING))
 
             /* First phase: Just add entries until we have k-results. */
             var threshold: Double
@@ -205,7 +205,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
          * @return Prepared [HeapSelection]
          */
         fun prepareVASSAFromDisk(): HeapSelection<Tuple> {
-            val localSelection = HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
+            val localSelection = HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn.column, SortOrder.ASCENDING))
             val signatures = ArrayList<Pair<TupleId,VAFSignature>>((partition.last - partition.first).toInt())
             try {
                 /* First phase: Just add entries until we have k-results. */
@@ -253,7 +253,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
          * @return Prepared [HeapSelection]
          */
         override fun prepareVASSA(): HeapSelection<Tuple> {
-            val selection = HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.DESCENDING))
+            val selection = HeapSelection(this.predicate.k.toInt(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn.column, SortOrder.DESCENDING))
             try {
                 /* First phase: Just add entries until we have k-results. */
                 var threshold: Double

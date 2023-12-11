@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.execution.operators.sort
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -16,9 +17,9 @@ import org.vitrivr.cottontail.utilities.selection.HeapSelection
  * Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.9.0
  */
-class LimitingHeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, private val limit: Int, override val context: QueryContext) : AbstractSortOperator(parent, sortOn) {
+class LimitingHeapSortOperator(parent: Operator, sortOn: List<Pair<Binding.Column, SortOrder>>, private val limit: Int, override val context: QueryContext) : AbstractSortOperator(parent, sortOn) {
 
     /** The [HeapSortOperator] retains the [ColumnDef] of the input. */
     override val columns: List<ColumnDef<*>>

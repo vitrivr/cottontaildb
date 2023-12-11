@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index
 
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
@@ -25,7 +24,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * - The function needs to be a VectorDistance operating on a column (vector) and a literal (query)
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
 object NNSIndexScanClass3Rule : RewriteRule {
 
@@ -50,7 +49,9 @@ object NNSIndexScanClass3Rule : RewriteRule {
      */
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         /* Make sure, that node is a FetchLogicalOperatorNode. */
-        require(node is FunctionPhysicalOperatorNode) { "Called NNSIndexScanRule.apply() with node of type ${node.javaClass.simpleName} that is not a FunctionPhysicalOperatorNode. This is a programmer's error!"}
+        require(node is FunctionPhysicalOperatorNode) {
+            "Called NNSIndexScanRule.apply() with node of type ${node.javaClass.simpleName} that is not a FunctionPhysicalOperatorNode. This is a programmer's error!"
+        }
 
         /* Parse function and different parameters. */
         val function = node.function.function
@@ -63,17 +64,17 @@ object NNSIndexScanClass3Rule : RewriteRule {
         val scan = node.input
         require(scan is EntityScanPhysicalOperatorNode) { "Called NNSIndexScanClass1Rule.apply() with node that does not follow an EntityScanPhysicalOperatorNode. This is a programmer's error!"}
 
-        val physicalQueryColumn = scan.fetch.singleOrNull { it.first == queryColumn }?.second ?: return null
+        val physicalQueryColumn = scan.columns.singleOrNull { it == queryColumn } ?: return null
         val sort = node.output
         if (sort is InMemorySortPhysicalOperatorNode) {
-            if (sort.sortOn.first().first != node.columns.last()) return null /* Sort on distance column is required. */
+            if (sort.sortOn.first().first != node.out) return null /* Sort on distance column is required. */
             val limit = sort.output
             if (limit is LimitPhysicalOperatorNode) {
                 /* Column produced by the kNN. */
                 val predicate = if (sort.sortOn.first().second == SortOrder.ASCENDING) {
-                    ProximityPredicate.NNS(physicalQueryColumn, limit.limit, function, vectorLiteral)
+                    ProximityPredicate.NNS(physicalQueryColumn, node.out, limit.limit, function, vectorLiteral)
                 } else {
-                    ProximityPredicate.FNS(physicalQueryColumn, limit.limit, function, vectorLiteral)
+                    ProximityPredicate.FNS(physicalQueryColumn, node.out, limit.limit, function, vectorLiteral)
                 }
 
                 /* Extract index hint and search for candidate. */
@@ -87,14 +88,13 @@ object NNSIndexScanClass3Rule : RewriteRule {
                 /* If candidate has been found, execute replacement. */
                 if (candidate != null) {
                     val produces = candidate.columnsFor(predicate)
-                    val distanceColumn = predicate.distanceColumn
-                    if (produces.contains(predicate.distanceColumn)) {
-                        val fetch = mutableListOf<Pair<Binding.Column,ColumnDef<*>>>(node.out.copy() to distanceColumn)
-                        if (produces.contains(predicate.column)) {
-                            fetch.add(scan.fetch.filter { it.second == predicate.column }.map { it.first.copy() to it.second }.single())
+                    if (produces.contains(predicate.distanceColumn.column)) {
+                        val fetch = mutableListOf(node.out.copy())
+                        if (produces.contains(predicate.column.physical)) {
+                            fetch.add(scan.columns.filter { it == predicate.column }.map { it.copy() }.single())
                         }
-                        var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, candidate, predicate, fetch)
-                        val newFetch = scan.fetch.filter { !produces.contains(it.second) }
+                        var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, fetch, candidate, predicate)
+                        val newFetch = scan.columns.filter { !produces.contains(it.column) }
                         if (newFetch.isNotEmpty()) {
                             p = FetchPhysicalOperatorNode(p, scan.entity, newFetch)
                         }

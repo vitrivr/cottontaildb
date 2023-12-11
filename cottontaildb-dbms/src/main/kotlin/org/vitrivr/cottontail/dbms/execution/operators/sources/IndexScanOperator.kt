@@ -19,13 +19,13 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * An [Operator.SourceOperator] that scans an [Index] and streams all [Tuple]s found within.
  *
  * @author Ralph Gasser
- * @version 1.7.0
+ * @version 1.8.0
  */
 class IndexScanOperator(
     groupId: GroupId,
     private val index: IndexTx,
     private val predicate: Predicate,
-    private val fetch: List<Pair<Binding.Column, ColumnDef<*>>>,
+    private val fetch: List<Binding.Column>,
     private val partitionIndex: Int = 0,
     private val partitions: Int = 1,
     override val context: QueryContext
@@ -38,8 +38,7 @@ class IndexScanOperator(
 
     /** The [ColumnDef] produced by this [IndexScanOperator]. */
     override val columns: List<ColumnDef<*>> = this.fetch.map {
-        require(this.index.columnsFor(this.predicate).contains(it.second)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
-        it.first.column
+        it.column
     }
 
     /**
@@ -48,7 +47,7 @@ class IndexScanOperator(
      * @return [Flow] representing this [IndexScanOperator]
      */
     override fun toFlow(): Flow<Tuple> = flow {
-        val columns = this@IndexScanOperator.fetch.map { it.first.column }.toTypedArray()
+        val columns = this@IndexScanOperator.fetch.map { it.column }.toTypedArray()
         var read = 0
         if (this@IndexScanOperator.partitions == 1) {
             this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate)

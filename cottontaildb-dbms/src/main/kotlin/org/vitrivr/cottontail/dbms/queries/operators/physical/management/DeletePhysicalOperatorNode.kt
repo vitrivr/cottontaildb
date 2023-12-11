@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.management
 
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
@@ -21,9 +21,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.logical.management.DeleteLo
  * A [DeletePhysicalOperatorNode] that formalizes a delete operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 2.9.0
  */
-class DeletePhysicalOperatorNode(input: Physical, val entity: EntityTx) : UnaryPhysicalOperatorNode(input) {
+class DeletePhysicalOperatorNode(input: Physical, val context: QueryContext, val entity: EntityTx) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Delete"
@@ -33,11 +33,10 @@ class DeletePhysicalOperatorNode(input: Physical, val entity: EntityTx) : UnaryP
     override val name: String
         get() = NODE_NAME
 
-    /** The [DeletePhysicalOperatorNode] produces the [ColumnDef]s defined in the [DeleteOperator]. */
-    override val columns: List<ColumnDef<*>> = DeleteOperator.COLUMNS
-
-    /** The [DeletePhysicalOperatorNode] does not require any [ColumnDef]. */
-    override val requires: List<ColumnDef<*>> = emptyList()
+    /** The [DeleteLogicalOperatorNode] produces the columns defined in the [DeleteOperator] */
+    override val columns: List<Binding.Column> = DeleteOperator.COLUMNS.map {
+        this.context.bindings.bind(it, null)
+    }
 
     /** The [DeletePhysicalOperatorNode] produces a single record. */
     override val outputSize: Long = 1L
@@ -57,7 +56,7 @@ class DeletePhysicalOperatorNode(input: Physical, val entity: EntityTx) : UnaryP
      */
     override fun copyWithNewInput(vararg input: Physical): DeletePhysicalOperatorNode {
         require(input.size == 1) { "The input arity for DeletePhysicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
-        return DeletePhysicalOperatorNode(input = input[0], entity = this.entity)
+        return DeletePhysicalOperatorNode(input = input[0], context = this.context, entity = this.entity)
     }
 
     /**

@@ -58,10 +58,11 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
             val entityTx = entity.newTx(ctx)
+            val bindings =  this.columns.map { ctx.bindings.bind(it, it) }
 
             /* Prepare simple scan with projection. */
-            val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, this.columns.map { ctx.bindings.bind(it) to it })
-            SelectProjectionPhysicalOperatorNode(scan0, this.columns.map { it.name })
+            val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, bindings)
+            SelectProjectionPhysicalOperatorNode(scan0, bindings)
 
             /* Check DeferFetchOnFetchRewriteRule.canBeApplied and test output for null. */
             Assertions.assertFalse(DeferFetchOnFetchRewriteRule.canBeApplied(scan0, ctx))
@@ -86,12 +87,13 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
             val entityTx = entity.newTx(ctx)
+            val bindings =  this.columns.map { ctx.bindings.bind(it, it)}
 
             /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
             val context = DefaultBindingContext()
-            val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, this.columns.map { ctx.bindings.bind(it) to it })
-            val filter0 = FilterPhysicalOperatorNode(scan0, BooleanPredicate.Comparison(ComparisonOperator.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type))))
-            val projection0 = SelectProjectionPhysicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
+            val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, bindings)
+            val filter0 = FilterPhysicalOperatorNode(scan0, BooleanPredicate.Comparison(ComparisonOperator.Equal(bindings[2], context.bindNull(this.columns[2].type))))
+            val projection0 = SelectProjectionPhysicalOperatorNode(filter0, listOf(bindings[0], bindings[1]))
 
             /* Step 1: Execute DeferFetchOnScanRewriteRule and make basic assertions. */
             Assertions.assertFalse(DeferFetchOnFetchRewriteRule.canBeApplied(scan0, ctx))
@@ -151,16 +153,14 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
             val entityTx = entity.newTx(ctx)
+            val bindings = this.columns.map { ctx.bindings.bind(it, it)}
+
             /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
             val context = DefaultBindingContext()
-            val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, listOf(
-                ctx.bindings.bind(this.columns[0]) to this.columns[0],
-                ctx.bindings.bind(this.columns[1]) to this.columns[1],
-                ctx.bindings.bind(this.columns[2]) to this.columns[2])
-            )
-            val fetch0 = FetchPhysicalOperatorNode(scan0, entityTx, listOf(ctx.bindings.bind(this.columns[3]) to this.columns[3]))
-            val filter0 = FilterPhysicalOperatorNode(fetch0, BooleanPredicate.Comparison(ComparisonOperator.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type))))
-            val projection0 = SelectProjectionPhysicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
+            val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, listOf(bindings[0], bindings[1], bindings[2]))
+            val fetch0 = FetchPhysicalOperatorNode(scan0, entityTx, listOf(bindings[3]))
+            val filter0 = FilterPhysicalOperatorNode(fetch0, BooleanPredicate.Comparison(ComparisonOperator.Equal(bindings[2], context.bindNull(this.columns[2].type))))
+            val projection0 = SelectProjectionPhysicalOperatorNode(filter0, listOf(bindings[0], bindings[1]))
 
             /* Step 1: Execute DeferFetchOnFetchRewriteRule and make basic assertions. */
             Assertions.assertTrue(DeferFetchOnFetchRewriteRule.canBeApplied(fetch0, ctx))

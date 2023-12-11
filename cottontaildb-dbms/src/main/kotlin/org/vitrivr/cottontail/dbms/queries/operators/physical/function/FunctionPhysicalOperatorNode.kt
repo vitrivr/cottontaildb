@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryPhysicalOperato
  * A [UnaryPhysicalOperatorNode] that represents the execution of a [Function] to generate some [ColumnDef].
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 class FunctionPhysicalOperatorNode(input: Physical, val function: Binding.Function, val out: Binding.Column) : UnaryPhysicalOperatorNode(input) {
 
@@ -26,12 +26,12 @@ class FunctionPhysicalOperatorNode(input: Physical, val function: Binding.Functi
     }
 
     /** The column produced by this [FunctionPhysicalOperatorNode] is determined by the [Function]'s signature. */
-    override val columns: List<ColumnDef<*>> by lazy {
-        this.input.columns + this.out.column
+    override val columns: List<Binding.Column> by lazy {
+        this.input.columns + this.out
     }
 
     /** The [FunctionPhysicalOperatorNode] requires all [ColumnDef] used in the [Function]. */
-    override val requires: List<ColumnDef<*>> by lazy {
+    override val requires: List<Binding.Column> by lazy {
         this.function.requiredColumns()
     }
 

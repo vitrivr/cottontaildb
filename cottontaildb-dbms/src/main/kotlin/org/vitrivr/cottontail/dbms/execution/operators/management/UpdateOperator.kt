@@ -21,15 +21,15 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * that it receives with the provided [Value].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
-class UpdateOperator(parent: Operator, private val entity: EntityTx, private val values: List<Pair<ColumnDef<*>, Binding?>>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
+class UpdateOperator(parent: Operator, private val entity: EntityTx, private val values: List<Pair<Binding.Column, Binding?>>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
 
     companion object {
         /** The columns produced by the [UpdateOperator]. */
         val COLUMNS: List<ColumnDef<*>> = listOf(
-            ColumnDef(Name.ColumnName("updated"), Types.Long, false),
-            ColumnDef(Name.ColumnName("duration_ms"), Types.Double, false)
+            ColumnDef(Name.ColumnName.create("updated"), Types.Long, false),
+            ColumnDef(Name.ColumnName.create("duration_ms"), Types.Double, false)
         )
     }
 
@@ -47,7 +47,7 @@ class UpdateOperator(parent: Operator, private val entity: EntityTx, private val
     override fun toFlow(): Flow<Tuple> = flow {
         val start = System.currentTimeMillis()
         val incoming = this@UpdateOperator.parent.toFlow()
-        val c = this@UpdateOperator.values.map { it.first }.toTypedArray()
+        val c = this@UpdateOperator.values.map { it.first.column }.toTypedArray()
         var updated = 0
         with(this@UpdateOperator.context.bindings) {
             incoming.collect { record ->

@@ -92,15 +92,15 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
             val entityTx = entity.newTx(ctx)
-            val bindings = this.columns.map { ctx.bindings.bind(it) to it }
+            val bindings = this.columns.map { ctx.bindings.bind(it, it)}
 
             /* Bind EQUALS operator. */
-            val op = ComparisonOperator.Equal(bindings[0].first, ctx.bindings.bind(this.inList[this.random.nextInt(0, this.inList.size - 1)]))
+            val op = ComparisonOperator.Equal(bindings[0], ctx.bindings.bind(this.inList[this.random.nextInt(0, this.inList.size - 1)]))
 
             /* Prepare simple scan with projection. */
             val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
             val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op))
-            val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
+            val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(bindings[0], bindings[1]))
 
             /* Execute query planing. */
             ctx.register(projection0)
@@ -128,15 +128,15 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
             val entityTx = entity.newTx(ctx)
-            val bindings = this.columns.map { ctx.bindings.bind(it) to it }
+            val bindings = this.columns.map { ctx.bindings.bind(it, it)}
 
             /* Bind EQUALS operator. */
-            val op = ComparisonOperator.Equal(bindings[0].first, ctx.bindings.bind(this.inList[this.random.nextInt(0, this.inList.size - 1)]))
+            val op = ComparisonOperator.Equal(bindings[0], ctx.bindings.bind(this.inList[this.random.nextInt(0, this.inList.size - 1)]))
 
             /* Prepare simple scan with projection. */
             val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
             val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op,))
-            val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
+            val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(bindings[0], bindings[1]))
 
             /* Execute query planing. */
             ctx.register(projection0)
@@ -163,15 +163,15 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
             val entityTx = entity.newTx(ctx)
-            val bindings = this.columns.map { ctx.bindings.bind(it) to it }
+            val bindings = this.columns.map { ctx.bindings.bind(it, it) }
 
             /* Bind IN operator. */
-            val op = ComparisonOperator.In(bindings[0].first, ctx.bindings.bind(this.inList))
+            val op = ComparisonOperator.In(bindings[0], ctx.bindings.bind(this.inList))
 
             /* Prepare simple scan with projection. */
             val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
             val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op))
-            val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
+            val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(bindings[0], bindings[1]))
 
             /* Execute query planing. */
             ctx.register(projection0)
@@ -199,16 +199,16 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
             val entityTx = entity.newTx(ctx)
-            val bindings = this.columns.map { ctx.bindings.bind(it) to it }
+            val bindings = this.columns.map { ctx.bindings.bind(it, it) }
 
             /* Bind IN operator. */
-            val op1 = ComparisonOperator.In(bindings[0].first, ctx.bindings.bind(this.inList))
-            val op2 = ComparisonOperator.Less(bindings[1].first, ctx.bindings.bind(LongValue.ZERO))
+            val op1 = ComparisonOperator.In(bindings[0], ctx.bindings.bind(this.inList))
+            val op2 = ComparisonOperator.Less(bindings[1], ctx.bindings.bind(LongValue.ZERO))
 
             /* Prepare simple scan with projection. */
             val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
             val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.And(BooleanPredicate.Comparison(op1,), BooleanPredicate.Comparison(op2)))
-            val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
+            val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(bindings[0], bindings[1]))
 
             /* Execute query planing. */
             ctx.register(projection0)
@@ -236,15 +236,15 @@ class UniqueBTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
             val entityTx = entity.newTx(ctx)
-            val bindings = this.columns.map { ctx.bindings.bind(it) to it }
+            val bindings = this.columns.map { ctx.bindings.bind(it, it) }
 
             /* Bind IN operator. */
-            val op = ComparisonOperator.In(bindings[0].first, ctx.bindings.bind(this.inList))
+            val op = ComparisonOperator.In(bindings[0], ctx.bindings.bind(this.inList))
 
             /* Prepare simple scan with projection. */
             val scan0 = EntityScanLogicalOperatorNode(0, entityTx, bindings)
             val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Comparison(op))
-            val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
+            val projection0 = SelectProjectionLogicalOperatorNode(filter0, listOf(bindings[0], bindings[1]))
 
             /* Execute query planing. */
             ctx.register(projection0)

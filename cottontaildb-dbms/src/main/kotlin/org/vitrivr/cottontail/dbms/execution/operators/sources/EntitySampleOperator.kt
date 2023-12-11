@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.dbms.execution.operators.sources
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flow
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -21,7 +20,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class EntitySampleOperator(groupId: GroupId, private val entity: EntityTx, private val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, private val p: Float, private val seed: Long, override val context: QueryContext) : Operator.SourceOperator(groupId) {
+class EntitySampleOperator(groupId: GroupId, private val entity: EntityTx, private val fetch: List<Binding.Column>, private val p: Float, private val seed: Long, override val context: QueryContext) : Operator.SourceOperator(groupId) {
 
     companion object {
         /** [Logger] instance used by [EntitySampleOperator]. */
@@ -29,7 +28,7 @@ class EntitySampleOperator(groupId: GroupId, private val entity: EntityTx, priva
     }
 
     /** The [ColumnDef] fetched by this [EntitySampleOperator]. */
-    override val columns: List<ColumnDef<*>> = this.fetch.map { it.first.column }
+    override val columns: List<ColumnDef<*>> = this.fetch.map { it.column }
 
     /**
      * Converts this [EntitySampleOperator] to a [Flow] and returns it.
@@ -37,8 +36,8 @@ class EntitySampleOperator(groupId: GroupId, private val entity: EntityTx, priva
      * @return [Flow] representing this [EntitySampleOperator].
      */
     override fun toFlow(): Flow<Tuple> = flow {
-        val fetch = this@EntitySampleOperator.fetch.map { it.second }.toTypedArray()
-        val rename = this@EntitySampleOperator.fetch.map { it.first.column.name }.toTypedArray()
+        val fetch = this@EntitySampleOperator.fetch.map { it.physical!! }.toTypedArray()
+        val rename = this@EntitySampleOperator.fetch.map { it.column.name }.toTypedArray()
         val random = SplittableRandom(this@EntitySampleOperator.seed)
         var read = 0
         this@EntitySampleOperator.entity.cursor(fetch, rename).use { cursor ->

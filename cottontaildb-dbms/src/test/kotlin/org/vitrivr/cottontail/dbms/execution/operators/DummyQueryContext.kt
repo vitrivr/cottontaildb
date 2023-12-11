@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.dbms.execution.operators
 
 import org.vitrivr.cottontail.config.Config
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
@@ -12,11 +12,11 @@ import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionMetadata
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.queries.QueryHint
+import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
@@ -49,14 +49,14 @@ object DummyQueryContext: QueryContext {
     }
     override val txn: Transaction
         get() = throw UnsupportedOperationException("Operation not supported for dummy query context.")
-    override val bindings: BindingContext
-        get() = throw UnsupportedOperationException("Operation not supported for dummy query context.")
+    override val bindings: BindingContext = DefaultBindingContext()
     override val hints: Set<QueryHint> = emptySet()
     override val costPolicy: CostPolicy = this.catalogue.config.cost
     override val logical: List<OperatorNode.Logical> = emptyList()
     override val physical: List<OperatorNode.Physical> = emptyList()
-    override val output: List<ColumnDef<*>> = emptyList()
-    override val order: List<Pair<ColumnDef<*>, SortOrder>> = emptyList()
+    override val output: List<Binding.Column> = emptyList()
+    override val order: List<Pair<Binding.Column, SortOrder>> = emptyList()
+
     override fun nextGroupId(): GroupId = 0
     override fun register(plan: OperatorNode.Logical) = throw UnsupportedOperationException("Operation not supported for dummy query context.")
     override fun register(plan: OperatorNode.Physical) = throw UnsupportedOperationException("Operation not supported for dummy query context.")
