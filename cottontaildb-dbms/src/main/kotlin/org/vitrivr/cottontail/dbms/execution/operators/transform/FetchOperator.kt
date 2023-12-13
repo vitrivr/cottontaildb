@@ -1,7 +1,8 @@
 package org.vitrivr.cottontail.dbms.execution.operators.transform
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onCompletion
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
@@ -31,21 +32,22 @@ class FetchOperator(parent: Operator, private val entity: EntityTx, private val 
      *
      * @return [Flow] representing this [FetchOperator]
      */
-    override fun toFlow(): Flow<Tuple> = flow {
+    override fun toFlow(): Flow<Tuple> {
         val fetch = this@FetchOperator.fetch.map { it.physical!! }.toTypedArray()
         val columns = this@FetchOperator.columns.toTypedArray()
         val incoming = this@FetchOperator.parent.toFlow()
-        val txs = fetch.map {
+        val numberOfInputColumns = this@FetchOperator.parent.columns.size
+        val cursors = fetch.map {
             this@FetchOperator.entity.columnForName(it.name).newTx(this@FetchOperator.context).cursor()
         }
 
-        val numberOfInputColumns = this@FetchOperator.parent.columns.size
-        incoming.collect { record ->
+        /* Return mapping flow. */
+        return incoming.map { record ->
             val values = Array(this@FetchOperator.columns.size) {
                 if (it < numberOfInputColumns) {
                     record[it]
                 } else {
-                    val cursor = txs[it-numberOfInputColumns]
+                    val cursor = cursors[it-numberOfInputColumns]
                     if (cursor.moveTo(record.tupleId)) {
                         cursor.value()
                     } else {
@@ -53,7 +55,9 @@ class FetchOperator(parent: Operator, private val entity: EntityTx, private val 
                     }
                 }
             }
-            emit(StandaloneTuple(record.tupleId, columns, values))
+            StandaloneTuple(record.tupleId, columns, values)
+        }.onCompletion {
+            cursors.forEach { it.close() }
         }
     }
 }
