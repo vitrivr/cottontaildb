@@ -136,13 +136,15 @@ class PQFloatIndexTest : AbstractIndexTest() {
         val indexResultsList = indexResults.toList()
         for (i in 0 until k) {
             if (bruteForceResultsList.any { it.first ==  indexResultsList[i].first }) {
-                recall += 1.0f / bruteForceResultsList.size
+                recall += 1.0f / k
             }
         }
 
         /* Since the data comes pre-clustered, accuracy should always be greater than 90%. */
-        Assertions.assertTrue(recall > 0.9f)
-        Assertions.assertTrue(bruteForceDuration > indexDuration)
+        Assertions.assertTrue(k == bruteForceResultsList.size) { "Number of items retrieved by brute-force search is not equal to k." }
+        Assertions.assertTrue(k == indexResultsList.size) { "Number of items retrieved by indexed search is not equal to k." }
+        Assertions.assertTrue(recall >= 0.9f) { "Recall attained by indexed search is smaller than 90%." }
+        Assertions.assertTrue(bruteForceDuration > indexDuration) { "Brute-force search was faster than indexed search." }
 
         log("Test done for ${function.name} and d=${this.indexColumn.type.logicalSize}! PQ took $indexDuration, brute-force took $bruteForceDuration. Recall: $recall")
     }

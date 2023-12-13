@@ -96,7 +96,7 @@ class PQDoubleIndexTest : AbstractIndexTest() {
         })
         val function = this.catalogue.functions.obtain(Signature.Closed(distance, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Types.Double)) as VectorDistance<*>
         val idxCol = ctx.bindings.bind(this.indexColumn, this.indexColumn)
-        val distCol = ctx.bindings.bind(ColumnDef(Name.ColumnName.create("distance"), Types.Double), null)
+        val distCol = ctx.bindings.bind(ColumnDef(Name.ColumnName.create("distance"), Types.Double, nullable = false), null)
         val predicate = ProximityPredicate.Scan(column = idxCol, distanceColumn= distCol, distance = function, query = ctx.bindings.bind(query))
 
         /* Obtain necessary transactions. */
@@ -136,13 +136,15 @@ class PQDoubleIndexTest : AbstractIndexTest() {
         val indexResultsList = indexResults.toList()
         for (i in 0 until k) {
             if (bruteForceResultsList.any { it.first ==  indexResultsList[i].first }) {
-                recall += 1.0f / (k + 1)
+                recall += 1.0f / k
             }
         }
 
         /* Since the data comes pre-clustered, accuracy should always be greater than 90%. */
-        Assertions.assertTrue(recall > 0.8f)
-        Assertions.assertTrue(bruteForceDuration > indexDuration)
+        Assertions.assertTrue(k == bruteForceResultsList.size) { "Number of items retrieved by brute-force search is not equal to k." }
+        Assertions.assertTrue(k == indexResultsList.size) { "Number of items retrieved by indexed search is not equal to k." }
+        Assertions.assertTrue(recall >= 0.9f) { "Recall attained by indexed search is smaller than 90%." }
+        Assertions.assertTrue(bruteForceDuration > indexDuration) { "Brute-force search was faster than indexed search." }
 
         log("Test done for ${function.name} and d=${this.indexColumn.type.logicalSize}! PQ took $indexDuration, brute-force took $bruteForceDuration. Recall: $recall")
     }
