@@ -67,36 +67,45 @@ class StatisticsManager(private val catalogue: DefaultCatalogue, private val man
      * @param events The list of [Event]s in order at which they were applied.
      */
     override fun onCommit(txId: TransactionId, events: List<Event>) {
-        val metrics = HashMap<Name.EntityName,EntityMetric>()
+        val updated = HashMap<Name.EntityName,EntityMetric>()
         for (event in events) {
             when (event) {
-                /* Creates all the column statistics whenever an entity is created. */
-                is EntityEvent.Create -> event.columns.forEach { this.store.setColumnStatistic(it.name, ColumnStatistic(it)) }
-
-                /* Resets all the column statistics, whenever an entity is truncated and removes all collected metrics*/
-                is EntityEvent.Truncate -> {
-                    event.columns.forEach { this.store.setColumnStatistic(it.name, ColumnStatistic(it)) }
-                    this.store.deleteMetric(event.name) /* Removes all metrics collected for the entity .*/
+                /* Creates all the column statistics and the entity metrics entry. */
+                is EntityEvent.Create -> event.columns.forEach {
+                    this.store.setColumnStatistic(it.name, ColumnStatistic(it))
+                    this.store.setMetric(event.name, EntityMetric())
                 }
-                /* Deletes all the column statistics, whenever an entity is dropped and removes all collected metrics. */
+
+                /* Deletes all the column statistics and the entity metrics entry, whenever an entity is dropped. */
                 is EntityEvent.Drop -> {
                     event.columns.forEach { this.store.deleteColumnStatistic(it.name) }
                     this.store.deleteMetric(event.name) /* Removes all metrics collected for the entity .*/
                 }
+
+                /* Resets all the column statistics and the entity metrics entry, whenever an entity is truncated. */
+                is EntityEvent.Truncate -> {
+                    event.columns.forEach { this.store.setColumnStatistic(it.name, ColumnStatistic(it)) }
+                    this.store.setMetric(event.name, EntityMetric())
+                }
+
                 /* Updates metrics for an entity, whenever there is a change to the data. */
-                is DataEvent.Insert -> metrics.compute(event.entity) { k, v ->
+                is DataEvent.Insert -> updated.compute(event.entity) { k, v ->
                     val metric = v ?: (this.store.getMetric(k) ?: EntityMetric())
                     metric.inserts += 1
                     metric.deltaSinceAnalysis += 1
                     metric
                 }
-                is DataEvent.Update -> metrics.compute(event.entity) { k, v ->
+
+                /* Updates metrics for an entity, whenever there is a change to the data. */
+                is DataEvent.Update -> updated.compute(event.entity) { k, v ->
                     val metric = v ?: (this.store.getMetric(k) ?: EntityMetric())
                     metric.updates += 1
                     metric.deltaSinceAnalysis += 1
                     metric
                 }
-                is DataEvent.Delete -> metrics.compute(event.entity) { k, v ->
+
+                /* Updates metrics for an entity, whenever there is a change to the data. */
+                is DataEvent.Delete -> updated.compute(event.entity) { k, v ->
                     val metric = v ?: (this.store.getMetric(k) ?: EntityMetric())
                     metric.deletes += 1
                     metric.deltaSinceAnalysis += 1
@@ -107,10 +116,10 @@ class StatisticsManager(private val catalogue: DefaultCatalogue, private val man
         }
 
         /* Store updated metric and schedule analyser task if accumulated changes exceed configured threshold.  */
-        for ((entity, metric) in metrics) {
+        for ((entity, metric) in updated) {
             this.store.setMetric(entity, metric)
             if (metric.deltaSinceAnalysis >= this@StatisticsManager.catalogue.config.statistics.threshold) {
-                this.manager.executionManager.serviceWorkerPool.schedule(AnalysisTask(entity), 1, TimeUnit.SECONDS)
+                this.manager.executionManager.serviceWorkerPool.schedule({ this@StatisticsManager.gatherStatisticsForEntity(entity) }, 1, TimeUnit.SECONDS)
             }
         }
     }
@@ -242,12 +251,5 @@ class StatisticsManager(private val catalogue: DefaultCatalogue, private val man
             else -> throw IllegalArgumentException("Invalid column type")
         }
         return collector
-    }
-
-    /**
-     * A [Runnable] that executes statistics gathering asynchronously.
-     */
-    inner class AnalysisTask(private val entityName: Name.EntityName): Runnable {
-        override fun run() = this@StatisticsManager.gatherStatisticsForEntity(this.entityName)
     }
 }

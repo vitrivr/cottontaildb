@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.dbms.statistics.metrics.EntityMetric
  * A class that manages  the storage of [ColumnStatistic] by keeping them in memory and updating their value in the storage when necessary.
  *
  * @author Florian Burkhardt
- * @version 1.0.0
+ * @version 1.0.1
  */
 class StatisticsStorageManager(config: Config) {
 
@@ -30,9 +30,9 @@ class StatisticsStorageManager(config: Config) {
         val tx = this.environment.beginExclusiveTransaction()
         try {
             this.columnsStore = this.environment.openStore("org.vitrivr.cottontail.statistics.column", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, tx)
-            this.metricsStore = this.environment.openStore("org.vitrivr.cottontail.statistics.column", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, tx)
+            this.metricsStore = this.environment.openStore("org.vitrivr.cottontail.statistics.entity", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, tx)
         } finally {
-            tx.abort()
+            tx.commit()
         }
     }
 
