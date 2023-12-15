@@ -191,7 +191,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
      * @return Partitioned [IndexScanPhysicalOperatorNode]
      */
     override fun partition(partitions: Int, p: Int): Physical {
-        check(!this.hasTrait(NotPartitionableTrait)) { "IndesScanPhysicalOperatorNode with index ${this.index.dbo.name} cannot be partitioned. This is a programmer's error!"}
+        check(!this.hasTrait(NotPartitionableTrait)) { "IndexScanPhysicalOperatorNode with index ${this.index.dbo.name} cannot be partitioned. This is a programmer's error!"}
         return IndexScanPhysicalOperatorNode(this.groupId + p, this.columns.map { it.copy() }, this.index, this.predicate, p, partitions)
     }
 
