@@ -93,6 +93,10 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
     val cache = InMemoryIndexCache()
 
     init {
+        this.transactionManager.register(this.statisticsManager)
+    }
+
+    init {
         /* Check if catalogue has been initialized and initialize if needed. */
         val tx = this.transactionManager.environment.beginExclusiveTransaction()
         try {
