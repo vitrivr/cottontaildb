@@ -74,7 +74,7 @@ object FulltextIndexRule : RewriteRule {
             with(ctx.bindings) {
                 if (candidate != null) {
                     val produces = candidate.columnsFor(predicate)
-                    val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, listOf(node.out), candidate, predicate)
+                    val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, listOf(ctx.bindings.bind(node.out.column, produces[0])), candidate, predicate)
                     val fetch = FetchPhysicalOperatorNode(indexScan, scan.entity, scan.columns.filter { !produces.contains(it.column) })
                     if (node.output == null) return fetch
                     return OperatorNodeUtilities.chainIf(fetch, node.output!!) {
