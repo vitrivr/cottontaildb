@@ -298,14 +298,18 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          */
         override fun filter(predicate: Predicate) = this.txLatch.withLock {
             require(predicate is BooleanPredicate.Comparison) { "BTreeIndex.filter() does only support BooleanPredicate.Atomic boolean predicates." }
-            when(val op = predicate.operator) {
-                is ComparisonOperator.Equal -> BTreeIndexCursor.Equals(op, this)
-                is ComparisonOperator.Greater -> BTreeIndexCursor.Greater(op, this)
-                is ComparisonOperator.GreaterEqual -> BTreeIndexCursor.GreaterEqual(op, this)
-                is ComparisonOperator.Less -> BTreeIndexCursor.Less(op, this)
-                is ComparisonOperator.LessEqual -> BTreeIndexCursor.LessEqual(op, this)
-                is ComparisonOperator.In -> BTreeIndexCursor.In(op, this)
-                else -> throw IllegalArgumentException("BTreeIndex.filter() does only support =,>=,<=,>,< and IN operators.")
+            with(this.context.bindings) {
+                with(MissingTuple) {
+                    when(val op = predicate.operator) {
+                        is ComparisonOperator.Equal -> BTreeIndexCursor.Equals(op.right.getValue()!!, this@Tx)
+                        is ComparisonOperator.Greater -> BTreeIndexCursor.Greater(op.right.getValue()!!, this@Tx)
+                        is ComparisonOperator.GreaterEqual -> BTreeIndexCursor.GreaterEqual(op.right.getValue()!!, this@Tx)
+                        is ComparisonOperator.Less -> BTreeIndexCursor.Less(op.right.getValue()!!, this@Tx)
+                        is ComparisonOperator.LessEqual -> BTreeIndexCursor.LessEqual(op.right.getValue()!!, this@Tx)
+                        is ComparisonOperator.In -> BTreeIndexCursor.In(op.right.getValues(), this@Tx)
+                        else -> throw IllegalArgumentException("BTreeIndex.filter() does only support =,>=,<=,>,< and IN operators.")
+                    }
+                }
             }
         }
 
