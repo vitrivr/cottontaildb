@@ -167,6 +167,32 @@ fun parseFloatVectorValue(string: String, vectorSeparator: String = ";") = Float
 )
 
 /**
+ * Converts [HalfVectorValue] to a [String] description.
+ *
+ * @param vectorSeparator The character used to separate vector components.
+ * @param max The maximum number of components to visualize.
+ * @return [String]
+ */
+fun HalfVectorValue.toDescription(vectorSeparator: String = ";", max: Int = 4) : String = if (this.logicalSize > max) {
+    "${this.data.take(max - 1).joinToString(separator = vectorSeparator, prefix = "[")}..$vectorSeparator${this.last().value}]"
+} else {
+    this.data.joinToString(separator = vectorSeparator, prefix = "[", postfix = "]")
+}
+
+/**
+ * Parses a [String] to a [HalfVectorValue].
+ *
+ * @param string The [String] description
+ * @param vectorSeparator The character used to separate vector components.
+ * @return [HalfVectorValue]
+ */
+fun parseHalfVectorValue(string: String, vectorSeparator: String = ";") = HalfVectorValue(
+    string.substring(1 until string.length - 1).split(vectorSeparator).map {
+        it.toFloat()
+    }.toTypedArray()
+)
+
+/**
  * Converts [IntVectorValue] to a [String] description.
  *
  * @param vectorSeparator The character used to separate vector components.
