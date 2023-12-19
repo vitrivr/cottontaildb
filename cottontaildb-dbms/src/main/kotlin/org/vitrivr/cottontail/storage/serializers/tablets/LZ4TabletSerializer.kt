@@ -43,7 +43,9 @@ class LZ4TabletSerializer<T: Value>(override val type: Types<T>, val size: Int):
     override fun fromEntry(entry: ByteIterable): Tablet<T> {
         /* Transfer data into buffer. */
         this.compressBuffer.clear()
-        for (b in entry) { this.compressBuffer.put(b) }
+        for (b in entry) {
+            this.compressBuffer.put(b)
+        }
 
         /* Decompress payload using LZ4. */
         val tablet = Tablet.of(this.size, this.type)

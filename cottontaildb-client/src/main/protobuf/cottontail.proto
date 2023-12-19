@@ -290,13 +290,15 @@ message Expressions {
 /** Vector data (as opposed to scalar data). */
 message Vector {
     oneof vectorData {
-        FloatVector floatVector = 1;
-        DoubleVector doubleVector = 2;
-        IntVector intVector = 3;
-        LongVector longVector = 4;
-        BoolVector boolVector = 5;
-        Complex32Vector complex32Vector = 6;
-        Complex64Vector complex64Vector = 7;
+        FloatVector half = 1;
+        FloatVector float = 2;
+        DoubleVector double = 3;
+        IntVector short = 4;
+        IntVector int = 5;
+        LongVector long = 6;
+        BoolVector bool = 7;
+        Complex32Vector complex32 = 8;
+        Complex64Vector complex64 = 9;
     }
 }
 

@@ -40,6 +40,7 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
                 is DoubleVectorValue -> value.logicalSize * Float.SIZE_BYTES
                 is FloatValue -> Float.SIZE_BYTES
                 is FloatVectorValue -> value.logicalSize * Float.SIZE_BYTES
+                is HalfVectorValue -> value.logicalSize * Short.SIZE_BYTES
                 is IntValue -> Int.SIZE_BYTES
                 is IntVectorValue -> value.logicalSize * Int.SIZE_BYTES
                 is LongValue -> Long.SIZE_BYTES
@@ -169,6 +170,7 @@ class TupleSerializer(val schema: Array<ColumnDef<*>>) {
             is BooleanVectorValue -> TODO()
             is DoubleVectorValue -> value.data.forEach { buffer.putDouble(it) }
             is FloatVectorValue -> value.data.forEach { buffer.putFloat(it) }
+            is HalfVectorValue -> value.data.forEach { buffer.putShort(Half(it).toShort()) }
             is IntVectorValue -> value.data.forEach { buffer.putInt(it) }
             is LongVectorValue -> value.data.forEach { buffer.putLong(it) }
             is ShortVectorValue -> value.data.forEach { buffer.putShort(it) }

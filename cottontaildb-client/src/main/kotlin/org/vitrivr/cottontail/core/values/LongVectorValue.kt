@@ -61,7 +61,7 @@ value class LongVectorValue(val data: LongArray) : RealVectorValue<Long>, Public
      * @return [CottontailGrpc.Literal]
      */
     override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setLongVector(CottontailGrpc.LongVector.newBuilder().addAllVector(this.map { it.value }))).build()
+        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setLong(CottontailGrpc.LongVector.newBuilder().addAllVector(this.map { it.value }))).build()
 
     /**
      * Returns the indices of this [LongVectorValue].

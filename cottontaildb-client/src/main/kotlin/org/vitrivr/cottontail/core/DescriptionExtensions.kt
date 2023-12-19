@@ -28,6 +28,7 @@ fun PublicValue.toDescription(vectorSeparator: String = ";", max: Int = 4): Stri
     is BooleanVectorValue -> this.toDescription(vectorSeparator, max)
     is DoubleVectorValue -> this.toDescription(vectorSeparator, max)
     is FloatVectorValue -> this.toDescription(vectorSeparator, max)
+    is HalfVectorValue -> this.toDescription(vectorSeparator, max)
     is IntVectorValue -> this.toDescription(vectorSeparator, max)
     is LongVectorValue -> this.toDescription(vectorSeparator, max)
     is Complex32VectorValue -> this.toDescription(vectorSeparator, max)

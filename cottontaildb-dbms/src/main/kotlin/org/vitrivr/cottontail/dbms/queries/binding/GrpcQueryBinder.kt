@@ -173,7 +173,7 @@ object GrpcQueryBinder {
         try {
             val tuples: MutableList<Tuple> = insert.insertsList.map { ins ->
                 TupleBinding(-1L, columns, Array(ins.valuesCount) { i ->
-                    val literal = ins.valuesList[i].toValue()
+                    val literal = ins.valuesList[i].toValue(columns[i].type)
                     if (literal == null) {
                         this@QueryContext.bindings.bindNull(columns[i].type)
                     } else {

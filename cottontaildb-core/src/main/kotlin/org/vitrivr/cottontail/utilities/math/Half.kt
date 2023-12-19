@@ -22,7 +22,6 @@ package org.vitrivr.cottontail.utilities.math
 
 import org.vitrivr.cottontail.utilities.math.Half.Companion.POSITIVE_INFINITY
 import org.vitrivr.cottontail.utilities.math.Half.Companion.POSITIVE_ZERO
-import kotlin.jvm.JvmInline
 
 /**
  * Converts the specified double-precision float value into a
@@ -247,7 +246,7 @@ fun String.toHalf() = Half(floatToHalf(toFloat()))
  * This table shows that numbers higher than 1024 lose all fractional precision.
  */
 @JvmInline
-value class Half(private val v: UShort) : Comparable<Half> {
+value class Half(public val v: UShort) : Comparable<Half> {
     companion object {
         /**
          * The number of bits used to represent a half-precision float value.
@@ -401,33 +400,33 @@ value class Half(private val v: UShort) : Comparable<Half> {
      * Returns the value of this [Half] as a `byte` after a narrowing primitive conversion.
      *
      * @return The half-precision float value represented by this object converted to type `byte`
-     * @see halfToShort
+     * @see halfToFloat
      */
-    fun toByte() = halfToShort(v).toInt().toByte()
+    fun toByte() = halfToFloat(v).toInt().toByte()
 
     /**
      * Returns the value of this [Half] as a `short` after a narrowing primitive conversion.
      *
      * @return The half-precision float value represented by this object converted to type `short`
-     * @see halfToShort
+     * @see halfToFloat
      */
-    fun toShort() = halfToShort(v).toInt().toShort()
+    fun toShort() = halfToFloat(v).toInt().toShort()
 
     /**
      * Returns the value of this [Half] as a `int` after a narrowing primitive conversion.
      *
      * @return The half-precision float value represented by this object converted to type `int`
-     * @see halfToShort
+     * @see halfToFloat
      * */
-    fun toInt() = halfToShort(v).toInt()
+    fun toInt() = halfToFloat(v).toInt()
 
     /**
      * Returns the value of this [Half] as a `long` after a narrowing primitive conversion.
      *
      * @return The half-precision float value represented by this object converted to type `long`
-     * @see halfToShort
+     * @see halfToFloat
      */
-    fun toLong() = halfToShort(v).toLong()
+    fun toLong() = halfToFloat(v).toLong()
 
     /**
      * Returns the value of this [Half] as a `float` after a widening primitive conversion.
@@ -442,7 +441,7 @@ value class Half(private val v: UShort) : Comparable<Half> {
      *
      * @return The half-precision float value represented by this object converted to type `float`
      */
-    fun toFloat() = halfToShort(v)
+    fun toFloat() = halfToFloat(v)
 
     /**
      * Returns the value of this [Half] as a `double` after a widening primitive conversion.
@@ -457,7 +456,7 @@ value class Half(private val v: UShort) : Comparable<Half> {
      *
      * @return The half-precision float value represented by this object converted to type `double`
      */
-    fun toDouble() = halfToShort(v).toDouble()
+    fun toDouble() = halfToFloat(v).toDouble()
 
     /**
      * Returns true if this half-precision float value represents a Not-a-Number, false otherwise.
@@ -1077,7 +1076,7 @@ private const val FP32_QNAN_MASK        = 0x400000
 private const val FP32_DENORMAL_MAGIC   = 126 shl 23
 private       val FP32_DENORMAL_FLOAT   = Float.fromBits(FP32_DENORMAL_MAGIC)
 
-private fun floatToHalf(f: Float): UShort {
+public fun floatToHalf(f: Float): UShort {
     val bits: Int = f.toBits()
     val s = bits ushr FP32_SIGN_SHIFT
     var e = (bits ushr FP32_EXPONENT_SHIFT) and FP32_EXPONENT_MASK
@@ -1115,7 +1114,7 @@ private fun floatToHalf(f: Float): UShort {
     return (s shl FP16_SIGN_SHIFT or (outE shl FP16_EXPONENT_SHIFT) or outM).toUShort()
 }
 
-private fun halfToShort(h: UShort): Float {
+private fun halfToFloat(h: UShort): Float {
     val bits = h.toInt()
     val s = bits and FP16_SIGN_MASK
     val e = bits ushr FP16_EXPONENT_SHIFT and FP16_EXPONENT_MASK
