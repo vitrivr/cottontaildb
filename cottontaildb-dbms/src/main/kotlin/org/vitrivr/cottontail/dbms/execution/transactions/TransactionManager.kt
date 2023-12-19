@@ -152,6 +152,7 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
      */
     fun shutdown() {
         this.vfs.shutdown()
+        this.executionManager.shutdownAndWait()
         this.environment.close()
     }
 
