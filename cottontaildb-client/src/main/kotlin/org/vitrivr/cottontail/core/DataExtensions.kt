@@ -256,7 +256,7 @@ fun CottontailGrpc.Literal.toStringValue(): StringValue? = when (this.dataCase) 
  */
 fun CottontailGrpc.Literal.toUuidValue(): UuidValue? = when (this.dataCase) {
     CottontailGrpc.Literal.DataCase.STRINGDATA -> UuidValue(UUID.fromString(this.stringData))
-    CottontailGrpc.Literal.DataCase.UUIDDATA -> UuidValue(UUID(this.uuidData.leastSignificant, this.uuidData.mostSignificant))
+    CottontailGrpc.Literal.DataCase.UUIDDATA -> UuidValue(UUID(this.uuidData.mostSignificant, this.uuidData.leastSignificant))
     CottontailGrpc.Literal.DataCase.NULLDATA -> null
     else -> throw throw IllegalArgumentException("A value of ${this.dataCase} cannot be cast to STRING.")
 }
