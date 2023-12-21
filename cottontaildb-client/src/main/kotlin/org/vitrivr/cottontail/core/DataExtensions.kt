@@ -45,6 +45,7 @@ fun Tuple.toTuple(): CottontailGrpc.QueryResponseMessage.Tuple {
 internal fun Any.tryConvertToValue(): PublicValue = when(this) {
     is PublicValue -> this
     is String -> StringValue(this)
+    is UUID -> UuidValue(this)
     is Boolean -> BooleanValue(this)
     is Byte -> ByteValue(this)
     is Short -> ShortValue(this)
