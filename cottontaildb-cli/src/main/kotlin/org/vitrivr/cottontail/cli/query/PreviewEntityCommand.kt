@@ -46,7 +46,7 @@ class PreviewEntityCommand(client: SimpleClient): AbstractQueryCommand(client, n
 
     override fun exec() {
         /* Prepare query. */
-        val query = Query(this.entityName.toString()).select("*").limit(this.limit).skip(this.skip)
+        val query = Query(this.entityName.toString()).select("*").disallowParallelism().limit(this.limit).skip(this.skip)
         if (this.toFile) {
             this.executeAndExport(query)
         } else {
