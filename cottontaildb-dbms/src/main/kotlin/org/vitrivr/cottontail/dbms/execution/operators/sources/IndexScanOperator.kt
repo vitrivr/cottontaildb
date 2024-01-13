@@ -61,6 +61,6 @@ class IndexScanOperator(
                 read += 1
             }
         }
-        LOGGER.debug("Read $read entries from ${this@IndexScanOperator.index.dbo.name}.")
+        LOGGER.debug("Read {} entries from {}.", read, this@IndexScanOperator.index.dbo.name)
     }
 }
