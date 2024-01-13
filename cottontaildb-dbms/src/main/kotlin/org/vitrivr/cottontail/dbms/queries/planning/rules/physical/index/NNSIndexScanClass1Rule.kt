@@ -81,8 +81,8 @@ object NNSIndexScanClass1Rule : RewriteRule {
         if (candidate != null) {
             val produces = candidate.columnsFor(predicate)
             val distanceColumn = predicate.distanceColumn
-            if (produces.contains(predicate.distanceColumn.physical)) {
-                var replacement: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, listOf(node.out.copy(), distanceColumn), candidate, predicate)
+            if (produces.contains(predicate.distanceColumn.column)) {
+                var replacement: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, listOf(node.out.copy()), candidate, predicate)
                 val newFetch = scan.columns.filter { !produces.contains(it.physical) && it != predicate.column }
                 if (newFetch.isNotEmpty()) {
                     replacement = FetchPhysicalOperatorNode(replacement, scan.entity, newFetch)
