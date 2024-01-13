@@ -5,10 +5,7 @@ import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.InnerProductDistance
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.*
 import org.vitrivr.cottontail.dbms.index.basic.IndexConfig
 import java.io.ByteArrayInputStream
 
@@ -45,7 +42,7 @@ data class PQIndexConfig(val distance: Name.FunctionName, val numCentroids: Int,
         const val DEFAULT_SUBSPACES = 8
 
         /** Set of supported distances. */
-        val SUPPORTED_DISTANCES: Set<Name.FunctionName> = setOf(ManhattanDistance.FUNCTION_NAME, EuclideanDistance.FUNCTION_NAME, SquaredEuclideanDistance.FUNCTION_NAME, InnerProductDistance.FUNCTION_NAME)
+        val SUPPORTED_DISTANCES: Set<Name.FunctionName> = setOf(ManhattanDistance.FUNCTION_NAME, EuclideanDistance.FUNCTION_NAME, SquaredEuclideanDistance.FUNCTION_NAME, CosineDistance.FUNCTION_NAME, InnerProductDistance.FUNCTION_NAME)
     }
 
     /**
