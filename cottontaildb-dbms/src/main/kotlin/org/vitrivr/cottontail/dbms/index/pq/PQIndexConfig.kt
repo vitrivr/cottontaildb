@@ -45,7 +45,7 @@ data class PQIndexConfig(val distance: Name.FunctionName, val numCentroids: Int,
         const val DEFAULT_SUBSPACES = 8
 
         /** Set of supported distances. */
-        val SUPPORTED_DISTANCES: Set<Name.FunctionName> = setOf(ManhattanDistance.FUNCTION_NAME, EuclideanDistance.FUNCTION_NAME, SquaredEuclideanDistance.FUNCTION_NAME, CosineDistance.FUNCTION_NAME)
+        val SUPPORTED_DISTANCES: Set<Name.FunctionName> = setOf(ManhattanDistance.FUNCTION_NAME, EuclideanDistance.FUNCTION_NAME, SquaredEuclideanDistance.FUNCTION_NAME)
     }
 
     /**
