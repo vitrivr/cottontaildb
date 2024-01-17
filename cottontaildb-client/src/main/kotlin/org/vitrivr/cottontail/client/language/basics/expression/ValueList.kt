@@ -12,8 +12,8 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  * @version 1.0.0
  */
 @Serializable
-@SerialName("List")
-class List(val value: Array<PublicValue>): Expression() {
+@SerialName("ValueList")
+class ValueList(val value: Array<PublicValue>): Expression() {
     override fun toGrpc(): CottontailGrpc.Expression {
         val builder = CottontailGrpc.Expression.newBuilder()
         for (data in this.value) {
