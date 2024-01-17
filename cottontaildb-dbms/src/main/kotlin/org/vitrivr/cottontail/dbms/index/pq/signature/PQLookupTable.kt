@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.dbms.index.pq.signature
 
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.CosineDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.InnerProductDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
@@ -70,6 +72,52 @@ sealed interface PQLookupTable {
                 sum += this.data[i][c.toInt()]
             }
             return sqrt(sum)
+        }
+    }
+
+    /**
+     * A [PQLookupTable] implementation for the [CosineDistance].
+     *
+     * Warning: This is a rather heuristical method, since [CosineDistance] cannot be calculated in parts.
+     *
+     * @param query The [VectorValue] to prepare [PQLookupTable] for.
+     * @param codebooks An [Array] of [PQCodebook]s.
+     * @return [PQLookupTable]
+     */
+    class Cosine(query: VectorValue<*>, codebooks: Array<PQCodebook>): PQLookupTable {
+        override val data = Array(codebooks.size) { i ->
+            val codebook = codebooks[i]
+            val subspaceQuery = query.slice(i * codebook.subspaceSize, codebook.subspaceSize)
+            DoubleArray(codebook.numberOfCentroids) { code -> codebook.distanceFrom(subspaceQuery, code).pow(2) }
+        }
+        override fun approximateDistance(signature: PQSignature): Double {
+            var sum = 0.0
+            for ((i,c) in signature.cells.withIndex()) {
+                sum += this.data[i][c.toInt()]
+            }
+            return sqrt(sum)
+        }
+    }
+
+    /**
+     * A [PQLookupTable] implementation for the [InnerProductDistance].
+     *
+     * @param query The [VectorValue] to prepare [PQLookupTable] for.
+     * @param codebooks An [Array] of [PQCodebook]s.
+     * @return [PQLookupTable]
+     */
+    class InnerProduct(query: VectorValue<*>, codebooks: Array<PQCodebook>): PQLookupTable {
+        override val data = Array(codebooks.size) { i ->
+            val codebook = codebooks[i]
+            val subspaceQuery = query.slice(i * codebook.subspaceSize, codebook.subspaceSize)
+            DoubleArray(codebook.numberOfCentroids) { code -> codebook.distanceFrom(subspaceQuery, code) }
+        }
+        override fun approximateDistance(signature: PQSignature): Double {
+            var sum = 0.0
+            for ((i,c) in signature.cells.withIndex()) {
+                sum += this.data[i][c.toInt()]
+            }
+            return sum
         }
     }
 

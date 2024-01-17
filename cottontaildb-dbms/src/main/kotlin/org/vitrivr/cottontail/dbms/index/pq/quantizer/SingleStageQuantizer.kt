@@ -1,9 +1,6 @@
 package org.vitrivr.cottontail.dbms.index.pq.quantizer
 
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.*
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.dbms.index.pq.PQIndexConfig
 import org.vitrivr.cottontail.dbms.index.pq.signature.PQLookupTable
@@ -89,6 +86,8 @@ data class SingleStageQuantizer constructor(val codebooks: Array<PQCodebook>) {
         is ManhattanDistance<*> -> PQLookupTable.Manhattan(query, this.codebooks)
         is EuclideanDistance<*> -> PQLookupTable.Euclidean(query, this.codebooks)
         is SquaredEuclideanDistance<*> -> PQLookupTable.SquaredEuclidean(query, this.codebooks)
+        is InnerProductDistance<*> -> PQLookupTable.InnerProduct(query, this.codebooks)
+        is CosineDistance<*> -> PQLookupTable.Cosine(query, this.codebooks)
         else -> throw IllegalStateException("The distance function ${value.signature} us not supported for product quantization.")
     }
 
