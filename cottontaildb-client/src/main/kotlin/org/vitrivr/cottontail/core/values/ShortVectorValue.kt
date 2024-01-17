@@ -17,6 +17,8 @@ import kotlin.math.pow
 @SerialName("ShortVector")
 @JvmInline
 value class ShortVectorValue(val data: ShortArray) : RealVectorValue<Short>, PublicValue {
+
+
     constructor(input: List<Number>) : this(ShortArray(input.size) { input[it].toShort() })
     constructor(input: Array<Number>) : this(ShortArray(input.size) { input[it].toShort() })
     constructor(input: DoubleArray) : this(ShortArray(input.size) { input[it].toInt().toShort() })

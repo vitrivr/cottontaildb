@@ -20,6 +20,16 @@ import kotlin.math.pow
 @SerialName("DoubleVector")
 @JvmInline
 value class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double>, PublicValue {
+    companion object {
+        /**
+         * A static helper class to use this [DoubleVectorValue] in plain Java.
+         *
+         * @param array [DoubleArray] to create [DoubleVectorValue] from
+         */
+        @JvmStatic
+        fun of(array: DoubleArray) = DoubleVectorValue(array)
+    }
+
     constructor(input: List<Number>) : this(DoubleArray(input.size) { input[it].toDouble() })
     constructor(input: Array<Number>) : this(DoubleArray(input.size) { input[it].toDouble() })
     constructor(input: FloatArray) : this(DoubleArray(input.size) { input[it].toDouble() })

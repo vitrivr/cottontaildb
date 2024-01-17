@@ -13,12 +13,22 @@ import kotlin.math.pow
  * This is an abstraction over an [IntArray] and it represents a vector of [Int]s.
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.20
  */
 @Serializable
 @SerialName("IntegerVector")
 @JvmInline
 value class IntVectorValue(val data: IntArray) : RealVectorValue<Int>, PublicValue {
+    companion object {
+        /**
+         * A static helper class to use this [IntVectorValue] in plain Java.
+         *
+         * @param array [IntArray] to create [IntVectorValue] from
+         */
+        @JvmStatic
+        fun of(array: IntArray) = IntVectorValue(array)
+    }
+
     constructor(input: List<Number>) : this(IntArray(input.size) { input[it].toInt() })
     constructor(input: Array<Number>) : this(IntArray(input.size) { input[it].toInt() })
     constructor(input: DoubleArray) : this(IntArray(input.size) { input[it].toInt() })

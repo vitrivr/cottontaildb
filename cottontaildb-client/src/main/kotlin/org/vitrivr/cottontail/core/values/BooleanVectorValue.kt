@@ -13,12 +13,23 @@ import kotlin.math.pow
  * This is an abstraction over a [BooleanArray] and it represents a vector of [Boolean]s.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 @Serializable
 @SerialName("BooleanVector")
 @JvmInline
 value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int>, PublicValue {
+
+    companion object {
+        /**
+         * A static helper class to use this [BooleanVectorValue] in plain Java.
+         *
+         * @param array [BooleanArray] to create [BooleanVectorValue] from
+         */
+        @JvmStatic
+        fun of(array: BooleanArray) = BooleanVectorValue(array)
+    }
+
     constructor(input: List<Number>) : this(BooleanArray(input.size) { input[it].toInt() == 1 })
     constructor(input: Array<Number>) : this(BooleanArray(input.size) { input[it].toInt() == 1 })
     constructor(input: Array<Boolean>) : this(BooleanArray(input.size) { input[it] })

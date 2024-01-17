@@ -10,14 +10,24 @@ import kotlin.math.absoluteValue
 import kotlin.math.pow
 
 /**
+ * This is an abstraction over a [FloatArray] and it represents a vector of [Float]s, which are stored using half-precision
  *
- * @author Ralph Gasser
- * @version 1.0
+ * @author Luca Rossetto
+ * @version 1.1.0
  */
 @Serializable
 @SerialName("HalfVector")
 @JvmInline
 value class HalfVectorValue(val data: FloatArray) : RealVectorValue<Float>, PublicValue {
+    companion object {
+        /**
+         * A static helper class to use this [HalfVectorValue] in plain Java.
+         *
+         * @param array [FloatArray] to create [HalfVectorValue] from
+         */
+        @JvmStatic
+        fun of(array: FloatArray) = HalfVectorValue(array)
+    }
 
     constructor(input: List<Number>) : this(FloatArray(input.size) { input[it].toFloat() })
     constructor(input: Array<Number>) : this(FloatArray(input.size) { input[it].toFloat() })

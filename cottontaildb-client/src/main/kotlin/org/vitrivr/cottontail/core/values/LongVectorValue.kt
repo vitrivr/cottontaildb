@@ -13,12 +13,22 @@ import kotlin.math.pow
  * This is an abstraction over a [LongArray] and it represents a vector of [Long]s.
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.2.0
  */
 @Serializable
 @SerialName("LongVector")
 @JvmInline
 value class LongVectorValue(val data: LongArray) : RealVectorValue<Long>, PublicValue {
+    companion object {
+        /**
+         * A static helper class to use this [LongVectorValue] in plain Java.
+         *
+         * @param array [LongArray] to create [LongVectorValue] from
+         */
+        @JvmStatic
+        fun of(array: LongArray) = LongVectorValue(array)
+    }
+
     constructor(input: List<Number>) : this(LongArray(input.size) { input[it].toLong() })
     constructor(input: Array<Number>) : this(LongArray(input.size) { input[it].toLong() })
     constructor(input: DoubleArray) : this(LongArray(input.size) { input[it].toLong() })
