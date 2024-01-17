@@ -65,6 +65,7 @@ sealed interface Name: Comparable<Name> {
              *
              * @return [FunctionName]
              */
+            @JvmStatic
             fun parse(string: String): FunctionName {
                 val split = string.split(DELIMITER)
                 return when(split.size) {
@@ -82,6 +83,7 @@ sealed interface Name: Comparable<Name> {
              *
              * Makes sure that all name components are lowercase.
              */
+            @JvmStatic
             fun create(name: String) = FunctionName(name.lowercase())
         }
 
@@ -115,6 +117,7 @@ sealed interface Name: Comparable<Name> {
              *
              * @return [SchemaName]
              */
+            @JvmStatic
             fun parse(string: String): SchemaName {
                 val split = string.split(DELIMITER)
                 return when(split.size) {
@@ -132,6 +135,7 @@ sealed interface Name: Comparable<Name> {
              *
              * Makes sure that all name components are lowercase.
              */
+            @JvmStatic
             fun create(name: String) = SchemaName(name.lowercase())
         }
 
@@ -187,6 +191,7 @@ sealed interface Name: Comparable<Name> {
              *
              * @return [EntityName]
              */
+            @JvmStatic
             fun parse(string: String): EntityName {
                 val split = string.split(DELIMITER)
                 return when(split.size) {
@@ -207,6 +212,7 @@ sealed interface Name: Comparable<Name> {
              * @param entity The name of the entity.
              * @return [EntityName]
              */
+            @JvmStatic
             fun create(schema: String, entity: String) = EntityName(schema.lowercase(), entity.lowercase())
         }
 
@@ -272,6 +278,7 @@ sealed interface Name: Comparable<Name> {
              *
              * @return [SequenceName]
              */
+            @JvmStatic
             fun parse(string: String): SequenceName {
                 val split = string.split(DELIMITER)
                 return when(split.size) {
@@ -292,6 +299,7 @@ sealed interface Name: Comparable<Name> {
              * @param sequence The name of the sequence.
              * @return [EntityName]
              */
+            @JvmStatic
             fun create(schema: String, sequence: String) = SequenceName(schema.lowercase(), sequence.lowercase())
         }
 
@@ -340,6 +348,7 @@ sealed interface Name: Comparable<Name> {
              *
              * @return [IndexName]
              */
+            @JvmStatic
             fun parse(string: String): IndexName {
                 val split = string.split(DELIMITER)
                 return when(split.size) {
@@ -360,6 +369,7 @@ sealed interface Name: Comparable<Name> {
              * @param index The component of the [IndexName].
              * @return [IndexName]
              */
+            @JvmStatic
             fun create(schema: String, entity: String, index: String) = IndexName(schema.lowercase(), entity.lowercase(), index.lowercase())
         }
 
@@ -420,6 +430,7 @@ sealed interface Name: Comparable<Name> {
              *
              * @return [ColumnName]
              */
+            @JvmStatic
             fun parse(string: String): ColumnName {
                 val split = string.split(DELIMITER)
                 return when(split.size) {
@@ -442,6 +453,7 @@ sealed interface Name: Comparable<Name> {
              * @param column The component of the [ColumnName].
              * @return [ColumnName]
              */
+            @JvmStatic
             fun create(schema: String, entity: String, column: String) = ColumnName(schema.lowercase(), entity.lowercase(), column.lowercase())
 
             /**
@@ -450,6 +462,7 @@ sealed interface Name: Comparable<Name> {
              * @param column The component of the [ColumnName].
              * @return [ColumnName]
              */
+            @JvmStatic
             fun create(column: String) = ColumnName(WILDCARD, WILDCARD, column.lowercase())
         }
 
