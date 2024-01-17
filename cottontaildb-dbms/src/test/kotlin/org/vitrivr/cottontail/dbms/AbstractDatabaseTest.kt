@@ -64,8 +64,7 @@ abstract class AbstractDatabaseTest {
      */
     @AfterEach
     protected open fun teardown() {
-        this.catalogue.close()
         TxFileUtilities.delete(this.config.root)
-        this.execution.shutdownAndWait()
+        this.manager.shutdown()
     }
 }

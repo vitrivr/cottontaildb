@@ -18,7 +18,7 @@ import java.nio.file.Files
  * An abstract class for test cases that test for correctness of serialization
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.5.1
  */
 abstract class AbstractSerializationTest: AbstractEntityTest() {
 
@@ -93,18 +93,23 @@ abstract class AbstractSerializationTest: AbstractEntityTest() {
 
         /* Start inserting. */
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
-        val ctx = DefaultQueryContext("serialization-populate", this.catalogue, txn)
-        val catalogueTx = this.catalogue.newTx(ctx)
-        val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = schema.newTx(ctx)
-        val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = entity.newTx(ctx)
+        try {
+            val ctx = DefaultQueryContext("serialization-populate", this.catalogue, txn)
+            val catalogueTx = this.catalogue.newTx(ctx)
+            val schema = catalogueTx.schemaForName(this.schemaName)
+            val schemaTx = schema.newTx(ctx)
+            val entity = schemaTx.entityForName(this.entityName)
+            val entityTx = entity.newTx(ctx)
 
-        /* Insert data and track how many entries have been stored for the test later. */
-        repeat(TestConstants.TEST_COLLECTION_SIZE) {
-            entityTx.insert(nextRecord(it))
+            /* Insert data and track how many entries have been stored for the test later. */
+            repeat(TestConstants.TEST_COLLECTION_SIZE) {
+                entityTx.insert(nextRecord(it))
+            }
+            txn.commit()
+        } catch (e: Throwable) {
+            txn.rollback()
+            throw e
         }
-        txn.commit()
     }
 
     /**
