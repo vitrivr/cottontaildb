@@ -161,8 +161,20 @@ class DefaultCatalogue(override val config: Config, executor: ExecutionManager) 
     override fun close() {
         try {
             this.indexStatistics.persist() /* Persist all index statistics. */
-        } finally {
-            this.transactionManager.shutdown()
+        } catch (e: Throwable) {
+            LOGGER.error("Failed to persist index statistics.", e)
+        }
+
+        try {
+            this.statisticsManager.close() /* Close statistics manager. */
+        } catch (e: Throwable) {
+            LOGGER.error("Failed to close statistics manager.", e)
+        }
+
+        try {
+            this.transactionManager.shutdown() /* Shutdown transaction manager. */
+        } catch (e: Throwable) {
+            LOGGER.error("Failed to shutdown transaction manager.", e)
         }
     }
 

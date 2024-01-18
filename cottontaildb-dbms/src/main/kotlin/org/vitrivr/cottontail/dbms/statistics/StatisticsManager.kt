@@ -22,6 +22,7 @@ import org.vitrivr.cottontail.dbms.statistics.collectors.*
 import org.vitrivr.cottontail.dbms.statistics.metrics.EntityMetric
 import org.vitrivr.cottontail.dbms.statistics.storage.ColumnStatistic
 import org.vitrivr.cottontail.dbms.statistics.storage.StatisticsStorageManager
+import java.io.Closeable
 import java.lang.ref.SoftReference
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -38,7 +39,7 @@ import kotlin.time.measureTime
  * @author Florian Burkhardt
  * @version 1.1.0
  */
-class StatisticsManager(private val catalogue: DefaultCatalogue, private val manager: TransactionManager): TransactionObserver {
+class StatisticsManager(private val catalogue: DefaultCatalogue, private val manager: TransactionManager): TransactionObserver, Closeable {
 
     companion object {
         private val LOGGER = LoggerFactory.getLogger(StatisticsManager::class.java)
@@ -274,5 +275,12 @@ class StatisticsManager(private val catalogue: DefaultCatalogue, private val man
                this@StatisticsManager.gatherStatisticsForEntity(next)
            }
         }
+    }
+
+    /**
+     * Closes this [StatisticsManager].
+     */
+    override fun close() {
+        this.store.close()
     }
 }

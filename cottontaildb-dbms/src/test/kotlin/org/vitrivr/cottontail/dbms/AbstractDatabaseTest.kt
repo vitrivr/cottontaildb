@@ -39,10 +39,10 @@ abstract class AbstractDatabaseTest {
     protected val schemaName = Name.SchemaName.create("test")
 
     /** The [ExecutionManager] used for tests. */
-    private val execution = ExecutionManager(this.config)
+    private val executor = ExecutionManager(this.config)
 
     /** Catalogue used for testing. */
-    protected var catalogue: DefaultCatalogue = DefaultCatalogue(this.config, this.execution)
+    protected var catalogue: DefaultCatalogue = DefaultCatalogue(this.config, this.executor)
 
     /** Pointer to the underlying [TransactionManager] for convenience sake. */
     protected val manager: TransactionManager
@@ -64,7 +64,13 @@ abstract class AbstractDatabaseTest {
      */
     @AfterEach
     protected open fun teardown() {
-        this.manager.shutdown()
+        /* Shutdown thread pool executor. */
+        this.executor.shutdownAndWait()
+
+        /* Close catalogue. */
+        this.catalogue.close()
+
+        /* Delete unnecessary files. */
         TxFileUtilities.delete(this.config.root)
     }
 }
