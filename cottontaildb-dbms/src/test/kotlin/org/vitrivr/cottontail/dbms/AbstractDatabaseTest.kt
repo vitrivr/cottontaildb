@@ -64,7 +64,7 @@ abstract class AbstractDatabaseTest {
      */
     @AfterEach
     protected open fun teardown() {
-        TxFileUtilities.delete(this.config.root)
         this.manager.shutdown()
+        TxFileUtilities.delete(this.config.root)
     }
 }
