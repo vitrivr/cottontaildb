@@ -15,21 +15,24 @@ import java.util.*
 @Serializable
 @SerialName("ValueList")
 class ValueList(val value: List<PublicValue>): Expression() {
-    constructor(list: List<Boolean>): this( list.map { BooleanValue(it) })
-    constructor(list: List<Byte>): this( list.map { ShortValue(it) })
-    constructor(list: List<Short>): this( list.map { ShortValue(it) })
-    constructor(list: List<Int>): this( list.map { IntValue(it) })
-    constructor(list: List<Long>): this( list.map { LongValue(it) })
-    constructor(list: List<Float>): this( list.map { FloatValue(it) })
-    constructor(list: List<Double>): this( list.map { DoubleValue(it) })
-    constructor(list: List<Date>): this( list.map { DateValue(it) })
-    constructor(list: List<String>): this( list.map { StringValue(it) })
-    constructor(list: List<UUID>): this( list.map { UuidValue(it) })
-    constructor(list: List<BooleanArray>): this( list.map { BooleanVectorValue(it) })
-    constructor(list: List<IntArray>): this( list.map { IntVectorValue(it) })
-    constructor(list: List<LongArray>): this( list.map { LongVectorValue(it) })
-    constructor(list: List<FloatArray>): this( list.map { FloatVectorValue(it) })
-    constructor(list: List<DoubleArray>): this( list.map { DoubleVectorValue(it) })
+    constructor(list: List<Any>): this(when (list.first()) {
+        is Boolean -> list.filterIsInstance<Boolean>().map { BooleanValue(it) }
+        is Byte -> list.filterIsInstance<Byte>().map { ByteValue(it) }
+        is Short -> list.filterIsInstance<Short>().map { ShortValue(it) }
+        is Int -> list.filterIsInstance<Int>().map { IntValue(it) }
+        is Long -> list.filterIsInstance<Long>().map { LongValue(it) }
+        is Float -> list.filterIsInstance<Float>().map { FloatValue(it) }
+        is Double -> list.filterIsInstance<Double>().map { DoubleValue(it) }
+        is Date -> list.filterIsInstance<Date>().map { DateValue(it) }
+        is String -> list.filterIsInstance<String>().map { StringValue(it) }
+        is UUID -> list.filterIsInstance<UUID>().map { UuidValue(it) }
+        is BooleanArray -> list.filterIsInstance<BooleanArray>().map { BooleanVectorValue(it) }
+        is IntArray -> list.filterIsInstance<IntArray>().map { IntVectorValue(it) }
+        is LongArray -> list.filterIsInstance<LongArray>().map { LongVectorValue(it) }
+        is FloatArray -> list.filterIsInstance<FloatArray>().map { FloatVectorValue(it) }
+        is DoubleArray -> list.filterIsInstance<DoubleArray>().map { DoubleVectorValue(it) }
+        else -> throw IllegalArgumentException("Cannot create ValueList from list of type ${list.first().javaClass.simpleName}.")
+    })
 
     override fun toGrpc(): CottontailGrpc.Expression {
         val builder = CottontailGrpc.Expression.newBuilder()
