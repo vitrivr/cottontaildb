@@ -4,12 +4,13 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import java.util.*
 
 /**
  * A [Literal] value [Expression].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 @Serializable
 @SerialName("Literal")
@@ -22,6 +23,8 @@ data class Literal(val value: PublicValue): Expression() {
     constructor(value: Float): this(FloatValue(value))
     constructor(value: Double): this(DoubleValue(value))
     constructor(value: String): this(StringValue(value))
+    constructor(value: UUID): this(UuidValue(value))
+    constructor(value: Date): this(DateValue(value))
     constructor(value: BooleanArray): this(BooleanVectorValue(value))
     constructor(value: IntArray): this(IntVectorValue(value))
     constructor(value: LongArray): this(LongVectorValue(value))
