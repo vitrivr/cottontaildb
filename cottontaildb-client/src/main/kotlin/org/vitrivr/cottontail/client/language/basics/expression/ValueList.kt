@@ -14,7 +14,7 @@ import java.util.*
  */
 @Serializable
 @SerialName("ValueList")
-class ValueList(val value: List<PublicValue>): Expression() {
+class ValueList(val value: Array<PublicValue>): Expression() {
     constructor(list: List<Any>): this(when (list.first()) {
         is Boolean -> list.filterIsInstance<Boolean>().map { BooleanValue(it) }
         is Byte -> list.filterIsInstance<Byte>().map { ByteValue(it) }
@@ -32,7 +32,7 @@ class ValueList(val value: List<PublicValue>): Expression() {
         is FloatArray -> list.filterIsInstance<FloatArray>().map { FloatVectorValue(it) }
         is DoubleArray -> list.filterIsInstance<DoubleArray>().map { DoubleVectorValue(it) }
         else -> throw IllegalArgumentException("Cannot create ValueList from list of type ${list.first().javaClass.simpleName}.")
-    })
+    }.toTypedArray())
 
     override fun toGrpc(): CottontailGrpc.Expression {
         val builder = CottontailGrpc.Expression.newBuilder()
