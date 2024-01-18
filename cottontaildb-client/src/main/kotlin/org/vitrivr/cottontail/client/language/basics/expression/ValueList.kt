@@ -31,6 +31,7 @@ class ValueList(val value: Array<PublicValue>): Expression() {
         is LongArray -> list.filterIsInstance<LongArray>().map { LongVectorValue(it) }
         is FloatArray -> list.filterIsInstance<FloatArray>().map { FloatVectorValue(it) }
         is DoubleArray -> list.filterIsInstance<DoubleArray>().map { DoubleVectorValue(it) }
+        is PublicValue -> list.filterIsInstance<PublicValue>()
         else -> throw IllegalArgumentException("Cannot create ValueList from list of type ${list.first().javaClass.simpleName}.")
     }.toTypedArray())
 
