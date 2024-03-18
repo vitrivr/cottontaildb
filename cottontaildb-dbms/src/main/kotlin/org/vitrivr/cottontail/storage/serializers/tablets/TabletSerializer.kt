@@ -15,11 +15,6 @@ import org.vitrivr.cottontail.core.values.tablets.Tablet
  */
 interface TabletSerializer<T: Value> {
 
-    companion object {
-        /** The [LZ4Factory] instance used. */
-        val FACTORY: LZ4Factory = LZ4Factory.fastestInstance()
-    }
-
     /** The [Types] converted by this [TabletSerializer]. */
     val type: Types<T>
 
