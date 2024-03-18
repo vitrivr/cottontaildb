@@ -102,11 +102,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                     ColumnMetadata.fromEntry(it)
                 } ?: throw DatabaseException.DataCorruptionException("Failed to load specified column $columnName for entity ${this@DefaultEntity.name}")
                 val columnDef = ColumnDef(columnName, columnEntry.type, columnEntry.nullable, columnEntry.primary, columnEntry.autoIncrement)
-                if (columnDef.type is Types.String || columnDef.type is Types.ByteString) {
-                    this.columns[columnName] = VariableLengthColumn(columnDef, this@DefaultEntity)
-                } else {
-                    this.columns[columnName] = FixedLengthColumn(columnDef, this@DefaultEntity, columnEntry.compression)
-                }
+                this.columns[columnName] = VariableLengthColumn(columnDef, this@DefaultEntity)
             }
 
             /* Load a map of indexes. This map can be kept in memory for the duration of the transaction, because Transaction works with a fixed snapshot.  */
