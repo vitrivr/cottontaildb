@@ -5,11 +5,11 @@ import org.junit.jupiter.params.provider.MethodSource
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.*
 import org.vitrivr.cottontail.core.queries.functions.math.distance.ternary.HyperplaneDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.ternary.WeightedManhattanDistance
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.FloatValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.generators.FloatValueGenerator
 import org.vitrivr.cottontail.core.values.generators.FloatVectorValueGenerator
-import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.math.isApproximatelyTheSame
 import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.utilities.VectorUtility
@@ -53,7 +53,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
                 sum1 += kernel(query, it).value.toFloat()
             }
             time2 += measureTime {
-                sum2 += kernelVectorised(query, it)!!.value.toFloat()
+                sum2 += kernelVectorised(query, it).value.toFloat()
             }
             time3 += measureTime {
                 sum3 += (query - it).abs().sum().value
@@ -142,7 +142,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
                 sum1 += kernel(query, it).value.toFloat()
             }
             time2 += measureTime {
-                sum2 += kernelVectorised(query, it)!!.value.toFloat()
+                sum2 += kernelVectorised(query, it).value.toFloat()
             }
             time3 += measureTime {
                 sum3 += (query - it).pow(2).sum().sqrt().value
