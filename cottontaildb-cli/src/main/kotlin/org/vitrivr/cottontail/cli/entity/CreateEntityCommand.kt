@@ -148,7 +148,7 @@ class CreateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, 
             "LONG_VECTOR",
             "FLOAT_VECTOR",
             "DOUBLE_VECTOR",
-            "BOOL_VECTOR",
+            "BOOLEAN_VECTOR",
             "COMPLEX32_VECTOR",
             "COMPLEX64_VECTOR" -> this.terminal.prompt("\rColumn lengths (i.e., number of entries for vectors)")?.toIntOrNull() ?: 1
             else -> -1

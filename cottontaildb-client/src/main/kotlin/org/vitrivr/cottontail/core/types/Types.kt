@@ -44,7 +44,7 @@ sealed class Types<T : Value> {
             "LONG_VECTOR" -> LongVector(logicalSize)
             "FLOAT_VECTOR" -> FloatVector(logicalSize)
             "DOUBLE_VECTOR" -> DoubleVector(logicalSize)
-            "BOOL_VECTOR" -> BooleanVector(logicalSize)
+            "BOOLEAN_VECTOR" -> BooleanVector(logicalSize)
             "COMPLEX32_VECTOR" -> Complex32Vector(logicalSize)
             "COMPLEX64_VECTOR" -> Complex64Vector(logicalSize)
             "BYTESTRING" -> ByteString
