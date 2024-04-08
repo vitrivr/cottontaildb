@@ -189,8 +189,8 @@ fun CottontailGrpc.Type.toType(size: Int = 0): Types<*> = when(this) {
     CottontailGrpc.Type.DOUBLE_VECTOR -> Types.DoubleVector(size)
     CottontailGrpc.Type.FLOAT_VECTOR -> Types.FloatVector(size)
     CottontailGrpc.Type.LONG_VECTOR -> Types.LongVector(size)
-    CottontailGrpc.Type.INT_VECTOR -> Types.IntVector(size)
-    CottontailGrpc.Type.BOOL_VECTOR -> Types.BooleanVector(size)
+    CottontailGrpc.Type.INTEGER_VECTOR -> Types.IntVector(size)
+    CottontailGrpc.Type.BOOLEAN_VECTOR -> Types.BooleanVector(size)
     CottontailGrpc.Type.COMPLEX32_VECTOR -> Types.Complex32Vector(size)
     CottontailGrpc.Type.COMPLEX64_VECTOR -> Types.Complex64Vector(size)
     CottontailGrpc.Type.SHORT_VECTOR -> Types.ShortVector(size)
@@ -216,8 +216,8 @@ fun Types<*>.proto(): CottontailGrpc.Type = when(this) {
     Types.Short -> CottontailGrpc.Type.SHORT
     Types.String -> CottontailGrpc.Type.STRING
     Types.Uuid -> CottontailGrpc.Type.UUID
-    is Types.BooleanVector -> CottontailGrpc.Type.BOOL_VECTOR
-    is Types.IntVector -> CottontailGrpc.Type.INT_VECTOR
+    is Types.BooleanVector -> CottontailGrpc.Type.BOOLEAN_VECTOR
+    is Types.IntVector -> CottontailGrpc.Type.INTEGER_VECTOR
     is Types.LongVector -> CottontailGrpc.Type.LONG_VECTOR
     is Types.FloatVector -> CottontailGrpc.Type.FLOAT_VECTOR
     is Types.DoubleVector -> CottontailGrpc.Type.DOUBLE_VECTOR

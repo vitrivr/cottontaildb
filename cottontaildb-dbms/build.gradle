@@ -7,7 +7,7 @@ apply plugin: 'signing'
 /* Cottontail DB dependencies. */
 dependencies {
     /* The Cottontail DB core, which includes the client library. */
-    api project(':cottontaildb-core')
+    implementation project(':cottontaildb-core')
 
     /* Xodus dependency. */
     implementation group: 'org.jetbrains.xodus', name: 'xodus-openAPI', version: version_xodus
@@ -16,7 +16,7 @@ dependencies {
 
     /* Snappy */
     implementation group: 'org.xerial.snappy', name: 'snappy-java', version: version_snappy
-    implementation group: 'org.lz4', name: 'lz4-java', version: '1.8.0'
+    implementation group: 'org.lz4', name: 'lz4-java', version: version_lz4
 
     /* FastUtil */
     implementation group: 'it.unimi.dsi', name: 'fastutil', version: version_fastutil

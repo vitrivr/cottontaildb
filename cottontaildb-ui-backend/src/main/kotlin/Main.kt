@@ -38,7 +38,7 @@ fun fileSessionHandler() = SessionHandler().apply {
 /**
  *
  */
-fun main(args: Array<String>) {
+fun main() {
     Javalin.create { config ->
         config.staticFiles.add{
             it.directory = "html"
