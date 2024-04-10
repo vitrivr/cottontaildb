@@ -18,5 +18,4 @@ sealed interface PublicValue: Value {
      * @return [CottontailGrpc.Literal]
      */
     fun toGrpc(): CottontailGrpc.Literal
-
 }

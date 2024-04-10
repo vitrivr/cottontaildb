@@ -22,7 +22,6 @@ import java.util.*
  * @version 3.0.0
  */
 class DefaultBindingContext: BindingContext {
-
     /** List of bound [Value]s used to resolve [Binding.Literal] in this [BindingContext]. */
     private val boundLiterals = ArrayList<Value?>(100)
 
@@ -119,10 +118,10 @@ class DefaultBindingContext: BindingContext {
      * Creates and returns a [Binding.Column] for the given [ColumnDef].
      *
      * @param column The [ColumnDef] to bind.
+     * @param physical The physical [ColumnDef] backing the bound [ColumnDef]. Can be null!
      * @return [Binding.Column]
      */
-    override fun bind(column: ColumnDef<*>) = Binding.Column(column)
-
+    override fun bind(column: ColumnDef<*>, physical: ColumnDef<*>?) = Binding.Column(column, physical)
 
     /**
      * Creates and returns a [Binding.Function] for the given [Function] invocation
@@ -141,10 +140,10 @@ class DefaultBindingContext: BindingContext {
      * Creates and returns a [Binding.Subquery] for the given [GroupId] invocation
      *
      * @param dependsOn The [GroupId] of the query plan that generates the values.
-     * @param column The[ColumnDef] that should be extracted from the results.
+     * @param column The[Binding.Column] that should be extracted from the results.
      * @return [Binding.Subquery]
      */
-    override fun bind(dependsOn: GroupId, column: ColumnDef<*>): Binding.Subquery {
+    override fun bind(dependsOn: GroupId, column: Binding.Column): Binding.Subquery {
         val binding = Binding.Subquery(dependsOn, column)
         this.boundSubqueries[binding.dependsOn] = LinkedList()
         return binding

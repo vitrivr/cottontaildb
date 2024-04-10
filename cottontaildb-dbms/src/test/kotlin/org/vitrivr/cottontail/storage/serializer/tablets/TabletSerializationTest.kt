@@ -18,7 +18,7 @@ import java.util.*
  * A series of test cases that test various flavours of [TabletSerializer]
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 class TabletSerializationTest {
     /** The [SplittableRandom] used to generate random numbers. */
@@ -26,8 +26,6 @@ class TabletSerializationTest {
 
     /** The [Tablet] size to test. */
     private val tabletSize = 128
-
-
 
     /**
      * Tests de-/serialization of [AbstractTablet]s of [IntVectorValue]s.
@@ -281,6 +279,24 @@ class TabletSerializationTest {
         repeat(this.tabletSize) {
             if (this.random.nextBoolean()) {
                 tablet[it] = FloatVectorValueGenerator.random(type.logicalSize, this.random)
+            }
+        }
+
+        /* Create tablet and test de-/serialization. */
+        this.test(tablet, compression)
+    }
+
+    /**
+     * Tests de-/serialization of [AbstractTablet]s of [FloatVectorValue]s.
+     */
+    @ParameterizedTest
+    @EnumSource(Compression::class)
+    fun testHalfVectorTabletSerialization(compression: Compression) {
+        val type = Types.HalfVector(this.random.nextInt(4, 2048))
+        val tablet = Tablet.of(this.tabletSize, type, compression.direct)
+        repeat(this.tabletSize) {
+            if (this.random.nextBoolean()) {
+                tablet[it] = HalfVectorValueGenerator.random(type.logicalSize, this.random)
             }
         }
 

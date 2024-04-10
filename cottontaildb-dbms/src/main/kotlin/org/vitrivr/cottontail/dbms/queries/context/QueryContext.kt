@@ -2,12 +2,12 @@ package org.vitrivr.cottontail.dbms.queries.context
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionMetadata
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
  * and [BindingContext]
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.2.0
  */
 interface QueryContext {
 
@@ -48,10 +48,10 @@ interface QueryContext {
     val physical: List<OperatorNode.Physical>
 
     /** Output [ColumnDef] for the query held by this [QueryContext] (as per canonical plan). */
-    val output: List<ColumnDef<*>>?
+    val output: List<Binding.Column>
 
     /** Output order for the query held by this [QueryContext] (as per canonical plan). */
-    val order: List<Pair<ColumnDef<*>, SortOrder>>
+    val order: List<Pair<Binding.Column, SortOrder>>
 
     /**
      * Returns the next available [GroupId].

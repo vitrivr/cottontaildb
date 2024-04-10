@@ -219,7 +219,7 @@ abstract class Dumper(protected val client: SimpleClient, protected val output: 
 
             /* Start dumping the entity in batches. */
             val buffer = mutableListOf<Tuple>()
-            val results = this.client.query(Query(entity).txId(this.txId))
+            val results = this.client.query(Query(entity).txId(this.txId).disallowParallelism())
             var dumped = 0L
             var batch = 0L
 

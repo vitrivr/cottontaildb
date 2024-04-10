@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.toTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
@@ -23,9 +24,9 @@ import java.util.*
  * Performs external sorting on the specified [ColumnDef]s and returns the [Tuple] in sorted order. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.10
  */
-class ExternalMergeSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, private val chunkSize: Int, override val context: QueryContext) : AbstractSortOperator(parent, sortOn) {
+class ExternalMergeSortOperator(parent: Operator, sortOn: List<Pair<Binding.Column, SortOrder>>, private val chunkSize: Int, override val context: QueryContext) : AbstractSortOperator(parent, sortOn) {
 
     /** Temporary path used by this [ExternalMergeSortOperator]. */
     private val tmpPath = this@ExternalMergeSortOperator.context.catalogue.config.root.resolve("tmp").resolve(this@ExternalMergeSortOperator.context.queryId)

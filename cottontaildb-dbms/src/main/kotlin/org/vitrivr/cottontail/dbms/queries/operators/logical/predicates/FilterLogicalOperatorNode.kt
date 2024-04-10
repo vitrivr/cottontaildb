@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.logical.predicates
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryLogicalOperatorNode
@@ -11,7 +12,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.predicates.FilterP
  * A [UnaryLogicalOperatorNode] that formalizes filtering using some [BooleanPredicate].
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 2.9.0
  */
 class FilterLogicalOperatorNode(input: Logical, val predicate: BooleanPredicate) : UnaryLogicalOperatorNode(input) {
 
@@ -24,7 +25,7 @@ class FilterLogicalOperatorNode(input: Logical, val predicate: BooleanPredicate)
         get() = NODE_NAME
 
     /** The [FilterLogicalOperatorNode] requires all [ColumnDef]s used in the [BooleanPredicate]. */
-    override val requires: List<ColumnDef<*>> = this.predicate.columns.toList()
+    override val requires: List<Binding.Column> = this.predicate.columns.toList()
 
     /**
      * Creates a copy of this [FilterLogicalOperatorNode].

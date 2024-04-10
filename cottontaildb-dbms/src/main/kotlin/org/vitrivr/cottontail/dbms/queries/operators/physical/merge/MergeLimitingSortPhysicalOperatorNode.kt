@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.merge
 
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
@@ -26,9 +26,9 @@ import java.lang.Long.min
  * undefined. Furthermore, this operator must orchestrate a switching of [BindingContext] instances.
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.9.0
  */
-class MergeLimitingSortPhysicalOperatorNode(vararg inputs: Physical, val sortOn: List<Pair<ColumnDef<*>, SortOrder>>, val limit: Int): NAryPhysicalOperatorNode(*inputs) {
+class MergeLimitingSortPhysicalOperatorNode(vararg inputs: Physical, val sortOn: List<Pair<Binding.Column, SortOrder>>, val limit: Int): NAryPhysicalOperatorNode(*inputs) {
 
     /** Name of the [MergeLimitingSortPhysicalOperatorNode]. */
     override val name: String = "MergeLimitingSort"

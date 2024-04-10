@@ -89,7 +89,7 @@ class TXNService constructor(override val catalogue: Catalogue) : TXNGrpcKt.TXNC
      * gRPC for listing all [TransactionManager.TransactionImpl]s.
      */
     override fun listTransactions(request: Empty): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(CottontailGrpc.RequestMetadata.getDefaultInstance(), true) { ctx ->
-        ctx.register(ListTransactionsPhysicalOperatorNode(this.manager))
+        ctx.register(ListTransactionsPhysicalOperatorNode(ctx, this.manager))
         ctx.toOperatorTree()
     }
 
@@ -97,7 +97,7 @@ class TXNService constructor(override val catalogue: Catalogue) : TXNGrpcKt.TXNC
      * gRPC for listing all active locks.
      */
     override fun listLocks(request: Empty): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(CottontailGrpc.RequestMetadata.getDefaultInstance(), true) { ctx ->
-        ctx.register(ListLocksPhysicalOperatorNode(this.manager.lockManager))
+        ctx.register(ListLocksPhysicalOperatorNode(ctx, this.manager.lockManager))
         ctx.toOperatorTree()
     }
 }

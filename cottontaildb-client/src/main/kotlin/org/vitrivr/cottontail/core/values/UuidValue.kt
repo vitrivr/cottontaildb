@@ -14,12 +14,21 @@ import java.util.*
  * A [PublicValue] that holds a [UUID].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 @Serializable(with = UUIDSerializer::class)
 @SerialName("UUID")
 @JvmInline
 value class UuidValue(override val value: UUID) : ScalarValue<UUID>, PublicValue {
+    companion object {
+        /**
+         * A static helper class to use this [UuidValue] in plain Java.
+         *
+         * @param value [UUID] to create [UuidValue] from
+         */
+        @JvmStatic
+        fun of(value: UUID) = UuidValue(value)
+    }
     /**
      * Constructs a [UuidValue] from a [String].
      *

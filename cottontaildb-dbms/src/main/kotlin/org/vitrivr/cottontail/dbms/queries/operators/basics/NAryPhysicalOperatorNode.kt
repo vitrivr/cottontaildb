@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.basics
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
@@ -54,15 +55,11 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
         }
 
     /** By default, a [NAryPhysicalOperatorNode]'s requirements are empty. Can be overridden! */
-    override val requires: List<ColumnDef<*>>
+    override val requires: List<Binding.Column>
         get() =  emptyList()
 
-    /** By default, the [NAryPhysicalOperatorNode] outputs the physical [ColumnDef] of its input.  Can be overridden! */
-    override val physicalColumns: List<ColumnDef<*>>
-        get() = (this.inputs.firstOrNull()?.physicalColumns ?: emptyList())
-
-    /** By default, the [NAryPhysicalOperatorNode] outputs the [ColumnDef] of its input.  Can be overridden! */
-    override val columns: List<ColumnDef<*>>
+    /** By default, the [NAryPhysicalOperatorNode] outputs the [Binding.Column] of its left-most input. Can be overridden! */
+    override val columns: List<Binding.Column>
         get() = (this.inputs.firstOrNull()?.columns ?: emptyList())
 
     /** By default, a [NAryPhysicalOperatorNode]'s statistics are retained.  Can be overridden! */

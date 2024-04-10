@@ -105,7 +105,7 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
             return left != null && right != null && left < right
         }
         override fun toString(): String = "$left < $right"
-        override fun copy() = Greater(this.left, this.right)
+        override fun copy() = Less(this.left, this.right)
         override fun digest(): Digest = this.hashCode().toLong()
     }
 
@@ -156,7 +156,7 @@ sealed interface ComparisonOperator: NodeWithCost, PreparableNode {
     class Match(override val left: Binding, override val right: Binding) : ComparisonOperator {
         context(BindingContext, Tuple)
         override fun match() = throw UnsupportedOperationException("A MATCH comparison operator cannot be evaluated directly.")
-        override fun copy() = LessEqual(this.left, this.right)
+        override fun copy() = Match(this.left, this.right)
         override fun toString(): String = "$left MATCH $right"
         override fun digest(): Digest = this.hashCode().toLong()
     }

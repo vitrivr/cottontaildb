@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  * This is a [Value] abstraction over a [String].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 @Serializable
 @SerialName("String")
@@ -21,6 +21,14 @@ value class StringValue(override val value: String) : ScalarValue<String>, Publi
     companion object {
         /** The empty [StringValue]. */
         val EMPTY = StringValue("")
+
+        /**
+         * A static helper class to use this [StringValue] in plain Java.
+         *
+         * @param value [String] to create [StringValue] from
+         */
+        @JvmStatic
+        fun of(value: String) = StringValue(value)
     }
 
     /** The logical size of this [StringValue]. */

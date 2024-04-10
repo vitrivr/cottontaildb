@@ -72,7 +72,9 @@ class VAFFloatIndexTest : AbstractIndexTest() {
             val k = 1000L
             val query = FloatVectorValueGenerator.random(this.indexColumn.type.logicalSize, this.random)
             val function = this.catalogue.functions.obtain(Signature.Closed(distance, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Types.Double)) as VectorDistance<*>
-            val predicate = ProximityPredicate.NNS(column = this.indexColumn, k = k, distance = function, query = ctx.bindings.bind(query))
+            val idxCol = ctx.bindings.bind(this.indexColumn, this.indexColumn)
+            val distCol = ctx.bindings.bind(ColumnDef(Name.ColumnName.create("distance"), Types.Double, nullable = false), null)
+            val predicate = ProximityPredicate.NNS(column = idxCol, distanceColumn = distCol, k = k, distance = function, query = ctx.bindings.bind(query))
 
             /* Obtain necessary transactions. */
             val catalogueTx = this.catalogue.newTx(ctx)
@@ -84,11 +86,11 @@ class VAFFloatIndexTest : AbstractIndexTest() {
             val indexTx = index.newTx(ctx)
 
             /* Fetch results through full table scan. */
-            val bruteForceResults = HeapSelection(k.toInt(), RecordComparator.SingleNonNullColumnComparator(predicate.distanceColumn, SortOrder.ASCENDING))
+            val bruteForceResults = HeapSelection(k.toInt(), RecordComparator.SingleNonNullColumnComparator(predicate.distanceColumn.column, SortOrder.ASCENDING))
             val bruteForceDuration = measureTime {
                 entityTx.cursor(arrayOf(this.indexColumn)).use { cursor ->
                     cursor.forEach {
-                        bruteForceResults.offer(StandaloneTuple(it.tupleId, arrayOf(this.indexColumn, predicate.distanceColumn), arrayOf(it[this.indexColumn], function(query, it[this.indexColumn]))))
+                        bruteForceResults.offer(StandaloneTuple(it.tupleId, arrayOf(idxCol.column, predicate.distanceColumn.column), arrayOf(it[idxCol.column], function(query, it[this.indexColumn]))))
                     }
                 }
             }
@@ -104,7 +106,7 @@ class VAFFloatIndexTest : AbstractIndexTest() {
             /* Compare results. */
             for ((e, next) in indexResults.zip(bruteForceResults)) {
                 Assertions.assertEquals(next.tupleId, e.tupleId)
-                Assertions.assertEquals(next[predicate.distanceColumn], e[predicate.distanceColumn])
+                Assertions.assertEquals(next[predicate.distanceColumn.column], e[predicate.distanceColumn.column])
             }
 
             log("Test done for ${function.name} and d=${this.indexColumn.type.logicalSize}! VAF took $indexDuration, brute-force took $bruteForceDuration.")

@@ -85,7 +85,7 @@ interface BindingContext {
      * @param column The [ColumnDef] to bind.
      * @return [Binding.Column]
      */
-    fun bind(column: ColumnDef<*>): Binding.Column
+    fun bind(column: ColumnDef<*>, physical: ColumnDef<*>?): Binding.Column
 
     /**
      * Creates and returns a [Binding.Function] for the given [Function] invocation
@@ -100,10 +100,10 @@ interface BindingContext {
      * Creates and returns a [Binding.Subquery] for the given [GroupId] invocation
      *
      * @param dependsOn The [GroupId] of the query plan that generates the values.
-     * @param column The[ColumnDef] that should be extracted from the results.
-     * @return [: Binding.Subquery]
+     * @param column The [Binding.Column] that should be extracted from the results.
+     * @return [Binding.Subquery]
      */
-    fun bind(dependsOn: GroupId, column: ColumnDef<*>): Binding.Subquery
+    fun bind(dependsOn: GroupId, column: Binding.Column): Binding.Subquery
 
     /**
      * Appends a [Value] for a [Binding.Subquery].

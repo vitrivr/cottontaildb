@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onCompletion
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.catalogue.toKey
@@ -26,13 +26,10 @@ import java.util.*
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.ColumnName, Boolean>>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
+class SelectDistinctProjectionOperator(parent: Operator, fields: List<Binding.Column>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
 
     /** Columns produced by [SelectDistinctProjectionOperator]. */
-    override val columns: List<ColumnDef<*>> = this.parent.columns.filter { c -> fields.any { f -> f.first == c.name }}
-
-    /** The columns marked as distinct for this [SelectDistinctProjectionOperator]. */
-    private val distinctColumns = this.parent.columns.filter { c -> fields.any { f -> f.first == c.name && f.second}}
+    override val columns: List<ColumnDef<*>> = fields.map { it.column }
 
     /** The name of the temporary [Store] used to execute this [SelectDistinctProjectionOperator] operation. */
     private val tmpPath = this.context.catalogue.config.temporaryDataFolder().resolve("${UUID.randomUUID()}")
@@ -56,15 +53,17 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.
      */
     override fun toFlow(): Flow<Tuple> = flow {
         val columns = this@SelectDistinctProjectionOperator.columns.toTypedArray()
-        val hasher = RecordHasher(this@SelectDistinctProjectionOperator.distinctColumns)
+        val hasher = RecordHasher(this@SelectDistinctProjectionOperator.columns)
         val incoming = this@SelectDistinctProjectionOperator.parent.toFlow()
         incoming.collect { r ->
+            val projected = StandaloneTuple(r.tupleId, columns, Array(columns.size) { r[columns[it]]})
+
             /* Generates hash from record. */
-            val hash = ArrayByteIterable(hasher.hash(r))
+            val hash = ArrayByteIterable(hasher.hash(projected))
 
             /* If record could be added to list of seen records (i.e., is the first of its kind) then entry is returned. */
             if (this@SelectDistinctProjectionOperator.store.add(this@SelectDistinctProjectionOperator.tmpTxn, hash, r.tupleId.toKey())) {
-                emit(StandaloneTuple(r.tupleId, columns, Array(columns.size) { r[columns[it]]}))
+                emit(projected)
             }
         }
     }.onCompletion {

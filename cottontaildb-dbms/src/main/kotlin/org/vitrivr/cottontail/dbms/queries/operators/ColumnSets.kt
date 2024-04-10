@@ -22,50 +22,50 @@ import org.vitrivr.cottontail.core.types.Types
 object ColumnSets {
     /** Column returned by most DDL statements. */
     val DDL_STATUS_COLUMNS: List<ColumnDef<*>> = listOf(
-        ColumnDef(Name.ColumnName(COLUMN_NAME_ACTION), Types.String, false),
-        ColumnDef(Name.ColumnName(COLUMN_NAME_DBO), Types.String, false),
-        ColumnDef(Name.ColumnName(COLUMN_NAME_DURATION), Types.Long, false)
+        ColumnDef(Name.ColumnName.create(COLUMN_NAME_ACTION), Types.String, false),
+        ColumnDef(Name.ColumnName.create(COLUMN_NAME_DBO), Types.String, false),
+        ColumnDef(Name.ColumnName.create(COLUMN_NAME_DURATION), Types.Long, false)
     )
 
     /** The columns returned by LIST ENTITY and LIST SCHEMA operations. */
     val DDL_LIST_COLUMNS: List<ColumnDef<*>> = listOf(
-        ColumnDef(Name.ColumnName(COLUMN_NAME_DBO), Types.String, false),
-        ColumnDef(Name.ColumnName(COLUMN_NAME_CLASS), Types.String, false)
+        ColumnDef(Name.ColumnName.create(COLUMN_NAME_DBO), Types.String, false),
+        ColumnDef(Name.ColumnName.create(COLUMN_NAME_CLASS), Types.String, false)
     )
 
     /** The columns returned by ABOUT ENTITY operation. */
     val DDL_ABOUT_COLUMNS: List<ColumnDef<*>> = listOf(
-        ColumnDef(Name.ColumnName(COLUMN_NAME_DBO), Types.String, false),
-        ColumnDef(Name.ColumnName(COLUMN_NAME_CLASS), Types.String, false),
-        ColumnDef(Name.ColumnName(COLUMN_NAME_TYPE), Types.String, true),
-        ColumnDef(Name.ColumnName(COLUMN_NAME_ROWS), Types.Long, true),
-        ColumnDef(Name.ColumnName(COLUMN_NAME_SIZE), Types.Int, true),
-        ColumnDef(Name.ColumnName(COLUMN_NAME_NULLABLE), Types.Boolean, true),
-        ColumnDef(Name.ColumnName("info"), Types.String, true)
+        ColumnDef(Name.ColumnName.create(COLUMN_NAME_DBO), Types.String, false),
+        ColumnDef(Name.ColumnName.create(COLUMN_NAME_CLASS), Types.String, false),
+        ColumnDef(Name.ColumnName.create(COLUMN_NAME_TYPE), Types.String, true),
+        ColumnDef(Name.ColumnName.create(COLUMN_NAME_ROWS), Types.Long, true),
+        ColumnDef(Name.ColumnName.create(COLUMN_NAME_SIZE), Types.Int, true),
+        ColumnDef(Name.ColumnName.create(COLUMN_NAME_NULLABLE), Types.Boolean, true),
+        ColumnDef(Name.ColumnName.create("info"), Types.String, true)
     )
 
     /** The columns returned by ABOUT ENTITY operation. */
     val DDL_INTROSPECTION_COLUMNS: List<ColumnDef<*>> = listOf(
-        ColumnDef(Name.ColumnName(COLUMN_NAME_DBO), Types.String, false),
-        ColumnDef(Name.ColumnName("key"), Types.String, false),
-        ColumnDef(Name.ColumnName("value"), Types.String, false),
+        ColumnDef(Name.ColumnName.create(COLUMN_NAME_DBO), Types.String, false),
+        ColumnDef(Name.ColumnName.create("key"), Types.String, false),
+        ColumnDef(Name.ColumnName.create("value"), Types.String, false),
     )
 
     /** The columns returned by LIST LOCKS operation. */
     val DDL_LOCKS_COLUMNS: List<ColumnDef<*>> = listOf(
-        ColumnDef(Name.ColumnName(COLUMN_NAME_DBO), Types.String, false),
-        ColumnDef(Name.ColumnName("mode"), Types.String, false),
-        ColumnDef(Name.ColumnName("owner_count"), Types.Int, false),
-        ColumnDef(Name.ColumnName("owners"), Types.String, false)
+        ColumnDef(Name.ColumnName.create(COLUMN_NAME_DBO), Types.String, false),
+        ColumnDef(Name.ColumnName.create("mode"), Types.String, false),
+        ColumnDef(Name.ColumnName.create("owner_count"), Types.Int, false),
+        ColumnDef(Name.ColumnName.create("owners"), Types.String, false)
     )
 
     /** The columns returned by LIST TRANSACTIONS operation. */
     val DDL_TRANSACTIONS_COLUMNS: List<ColumnDef<*>> = listOf(
-        ColumnDef(Name.ColumnName("txId"), Types.Long, false),
-        ColumnDef(Name.ColumnName(COLUMN_NAME_TYPE), Types.String, false),
-        ColumnDef(Name.ColumnName("state"), Types.String, false),
-        ColumnDef(Name.ColumnName("created"), Types.Date, false),
-        ColumnDef(Name.ColumnName("ended"), Types.Date, true),
-        ColumnDef(Name.ColumnName("duration[s]"), Types.Double, true)
+        ColumnDef(Name.ColumnName.create("txId"), Types.Long, false),
+        ColumnDef(Name.ColumnName.create(COLUMN_NAME_TYPE), Types.String, false),
+        ColumnDef(Name.ColumnName.create("state"), Types.String, false),
+        ColumnDef(Name.ColumnName.create("created"), Types.Date, false),
+        ColumnDef(Name.ColumnName.create("ended"), Types.Date, true),
+        ColumnDef(Name.ColumnName.create("duration[s]"), Types.Double, true)
     )
 }

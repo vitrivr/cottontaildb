@@ -27,7 +27,7 @@ object ExternalSortRule: RewriteRule {
     override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean = node is InMemorySortPhysicalOperatorNode
 
     /**
-     * Apples this [LimitingSortPhysicalOperatorNode] to the provided [OperatorNode], creating a new version of the tree.
+     * Applies this [ExternalSortRule] to the provided [OperatorNode], creating a new version of the tree.
      *
      * @param node The [OperatorNode] to apply this [LimitingSortPhysicalOperatorNode].
      * @param ctx The [QueryContext] used for planning.
@@ -39,8 +39,11 @@ object ExternalSortRule: RewriteRule {
         /* Perform rewrite. */
         val input = node.input.copyWithExistingInput()
         val tupleSize = input.statistics.estimateTupleSize()
-        val chunkSize = Math.floorDiv(ctx.catalogue.config.memory.maxSortBufferSize, tupleSize).toInt()
-        val p = ExternalSortPhysicalOperatorNode(input, node.sortOn, chunkSize)
-        return node.output?.copyWithOutput(p) ?: p
+        if (tupleSize > 0) {
+            val chunkSize = Math.floorDiv(ctx.catalogue.config.memory.maxSortBufferSize, tupleSize).toInt()
+            val p = ExternalSortPhysicalOperatorNode(input, node.sortOn, chunkSize)
+            return node.output?.copyWithOutput(p) ?: p
+        }
+        return node
     }
 }

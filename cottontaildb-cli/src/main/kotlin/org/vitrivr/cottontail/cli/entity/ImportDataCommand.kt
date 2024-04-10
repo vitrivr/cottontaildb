@@ -59,61 +59,59 @@ class ImportDataCommand(client: SimpleClient) : AbstractEntityCommand(client, na
     override fun exec() {
         /* Read schema and prepare Iterator. */
         val schema = this.client.readSchema(this.entityName).toTypedArray()
-        val data: Sequence<Tuple> = when(format) {
-            Format.CBOR -> Cbor.decodeFromByteArray(ListSerializer(schema.serializer()), Files.readAllBytes(this.input)).asSequence()
-            Format.JSON -> Files.newInputStream(this.input).use {
-                Json.decodeToSequence(it, schema.serializer(), DecodeSequenceMode.ARRAY_WRAPPED)
+        Files.newInputStream(this.input).use { input ->
+            val data: Sequence<Tuple> = when(format) {
+                Format.CBOR -> Cbor.decodeFromByteArray(ListSerializer(schema.serializer()), input.readAllBytes()).asSequence()
+                Format.JSON -> Json.decodeToSequence(input, schema.serializer(), DecodeSequenceMode.ARRAY_WRAPPED)
+                Format.CSV -> Csv.decodeFromString(ListSerializer(schema.descriptionSerializer()), input.readAllBytes().toString()).asSequence()
             }
-            Format.CSV ->Files.newInputStream(this.input).use {
-                Csv.decodeFromString(ListSerializer(schema.descriptionSerializer()), it.readAllBytes().toString())
-            }.asSequence()
-        }
 
-        /** Begin transaction (if single transaction option has been set). */
-        val txId = if (this.singleTransaction) {
-            this.client.begin()
-        } else {
-            null
-        }
-
-        try {
-            /* Prepare batch insert message. */
-            val batchedInsert = BatchInsert(this.entityName.fqn)
-            if (txId != null) {
-                batchedInsert.txId(txId)
+            /** Begin transaction (if single transaction option has been set). */
+            val txId = if (this.singleTransaction) {
+                this.client.begin()
+            } else {
+                null
             }
-            batchedInsert.columns(*schema.map { it.name.simple }.toTypedArray())
-            var count = 0L
-            val duration = measureTime {
-                for (t in data) {
-                    if (!batchedInsert.values(*t.values().mapNotNull { it as? PublicValue }.toTypedArray())) {
-                        /* Execute insert... */
-                        client.insert(batchedInsert)
 
-                        /* ... now clear and append. */
-                        batchedInsert.clear()
-                        if (!batchedInsert.any(*t.values().mapNotNull { it as? PublicValue }.toTypedArray())) {
-                            throw IllegalArgumentException("The appended data is too large for a single message.")
-                        }
-                    }
-                    count += 1
-                }
-
-                /** Insert remainder. */
-                if (batchedInsert.count() > 0) {
-                    this.client.insert(batchedInsert)
-                }
-
-                /** Commit transaction, if single transaction option has been set. */
+            try {
+                /* Prepare batch insert message. */
+                val batchedInsert = BatchInsert(this.entityName.fqn)
                 if (txId != null) {
-                    this.client.commit(txId)
+                    batchedInsert.txId(txId)
                 }
+                batchedInsert.columns(*schema.map { it.name.simple }.toTypedArray())
+                var count = 0L
+                val duration = measureTime {
+                    for (t in data) {
+                        if (!batchedInsert.values(*t.values().mapNotNull { it as? PublicValue }.toTypedArray())) {
+                            /* Execute insert... */
+                            client.insert(batchedInsert)
+
+                            /* ... now clear and append. */
+                            batchedInsert.clear()
+                            if (!batchedInsert.any(*t.values().mapNotNull { it as? PublicValue }.toTypedArray())) {
+                                throw IllegalArgumentException("The appended data is too large for a single message.")
+                            }
+                        }
+                        count += 1
+                    }
+
+                    /** Insert remainder. */
+                    if (batchedInsert.count() > 0) {
+                        this.client.insert(batchedInsert)
+                    }
+
+                    /** Commit transaction, if single transaction option has been set. */
+                    if (txId != null) {
+                        this.client.commit(txId)
+                    }
+                }
+                println("Importing $count entries into $entityName took $duration.")
+            } catch (e: Throwable) {
+                /** Rollback transaction, if single transaction option has been set. */
+                if (txId != null) this.client.rollback(txId)
+                println("Importing entries into $entityName failed due to error: ${e.message}")
             }
-            println("Importing $count entries into $entityName took $duration.")
-        } catch (e: Throwable) {
-            /** Rollback transaction, if single transaction option has been set. */
-            if (txId != null) this.client.rollback(txId)
-            println("Importing entries into $entityName failed due to error: ${e.message}")
         }
     }
 }

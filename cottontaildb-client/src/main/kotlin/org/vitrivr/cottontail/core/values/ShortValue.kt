@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  * This is an abstraction over a [Short].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 @Serializable
 @SerialName("Short")
@@ -34,6 +34,14 @@ value class ShortValue(override val value: Short): RealValue<Short>, PublicValue
 
         /** The one [ShortValue]. */
         val ONE = ShortValue(1.toShort())
+
+        /**
+         * A static helper class to use this [ShortValue] in plain Java.
+         *
+         * @param value [Short] to create [ShortValue] from
+         */
+        @JvmStatic
+        fun of(value: Short) = ShortValue(value)
     }
 
     /**

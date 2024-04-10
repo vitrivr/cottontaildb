@@ -56,7 +56,7 @@ class VAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractIndexRe
 
                     /* Data is flushed every once in a while. */
                     if ((counter ++) % 1_000_000 == 0) {
-                        LOGGER.debug("Rebuilding index ${this.index.name} (${this.index.type}) still running ($counter / $count)...")
+                        LOGGER.debug("Rebuilding index {} ({}) still running ({} / {})...", this.index.name, this.index.type, counter, count)
                         if (!this.context.txn.xodusTx.flush()) {
                             return false
                         }

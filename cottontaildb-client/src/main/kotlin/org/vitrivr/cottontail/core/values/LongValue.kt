@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  * This is an abstraction over a [Long].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 @Serializable
 @SerialName("Long")
@@ -35,6 +35,14 @@ value class LongValue(override val value: Long): RealValue<Long>, PublicValue {
 
         /** The one [LongValue]. */
         val ONE = LongValue(1L)
+
+        /**
+         * A static helper class to use this [LongValue] in plain Java.
+         *
+         * @param value [Long] to create [LongValue] from
+         */
+        @JvmStatic
+        fun of(value: Long) = LongValue(value)
     }
 
     /**

@@ -166,7 +166,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          */
         override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> = this.txLatch.withLock {
             require(predicate is ProximityPredicate.Scan) { "IVFPQIndex can only process proximity search." }
-            return listOf(predicate.distanceColumn)
+            return listOf(predicate.distanceColumn.column)
         }
 
         /**
@@ -175,8 +175,9 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          * @param predicate [Predicate] to check.
          * @return True if [Predicate] can be processed, false otherwise.
          */
-        override fun canProcess(predicate: Predicate): Boolean
-            = predicate is ProximityPredicate.Scan && predicate.column == this.columns[0] && predicate.distance::class == this.distanceFunction::class
+        override fun canProcess(predicate: Predicate): Boolean = predicate is ProximityPredicate.Scan &&
+            predicate.column.physical == this.columns[0] &&
+            predicate.distance::class == this.distanceFunction::class
 
         /**
          * Returns the map of [Trait]s this [PQIndex] implements for the given [Predicate]s.
@@ -197,7 +198,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          */
         override fun costFor(predicate: Predicate): Cost = this.txLatch.withLock {
             if (predicate !is ProximityPredicate.Scan) return Cost.INVALID
-            if (predicate.column != this.columns[0]) return Cost.INVALID
+            if (predicate.column.physical != this.columns[0]) return Cost.INVALID
             if (predicate.distance.name != (this.config as IVFPQIndexConfig).distance) return Cost.INVALID
             val numberOfCoarseCentroids = this.config.numCoarseCentroids
             val nprobe = numberOfCoarseCentroids / 32

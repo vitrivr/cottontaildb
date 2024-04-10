@@ -112,9 +112,10 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /* Load a map of indexes. This map can be kept in memory for the duration of the transaction, because Transaction works with a fixed snapshot.  */
             val indexMetadataStore = IndexMetadata.store(this@DefaultEntity.catalogue, this.context.txn.xodusTx)
             indexMetadataStore.openCursor(this.context.txn.xodusTx).use {
-                if (it.getSearchKeyRange(NameBinding.Entity.toEntry(this@DefaultEntity.name))  != null) {
+                if (it.getSearchKeyRange(NameBinding.Entity.toEntry(this@DefaultEntity.name)) != null) {
                     do {
                         val indexName = NameBinding.Index.fromEntry(it.key)
+                        if (indexName.entity() != this@DefaultEntity.name) break
                         val indexEntry = IndexMetadata.fromEntry(it.value)
                         this.indexes[indexName] = indexEntry.type.descriptor.open(indexName, this.dbo)
                     } while (it.next)

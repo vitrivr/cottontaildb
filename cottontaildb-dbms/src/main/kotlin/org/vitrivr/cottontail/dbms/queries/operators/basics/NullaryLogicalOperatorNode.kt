@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.dbms.queries.operators.basics
 
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.nodes.CopyableNode
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
@@ -28,8 +28,8 @@ abstract class NullaryLogicalOperatorNode: OperatorNode.Logical(), CopyableNode 
     final override val base: Collection<Logical>
         get() = listOf(this)
 
-    /** By default, a [NullaryLogicalOperatorNode] doesn't have any requirement. */
-    override val requires: List<ColumnDef<*>>
+    /** A [NullaryLogicalOperatorNode] doesn't have any requirement. */
+    final override val requires: List<Binding.Column>
         get() = emptyList()
 
     /** By default, a [NullaryLogicalOperatorNode] has an empty set of [Trait]s. */

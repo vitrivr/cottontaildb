@@ -5,7 +5,6 @@ import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.core.types.*
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.nio.ByteBuffer
-import java.nio.LongBuffer
 import java.nio.ShortBuffer
 import java.util.*
 import kotlin.math.pow
@@ -18,6 +17,8 @@ import kotlin.math.pow
 @SerialName("ShortVector")
 @JvmInline
 value class ShortVectorValue(val data: ShortArray) : RealVectorValue<Short>, PublicValue {
+
+
     constructor(input: List<Number>) : this(ShortArray(input.size) { input[it].toShort() })
     constructor(input: Array<Number>) : this(ShortArray(input.size) { input[it].toShort() })
     constructor(input: DoubleArray) : this(ShortArray(input.size) { input[it].toInt().toShort() })
@@ -60,7 +61,7 @@ value class ShortVectorValue(val data: ShortArray) : RealVectorValue<Short>, Pub
      * @return [CottontailGrpc.Literal]
      */
     override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setIntVector(CottontailGrpc.IntVector.newBuilder().addAllVector(this.map { it.value.toInt() }))).build()
+        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setShort(CottontailGrpc.IntVector.newBuilder().addAllVector(this.map { it.value.toInt() }))).build()
 
     /**
      * Returns the indices of this [ShortVectorValue].

@@ -13,13 +13,12 @@ import kotlin.math.pow
  * This is an abstraction over a [Double].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 @Serializable
 @SerialName("Double")
 @JvmInline
 value class DoubleValue(override val value: Double): RealValue<Double>, PublicValue{
-
     companion object {
         /**
          * The minimum value that can be held by a [DoubleValue].
@@ -42,6 +41,14 @@ value class DoubleValue(override val value: Double): RealValue<Double>, PublicVa
 
         /** The infinity [DoubleValue]. */
         val INF = DoubleValue(Double.POSITIVE_INFINITY)
+
+        /**
+         * A static helper class to use this [DoubleValue] in plain Java.
+         *
+         * @param array [Double] to create [DoubleValue] from
+         */
+        @JvmStatic
+        fun of(array: Double) = DoubleValue(array)
     }
 
     /**

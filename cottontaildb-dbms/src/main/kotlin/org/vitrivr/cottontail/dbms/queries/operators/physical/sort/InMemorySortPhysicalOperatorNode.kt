@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sort
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
@@ -20,9 +21,9 @@ import org.vitrivr.cottontail.dbms.statistics.estimateTupleSize
  * A [UnaryPhysicalOperatorNode] that represents sorting the input by a set of specified [ColumnDef]s in-memory.
  *
  * @author Ralph Gasser
- * @version 2.4.0
+ * @version 2.9.0
  */
-class InMemorySortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<ColumnDef<*>, SortOrder>>) : UnaryPhysicalOperatorNode(input) {
+class InMemorySortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<Binding.Column, SortOrder>>) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Order"
@@ -33,7 +34,9 @@ class InMemorySortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<Co
         get() = NODE_NAME
 
     /** The [InMemorySortPhysicalOperatorNode] requires all [ColumnDef]s used on the ORDER BY clause. */
-    override val requires: List<ColumnDef<*>> = this.sortOn.map { it.first }
+    override val requires: List<Binding.Column> by lazy {
+        this.sortOn.map { it.first }
+    }
 
     /** The [Cost] incurred by this [InMemorySortPhysicalOperatorNode]. */
     context(BindingContext, Tuple)
@@ -89,7 +92,7 @@ class InMemorySortPhysicalOperatorNode(input: Physical, val sortOn: List<Pair<Co
     }
 
     /** Generates and returns a [String] representation of this [InMemorySortPhysicalOperatorNode]. */
-    override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.name} ${it.second}" }}]"
+    override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.column.name} ${it.second}" }}]"
 
     /**
      * Generates and returns a [Digest] for this [InMemorySortPhysicalOperatorNode].

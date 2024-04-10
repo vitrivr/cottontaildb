@@ -8,14 +8,15 @@ import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.statistics.metrics.EntityMetric
+import java.io.Closeable
 
 /**
  * A class that manages  the storage of [ColumnStatistic] by keeping them in memory and updating their value in the storage when necessary.
  *
  * @author Florian Burkhardt
- * @version 1.0.0
+ * @version 1.1.0
  */
-class StatisticsStorageManager(config: Config) {
+class StatisticsStorageManager(config: Config): Closeable {
 
     /** The statistics/metrics Xodus [Environment] used by the [StatisticsStorageManager]. */
     private val environment: Environment = Environments.newInstance(config.statisticsFolder().toFile(), config.xodus.toEnvironmentConfig())
@@ -30,9 +31,9 @@ class StatisticsStorageManager(config: Config) {
         val tx = this.environment.beginExclusiveTransaction()
         try {
             this.columnsStore = this.environment.openStore("org.vitrivr.cottontail.statistics.column", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, tx)
-            this.metricsStore = this.environment.openStore("org.vitrivr.cottontail.statistics.column", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, tx)
+            this.metricsStore = this.environment.openStore("org.vitrivr.cottontail.statistics.entity", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, tx)
         } finally {
-            tx.abort()
+            tx.commit()
         }
     }
 
@@ -97,5 +98,12 @@ class StatisticsStorageManager(config: Config) {
         this.environment.executeInExclusiveTransaction { tx ->
             this.columnsStore.delete(tx, NameBinding.Column.toEntry(column)) // write to storage
         }
+    }
+
+    /**
+     * Closes the [Environment] backing this [StatisticsStorageManager].
+     */
+    override fun close() {
+        this.environment.close()
     }
 }

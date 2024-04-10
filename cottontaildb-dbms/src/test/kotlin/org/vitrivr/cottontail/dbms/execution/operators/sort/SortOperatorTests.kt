@@ -32,9 +32,11 @@ class SortOperatorTests {
     @ParameterizedTest
     @ValueSource(ints = [0, 1, 2])
     fun testInMemorySortAsc(columnIndex : Int) {
+        val ctx = DummyQueryContext
+        val binding = ctx.bindings.bind(this.schema[columnIndex], this.schema[columnIndex])
         val random = SplittableRandom(this.seed)
         val source = RandomTupleSourceOperator(0, TestConstants.TEST_COLLECTION_SIZE, random, this.schema.toList(), DummyQueryContext)
-        val sort = HeapSortOperator(source, listOf(this.schema[columnIndex] to SortOrder.ASCENDING), TestConstants.TEST_COLLECTION_SIZE, DummyQueryContext)
+        val sort = HeapSortOperator(source, listOf(binding to SortOrder.ASCENDING), TestConstants.TEST_COLLECTION_SIZE, DummyQueryContext)
         val sorted = ArrayList<Tuple>(TestConstants.TEST_COLLECTION_SIZE)
 
         /* Execute the two operators. */
@@ -61,9 +63,11 @@ class SortOperatorTests {
     @ParameterizedTest
     @ValueSource(ints = [0, 1, 2])
     fun testInMemorySortDesc(columnIndex : Int) {
+        val ctx = DummyQueryContext
+        val binding = ctx.bindings.bind(this.schema[columnIndex], this.schema[columnIndex])
         val random = SplittableRandom(this.seed)
         val source = RandomTupleSourceOperator(0, TestConstants.TEST_COLLECTION_SIZE, random, this.schema.toList(), DummyQueryContext)
-        val sort = HeapSortOperator(source, listOf(this.schema[columnIndex] to SortOrder.DESCENDING), TestConstants.TEST_COLLECTION_SIZE, DummyQueryContext)
+        val sort = HeapSortOperator(source, listOf(binding to SortOrder.DESCENDING), TestConstants.TEST_COLLECTION_SIZE, DummyQueryContext)
         val sorted = ArrayList<Tuple>(TestConstants.TEST_COLLECTION_SIZE)
 
         /* Execute the two operators. */
@@ -91,8 +95,10 @@ class SortOperatorTests {
     @ValueSource(ints = [0, 1, 2])
     fun testExternalSortAsc(columnIndex: Int) {
         val random = SplittableRandom(this.seed)
+        val ctx = DummyQueryContext
+        val binding = ctx.bindings.bind(this.schema[columnIndex], this.schema[columnIndex])
         val source = RandomTupleSourceOperator(0, TestConstants.TEST_COLLECTION_SIZE, random, this.schema.toList(), DummyQueryContext)
-        val sort = ExternalMergeSortOperator(source, listOf(this.schema[columnIndex] to SortOrder.ASCENDING), floorDiv(TestConstants.TEST_COLLECTION_SIZE, 1000), DummyQueryContext)
+        val sort = ExternalMergeSortOperator(source, listOf(binding to SortOrder.ASCENDING), floorDiv(TestConstants.TEST_COLLECTION_SIZE, 1000), DummyQueryContext)
         val sorted = ArrayList<Tuple>(TestConstants.TEST_COLLECTION_SIZE)
 
         /* Execute the two operators. */

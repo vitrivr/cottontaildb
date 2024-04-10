@@ -205,7 +205,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          */
         override fun costFor(predicate: Predicate): Cost {
             if (predicate !is ProximityPredicate) return Cost.INVALID
-            if (predicate.column != this.columns[0]) return Cost.INVALID
+            if (predicate.column.physical != this.columns[0]) return Cost.INVALID
             if (predicate.distance !is MinkowskiDistance<*>) return Cost.INVALID
             val efficiency = this.getEfficiency()
             val signatureRead = this.count()
@@ -231,7 +231,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          */
         override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> {
             require(predicate is ProximityPredicate) { "VAFIndex can only process proximity predicates." }
-            return listOf(predicate.distanceColumn, this.columns[0])
+            return listOf(predicate.distanceColumn.column, this.columns[0])
         }
 
         /**
@@ -242,7 +242,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          */
         override fun canProcess(predicate: Predicate): Boolean {
             if (predicate !is ProximityPredicate) return false
-            if (predicate.column != this.columns[0]) return false
+            if (predicate.column.physical != this.columns[0]) return false
             if (predicate.distance !is MinkowskiDistance) return false
             return (predicate is ProximityPredicate.KLimitedSearch || predicate is ProximityPredicate.ENN)
         }

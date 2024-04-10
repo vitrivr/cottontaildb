@@ -6,7 +6,6 @@ import org.vitrivr.cottontail.core.types.*
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.nio.ByteBuffer
 import java.nio.DoubleBuffer
-import java.util.*
 import kotlin.math.atan2
 import kotlin.math.pow
 import kotlin.math.withSign
@@ -119,7 +118,7 @@ value class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Dou
      */
     override fun toGrpc(): CottontailGrpc.Literal =
         CottontailGrpc.Literal.newBuilder().setVectorData(
-            CottontailGrpc.Vector.newBuilder().setComplex64Vector(CottontailGrpc.Complex64Vector.newBuilder().addAllVector(this.map { CottontailGrpc.Complex64.newBuilder().setReal(it.real.value).setImaginary(it.imaginary.value).build() }))
+            CottontailGrpc.Vector.newBuilder().setComplex64(CottontailGrpc.Complex64Vector.newBuilder().addAllVector(this.map { CottontailGrpc.Complex64.newBuilder().setReal(it.real.value).setImaginary(it.imaginary.value).build() }))
         ).build()
 
     /**

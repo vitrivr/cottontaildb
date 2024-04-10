@@ -121,8 +121,8 @@ internal class LuceneIndexDataStore(val directory: XodusDirectory, private val i
         val doc = Document()
         doc.add(NumericDocValuesField(LuceneIndex.TID_COLUMN, tupleId))
         doc.add(StoredField(LuceneIndex.TID_COLUMN, tupleId))
-        doc.add(TextField("${this.indexedColumn}_txt", value.value, Field.Store.NO))
-        doc.add(StringField("${this.indexedColumn}_str", value.value, Field.Store.NO))
+        doc.add(TextField("${this.indexedColumn.column}_txt", value.value, Field.Store.NO))
+        doc.add(StringField("${this.indexedColumn.column}_str", value.value, Field.Store.NO))
         return doc
     }
 }

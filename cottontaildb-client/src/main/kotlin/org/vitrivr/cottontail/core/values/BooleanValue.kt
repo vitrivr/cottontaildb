@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  * This is an abstraction over a [Boolean].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 @Serializable
 @SerialName("Boolean")
@@ -24,7 +24,16 @@ value class BooleanValue(override val value: Boolean): ScalarValue<Boolean>, Pub
 
         /** The false [BooleanValue]. */
         val FALSE = BooleanValue(false)
+
+        /**
+         * A static helper class to use this [BooleanValue] in plain Java.
+         *
+         * @param value [Boolean] to create [BooleanValue] from
+         */
+        @JvmStatic
+        fun of(value: Boolean) = BooleanValue(value)
     }
+
     /** The logical size of this [BooleanValue]. */
     override val logicalSize: Int
         get() = 1
@@ -35,7 +44,7 @@ value class BooleanValue(override val value: Boolean): ScalarValue<Boolean>, Pub
 
     /**
      * Compares this [BooleanValue] to another [Value]. Returns -1, 0 or 1 of other value is smaller,
-     * equal or greater than this value. [BooleanValue] can only be compared to other [NumericValue]s.
+     * equal or greater than this value. [BooleanValue] can only be compared to other [BooleanValue]s.
      *
      * @param other Value to compare to.
      * @return -1, 0 or 1 of other value is smaller, equal or greater than this value

@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  * This is an abstraction over an [Int].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 @Serializable
 @SerialName("Integer")
@@ -35,6 +35,14 @@ value class IntValue(override val value: Int): RealValue<Int>, PublicValue {
 
         /** The zero [IntValue]. */
         val ONE = IntValue(1)
+
+        /**
+         * A static helper class to use this [IntValue] in plain Java.
+         *
+         * @param value [Int] to create [IntValue] from
+         */
+        @JvmStatic
+        fun of(value: Int) = IntValue(value)
     }
 
     /**

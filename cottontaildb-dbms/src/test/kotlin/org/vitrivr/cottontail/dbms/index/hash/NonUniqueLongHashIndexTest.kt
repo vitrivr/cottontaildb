@@ -61,7 +61,7 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
             val indexTx = index.newTx(ctx)
 
             /* Prepare binding context and predicate. */
-            val columnBinding = ctx.bindings.bind(this.columns[0])
+            val columnBinding = ctx.bindings.bind(this.columns[0], this.columns[0])
             val valueBinding = ctx.bindings.bindNull(Types.Long)
             val predicate = BooleanPredicate.Comparison(ComparisonOperator.Equal(columnBinding, valueBinding))
 
@@ -107,7 +107,7 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
         val indexTx = index.newTx(ctx)
 
         var count = 0
-        val predicate = BooleanPredicate.Comparison(ComparisonOperator.Equal(ctx.bindings.bind(this.columns[0]), ctx.bindings.bind(LongValue(this.random.nextLong(100L, Long.MAX_VALUE)))))
+        val predicate = BooleanPredicate.Comparison(ComparisonOperator.Equal(ctx.bindings.bind(this.columns[0], this.columns[0]), ctx.bindings.bind(LongValue(this.random.nextLong(100L, Long.MAX_VALUE)))))
         val cursor = indexTx.filter(predicate)
         cursor.forEach { count += 1 }
         cursor.close()

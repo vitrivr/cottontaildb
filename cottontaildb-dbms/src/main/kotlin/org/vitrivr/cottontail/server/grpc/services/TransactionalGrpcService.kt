@@ -192,8 +192,8 @@ internal interface TransactionalGrpcService {
             LOGGER.info("[{}, {}] Execution of {} completed successfully in {}.", context.txn.transactionId, context.queryId, context.physical.firstOrNull()?.name, m2.elapsedNow())
         }.collect {
             val tuple = it.toTuple()
-            results += 1
-            if (accumulatedSize + tuple.serializedSize >= Constants.MAX_PAGE_SIZE_BYTES) {
+            val tupleSize = tuple.serializedSize
+            if (accumulatedSize + tupleSize >= Constants.MAX_PAGE_SIZE_BYTES) {
                 responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS) /* Query duration is, re-evaluated for every batch. */
                 emit(responseBuilder.build())
                 responseBuilder.clearTuples()
@@ -202,7 +202,8 @@ internal interface TransactionalGrpcService {
 
             /* Add entry to page and increment counter. */
             responseBuilder.addTuples(tuple)
-            accumulatedSize += tuple.serializedSize
+            accumulatedSize += tupleSize
+            results += 1
         }
     }
 

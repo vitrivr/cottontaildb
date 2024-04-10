@@ -1,10 +1,5 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index
 
-import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
@@ -37,55 +32,25 @@ object BooleanIndexScanRule : RewriteRule {
         if (node is FilterPhysicalOperatorNode) {
             val parent = node.input
             if (parent is EntityScanPhysicalOperatorNode) {
-                val fetch = parent.fetch.toMap()
-                val normalizedPredicate = this.normalize(node.predicate, fetch)
-
                 /* Extract index hint and search for candidate. */
                 val candidate = parent.entity.listIndexes().map {
                     parent.entity.indexForName(it).newTx(ctx)
                 }.find {
-                    it.state != IndexState.DIRTY && it.canProcess(normalizedPredicate)
+                    it.state != IndexState.DIRTY && it.canProcess(node.predicate)
                 }
 
                 if (candidate != null) {
-                    val newFetch = parent.fetch.filter { candidate.columnsFor(normalizedPredicate).contains(it.second) }
-                    val delta = parent.fetch.filter { !candidate.columnsFor(normalizedPredicate).contains(it.second) }
-                    var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, candidate, node.predicate, newFetch)
-                    if (delta.isNotEmpty()) {
-                        p = FetchPhysicalOperatorNode(p, parent.entity, delta)
+                    val produced = candidate.columnsFor(node.predicate)
+                    val indexColumns = parent.columns.filter { produced.contains(it.physical!!) }
+                    val fetchColumns = parent.columns.filter { !produced.contains(it.physical!!) }
+                    var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, indexColumns, candidate, node.predicate)
+                    if (fetchColumns.isNotEmpty()) {
+                        p = FetchPhysicalOperatorNode(p, parent.entity, fetchColumns)
                     }
                     return node.output?.copyWithOutput(p) ?: p
                 }
             }
         }
         return null
-    }
-
-    /**
-     * Normalizes the given [BooleanPredicate] given the list of mapped [ColumnDef]s. Normalization resolves
-     * potential [ColumnDef] containing alias names to the root [ColumnDef]s.
-     *
-     * @param predicate [BooleanPredicate] To normalize.
-     * @param fetch [Map] of [ColumnDef] and alias [Name.ColumnName].
-     */
-    private fun normalize(predicate: BooleanPredicate, fetch: Map<Binding.Column, ColumnDef<*>>): BooleanPredicate = when (predicate) {
-        is BooleanPredicate.IsNull -> BooleanPredicate.IsNull(predicate.binding)
-        is BooleanPredicate.Comparison -> BooleanPredicate.Comparison(
-            when(val op = predicate.operator) {
-                is ComparisonOperator.Equal -> ComparisonOperator.Equal(op.left, op.right)
-                is ComparisonOperator.NotEqual -> ComparisonOperator.NotEqual(op.left, op.right)
-                is ComparisonOperator.Greater -> ComparisonOperator.Greater(op.left, op.right)
-                is ComparisonOperator.GreaterEqual -> ComparisonOperator.GreaterEqual(op.left, op.right)
-                is ComparisonOperator.Less -> ComparisonOperator.Less(op.left, op.right)
-                is ComparisonOperator.LessEqual -> ComparisonOperator.LessEqual(op.left,op.right)
-                is ComparisonOperator.Like -> ComparisonOperator.Like(op.left, op.right)
-                is ComparisonOperator.Match -> ComparisonOperator.Match(op.left, op.right)
-                is ComparisonOperator.Between, /* IN and BETWEEN operators only support literal bindings. */
-                is ComparisonOperator.In -> op
-            })
-        is BooleanPredicate.Not -> BooleanPredicate.Not(normalize(predicate.p, fetch))
-        is BooleanPredicate.And -> BooleanPredicate.And(normalize(predicate.p1, fetch), normalize(predicate.p2, fetch))
-        is BooleanPredicate.Or -> BooleanPredicate.Or(normalize(predicate.p1, fetch), normalize(predicate.p2, fetch))
-        is BooleanPredicate.Literal -> predicate
     }
 }

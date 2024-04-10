@@ -27,7 +27,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * - Function: Executed function must be the [FulltextScore] function.
  *
  * @author Ralph Gasser
- * @version 1.3.1
+ * @version 1.4.0
  */
 object FulltextIndexRule : RewriteRule {
 
@@ -74,8 +74,8 @@ object FulltextIndexRule : RewriteRule {
             with(ctx.bindings) {
                 if (candidate != null) {
                     val produces = candidate.columnsFor(predicate)
-                    val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, candidate, predicate, listOf(Pair(node.out, produces[0])))
-                    val fetch = FetchPhysicalOperatorNode(indexScan, scan.entity, scan.fetch.filter { !produces.contains(it.second) })
+                    val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, listOf(ctx.bindings.bind(node.out.column, produces[0])), candidate, predicate)
+                    val fetch = FetchPhysicalOperatorNode(indexScan, scan.entity, scan.columns.filter { !produces.contains(it.column) })
                     if (node.output == null) return fetch
                     return OperatorNodeUtilities.chainIf(fetch, node.output!!) {
                         when (it) {
@@ -83,8 +83,8 @@ object FulltextIndexRule : RewriteRule {
                             is FilterPhysicalOperatorNode -> {
                                 if (it.predicate is BooleanPredicate.Comparison && it.predicate.operator is ComparisonOperator.Greater) {
                                     val op = it.predicate.operator as ComparisonOperator.Greater
-                                    ((op.left is Binding.Column && (op.left as Binding.Column).column == indexScan.columns.first() && op.right.getValue() == DoubleValue.ZERO) ||
-                                            (op.right is Binding.Column && (op.right as Binding.Column).column == indexScan.columns.first() && op.left.getValue() == DoubleValue.ZERO)).not()
+                                    ((op.left is Binding.Column && (op.left as Binding.Column) == indexScan.columns.first() && op.right.getValue() == DoubleValue.ZERO) ||
+                                            (op.right is Binding.Column && (op.right as Binding.Column) == indexScan.columns.first() && op.left.getValue() == DoubleValue.ZERO)).not()
                                 } else {
                                     true
                                 }
