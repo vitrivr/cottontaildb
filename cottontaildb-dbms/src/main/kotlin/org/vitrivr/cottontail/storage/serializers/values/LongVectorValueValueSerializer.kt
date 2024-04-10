@@ -1,16 +1,16 @@
 package org.vitrivr.cottontail.storage.serializers.values
 
-import jetbrains.exodus.ArrayByteIterable
-import jetbrains.exodus.ByteIterable
+import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.LongVectorValue
-import org.xerial.snappy.Snappy
+import java.io.ByteArrayInputStream
 
 /**
  * A [ValueSerializer] for [LongVectorValue] serialization and deserialization.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 3.0.0
  */
 class LongVectorValueValueSerializer(val size: Int): ValueSerializer<LongVectorValue> {
     init {
@@ -19,10 +19,13 @@ class LongVectorValueValueSerializer(val size: Int): ValueSerializer<LongVectorV
 
     override val type: Types<LongVectorValue> = Types.LongVector(this.size)
 
-    override fun fromEntry(entry: ByteIterable): LongVectorValue = LongVectorValue(Snappy.uncompressLongArray(entry.bytesUnsafe))
-
-    override fun toEntry(value: LongVectorValue): ByteIterable {
-        val compressed = Snappy.compress(value.data)
-        return ArrayByteIterable(compressed, compressed.size)
+    override fun write(output: LightOutputStream, value: LongVectorValue) {
+        for (v in value.data) {
+            LongBinding.BINDING.writeObject(output, v)
+        }
     }
+
+    override fun read(input: ByteArrayInputStream) = LongVectorValue(LongArray(this.size) {
+        LongBinding.BINDING.readObject(input)
+    })
 }

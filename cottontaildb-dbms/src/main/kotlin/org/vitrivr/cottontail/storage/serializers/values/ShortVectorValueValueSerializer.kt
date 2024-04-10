@@ -1,16 +1,16 @@
 package org.vitrivr.cottontail.storage.serializers.values
 
-import jetbrains.exodus.ArrayByteIterable
-import jetbrains.exodus.ByteIterable
+import jetbrains.exodus.bindings.ShortBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.core.values.LongVectorValue
 import org.vitrivr.cottontail.core.values.ShortVectorValue
-import org.xerial.snappy.Snappy
-import java.nio.ByteBuffer
+import java.io.ByteArrayInputStream
 
 /**
  * A [ValueSerializer] for [ShortVectorValue] serialization and deserialization.
  *
+ * @author Ralph Gasser
+ * @version 3.0.0
  */
 class ShortVectorValueValueSerializer(val size: Int): ValueSerializer<ShortVectorValue> {
     init {
@@ -18,11 +18,13 @@ class ShortVectorValueValueSerializer(val size: Int): ValueSerializer<ShortVecto
     }
 
     override val type: Types<ShortVectorValue> = Types.ShortVector(this.size)
-
-    override fun fromEntry(entry: ByteIterable): ShortVectorValue = ShortVectorValue(ByteBuffer.wrap(Snappy.uncompress(entry.bytesUnsafe)))
-
-    override fun toEntry(value: ShortVectorValue): ByteIterable {
-        val compressed = Snappy.compress(value.data)
-        return ArrayByteIterable(compressed, compressed.size)
+    override fun write(output: LightOutputStream, value: ShortVectorValue) {
+        for (v in value.data) {
+            ShortBinding.BINDING.writeObject(output, v)
+        }
     }
+
+    override fun read(input: ByteArrayInputStream): ShortVectorValue = ShortVectorValue(ShortArray(this.size) {
+        ShortBinding.BINDING.readObject(input)
+    })
 }
