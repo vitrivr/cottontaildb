@@ -43,6 +43,29 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
         = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
 
     /**
+     *  Compares this [DefaultSchema] to another [Any].
+     *
+     *  @param other [Any] object or null
+     *  @return True if equal, false otherwise.
+     */
+    override fun equals(other: Any?): Boolean {
+        if (other !is DefaultSchema) return false
+        if (other.parent != this.parent) return false
+        return other.name == this.name
+    }
+
+    /**
+     *  Generates a hash code for this [DefaultSequence]
+     *
+     *  @return Hash code.
+     */
+    override fun hashCode(): Int {
+        var result = name.hashCode()
+        result = 31 * result + parent.hashCode()
+        return result
+    }
+
+    /**
      * A [Tx] that affects this [DefaultSchema].
      *
      * @author Ralph Gasser
