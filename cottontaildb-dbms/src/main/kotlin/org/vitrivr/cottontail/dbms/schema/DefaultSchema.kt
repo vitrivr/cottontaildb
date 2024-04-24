@@ -179,7 +179,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
 
                 /* Create sequence. */
                 if (it.second.autoIncrement) {
-                    this.createSequence(this@DefaultSchema.name.sequence("${it.first.entity}_${it.first.column}_auto"))
+                    this.createSequence(it.first.autoincrement()!!)
                 }
 
                 /* Create store for column data. */
@@ -255,7 +255,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             entityTx.listColumns().forEach {
                 this@DefaultSchema.catalogue.transactionManager.environment.truncateStore("${name.storeName()}#bitmap", this.context.txn.xodusTx)
                 if (it.autoIncrement) {
-                    val sequenceTx = this.sequenceForName(this@DefaultSchema.name.sequence("${it.name.entity}_${it.name.column}_auto")).newTx(this.context)
+                    val sequenceTx = this.sequenceForName(it.name.autoincrement()!!).newTx(this.context)
                     sequenceTx.reset()
                 }
             }
