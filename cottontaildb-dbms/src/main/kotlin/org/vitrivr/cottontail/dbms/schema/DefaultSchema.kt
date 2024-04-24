@@ -43,6 +43,29 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
         = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
 
     /**
+     *  Compares this [DefaultSchema] to another [Any].
+     *
+     *  @param other [Any] object or null
+     *  @return True if equal, false otherwise.
+     */
+    override fun equals(other: Any?): Boolean {
+        if (other !is DefaultSchema) return false
+        if (other.parent != this.parent) return false
+        return other.name == this.name
+    }
+
+    /**
+     *  Generates a hash code for this [DefaultSequence]
+     *
+     *  @return Hash code.
+     */
+    override fun hashCode(): Int {
+        var result = name.hashCode()
+        result = 31 * result + parent.hashCode()
+        return result
+    }
+
+    /**
      * A [Tx] that affects this [DefaultSchema].
      *
      * @author Ralph Gasser
@@ -156,7 +179,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
 
                 /* Create sequence. */
                 if (it.second.autoIncrement) {
-                    this.createSequence(this@DefaultSchema.name.sequence("${it.first.entity}_${it.first.column}_auto"))
+                    this.createSequence(it.first.autoincrement()!!)
                 }
 
                 /* Create store for column data. */
@@ -232,7 +255,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             entityTx.listColumns().forEach {
                 this@DefaultSchema.catalogue.transactionManager.environment.truncateStore("${name.storeName()}#bitmap", this.context.txn.xodusTx)
                 if (it.autoIncrement) {
-                    val sequenceTx = this.sequenceForName(this@DefaultSchema.name.sequence("${it.name.entity}_${it.name.column}_auto")).newTx(this.context)
+                    val sequenceTx = this.sequenceForName(it.name.autoincrement()!!).newTx(this.context)
                     sequenceTx.reset()
                 }
             }

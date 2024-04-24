@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicLong
  * @see SequenceTx
  *
  * @author Ralph Gasser
- * @version 3.1.0
+ * @version 3.1.1
  */
 class DefaultSequence(override val name: Name.SequenceName, override val parent: DefaultSchema): Sequence {
     companion object {
@@ -69,9 +69,36 @@ class DefaultSequence(override val name: Name.SequenceName, override val parent:
         = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
 
     /**
+     *  Compares this [DefaultSequence] to another [Any].
+     *
+     *  @param other [Any] object or null
+     *  @return True if equal, false otherwise.
+     */
+    override fun equals(other: Any?): Boolean {
+        if (other !is DefaultSequence) return false
+        if (other.parent != this.parent) return false
+        return other.name == this.name
+    }
+
+    /**
+     *  Generates a hash code for this [DefaultSequence]
+     *
+     *  @return Hash code.
+     */
+    override fun hashCode(): Int {
+        var result = name.hashCode()
+        result = 31 * result + parent.hashCode()
+        return result
+    }
+
+    /**
      * A [Tx] that affects this [DefaultEntity].
      */
     inner class Tx(context: QueryContext): AbstractTx(context), SequenceTx, org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization {
+        init {
+            /* Cache this Tx for future use. */
+            context.txn.cacheTx(this)
+        }
 
         /** Reference to the surrounding [DefaultEntity]. */
         override val dbo: DBO

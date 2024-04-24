@@ -1,3 +1,88 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
+
+repositories {
+    mavenCentral()
+    maven { url "https://kotlin.bintray.com/kotlinx" }
+}
+
+/** Source & target compatibility is Java 11. */
+sourceCompatibility = 11
+targetCompatibility = 11
+
+compileKotlin {
+    compilerOptions.jvmTarget = JvmTarget.JVM_11
+}
+
+compileTestKotlin {
+    compilerOptions.jvmTarget = JvmTarget.JVM_11
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
+configurations {
+    clientLibrary {
+        canBeConsumed = true
+        canBeResolved = false
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            groupId = 'org.vitrivr'
+            artifactId = 'cottontaildb-core'
+            version = System.getenv().getOrDefault("MAVEN_PUBLICATION_VERSION", version.toString())
+            pom {
+                name = 'Cottontail DB Core Library'
+                description = 'The Cottontail DB core library, which is a collection of classes that are used by different Cottontail DB components.'
+                url = 'https://github.com/vitrivr/cottontaildb/'
+                licenses {
+                    license {
+                        name = 'MIT License'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'ppanopticon'
+                        name = 'Ralph Gasser'
+                        email = 'ralph.gasser@unibas.ch'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:https://github.com/vitrivr/cottontaildb.git'
+                    url = 'https://github.com/vitrivr/cottontaildb'
+                }
+            }
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            def releasesRepoUrl = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+            def snapshotsRepoUrl = 'https://oss.sonatype.org/content/repositories/snapshots/'
+            name = "OSSRH"
+            url = (publishing.publications.mavenJava.version.endsWith('SNAPSHOT')) ? snapshotsRepoUrl : releasesRepoUrl
+            credentials {
+                username = System.getenv("MAVEN_USERNAME")
+                password = System.getenv("MAVEN_PASSWORD")
+            }
+        }
+    }
+}
+
+signing {
+    def signingKey = findProperty("signingKey")
+    def signingPassword = findProperty("signingPassword")
+    useInMemoryPgpKeys(signingKey, signingPassword)
+    sign publishing.publications.mavenJava
+}
+
 dependencies {
     /* The Cottontail DB client library. */
     api project(':cottontaildb-client')

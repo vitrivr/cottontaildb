@@ -24,6 +24,7 @@ import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
+import org.vitrivr.cottontail.dbms.sequence.DefaultSequence
 import kotlin.concurrent.withLock
 
 /**
@@ -33,7 +34,7 @@ import kotlin.concurrent.withLock
  * @see EntityTx
  *
  * @author Ralph Gasser
- * @version 4.0.0
+ * @version 4.0.1
  */
 class DefaultEntity(override val name: Name.EntityName, override val parent: DefaultSchema) : Entity {
 
@@ -54,15 +55,26 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
     override fun newTx(context: QueryContext): EntityTx
         = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
 
+    /**
+     *  Compares this [DefaultSchema] to another [Any].
+     *
+     *  @param other [Any] object or null
+     *  @return True if equal, false otherwise.
+     */
     override fun equals(other: Any?): Boolean {
         if (other !is DefaultEntity) return false
-        if (other.catalogue != this.catalogue) return false
+        if (other.parent != this.parent) return false
         return other.name == this.name
     }
 
+    /**
+     *  Generates a hash code for this [DefaultSequence]
+     *
+     *  @return Hash code.
+     */
     override fun hashCode(): Int {
-        var result = name.hashCode()
-        result = 31 * result + parent.hashCode()
+        var result = this.name.hashCode()
+        result = 31 * result + this.parent.hashCode()
         return result
     }
 
