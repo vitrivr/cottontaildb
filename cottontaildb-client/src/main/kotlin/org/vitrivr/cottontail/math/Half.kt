@@ -18,10 +18,10 @@
 // Operators +, *, / based on http://half.sourceforge.net/ by Christian Rau
 // and licensed under MIT
 
-package org.vitrivr.cottontail.utilities.math
+package org.vitrivr.cottontail.math
 
-import org.vitrivr.cottontail.utilities.math.Half.Companion.POSITIVE_INFINITY
-import org.vitrivr.cottontail.utilities.math.Half.Companion.POSITIVE_ZERO
+import org.vitrivr.cottontail.math.Half.Companion.POSITIVE_INFINITY
+import org.vitrivr.cottontail.math.Half.Companion.POSITIVE_ZERO
 
 /**
  * Converts the specified double-precision float value into a

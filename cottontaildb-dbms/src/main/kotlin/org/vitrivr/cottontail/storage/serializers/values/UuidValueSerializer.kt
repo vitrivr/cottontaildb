@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.storage.serializers.values
 
-import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
@@ -11,19 +10,14 @@ import java.io.ByteArrayInputStream
  * A [ValueSerializer] for [UuidValue]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 3.0.0
  */
 object UuidValueSerializer: ValueSerializer<UuidValue> {
     override val type = Types.Uuid
-    override fun fromEntry(entry: ByteIterable): UuidValue {
-        val stream = ByteArrayInputStream(entry.bytesUnsafe)
-        return UuidValue(LongBinding.BINDING.readObject(stream), LongBinding.BINDING.readObject(stream))
+    override fun write(output: LightOutputStream, value: UuidValue) {
+        LongBinding.BINDING.writeObject(output, value.value.mostSignificantBits)
+        LongBinding.BINDING.writeObject(output, value.value.leastSignificantBits)
     }
 
-    override fun toEntry(value: UuidValue): ByteIterable {
-        val stream = LightOutputStream(this.type.physicalSize)
-        LongBinding.BINDING.writeObject(stream, value.mostSignificantBits)
-        LongBinding.BINDING.writeObject(stream, value.leastSignificantBits)
-        return stream.asArrayByteIterable()
-    }
+    override fun read(input: ByteArrayInputStream): UuidValue = UuidValue(LongBinding.BINDING.readObject(input), LongBinding.BINDING.readObject(input))
 }

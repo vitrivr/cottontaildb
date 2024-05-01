@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.core.values.tablets
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.HalfVectorValue
-import org.vitrivr.cottontail.utilities.math.Half
+import org.vitrivr.cottontail.math.Half
 
 /**
  * A [AbstractTablet] implementation for [FloatVectorValue]s (half-precision).
