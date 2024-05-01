@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical
 
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.queries.operators.basics.NullaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.PlaceholderPhysicalOperatorNode
 
@@ -15,9 +15,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.PlaceholderPhysica
  * @author Ralph Gasser
  * @version 1.0.0
  */
-data class PlaceholderLogicalOperatorNode(override val groupId: GroupId, override val physicalColumns: List<ColumnDef<*>>, override val columns: List<ColumnDef<*>>): NullaryLogicalOperatorNode() {
+data class PlaceholderLogicalOperatorNode(override val groupId: GroupId, override val columns: List<Binding.Column>): NullaryLogicalOperatorNode() {
     override val name = "Placeholder"
-    override fun copy(): NullaryLogicalOperatorNode = PlaceholderLogicalOperatorNode(this.groupId, this.physicalColumns, this.columns)
-    override fun implement() = PlaceholderPhysicalOperatorNode(this.groupId, this.physicalColumns, this.columns)
+    override fun copy(): NullaryLogicalOperatorNode = PlaceholderLogicalOperatorNode(this.groupId, this.columns)
+    override fun implement() = PlaceholderPhysicalOperatorNode(this.groupId, this.columns)
     override fun digest(): Digest = 0L
 }

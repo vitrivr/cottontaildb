@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.logical.sort
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
@@ -16,9 +17,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.InMemorySortP
  * A [UnaryLogicalOperatorNode] that represents sorting the input by a set of specified [ColumnDef]s.
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 2.9.0
  */
-class SortLogicalOperatorNode(input: Logical, val sortOn: List<Pair<ColumnDef<*>, SortOrder>>) : UnaryLogicalOperatorNode(input) {
+class SortLogicalOperatorNode(input: Logical, val sortOn: List<Pair<Binding.Column, SortOrder>>) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Order"
@@ -29,11 +30,14 @@ class SortLogicalOperatorNode(input: Logical, val sortOn: List<Pair<ColumnDef<*>
         get() = NODE_NAME
 
     /** The [SortLogicalOperatorNode] requires all [ColumnDef]s used in the [ProximityPredicate]. */
-    override val requires: List<ColumnDef<*>> = this.sortOn.map { it.first }
+    override val requires: List<Binding.Column> by lazy {
+        this.sortOn.map { it.first }
+    }
 
     /** The [SortLogicalOperatorNode] overwrites/sets the [OrderTrait].  */
-    override val traits: Map<TraitType<*>, Trait>
-        get() = super.traits + listOf(OrderTrait to OrderTrait(this.sortOn))
+    override val traits: Map<TraitType<*>, Trait> by lazy {
+        super.traits + listOf(OrderTrait to OrderTrait(this.sortOn))
+    }
 
     init {
         /* Sanity check. */
@@ -59,7 +63,7 @@ class SortLogicalOperatorNode(input: Logical, val sortOn: List<Pair<ColumnDef<*>
     override fun implement(): Physical = InMemorySortPhysicalOperatorNode(this.input.implement(), this.sortOn)
 
     /** Generates and returns a [String] representation of this [SortLogicalOperatorNode]. */
-    override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.name} ${it.second}" }}]"
+    override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.column.name} ${it.second}" }}]"
 
     /**
      * Generates and returns a [Digest] for this [SortLogicalOperatorNode].

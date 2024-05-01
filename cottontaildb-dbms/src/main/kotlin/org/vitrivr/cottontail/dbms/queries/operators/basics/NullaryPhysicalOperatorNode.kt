@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.dbms.queries.operators.basics
 
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.CopyableNode
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
@@ -45,8 +45,8 @@ abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical(), CopyableNo
             this.cost
         }
 
-    /** By default, a [NullaryPhysicalOperatorNode] does not have specific requirements. */
-    override val requires: List<ColumnDef<*>>
+    /** A [NullaryPhysicalOperatorNode] does not have specific [Binding.Column] requirements. */
+    final override val requires: List<Binding.Column>
         get() = emptyList()
 
     /** By default, a [NullaryPhysicalOperatorNode] has an empty set of [Trait]s. */

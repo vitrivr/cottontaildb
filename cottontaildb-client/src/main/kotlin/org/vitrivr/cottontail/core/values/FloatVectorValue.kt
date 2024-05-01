@@ -14,12 +14,21 @@ import kotlin.math.pow
  * This is an abstraction over a [FloatArray] and it represents a vector of [Float]s.
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.2.0
  */
 @Serializable
 @SerialName("FloatVector")
 @JvmInline
 value class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float>, PublicValue {
+    companion object {
+        /**
+         * A static helper class to use this [FloatVectorValue] in plain Java.
+         *
+         * @param array [FloatArray] to create [FloatVectorValue] from
+         */
+        @JvmStatic
+        fun of(array: FloatArray) = FloatVectorValue(array)
+    }
 
     constructor(input: List<Number>) : this(FloatArray(input.size) { input[it].toFloat() })
     constructor(input: Array<Number>) : this(FloatArray(input.size) { input[it].toFloat() })
@@ -28,7 +37,6 @@ value class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float>, Pub
     constructor(input: IntArray) : this(FloatArray(input.size) { input[it].toFloat() })
     constructor(input: FloatBuffer) : this(FloatArray(input.remaining()) { input[it] })
     constructor(input: ByteBuffer) : this(input.asFloatBuffer())
-
 
     /** The logical size of this [FloatVectorValue]. */
     override val logicalSize: Int
@@ -64,7 +72,7 @@ value class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float>, Pub
      * @return [CottontailGrpc.Literal]
      */
     override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setFloatVector(CottontailGrpc.FloatVector.newBuilder().addAllVector(this.map { it.value }))).build()
+        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setFloat(CottontailGrpc.FloatVector.newBuilder().addAllVector(this.map { it.value }))).build()
 
     /**
      * Returns the indices of this [FloatVectorValue].

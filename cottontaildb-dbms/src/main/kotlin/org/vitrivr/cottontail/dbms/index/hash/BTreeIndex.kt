@@ -190,16 +190,9 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @param predicate The [Predicate] to check.
          * @return True if [Predicate] can be processed, false otherwise.
          */
-        override fun canProcess(predicate: Predicate): Boolean {
-            if (predicate !is BooleanPredicate.Comparison) return false
-            if (!predicate.columns.contains(this.columns[0])) return false
-            return when (predicate.operator) {
-                is ComparisonOperator.Equal,
-                is ComparisonOperator.In,
-                is ComparisonOperator.Like -> true
-                else -> false
-            }
-        }
+        override fun canProcess(predicate: Predicate) = predicate is BooleanPredicate.Comparison
+                && predicate.columns.all { it.physical == this.columns[0] }
+                && (predicate.operator is ComparisonOperator.In || predicate.operator is ComparisonOperator.Equal || predicate.operator is ComparisonOperator.Like)
 
         /**
          * Returns a [List] of the [ColumnDef] produced by this [BTreeIndex.Tx].
@@ -229,7 +222,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @return Cost estimate for the [Predicate]
          */
         override fun costFor(predicate: Predicate): Cost = this.txLatch.withLock {
-            if (predicate !is BooleanPredicate.Comparison || predicate.columns.first() != this.columns[0]) return Cost.INVALID
+            if (predicate !is BooleanPredicate.Comparison || predicate.columns.any { it.physical != this.columns[0] }) return Cost.INVALID
             val entityTx = this.dbo.parent.newTx(this.context)
             val statistics = this.columns.associateWith { entityTx.columnForName(it.name).newTx(this.context).statistics() }
             val selectivity = with(this@Tx.context.bindings) {
@@ -305,14 +298,18 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          */
         override fun filter(predicate: Predicate) = this.txLatch.withLock {
             require(predicate is BooleanPredicate.Comparison) { "BTreeIndex.filter() does only support BooleanPredicate.Atomic boolean predicates." }
-            when(val op = predicate.operator) {
-                is ComparisonOperator.Equal -> BTreeIndexCursor.Equals(op, this)
-                is ComparisonOperator.Greater -> BTreeIndexCursor.Greater(op, this)
-                is ComparisonOperator.GreaterEqual -> BTreeIndexCursor.GreaterEqual(op, this)
-                is ComparisonOperator.Less -> BTreeIndexCursor.Less(op, this)
-                is ComparisonOperator.LessEqual -> BTreeIndexCursor.LessEqual(op, this)
-                is ComparisonOperator.In -> BTreeIndexCursor.In(op, this)
-                else -> throw IllegalArgumentException("BTreeIndex.filter() does only support =,>=,<=,>,< and IN operators.")
+            with(this.context.bindings) {
+                with(MissingTuple) {
+                    when(val op = predicate.operator) {
+                        is ComparisonOperator.Equal -> BTreeIndexCursor.Equals(op.right.getValue()!!, this@Tx)
+                        is ComparisonOperator.Greater -> BTreeIndexCursor.Greater(op.right.getValue()!!, this@Tx)
+                        is ComparisonOperator.GreaterEqual -> BTreeIndexCursor.GreaterEqual(op.right.getValue()!!, this@Tx)
+                        is ComparisonOperator.Less -> BTreeIndexCursor.Less(op.right.getValue()!!, this@Tx)
+                        is ComparisonOperator.LessEqual -> BTreeIndexCursor.LessEqual(op.right.getValue()!!, this@Tx)
+                        is ComparisonOperator.In -> BTreeIndexCursor.In(op.right.getValues(), this@Tx)
+                        else -> throw IllegalArgumentException("BTreeIndex.filter() does only support =,>=,<=,>,< and IN operators.")
+                    }
+                }
             }
         }
 

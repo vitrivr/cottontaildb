@@ -13,7 +13,6 @@ import org.vitrivr.cottontail.dbms.index.pq.signature.PQSignature
 import org.vitrivr.cottontail.dbms.index.pq.signature.SPQSignature
 import org.vitrivr.cottontail.test.TestConstants
 import java.util.*
-import kotlin.math.log10
 import kotlin.math.sqrt
 
 
@@ -36,7 +35,7 @@ class PQFloatVectorCodebookTest {
     /** The random data to test on. The data comes pre-clustered, so that meaningful tests can be performed. */
     private val testdata = List(TestConstants.TEST_COLLECTION_SIZE) { i ->
         FloatVectorValue(FloatArray(this.dimensions) {
-            (i % numberOfClusters) + this.random.nextDouble(-1.0, 1.0).toFloat()
+            (i % numberOfClusters) + this.random.nextFloat(-1.0f, 1.0f)
         })
     }
 
@@ -47,7 +46,7 @@ class PQFloatVectorCodebookTest {
     private val config = PQIndexConfig(this.distance.signature.name, this.numberOfClusters, 8)
 
     /** The data to train the quantizer with. */
-    private val trainingdata = this.testdata.filter { this.random.nextDouble() <= (100.0 * (log10(this.testdata.size.toDouble())) / this.testdata.size) }
+    private val trainingdata = this.testdata.filter { this.random.nextFloat() <= ((10.0f * this.numberOfClusters) / this.testdata.size) }
 
     /** The [SingleStageQuantizer] that is used for the tests. */
     private val quantizer = SingleStageQuantizer.learnFromData(this.distance, this.trainingdata, this.config)

@@ -45,6 +45,7 @@ fun Tuple.toTuple(): CottontailGrpc.QueryResponseMessage.Tuple {
 internal fun Any.tryConvertToValue(): PublicValue = when(this) {
     is PublicValue -> this
     is String -> StringValue(this)
+    is UUID -> UuidValue(this)
     is Boolean -> BooleanValue(this)
     is Byte -> ByteValue(this)
     is Short -> ShortValue(this)
@@ -84,13 +85,13 @@ fun CottontailGrpc.Literal.toValue(type: Types<*>): PublicValue? = when (type) {
     is Types.IntVector -> this.toIntVectorValue()
     is Types.LongVector -> this.toLongVectorValue()
     is Types.FloatVector -> this.toFloatVectorValue()
+    is Types.HalfVector -> this.toHalfVectorValue()
     is Types.DoubleVector -> this.toDoubleVectorValue()
     is Types.BooleanVector -> this.toBooleanVectorValue()
     is Types.Complex32Vector -> this.toComplex32VectorValue()
     is Types.Complex64Vector -> this.toComplex64VectorValue()
     is Types.ShortVector -> this.toShortVectorValue()
     is Types.ByteString -> this.toByteStringValue()
-    is Types.HalfVector -> this.toFloatVectorValue()
 }
 
 /**
@@ -112,16 +113,18 @@ fun CottontailGrpc.Literal.toValue(): PublicValue? = when(this.dataCase) {
     CottontailGrpc.Literal.DataCase.COMPLEX64DATA -> Complex64Value(this.complex64Data.real, this.complex64Data.imaginary)
     CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> ByteStringValue(this.byteStringData.toByteArray())
     CottontailGrpc.Literal.DataCase.VECTORDATA -> when(this.vectorData.vectorDataCase) {
-        CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> DoubleVectorValue(this.vectorData.doubleVector.vectorList.toTypedArray())
-        CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> FloatVectorValue(this.vectorData.floatVector.vectorList.toTypedArray())
-        CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> LongVectorValue(this.vectorData.longVector.vectorList.toTypedArray())
-        CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> IntVectorValue(this.vectorData.intVector.vectorList.toTypedArray())
-        CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> BooleanVectorValue(this.vectorData.boolVector.vectorList.toTypedArray())
-        CottontailGrpc.Vector.VectorDataCase.COMPLEX32VECTOR -> Complex32VectorValue(Array(this.vectorData.complex32Vector.vectorList.size) {
-            Complex32Value(FloatValue(this.vectorData.complex32Vector.vectorList[it].real), FloatValue(this.vectorData.complex32Vector.vectorList[it].imaginary))
+        CottontailGrpc.Vector.VectorDataCase.DOUBLE -> DoubleVectorValue(this.vectorData.double.vectorList.toTypedArray())
+        CottontailGrpc.Vector.VectorDataCase.FLOAT -> FloatVectorValue(this.vectorData.float.vectorList.toTypedArray())
+        CottontailGrpc.Vector.VectorDataCase.HALF -> HalfVectorValue(this.vectorData.half.vectorList.toTypedArray())
+        CottontailGrpc.Vector.VectorDataCase.LONG -> LongVectorValue(this.vectorData.long.vectorList.toTypedArray())
+        CottontailGrpc.Vector.VectorDataCase.INT -> IntVectorValue(this.vectorData.int.vectorList.toTypedArray())
+        CottontailGrpc.Vector.VectorDataCase.SHORT -> ShortVectorValue(this.vectorData.short.vectorList.toTypedArray())
+        CottontailGrpc.Vector.VectorDataCase.BOOL -> BooleanVectorValue(this.vectorData.bool.vectorList.toTypedArray())
+        CottontailGrpc.Vector.VectorDataCase.COMPLEX32-> Complex32VectorValue(Array(this.vectorData.complex32.vectorList.size) {
+            Complex32Value(FloatValue(this.vectorData.complex32.vectorList[it].real), FloatValue(this.vectorData.complex32.vectorList[it].imaginary))
         })
-        CottontailGrpc.Vector.VectorDataCase.COMPLEX64VECTOR -> Complex64VectorValue(Array(this.vectorData.complex64Vector.vectorList.size) {
-            Complex32Value(FloatValue(this.vectorData.complex64Vector.vectorList[it].real), FloatValue(this.vectorData.complex64Vector.vectorList[it].imaginary))
+        CottontailGrpc.Vector.VectorDataCase.COMPLEX64 -> Complex64VectorValue(Array(this.vectorData.complex64.vectorList.size) {
+            Complex32Value(FloatValue(this.vectorData.complex64.vectorList[it].real), FloatValue(this.vectorData.complex64.vectorList[it].imaginary))
         })
         else -> throw IllegalArgumentException("Literal malformed: Cannot convert value of type ${this.vectorData.vectorDataCase}.")
     }
@@ -148,13 +151,15 @@ fun CottontailGrpc.Literal.toType(): Types<*> = when(this.dataCase) {
     CottontailGrpc.Literal.DataCase.COMPLEX64DATA -> Types.Complex64
     CottontailGrpc.Literal.DataCase.BYTESTRINGDATA -> Types.ByteString
     CottontailGrpc.Literal.DataCase.VECTORDATA -> when(this.vectorData.vectorDataCase) {
-        CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> Types.DoubleVector(this.vectorData.doubleVector.vectorCount)
-        CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> Types.FloatVector(this.vectorData.floatVector.vectorCount)
-        CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> Types.LongVector(this.vectorData.longVector.vectorCount)
-        CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> Types.IntVector(this.vectorData.intVector.vectorCount)
-        CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> Types.BooleanVector(this.vectorData.boolVector.vectorCount)
-        CottontailGrpc.Vector.VectorDataCase.COMPLEX32VECTOR -> Types.Complex32Vector(this.vectorData.complex32Vector.vectorCount)
-        CottontailGrpc.Vector.VectorDataCase.COMPLEX64VECTOR -> Types.Complex64Vector(this.vectorData.complex64Vector.vectorCount)
+        CottontailGrpc.Vector.VectorDataCase.DOUBLE -> Types.DoubleVector(this.vectorData.double.vectorCount)
+        CottontailGrpc.Vector.VectorDataCase.FLOAT -> Types.FloatVector(this.vectorData.float.vectorCount)
+        CottontailGrpc.Vector.VectorDataCase.HALF -> Types.HalfVector(this.vectorData.half.vectorCount)
+        CottontailGrpc.Vector.VectorDataCase.LONG -> Types.LongVector(this.vectorData.long.vectorCount)
+        CottontailGrpc.Vector.VectorDataCase.INT -> Types.IntVector(this.vectorData.int.vectorCount)
+        CottontailGrpc.Vector.VectorDataCase.SHORT -> Types.ShortVector(this.vectorData.short.vectorCount)
+        CottontailGrpc.Vector.VectorDataCase.BOOL -> Types.BooleanVector(this.vectorData.bool.vectorCount)
+        CottontailGrpc.Vector.VectorDataCase.COMPLEX32 -> Types.Complex32Vector(this.vectorData.complex32.vectorCount)
+        CottontailGrpc.Vector.VectorDataCase.COMPLEX64 -> Types.Complex64Vector(this.vectorData.complex64.vectorCount)
         CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET,
         null -> throw IllegalArgumentException("Type cannot be determined for a value of NULL.")
     }
@@ -184,8 +189,8 @@ fun CottontailGrpc.Type.toType(size: Int = 0): Types<*> = when(this) {
     CottontailGrpc.Type.DOUBLE_VECTOR -> Types.DoubleVector(size)
     CottontailGrpc.Type.FLOAT_VECTOR -> Types.FloatVector(size)
     CottontailGrpc.Type.LONG_VECTOR -> Types.LongVector(size)
-    CottontailGrpc.Type.INT_VECTOR -> Types.IntVector(size)
-    CottontailGrpc.Type.BOOL_VECTOR -> Types.BooleanVector(size)
+    CottontailGrpc.Type.INTEGER_VECTOR -> Types.IntVector(size)
+    CottontailGrpc.Type.BOOLEAN_VECTOR -> Types.BooleanVector(size)
     CottontailGrpc.Type.COMPLEX32_VECTOR -> Types.Complex32Vector(size)
     CottontailGrpc.Type.COMPLEX64_VECTOR -> Types.Complex64Vector(size)
     CottontailGrpc.Type.SHORT_VECTOR -> Types.ShortVector(size)
@@ -211,8 +216,8 @@ fun Types<*>.proto(): CottontailGrpc.Type = when(this) {
     Types.Short -> CottontailGrpc.Type.SHORT
     Types.String -> CottontailGrpc.Type.STRING
     Types.Uuid -> CottontailGrpc.Type.UUID
-    is Types.BooleanVector -> CottontailGrpc.Type.BOOL_VECTOR
-    is Types.IntVector -> CottontailGrpc.Type.INT_VECTOR
+    is Types.BooleanVector -> CottontailGrpc.Type.BOOLEAN_VECTOR
+    is Types.IntVector -> CottontailGrpc.Type.INTEGER_VECTOR
     is Types.LongVector -> CottontailGrpc.Type.LONG_VECTOR
     is Types.FloatVector -> CottontailGrpc.Type.FLOAT_VECTOR
     is Types.DoubleVector -> CottontailGrpc.Type.DOUBLE_VECTOR
@@ -252,7 +257,7 @@ fun CottontailGrpc.Literal.toStringValue(): StringValue? = when (this.dataCase) 
  */
 fun CottontailGrpc.Literal.toUuidValue(): UuidValue? = when (this.dataCase) {
     CottontailGrpc.Literal.DataCase.STRINGDATA -> UuidValue(UUID.fromString(this.stringData))
-    CottontailGrpc.Literal.DataCase.UUIDDATA -> UuidValue(UUID(this.uuidData.leastSignificant, this.uuidData.mostSignificant))
+    CottontailGrpc.Literal.DataCase.UUIDDATA -> UuidValue(UUID(this.uuidData.mostSignificant, this.uuidData.leastSignificant))
     CottontailGrpc.Literal.DataCase.NULLDATA -> null
     else -> throw throw IllegalArgumentException("A value of ${this.dataCase} cannot be cast to STRING.")
 }
@@ -484,6 +489,27 @@ fun CottontailGrpc.Literal.toFloatVectorValue(): FloatVectorValue? = when (this.
     else -> throw IllegalArgumentException("Malformed literal: ${this.dataCase} cannot be cast to VECTOR[DOUBLE].")
 }
 
+/**
+ * Returns the value of [CottontailGrpc.Literal] as [FloatVectorValue].
+ *
+ * @return [FloatVectorValue] or null.
+ * @throws IllegalArgumentException If cast is not possible.
+ */
+fun CottontailGrpc.Literal.toHalfVectorValue(): HalfVectorValue? = when (this.dataCase) {
+    CottontailGrpc.Literal.DataCase.BOOLEANDATA -> HalfVectorValue(FloatArray(1) { this.booleanData.toFloat() })
+    CottontailGrpc.Literal.DataCase.INTDATA -> HalfVectorValue(FloatArray(1) { this.intData.toFloat() })
+    CottontailGrpc.Literal.DataCase.LONGDATA -> HalfVectorValue(FloatArray(1) { this.longData.toFloat() })
+    CottontailGrpc.Literal.DataCase.FLOATDATA -> HalfVectorValue(FloatArray(1) { this.floatData })
+    CottontailGrpc.Literal.DataCase.DOUBLEDATA -> HalfVectorValue(FloatArray(1) { this.doubleData.toFloat() })
+    CottontailGrpc.Literal.DataCase.STRINGDATA -> HalfVectorValue(FloatArray(1) {
+        this.stringData.toFloatOrNull() ?: throw IllegalArgumentException("A value of type STRING (v='${this.stringData}') cannot be cast to VECTOR[FLOAT].")
+    })
+    CottontailGrpc.Literal.DataCase.DATEDATA -> HalfVectorValue(FloatArray(1) { this.dateData.toFloat() })
+    CottontailGrpc.Literal.DataCase.VECTORDATA -> this.vectorData.toHalfVectorValue()
+    CottontailGrpc.Literal.DataCase.NULLDATA -> null
+    else -> throw IllegalArgumentException("Malformed literal: ${this.dataCase} cannot be cast to VECTOR[DOUBLE].")
+}
+
 
 /**
  * Returns the value of [CottontailGrpc.Literal] as [DoubleVectorValue].
@@ -632,11 +658,13 @@ fun CottontailGrpc.Literal.toComplex64VectorValue(): Complex64VectorValue? = whe
  * @throws IllegalArgumentException If cast is not possible.
  */
 fun CottontailGrpc.Vector.toDoubleVectorValue(): DoubleVectorValue = when (this.vectorDataCase) {
-    CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> DoubleVectorValue(this.doubleVector.vectorList.toTypedArray())
-    CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> DoubleVectorValue(this.floatVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> DoubleVectorValue(this.longVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> DoubleVectorValue(this.intVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> DoubleVectorValue(this.boolVector.vectorList.map { if (it) 1.0 else 0.0 })
+    CottontailGrpc.Vector.VectorDataCase.DOUBLE -> DoubleVectorValue(this.double.vectorList.toTypedArray())
+    CottontailGrpc.Vector.VectorDataCase.FLOAT -> DoubleVectorValue(this.float.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.HALF -> DoubleVectorValue(this.half.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.LONG -> DoubleVectorValue(this.long.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.INT -> DoubleVectorValue(this.int.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.SHORT -> DoubleVectorValue(this.short.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.BOOL -> DoubleVectorValue(this.bool.vectorList.map { if (it) 1.0 else 0.0 })
     else -> throw IllegalArgumentException("${this.vectorDataCase} cannot be cast to VECTOR[COMPLEX32].")
 }
 
@@ -647,11 +675,30 @@ fun CottontailGrpc.Vector.toDoubleVectorValue(): DoubleVectorValue = when (this.
  * @throws IllegalArgumentException If cast is not possible.
  */
 fun CottontailGrpc.Vector.toFloatVectorValue(): FloatVectorValue = when (this.vectorDataCase) {
-    CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> FloatVectorValue(this.doubleVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> FloatVectorValue(this.floatVector.vectorList.toTypedArray())
-    CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> FloatVectorValue(this.longVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> FloatVectorValue(this.intVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> FloatVectorValue(this.boolVector.vectorList.map { if (it) 1.0f else 0.0f })
+    CottontailGrpc.Vector.VectorDataCase.DOUBLE -> FloatVectorValue(this.double.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.FLOAT -> FloatVectorValue(this.float.vectorList.toTypedArray())
+    CottontailGrpc.Vector.VectorDataCase.HALF -> FloatVectorValue(this.half.vectorList.toTypedArray())
+    CottontailGrpc.Vector.VectorDataCase.LONG -> FloatVectorValue(this.long.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.INT -> FloatVectorValue(this.int.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.SHORT -> FloatVectorValue(this.short.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.BOOL -> FloatVectorValue(this.bool.vectorList.map { if (it) 1.0f else 0.0f })
+    else -> throw IllegalArgumentException("${this.vectorDataCase} cannot be cast to VECTOR[FLOAT].")
+}
+
+/**
+ * Returns the value of [CottontailGrpc.Vector] as [HalfVectorValue].
+ *
+ * @return [HalfVectorValue] values
+ * @throws IllegalArgumentException If cast is not possible.
+ */
+fun CottontailGrpc.Vector.toHalfVectorValue(): HalfVectorValue = when (this.vectorDataCase) {
+    CottontailGrpc.Vector.VectorDataCase.DOUBLE -> HalfVectorValue(this.double.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.FLOAT -> HalfVectorValue(this.float.vectorList.toTypedArray())
+    CottontailGrpc.Vector.VectorDataCase.HALF -> HalfVectorValue(this.half.vectorList.toTypedArray())
+    CottontailGrpc.Vector.VectorDataCase.LONG -> HalfVectorValue(this.long.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.INT -> HalfVectorValue(this.int.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.SHORT -> HalfVectorValue(this.short.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.BOOL -> HalfVectorValue(this.bool.vectorList.map { if (it) 1.0f else 0.0f })
     else -> throw IllegalArgumentException("${this.vectorDataCase} cannot be cast to VECTOR[FLOAT].")
 }
 
@@ -662,11 +709,13 @@ fun CottontailGrpc.Vector.toFloatVectorValue(): FloatVectorValue = when (this.ve
  * @throws IllegalArgumentException If cast is not possible.
  */
 fun CottontailGrpc.Vector.toLongVectorValue(): LongVectorValue = when (this.vectorDataCase) {
-    CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> LongVectorValue(this.doubleVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> LongVectorValue(this.floatVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> LongVectorValue(this.longVector.vectorList.toTypedArray())
-    CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> LongVectorValue(this.intVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> LongVectorValue(this.boolVector.vectorList.map { if (it) 1L else 0L })
+    CottontailGrpc.Vector.VectorDataCase.DOUBLE -> LongVectorValue(this.double.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.FLOAT -> LongVectorValue(this.float.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.HALF -> LongVectorValue(this.half.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.LONG -> LongVectorValue(this.long.vectorList.toTypedArray())
+    CottontailGrpc.Vector.VectorDataCase.INT-> LongVectorValue(this.int.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.SHORT -> LongVectorValue(this.short.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.BOOL -> LongVectorValue(this.bool.vectorList.map { if (it) 1L else 0L })
     else -> throw IllegalArgumentException("${this.vectorDataCase} cannot be cast to VECTOR[LONG].")
 }
 
@@ -677,20 +726,30 @@ fun CottontailGrpc.Vector.toLongVectorValue(): LongVectorValue = when (this.vect
  * @throws IllegalArgumentException If cast is not possible.
  */
 fun CottontailGrpc.Vector.toIntVectorValue(): IntVectorValue = when (this.vectorDataCase) {
-    CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> IntVectorValue(this.doubleVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> IntVectorValue(this.floatVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> IntVectorValue(this.longVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> IntVectorValue(this.intVector.vectorList.toTypedArray())
-    CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> IntVectorValue(this.boolVector.vectorList.map { if (it) 1 else 0 })
+    CottontailGrpc.Vector.VectorDataCase.DOUBLE -> IntVectorValue(this.double.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.FLOAT -> IntVectorValue(this.float.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.HALF -> IntVectorValue(this.float.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.LONG -> IntVectorValue(this.long.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.INT -> IntVectorValue(this.int.vectorList.toTypedArray())
+    CottontailGrpc.Vector.VectorDataCase.SHORT -> IntVectorValue(this.short.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.BOOL -> IntVectorValue(this.bool.vectorList.map { if (it) 1 else 0 })
     else -> throw IllegalArgumentException("${this.vectorDataCase} cannot be cast to VECTOR[INT].")
 }
 
+/**
+ * Returns the value of [CottontailGrpc.Vector] as [IntArray].
+ *
+ * @return [IntArray] values
+ * @throws IllegalArgumentException If cast is not possible.
+ */
 fun CottontailGrpc.Vector.toShortVectorValue(): ShortVectorValue = when (this.vectorDataCase) {
-    CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> ShortVectorValue(this.doubleVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> ShortVectorValue(this.floatVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> ShortVectorValue(this.longVector.vectorList.toTypedArray())
-    CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> ShortVectorValue(this.intVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> ShortVectorValue(this.boolVector.vectorList.map { if (it) 1 else 0 })
+    CottontailGrpc.Vector.VectorDataCase.DOUBLE -> ShortVectorValue(this.double.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.FLOAT -> ShortVectorValue(this.float.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.HALF -> ShortVectorValue(this.half.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.LONG -> ShortVectorValue(this.long.vectorList.toTypedArray())
+    CottontailGrpc.Vector.VectorDataCase.INT-> ShortVectorValue(this.int.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.SHORT-> ShortVectorValue(this.short.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.BOOL -> ShortVectorValue(this.bool.vectorList.map { if (it) 1 else 0 })
     else -> throw IllegalArgumentException("${this.vectorDataCase} cannot be cast to VECTOR[SHORT].")
 }
 
@@ -701,11 +760,13 @@ fun CottontailGrpc.Vector.toShortVectorValue(): ShortVectorValue = when (this.ve
  * @throws IllegalArgumentException If cast is not possible.
  */
 fun CottontailGrpc.Vector.toBooleanVectorValue(): BooleanVectorValue = when (this.vectorDataCase) {
-    CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> BooleanVectorValue(this.doubleVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> BooleanVectorValue(this.floatVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> BooleanVectorValue(this.longVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> BooleanVectorValue(this.intVector.vectorList)
-    CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> BooleanVectorValue(this.boolVector.vectorList.toTypedArray())
+    CottontailGrpc.Vector.VectorDataCase.DOUBLE -> BooleanVectorValue(this.double.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.FLOAT -> BooleanVectorValue(this.float.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.HALF -> BooleanVectorValue(this.half.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.LONG -> BooleanVectorValue(this.long.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.INT -> BooleanVectorValue(this.int.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.SHORT -> BooleanVectorValue(this.short.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.BOOL -> BooleanVectorValue(this.bool.vectorList.toTypedArray())
     else -> throw IllegalArgumentException("${this.vectorDataCase} cannot be cast to VECTOR[BOOL].")
 }
 
@@ -716,20 +777,19 @@ fun CottontailGrpc.Vector.toBooleanVectorValue(): BooleanVectorValue = when (thi
  * @throws IllegalArgumentException If cast is not possible.
  */
 fun CottontailGrpc.Vector.toComplex32VectorValue(): Complex32VectorValue = when (this.vectorDataCase) {
-    CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> Complex32VectorValue(Array(this.doubleVector.vectorList.size) { Complex32Value(this.doubleVector.vectorList[it], 0.0f) })
-    CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> Complex32VectorValue(Array(this.floatVector.vectorList.size) { Complex32Value(this.floatVector.vectorList[it], 0.0f) })
-    CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> Complex32VectorValue(Array(this.longVector.vectorList.size) { Complex32Value(this.longVector.vectorList[it], 0.0f) })
-    CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> Complex32VectorValue(Array(this.intVector.vectorList.size) { Complex32Value(this.intVector.vectorList[it], 0.0f) })
-    CottontailGrpc.Vector.VectorDataCase.COMPLEX32VECTOR -> Complex32VectorValue(Array(this.complex32Vector.vectorList.size) {
-        Complex32Value(
-            FloatValue(this.complex32Vector.vectorList[it].real),
-            FloatValue(this.complex32Vector.vectorList[it].imaginary)
-        )
+    CottontailGrpc.Vector.VectorDataCase.DOUBLE -> Complex32VectorValue(Array(this.double.vectorList.size) { Complex32Value(this.double.vectorList[it], 0.0f) })
+    CottontailGrpc.Vector.VectorDataCase.FLOAT -> Complex32VectorValue(Array(this.float.vectorList.size) { Complex32Value(this.float.vectorList[it], 0.0f) })
+    CottontailGrpc.Vector.VectorDataCase.HALF -> Complex32VectorValue(Array(this.half.vectorList.size) { Complex32Value(this.half.vectorList[it], 0.0f) })
+    CottontailGrpc.Vector.VectorDataCase.LONG -> Complex32VectorValue(Array(this.long.vectorList.size) { Complex32Value(this.long.vectorList[it], 0.0f) })
+    CottontailGrpc.Vector.VectorDataCase.INT-> Complex32VectorValue(Array(this.int.vectorList.size) { Complex32Value(this.int.vectorList[it], 0.0f) })
+    CottontailGrpc.Vector.VectorDataCase.SHORT-> Complex32VectorValue(Array(this.short.vectorList.size) { Complex32Value(this.short.vectorList[it], 0.0f) })
+    CottontailGrpc.Vector.VectorDataCase.COMPLEX32 -> Complex32VectorValue(Array(this.complex32.vectorList.size) {
+        Complex32Value(this.complex32.vectorList[it].real,this.complex32.vectorList[it].imaginary)
     })
-    CottontailGrpc.Vector.VectorDataCase.COMPLEX64VECTOR -> Complex32VectorValue(Array(this.complex64Vector.vectorList.size) {
+    CottontailGrpc.Vector.VectorDataCase.COMPLEX64 -> Complex32VectorValue(Array(this.complex64.vectorList.size) {
         Complex32Value(
-            FloatValue(this.complex64Vector.vectorList[it].real),
-            FloatValue(this.complex64Vector.vectorList[it].imaginary)
+            FloatValue(this.complex64.vectorList[it].real),
+            FloatValue(this.complex64.vectorList[it].imaginary)
         )
     })
     else -> throw IllegalArgumentException("${this.vectorDataCase} cannot be cast to VECTOR[COMPLEX32].")
@@ -742,11 +802,17 @@ fun CottontailGrpc.Vector.toComplex32VectorValue(): Complex32VectorValue = when 
  * @throws IllegalArgumentException If cast is not possible.
  */
 fun CottontailGrpc.Vector.toComplex64VectorValue(): Complex64VectorValue = when (this.vectorDataCase) {
-    CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> Complex64VectorValue(Array(this.doubleVector.vectorList.size) { Complex64Value(this.doubleVector.vectorList[it], 0.0) })
-    CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> Complex64VectorValue(Array(this.floatVector.vectorList.size) { Complex64Value(this.floatVector.vectorList[it], 0.0) })
-    CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> Complex64VectorValue(Array(this.longVector.vectorList.size) { Complex64Value(this.longVector.vectorList[it], 0.0) })
-    CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> Complex64VectorValue(Array(this.intVector.vectorList.size) { Complex64Value(this.intVector.vectorList[it], 0.0) })
-    CottontailGrpc.Vector.VectorDataCase.COMPLEX32VECTOR -> Complex64VectorValue(Array(this.complex32Vector.vectorList.size) { Complex64Value(this.complex32Vector.vectorList[it].real, this.complex32Vector.vectorList[it].imaginary) })
-    CottontailGrpc.Vector.VectorDataCase.COMPLEX64VECTOR -> Complex64VectorValue(Array(this.complex64Vector.vectorList.size) { Complex64Value(this.complex64Vector.vectorList[it].real, this.complex64Vector.vectorList[it].imaginary) })
+    CottontailGrpc.Vector.VectorDataCase.DOUBLE -> Complex64VectorValue(Array(this.double.vectorList.size) { Complex64Value(this.double.vectorList[it], 0.0) })
+    CottontailGrpc.Vector.VectorDataCase.FLOAT-> Complex64VectorValue(Array(float.vectorList.size) { Complex64Value(float.vectorList[it], 0.0) })
+    CottontailGrpc.Vector.VectorDataCase.HALF -> Complex64VectorValue(Array(this.half.vectorList.size) { Complex64Value(this.half.vectorList[it], 0.0) })
+    CottontailGrpc.Vector.VectorDataCase.LONG -> Complex64VectorValue(Array(this.long.vectorList.size) { Complex64Value(this.long.vectorList[it], 0.0) })
+    CottontailGrpc.Vector.VectorDataCase.INT -> Complex64VectorValue(Array(this.int.vectorList.size) { Complex64Value(this.int.vectorList[it], 0.0) })
+    CottontailGrpc.Vector.VectorDataCase.SHORT-> Complex64VectorValue(Array(this.short.vectorList.size) { Complex32Value(this.short.vectorList[it], 0.0) })
+    CottontailGrpc.Vector.VectorDataCase.COMPLEX32 -> Complex64VectorValue(Array(this.complex32.vectorList.size) {
+        Complex64Value(this.complex32.vectorList[it].real, this.complex32.vectorList[it].imaginary)
+    })
+    CottontailGrpc.Vector.VectorDataCase.COMPLEX64 -> Complex64VectorValue(Array(this.complex64.vectorList.size) {
+        Complex64Value(this.complex64.vectorList[it].real, this.complex64.vectorList[it].imaginary)
+    })
     else -> throw IllegalArgumentException("${this.vectorDataCase} cannot be cast to VECTOR[COMPLEX64].")
 }

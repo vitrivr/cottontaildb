@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * A [RewriteRule] that defers fetching of columns scanned in an [EntityScanPhysicalOperatorNode].
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.4.0
  */
 object DeferFetchOnScanRewriteRule: RewriteRule {
     /**
@@ -36,7 +36,7 @@ object DeferFetchOnScanRewriteRule: RewriteRule {
                 /* Make sure, that node is a FetchLogicalOperatorNode. */
                 require(node is EntityScanPhysicalOperatorNode) { "Called DeferFetchOnFetchRewriteRule.rewrite() with node of type ${node.javaClass.simpleName}. This is a programmer's error!"}
 
-                val candidates = node.fetch.toMutableList()
+                val candidates = node.columns.toMutableList()
 
                 /* Check for early abort; if next node requires all candidates. */
                 val originalGroupId = node.groupId
@@ -45,7 +45,7 @@ object DeferFetchOnScanRewriteRule: RewriteRule {
 
                 while (next != null && next.groupId == originalGroupId) {
                     /* Check if we encounter a node that requires specific but not all of the original columns. */
-                    val required = candidates.filter { it.first.column in next!!.requires }
+                    val required = candidates.filter { it in next!!.requires }
                     if (required.isNotEmpty()) {
                         /* Remove required elements from candidate list. */
                         candidates.removeAll(required)
@@ -54,12 +54,12 @@ object DeferFetchOnScanRewriteRule: RewriteRule {
 
                     /* Defer if end of tree is reached or expected number of output elements decreases. */
                     if (next.outputSize < prev!!.outputSize) {
-                        if (candidates.size == node.fetch.size) {
+                        if (candidates.size == node.columns.size) {
                             candidates.removeFirst()
                         }
-                        var p = next.copyWithExistingInput().base.first().output!!.copyWithOutput(EntityScanPhysicalOperatorNode(originalGroupId, node.entity, node.fetch.filter { !candidates.contains(it) })).root
+                        var p = next.copyWithExistingInput().base.first().output!!.copyWithOutput(EntityScanPhysicalOperatorNode(originalGroupId, node.entity, node.columns.filter { !candidates.contains(it) })).root
                         if (next.output != null) {
-                            p = FetchPhysicalOperatorNode(p, node.entity, candidates.map { it.first to it.second })
+                            p = FetchPhysicalOperatorNode(p, node.entity, candidates)
                             p = next.output?.copyWithOutput(p) ?: p
                         }
                         return p
@@ -70,7 +70,7 @@ object DeferFetchOnScanRewriteRule: RewriteRule {
                     next = next.output
                 }
                 /* This usually only happens for count(*) or exists (*) queries. */
-                return prev!!.copyWithExistingInput().base.first().output!!.copyWithOutput(EntityScanPhysicalOperatorNode(originalGroupId, node.entity, node.fetch.filter { !candidates.contains(it) }))
+                return prev!!.copyWithExistingInput().base.first().output!!.copyWithOutput(EntityScanPhysicalOperatorNode(originalGroupId, node.entity, node.columns.filter { !candidates.contains(it) }))
             }
         }
     }

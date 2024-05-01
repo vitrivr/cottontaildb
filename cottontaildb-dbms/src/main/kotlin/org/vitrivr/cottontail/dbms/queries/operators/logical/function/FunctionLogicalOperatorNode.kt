@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.function.FunctionP
  * A [UnaryLogicalOperatorNode] that represents the execution of a [Function] that is manifested in an additional [ColumnDef].
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.9.0
  */
 class FunctionLogicalOperatorNode(input: Logical, val function: Binding.Function, val out: Binding.Column) : UnaryLogicalOperatorNode(input) {
 
@@ -22,12 +22,12 @@ class FunctionLogicalOperatorNode(input: Logical, val function: Binding.Function
     }
 
     /** The column produced by this [FunctionLogicalOperatorNode] is determined by the [Function]'s signature. */
-    override val columns: List<ColumnDef<*>> by lazy {
-        this.input.columns + this.out.column
+    override val columns: List<Binding.Column> by lazy {
+        this.input.columns + this.out
     }
 
     /** The [FunctionLogicalOperatorNode] requires all [ColumnDef] used in the [Function]. */
-    override val requires: List<ColumnDef<*>>
+    override val requires: List<Binding.Column>
         get() = this.function.requiredColumns()
 
     /** Human-readable name of this [FunctionLogicalOperatorNode]. */

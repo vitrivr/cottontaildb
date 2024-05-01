@@ -39,6 +39,7 @@ sealed interface Tablet<T: Value> {
             is Types.Complex64Vector -> Complex64VectorTablet(size, types.logicalSize, direct)
             is Types.DoubleVector -> DoubleVectorTablet(size, types.logicalSize, direct)
             is Types.FloatVector ->  FloatVectorTablet(size, types.logicalSize, direct)
+            is Types.HalfVector -> HalfVectorTablet(size, types.logicalSize, direct)
             is Types.IntVector ->  IntVectorTablet(size, types.logicalSize, direct)
             is Types.LongVector ->  LongVectorTablet(size, types.logicalSize, direct)
             else -> throw UnsupportedOperationException("The type $types cannot be represented in a tablet.")

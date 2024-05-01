@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.dbms.queries.operators.basics
 
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import java.io.PrintStream
@@ -33,16 +33,12 @@ abstract class UnaryLogicalOperatorNode(val input: Logical): OperatorNode.Logica
     final override val base: Collection<Logical>
         get() = this.input.base
 
-    /** By default, a [UnaryLogicalOperatorNode]'s input physical columns are retained. Can be overridden! */
-    override val physicalColumns: List<ColumnDef<*>>
-        get() = this.input.physicalColumns
-
-    /** By default, a [UnaryLogicalOperatorNode]'s input columns are retained. Can be overridden! */
-    override val columns: List<ColumnDef<*>>
+    /** By default, the [UnaryLogicalOperatorNode] outputs the [Binding.Column] of its input. Can be overridden! */
+    override val columns: List<Binding.Column>
         get() = this.input.columns
 
     /** By default, a [UnaryLogicalOperatorNode]'s requirements are unspecified. Can be overridden! */
-    override val requires: List<ColumnDef<*>>
+    override val requires: List<Binding.Column>
         get() = emptyList()
 
     /** By default, a [UnaryLogicalOperatorNode] inherits its traits from its parent. Can be overridden! */

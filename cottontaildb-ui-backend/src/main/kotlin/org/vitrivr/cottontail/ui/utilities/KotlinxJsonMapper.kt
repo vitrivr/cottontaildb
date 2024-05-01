@@ -67,6 +67,7 @@ object KotlinxJsonMapper: JsonMapper {
      * @param targetType The target [Type]
      * @return Object [T]
      */
+    @Suppress("UNCHECKED_CAST")
     override fun <T : Any> fromJsonString(json: String, targetType: Type): T {
         val deserializer = this.projectModule.serializer(targetType)
         return this.json.decodeFromString(deserializer, json) as T

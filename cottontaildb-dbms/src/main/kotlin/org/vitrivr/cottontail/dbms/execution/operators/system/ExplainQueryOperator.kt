@@ -28,18 +28,18 @@ import java.util.*
 class ExplainQueryOperator(private val candidates: Map<GroupId,List<Pair<OperatorNode.Physical,Float>>>, override val context: QueryContext) : Operator.SourceOperator() {
     companion object {
         val COLUMNS: List<ColumnDef<*>> = listOf(
-            ColumnDef(Name.ColumnName("groupId"), Types.Int, false),
-            ColumnDef(Name.ColumnName("rank"), Types.Int, false),
-            ColumnDef(Name.ColumnName("score"), Types.Float, false),
-            ColumnDef(Name.ColumnName("position"), Types.Int, false),
-            ColumnDef(Name.ColumnName("name"), Types.String, false),
-            ColumnDef(Name.ColumnName("output_size"), Types.Long, false),
-            ColumnDef(Name.ColumnName("cost_cpu"), Types.Float, false),
-            ColumnDef(Name.ColumnName("cost_io"), Types.Float, false),
-            ColumnDef(Name.ColumnName("cost_memory"), Types.Float, false),
-            ColumnDef(Name.ColumnName("cost_accuracy"), Types.Float, false),
-            ColumnDef(Name.ColumnName("digest"), Types.Long, false),
-            ColumnDef(Name.ColumnName("designation"), Types.String, false)
+            ColumnDef(Name.ColumnName.create("groupId"), Types.Int, false),
+            ColumnDef(Name.ColumnName.create("rank"), Types.Int, false),
+            ColumnDef(Name.ColumnName.create("score"), Types.Float, false),
+            ColumnDef(Name.ColumnName.create("position"), Types.Int, false),
+            ColumnDef(Name.ColumnName.create("name"), Types.String, false),
+            ColumnDef(Name.ColumnName.create("output_size"), Types.Long, false),
+            ColumnDef(Name.ColumnName.create("cost_cpu"), Types.Float, false),
+            ColumnDef(Name.ColumnName.create("cost_io"), Types.Float, false),
+            ColumnDef(Name.ColumnName.create("cost_memory"), Types.Float, false),
+            ColumnDef(Name.ColumnName.create("cost_accuracy"), Types.Float, false),
+            ColumnDef(Name.ColumnName.create("digest"), Types.Long, false),
+            ColumnDef(Name.ColumnName.create("designation"), Types.String, false)
         )
     }
 

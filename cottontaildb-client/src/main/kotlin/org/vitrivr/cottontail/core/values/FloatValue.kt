@@ -42,6 +42,14 @@ value class FloatValue(override val value: Float): RealValue<Float>, PublicValue
 
         /** The INF [FloatValue].  */
         val INF = FloatValue(Float.POSITIVE_INFINITY)
+
+        /**
+         * A static helper class to use this [FloatValue] in plain Java.
+         *
+         * @param value [Float] to create [FloatValue] from
+         */
+        @JvmStatic
+        fun of(value: Float) = FloatValue(value)
     }
 
     /**

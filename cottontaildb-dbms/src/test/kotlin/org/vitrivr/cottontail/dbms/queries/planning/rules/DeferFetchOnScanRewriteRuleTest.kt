@@ -60,10 +60,11 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
             val entityTx = entity.newTx(ctx)
+            val bindings = this.columns.map { ctx.bindings.bind(it, it) }
 
             /* Prepare simple SAMPLE with projection. */
-            val sample0 = EntitySamplePhysicalOperatorNode(0, entityTx, this.columns.map { ctx.bindings.bind(it) to it }, 0.5f)
-            SelectProjectionPhysicalOperatorNode(sample0, this.columns.map { it.name })
+            val sample0 = EntitySamplePhysicalOperatorNode(0, entityTx, bindings, 0.5f)
+            SelectProjectionPhysicalOperatorNode(sample0, bindings)
 
             /* Check DeferFetchOnFetchRewriteRule.canBeApplied and test output for null. */
             Assertions.assertFalse(DeferFetchOnScanRewriteRule.canBeApplied(sample0, ctx))
@@ -88,10 +89,11 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
             val entityTx = entity.newTx(ctx)
+            val bindings = this.columns.map { ctx.bindings.bind(it, it) }
 
             /* Prepare simple SAMPLE with projection. */
-            val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, this.columns.map { ctx.bindings.bind(it) to it })
-            SelectProjectionPhysicalOperatorNode(scan0, this.columns.map { it.name })
+            val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, bindings)
+            SelectProjectionPhysicalOperatorNode(scan0, bindings)
 
             /* Step 1: Execute DeferFetchOnScanRewriteRule and make basic assertions. */
             Assertions.assertTrue(DeferFetchOnScanRewriteRule.canBeApplied(scan0, ctx))
@@ -117,10 +119,11 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
             val entityTx = entity.newTx(ctx)
+            val bindings = this.columns.map { ctx.bindings.bind(it, it) }
 
             /* Prepare simple scan with projection. */
-            val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, this.columns.map { ctx.bindings.bind(it) to it })
-            val projection0 = SelectProjectionPhysicalOperatorNode(scan0, listOf(this.columns[0].name, this.columns[1].name))
+            val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, bindings)
+            val projection0 = SelectProjectionPhysicalOperatorNode(scan0, listOf(bindings[0], bindings[1]))
 
             /* Execute rule, */
             Assertions.assertTrue(DeferFetchOnScanRewriteRule.canBeApplied(scan0, ctx))
@@ -152,12 +155,13 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
             val entityTx = entity.newTx(ctx)
+            val bindings = this.columns.map { ctx.bindings.bind(it, it) }
 
             /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
             val context = DefaultBindingContext()
-            val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, this.columns.map { ctx.bindings.bind(it) to it })
-            val filter0 = FilterPhysicalOperatorNode(scan0, BooleanPredicate.Comparison(ComparisonOperator.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type))))
-            val projection0 = SelectProjectionPhysicalOperatorNode(filter0, listOf(this.columns[0].name, this.columns[1].name))
+            val scan0 = EntityScanPhysicalOperatorNode(0, entityTx, bindings)
+            val filter0 = FilterPhysicalOperatorNode(scan0, BooleanPredicate.Comparison(ComparisonOperator.Equal(bindings[2], context.bindNull(this.columns[2].type))))
+            val projection0 = SelectProjectionPhysicalOperatorNode(filter0, listOf(bindings[0], bindings[1]))
 
 
             /* Execute rule and make basic assertions. */

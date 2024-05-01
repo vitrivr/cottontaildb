@@ -1,10 +1,11 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.management
 
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.management.DeleteOperator
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.management.DeletePhysicalOperatorNode
@@ -13,9 +14,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.management.DeleteP
  * A [DeleteLogicalOperatorNode] that formalizes a DELETE operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 2.9.0
  */
-class DeleteLogicalOperatorNode(input: Logical, val entity: EntityTx) : UnaryLogicalOperatorNode(input) {
+class DeleteLogicalOperatorNode(input: Logical, val context: QueryContext, val entity: EntityTx) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Delete"
@@ -26,10 +27,9 @@ class DeleteLogicalOperatorNode(input: Logical, val entity: EntityTx) : UnaryLog
         get() = NODE_NAME
 
     /** The [DeleteLogicalOperatorNode] produces the columns defined in the [DeleteOperator] */
-    override val columns: List<ColumnDef<*>> = DeleteOperator.COLUMNS
-
-    /** The [DeleteLogicalOperatorNode] does not require any [ColumnDef]. */
-    override val requires: List<ColumnDef<*>> = emptyList()
+    override val columns: List<Binding.Column> = DeleteOperator.COLUMNS.map {
+        this.context.bindings.bind(it, null)
+    }
 
     /**
      * Creates a copy of this [DeleteLogicalOperatorNode].
@@ -39,7 +39,7 @@ class DeleteLogicalOperatorNode(input: Logical, val entity: EntityTx) : UnaryLog
      */
     override fun copyWithNewInput(vararg input: Logical): DeleteLogicalOperatorNode {
         require(input.size == 1) { "The input arity for DeleteLogicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
-        return DeleteLogicalOperatorNode(input = input[0], entity = this.entity)
+        return DeleteLogicalOperatorNode(input = input[0], context = context, entity = this.entity)
     }
 
     /**
@@ -47,7 +47,7 @@ class DeleteLogicalOperatorNode(input: Logical, val entity: EntityTx) : UnaryLog
      *
      * @return [DeletePhysicalOperatorNode]
      */
-    override fun implement() = DeletePhysicalOperatorNode(this.input.implement(), this.entity)
+    override fun implement() = DeletePhysicalOperatorNode(this.input.implement(), this.context, this.entity)
 
     override fun toString(): String = "${super.toString()}[${this.entity.dbo.name}]"
 

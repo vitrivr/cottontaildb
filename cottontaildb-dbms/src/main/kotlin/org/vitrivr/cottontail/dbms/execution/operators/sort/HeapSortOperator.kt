@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -16,7 +17,7 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * @author Ralph Gasser
  * @version 2.0.0
  */
-open class HeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, private val queueSize: Int, override val context: QueryContext) : AbstractSortOperator(parent, sortOn) {
+open class HeapSortOperator(parent: Operator, sortOn: List<Pair<Binding.Column, SortOrder>>, private val queueSize: Int, override val context: QueryContext) : AbstractSortOperator(parent, sortOn) {
     /**
      * Converts this [HeapSortOperator] to a [Flow] and returns it.
      *

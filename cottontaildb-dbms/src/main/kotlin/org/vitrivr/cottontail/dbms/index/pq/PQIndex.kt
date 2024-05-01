@@ -189,7 +189,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
          */
         override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> = this.txLatch.withLock {
             require(predicate is ProximityPredicate.Scan) { "PQIndex can only process proximity search." }
-            return listOf(predicate.distanceColumn)
+            return listOf(predicate.distanceColumn.column)
         }
 
         /**
@@ -198,8 +198,8 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
          * @param predicate [Predicate] to check.
          * @return True if [Predicate] can be processed, false otherwise.
          */
-        override fun canProcess(predicate: Predicate): Boolean
-            = predicate is ProximityPredicate.Scan && predicate.column == this.columns[0] && predicate.distance::class == this.distanceFunction::class
+        override fun canProcess(predicate: Predicate): Boolean = predicate is ProximityPredicate.Scan && predicate.column.physical == this.columns[0] &&
+            predicate.distance::class == this.distanceFunction::class
 
         /**
          * Returns the map of [Trait]s this [PQIndex] implements for the given [Predicate]s.
@@ -220,7 +220,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
          */
         override fun costFor(predicate: Predicate): Cost = this.txLatch.withLock {
             if (predicate !is ProximityPredicate.Scan) return Cost.INVALID
-            if (predicate.column != this.columns[0]) return Cost.INVALID
+            if (predicate.column.physical != this.columns[0]) return Cost.INVALID
             if (predicate.distance.name != (this.config as PQIndexConfig).distance) return Cost.INVALID
             val count = this.count()
             return Cost(
@@ -296,7 +296,6 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [Iterator]
          */
-        @Suppress("UNCHECKED_CAST")
         override fun filter(predicate: Predicate): Cursor<Tuple> = this.txLatch.withLock {
             val entityTx = this@PQIndex.parent.newTx(this.context)
             filter(predicate,entityTx.smallestTupleId() .. entityTx.largestTupleId())

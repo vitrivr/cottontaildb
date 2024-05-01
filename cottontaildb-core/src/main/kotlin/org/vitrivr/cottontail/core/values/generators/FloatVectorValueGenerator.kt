@@ -1,12 +1,11 @@
 package org.vitrivr.cottontail.core.values.generators
 
 import org.vitrivr.cottontail.core.types.VectorValue
-import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import java.util.random.RandomGenerator
 
 /**
- * A [VectorValueGenerator] for [DoubleVectorValue]s.
+ * A [VectorValueGenerator] for [FloatVectorValue]s.
  *
  * @author Ralph Gasser
  * @version 1.0.0

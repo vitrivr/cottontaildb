@@ -41,5 +41,5 @@ interface MutableTuple: Tuple {
      * @param column The colum name for which to set the value.
      * @param value The new [Value]
      */
-    operator fun set(column: String, value: Value?) = this.set(this.indexOf(Name.ColumnName(column)), value)
+    operator fun set(column: String, value: Value?) = this.set(this.indexOf(Name.ColumnName.create(column)), value)
 }

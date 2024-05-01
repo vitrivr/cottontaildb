@@ -19,14 +19,12 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
-import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
@@ -193,9 +191,9 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                     with (this@Tx.context.bindings) {
                         val left = op.left
                         val right = op.right
-                        val column = if (right is Binding.Column && right.column == this@Tx.columns[0]) {
+                        val column = if (right is Binding.Column && right.physical == this@Tx.columns[0]) {
                             right.column
-                        } else if (left is Binding.Column && left.column ==  this@Tx.columns[0]) {
+                        } else if (left is Binding.Column && left.physical == this@Tx.columns[0]) {
                             left.column
                         } else {
                             throw QueryException("Conversion to Lucene query failed: One side of the comparison operator must be a column value!")
@@ -211,7 +209,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                         return when (op) {
                             is ComparisonOperator.Equal -> {
                                 if (literal is StringValue) {
-                                    TermQuery(Term("${column.name}_str", literal.value))
+                                    TermQuery(Term("${column.name.column}_str", literal.value))
                                 } else {
                                     throw QueryException("Conversion to Lucene query failed: EQUAL queries strictly require a StringValue as second operand!")
                                 }
@@ -220,12 +218,12 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                                 when (literal) {
                                     is StringValue -> QueryParserUtil.parse(
                                         arrayOf(literal.value),
-                                        arrayOf("${column.name}_txt"),
+                                        arrayOf("${column.name.column}_txt"),
                                         StandardAnalyzer()
                                     )
                                     is LikePatternValue -> QueryParserUtil.parse(
                                         arrayOf(literal.toLucene().value),
-                                        arrayOf("${column.name}_txt"),
+                                        arrayOf("${column.name.column}_txt"),
                                         StandardAnalyzer()
                                     )
                                     else -> throw throw QueryException("Conversion to Lucene query failed: LIKE queries require a StringValue OR LikePatternValue as second operand!")
@@ -233,7 +231,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                             }
                             is ComparisonOperator.Match -> {
                                 if (literal is StringValue) {
-                                    QueryParserUtil.parse(arrayOf(literal.value), arrayOf("${column.name}_txt"), StandardAnalyzer())
+                                    QueryParserUtil.parse(arrayOf(literal.value), arrayOf("${column.name.column}_txt"), StandardAnalyzer())
                                 } else {
                                     throw throw QueryException("Conversion to Lucene query failed: MATCH queries strictly require a StringValue as second operand!")
                                 }
@@ -255,7 +253,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * @return True if [Predicate] can be processed, false otherwise.
          */
         override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate &&
-            predicate.columns.all { it in this.columns } &&
+            predicate.columns.all { it.physical in this.columns } &&
             predicate.atomics.all {
                 it is BooleanPredicate.Comparison &&
                 (it.operator is ComparisonOperator.Like || it.operator is ComparisonOperator.Equal || it.operator is ComparisonOperator.Match)
@@ -281,7 +279,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
             require(predicate is BooleanPredicate) { "Lucene Index can only process Boolean predicates." }
             mapOf(
                 NotPartitionableTrait to NotPartitionableTrait,
-                OrderTrait to OrderTrait(listOf(ColumnDef(this@LuceneIndex.parent.name.column("score"), Types.Double) to SortOrder.DESCENDING))
+                //OrderTrait to OrderTrait(listOf(ColumnDef(this@LuceneIndex.parent.name.column("score"), Types.Double) to SortOrder.DESCENDING))
             )
         }
 

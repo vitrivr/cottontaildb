@@ -44,7 +44,7 @@ sealed class Types<T : Value> {
             "LONG_VECTOR" -> LongVector(logicalSize)
             "FLOAT_VECTOR" -> FloatVector(logicalSize)
             "DOUBLE_VECTOR" -> DoubleVector(logicalSize)
-            "BOOL_VECTOR" -> BooleanVector(logicalSize)
+            "BOOLEAN_VECTOR" -> BooleanVector(logicalSize)
             "COMPLEX32_VECTOR" -> Complex32Vector(logicalSize)
             "COMPLEX64_VECTOR" -> Complex64Vector(logicalSize)
             "BYTESTRING" -> ByteString
@@ -350,7 +350,7 @@ sealed class Types<T : Value> {
 
     @Serializable
     @SerialName("HALF_VECTOR")
-    class HalfVector(override val logicalSize: kotlin.Int): Vector<FloatVectorValue, FloatValue>() {
+    class HalfVector(override val logicalSize: kotlin.Int): Vector<HalfVectorValue, FloatValue>() {
         init {
             require(this.logicalSize > 0) { "Logical size of a vector must be greater than zero." }
         }

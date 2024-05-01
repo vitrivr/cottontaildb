@@ -82,9 +82,10 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         return with(this@QueryContext.bindings) {
             with(MissingTuple) {
                 stage2.map { (groupId, plans) ->
-                    val total = plans.map { it.totalCost }
+                    val validPlans = plans.filter { it.totalCost.isValid() }
+                    val total = validPlans.map { it.totalCost }
                     val normalized = NormalizedCost.normalize(total)
-                    val candidates = plans.zip(normalized).map { (p, cost) -> p to this@QueryContext.costPolicy.toScore(cost) }.sortedBy { it.second }.take(10)
+                    val candidates = validPlans.zip(normalized).map { (p, cost) -> p to this@QueryContext.costPolicy.toScore(cost) }.sortedBy { it.second }.take(10)
                     groupId to candidates
                 }.toMap()
             }

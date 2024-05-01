@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  * This is an abstraction over a [Byte].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 @Serializable
 @SerialName("Byte")
@@ -35,6 +35,14 @@ value class ByteValue(override val value: Byte): RealValue<Byte>, PublicValue {
 
         /** The one [ByteValue]. */
         val ONE = ByteValue(1.toByte())
+
+        /**
+         * A static helper class to use this [ByteValue] in plain Java.
+         *
+         * @param value [Byte] to create [ByteValue] from
+         */
+        @JvmStatic
+        fun of(value: Byte) = ByteValue(value)
     }
 
     /**

@@ -74,7 +74,10 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
             val k = 100L
             val query = DoubleVectorValueGenerator.random(this.indexColumn.type.logicalSize, this.random)
             val function = this.catalogue.functions.obtain(Signature.Closed(distance, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Types.Double)) as VectorDistance<*>
-            val predicate = ProximityPredicate.NNS(column = this.indexColumn, k = k, distance = function, query = ctx.bindings.bind(query))
+            val idxCol = ctx.bindings.bind(this.indexColumn, this.indexColumn)
+            val distCol = ctx.bindings.bind(ColumnDef(Name.ColumnName.create("distance"), Types.Double, nullable = false), null)
+            val predicate = ProximityPredicate.NNS(column = idxCol, distanceColumn = distCol, k = k, distance = function, query = ctx.bindings.bind(query))
+
 
             /* Obtain necessary transactions. */
             val catalogueTx = this.catalogue.newTx(ctx)
@@ -109,7 +112,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
             /* Compare results. */
             for ((i, e) in indexResults.withIndex()) {
                 Assertions.assertEquals(bruteForceResults[i].first, e.tupleId)
-                Assertions.assertEquals(bruteForceResults[i].second.value, (e[predicate.distanceColumn] as DoubleValue).value)
+                Assertions.assertEquals(bruteForceResults[i].second.value, (e[predicate.distanceColumn.column] as DoubleValue).value)
             }
             this.log("Test done for ${function.name} and d=${this.indexColumn.type.logicalSize}! VAF took $indexDuration, brute-force took $bruteForceDuration.")
         } finally {

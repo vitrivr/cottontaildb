@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.basics
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.nodes.Node
 import org.vitrivr.cottontail.core.queries.nodes.NodeWithTrait
@@ -40,14 +41,11 @@ sealed class OperatorNode : NodeWithTrait {
     /** The name of this [OperatorNode]. */
     abstract val name: String
 
-    /** The physical [ColumnDef]s accessed by this [OperatorNode]. */
-    abstract val physicalColumns: List<ColumnDef<*>>
+    /** The [Binding.Column]s produced by this [OperatorNode]. */
+    abstract val columns: List<Binding.Column>
 
-    /** The [ColumnDef]s produced by this [OperatorNode]. */
-    abstract val columns: List<ColumnDef<*>>
-
-    /** The [ColumnDef]s required by this [OperatorNode] in order to be able to function. */
-    abstract val requires: List<ColumnDef<*>>
+    /** The [Binding.Column]s required by this [OperatorNode] in order to be able to function. */
+    abstract val requires: List<Binding.Column>
 
     /**
      * Calculates and returns the total [Digest] for this [OperatorNode], which is used for caching and re-use of query plans

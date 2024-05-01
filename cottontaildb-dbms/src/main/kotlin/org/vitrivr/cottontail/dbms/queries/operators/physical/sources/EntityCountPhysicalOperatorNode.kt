@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
  * A [NullaryPhysicalOperatorNode] that formalizes the counting entries in a physical [Entity].
  *
  * @author Ralph Gasser
- * @version 2.6.0
+ * @version 3.0.0
  */
 class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val out: Binding.Column) : NullaryPhysicalOperatorNode() {
     companion object {
@@ -33,11 +33,8 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
     /** The output size of an [EntityCountPhysicalOperatorNode] is always one. */
     override val outputSize = 1L
 
-    /** physical [ColumnDef] accessed by this [EntityCountPhysicalOperatorNode]. */
-    override val physicalColumns: List<ColumnDef<*>> = emptyList()
-
     /** [ColumnDef] produced by this [EntityCountPhysicalOperatorNode]. */
-    override val columns: List<ColumnDef<*>> = listOf(this.out.column)
+    override val columns: List<Binding.Column> = listOf(this.out)
 
     /** The estimated [Cost] of incurred by this [EntityCountPhysicalOperatorNode]. */
     override val cost = Cost.DISK_ACCESS_READ_SEQUENTIAL + Cost.MEMORY_ACCESS
@@ -71,7 +68,7 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
     override fun toOperator(ctx: QueryContext): EntityCountOperator = EntityCountOperator(this.groupId, this.entity, this.out, ctx)
 
     /** Generates and returns a [String] representation of this [EntityCountPhysicalOperatorNode]. */
-    override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
+    override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.physical!!.name.toString() }}]"
 
     /**
      * Generates and returns a [Digest] for this [EntityCountPhysicalOperatorNode].

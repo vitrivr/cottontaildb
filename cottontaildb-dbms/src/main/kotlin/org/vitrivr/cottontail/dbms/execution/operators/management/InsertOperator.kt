@@ -27,8 +27,8 @@ class InsertOperator(groupId: GroupId, private val entity: EntityTx, private val
     companion object {
         /** The columns produced by the [InsertOperator]. */
         val COLUMNS: List<ColumnDef<*>> = listOf(
-            ColumnDef(Name.ColumnName("tupleId"), Types.Long, false),
-            ColumnDef(Name.ColumnName("duration_ms"), Types.Double, false)
+            ColumnDef(Name.ColumnName.create("tupleId"), Types.Long, false),
+            ColumnDef(Name.ColumnName.create("duration_ms"), Types.Double, false)
         )
     }
 

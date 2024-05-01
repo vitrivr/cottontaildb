@@ -74,6 +74,10 @@ object ValueFunnel: Funnel<Value?> {
                 into.putInt(value.logicalSize)
                 value.data.forEach { into.putFloat(it) }
             }
+            is HalfVectorValue -> {
+                into.putInt(value.logicalSize)
+                value.data.forEach { into.putFloat(it) }
+            }
             is DoubleVectorValue -> {
                 into.putInt(value.logicalSize)
                 value.data.forEach { into.putDouble(it) }

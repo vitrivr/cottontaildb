@@ -13,12 +13,22 @@ import java.util.*
  * This is an abstraction over a [Date].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 @Serializable
 @SerialName("Date")
 @JvmInline
 value class DateValue(override val value: Long) : ScalarValue<Long>, PublicValue {
+
+    companion object {
+        /**
+         * A static helper class to use this [DateValue] in plain Java.
+         *
+         * @param array [Date] to create [DateValue] from
+         */
+        @JvmStatic
+        fun of(array: Date) = DateValue(array)
+    }
 
     /**
      * Converts a [Date] to a [DateValue].
@@ -37,7 +47,7 @@ value class DateValue(override val value: Long) : ScalarValue<Long>, PublicValue
 
     /**
      * Compares this [LongValue] to another [Value]. Returns -1, 0 or 1 of other value is smaller,
-     * equal or greater than this value. [LongValue] can only be compared to other [NumericValue]s.
+     * equal or greater than this value. [LongValue] can only be compared to other [ScalarValue]s.
      *
      * @param other Value to compare to.
      * @return -1, 0 or 1 of other value is smaller, equal or greater than this value

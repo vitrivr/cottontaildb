@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.management.UpdateOperator
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.basics.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.management.UpdatePhysicalOperatorNode
@@ -14,9 +15,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.management.UpdateP
  * A [DeleteLogicalOperatorNode] that formalizes an UPDATE operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 2.9.0
  */
-class UpdateLogicalOperatorNode(input: Logical, val entity: EntityTx, val values: List<Pair<ColumnDef<*>, Binding>>) : UnaryLogicalOperatorNode(input) {
+class UpdateLogicalOperatorNode(input: Logical, val context: QueryContext, val entity: EntityTx, val values: List<Pair<Binding.Column, Binding>>) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Update"
@@ -27,10 +28,12 @@ class UpdateLogicalOperatorNode(input: Logical, val entity: EntityTx, val values
         get() = NODE_NAME
 
     /** The [UpdateLogicalOperatorNode] does produce the columns defined in the [UpdateOperator]. */
-    override val columns: List<ColumnDef<*>> = UpdateOperator.COLUMNS
+    override val columns: List<Binding.Column> = UpdateOperator.COLUMNS.map {
+        this.context.bindings.bind(it, null)
+    }
 
     /** The [UpdateLogicalOperatorNode] requires the [ColumnDef] that are being updated. */
-    override val requires: List<ColumnDef<*>> = this.values.map { it.first }
+    override val requires: List<Binding.Column> = this.values.map { it.first }
 
     /**
      * Creates a copy of this [UpdateLogicalOperatorNode].
@@ -40,7 +43,7 @@ class UpdateLogicalOperatorNode(input: Logical, val entity: EntityTx, val values
      */
     override fun copyWithNewInput(vararg input: Logical): UpdateLogicalOperatorNode {
         require(input.size == 1) { "The input arity for UpdateLogicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
-        return UpdateLogicalOperatorNode(input = input[0], entity = this.entity, values = this.values)
+        return UpdateLogicalOperatorNode(input = input[0], context = this.context, entity = this.entity, values = this.values)
     }
 
     /**
@@ -48,9 +51,9 @@ class UpdateLogicalOperatorNode(input: Logical, val entity: EntityTx, val values
      *
      * @return [UpdatePhysicalOperatorNode]
      */
-    override fun implement() = UpdatePhysicalOperatorNode(this.input.implement(), this.entity, this.values)
+    override fun implement() = UpdatePhysicalOperatorNode(this.input.implement(), this.context, this.entity, this.values)
 
-    override fun toString(): String = "${super.toString()}[${this.values.map { it.first.name }.joinToString(",")}]"
+    override fun toString(): String = "${super.toString()}[${this.values.map { it.first.column.name }.joinToString(",")}]"
 
     /**
      * Generates and returns a [Digest] for this [UpdateLogicalOperatorNode].

@@ -36,6 +36,8 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
                 is Types.Complex32Vector -> Complex32Vector(type)
                 is Types.DoubleVector -> DoubleVector(type)
                 is Types.FloatVector -> FloatVector(type)
+                is Types.HalfVector -> HalfVector(type)
+
                 is Types.LongVector -> LongVector(type)
                 is Types.IntVector -> IntVector(type)
                 else -> throw FunctionNotSupportedException("Function generator ${Companion.signature} cannot generate function with signature $signature.")
@@ -143,6 +145,36 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
 
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
         override fun vectorized() = FloatVectorVectorized(this.type)
+    }
+
+    /**
+     * [EuclideanDistance] for a [FloatVectorValue].
+     */
+    class HalfVector(type: Types.Vector<HalfVectorValue,*>): EuclideanDistance<HalfVectorValue>(type) {
+        override val name: Name.FunctionName = FUNCTION_NAME
+        override fun invoke(vararg arguments: Value?): DoubleValue {
+            val probing = arguments[0] as HalfVectorValue
+            val query = arguments[1] as HalfVectorValue
+            var sum = 0.0
+            for (i in 0 until this.vectorSize) {
+                sum += (query.data[i] - probing.data[i]).pow(2)
+            }
+            return DoubleValue(sqrt(sum))
+        }
+
+        override fun invokeOrMaximum(left: VectorValue<*>, right: VectorValue<*>, maximum: DoubleValue): DoubleValue {
+            val max = maximum.value.pow(2)
+            val probing = left as HalfVectorValue
+            val query = right as HalfVectorValue
+            var sum = 0.0
+            for (i in 0 until this.vectorSize) {
+                sum += (query.data[i] - probing.data[i]).pow(2)
+                if (sum >= max)  return maximum
+            }
+            return DoubleValue(sqrt(sum))
+        }
+
+        override fun copy(d: Int) = HalfVector(Types.HalfVector(d))
     }
 
     /**

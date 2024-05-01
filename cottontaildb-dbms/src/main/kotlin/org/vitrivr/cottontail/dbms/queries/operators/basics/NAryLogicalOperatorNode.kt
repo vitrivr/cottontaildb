@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.dbms.queries.operators.basics
 
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import java.io.PrintStream
 
 /**
@@ -32,16 +32,12 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical): OperatorNode.Log
         this.inputs.flatMap { it.base }
     }
 
-    /** By default, the [NAryLogicalOperatorNode] outputs the physical [ColumnDef] of its input. */
-    override val physicalColumns: List<ColumnDef<*>>
-        get() = (this.inputs.firstOrNull()?.physicalColumns ?: emptyList())
-
-    /** By default, the [NAryLogicalOperatorNode] outputs the [ColumnDef] of its input. */
-    override val columns: List<ColumnDef<*>>
+    /** By default, the [NAryLogicalOperatorNode] outputs the [Binding.Column] of its left-most input. Can be overridden! */
+    override val columns: List<Binding.Column>
         get() = (this.inputs.firstOrNull()?.columns ?: emptyList())
 
     /** By default, a [NAryLogicalOperatorNode] doesn't have any requirement. */
-    override val requires: List<ColumnDef<*>>
+    override val requires: List<Binding.Column>
         get() = emptyList()
 
     init {

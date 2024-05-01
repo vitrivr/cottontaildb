@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.operators.basics
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
@@ -44,14 +45,10 @@ abstract class UnaryPhysicalOperatorNode(val input: Physical) : OperatorNode.Phy
         get() = this.input.base
 
     /** By default, a [UnaryPhysicalOperatorNode] has no specific requirements. */
-    override val requires: List<ColumnDef<*>> = emptyList()
+    override val requires: List<Binding.Column> = emptyList()
 
-    /** By default, the [UnaryPhysicalOperatorNode] outputs the physical [ColumnDef] of its input. Can be overridden! */
-    override val physicalColumns: List<ColumnDef<*>>
-        get() = this.input.physicalColumns
-
-    /** By default, the [UnaryPhysicalOperatorNode] outputs the [ColumnDef] of its input. Can be overridden! */
-    override val columns: List<ColumnDef<*>>
+    /** By default, the [UnaryPhysicalOperatorNode] outputs the [Binding.Column] of its input. Can be overridden! */
+    override val columns: List<Binding.Column>
         get() = this.input.columns
 
     /** By default, a [UnaryLogicalOperatorNode] inherits its traits from its parent. Can be overridden! */

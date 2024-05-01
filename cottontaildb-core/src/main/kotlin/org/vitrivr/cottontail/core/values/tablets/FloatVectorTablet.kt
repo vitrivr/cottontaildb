@@ -4,7 +4,7 @@ import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 
 /**
- * A [AbstractTablet] implementation for [FloatVectorValue]s.
+ * A [AbstractTablet] implementation for [FloatVectorValue]s (single-precision).
  *
  * @author Ralph Gasser
  * @version 1.0.0

@@ -61,6 +61,13 @@ value class Cost private constructor(private val cost: FloatArray) {
     val accuracy: Float
         get() = this.cost[3]
 
+    /**
+     * Checks if this [Cost] is valid, i.e., does not contain [Float.NaN], [Float.NEGATIVE_INFINITY] or [Float.POSITIVE_INFINITY] elements
+     *
+     * @return True if [Cost] is valid, false otherwise.
+     */
+    fun isValid(): Boolean = this.cost[0].isFinite() && this.cost[1].isFinite() && this.cost[2].isFinite() && this.cost[3].isFinite()
+
     operator fun plus(other: Cost): Cost = Cost(this.io + other.io, this.cpu + other.cpu, this.memory + other.memory, this.accuracy + other.accuracy)
     operator fun minus(other: Cost): Cost = Cost(this.io - other.io, this.cpu - other.cpu, this.memory - other.memory, this.accuracy - other.accuracy)
     operator fun plus(other: Number): Cost = Cost(this.io + other.toFloat(), this.cpu + other.toFloat(), this.memory + other.toFloat(), this.accuracy + other.toFloat())

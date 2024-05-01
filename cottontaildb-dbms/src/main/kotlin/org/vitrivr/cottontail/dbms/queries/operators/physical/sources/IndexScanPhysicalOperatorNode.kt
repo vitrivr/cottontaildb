@@ -34,13 +34,13 @@ import java.lang.Math.floorDiv
  * A [IndexScanPhysicalOperatorNode] that represents a predicated lookup using an [AbstractIndex].
  *
  * @author Ralph Gasser
- * @version 2.7.0
+ * @version 3.0.0
  */
 @Suppress("UNCHECKED_CAST")
 class IndexScanPhysicalOperatorNode(override val groupId: Int,
+                                    override val columns: List<Binding.Column>,
                                     val index: IndexTx,
                                     val predicate: Predicate,
-                                    val fetch: List<Pair<Binding.Column, ColumnDef<*>>>,
                                     val partitionIndex: Int = 0,
                                     val partitions: Int = 1) : NullaryPhysicalOperatorNode() {
     companion object {
@@ -50,12 +50,6 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
     /** The name of this [IndexScanPhysicalOperatorNode]. */
     override val name: String
         get() = NODE_NAME
-
-    /** The [ColumnDef]s accessed by this [IndexScanPhysicalOperatorNode] depends on the [ColumnDef]s produced by the [Index]. */
-    override val physicalColumns: List<ColumnDef<*>>
-
-    /** The [ColumnDef]s produced by this [IndexScanPhysicalOperatorNode] depends on the [ColumnDef]s produced by the [Index]. */
-    override val columns: List<ColumnDef<*>>
 
     /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
     override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
@@ -74,8 +68,8 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
                 OrderTrait -> { /* Map physical columns to bound columns. */
                     val order = (trait as OrderTrait)
                     val newOrder = order.order.map { (c1, o) ->
-                        val find = this.fetch.single { (_, c2) -> c2 == c1 }
-                        find.first.column to o
+                        val find = this.columns.single { c2 -> c1 == c2 }
+                        find to o
                     }
                     traits[type] = OrderTrait(newOrder)
                 }
@@ -105,28 +99,26 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
 
     init {
         val entityTx = this.index.dbo.parent.newTx(this.index.context)
-        val columns = mutableListOf<ColumnDef<*>>()
-        val physicalColumns = mutableListOf<ColumnDef<*>>()
         val indexProduces = this.index.columnsFor(this.predicate)
         val entityProduces = entityTx.listColumns()
 
         /* Produce statistics. */
-        for ((binding, physical) in this.fetch) {
-            require(indexProduces.contains(physical)) { "The given column $physical is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
+        for (binding in this.columns) {
+            if (binding.physical != null) {
+                require(indexProduces.contains(binding.physical)) {
+                    "The given column '${binding.physical}' is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"
+                }
 
-            /* Populate list of columns. */
-            columns.add(binding.column)
-            physicalColumns.add(physical)
-
-            /* Populate statistics. */
-            if (!this.statistics.containsKey(binding.column) && entityProduces.contains(physical)) {
-                this.statistics[binding.column] = entityTx.columnForName(physical.name).newTx(this.index.context).statistics() as ValueStatistics<Value>
+                /* Populate statistics. */
+                if (!this.statistics.containsKey(binding.physical) && entityProduces.contains(binding.physical)) {
+                    this.statistics[binding.column] = entityTx.columnForName(binding.physical!!.name).newTx(this.index.context).statistics() as ValueStatistics<Value>
+                }
+            } else {
+                require(indexProduces.contains(binding.column)) {
+                    "The given column '${binding.column}' is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"
+                }
             }
         }
-
-        /* Initialize local fields. */
-        this.columns = columns
-        this.physicalColumns = physicalColumns
     }
 
     /**
@@ -134,7 +126,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
      *
      * @return Copy of this [IndexScanPhysicalOperatorNode].
      */
-    override fun copy() = IndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.fetch.map { it.first.copy() to it.second })
+    override fun copy() = IndexScanPhysicalOperatorNode(this.groupId, this.columns.map { it.copy() }, this.index, this.predicate)
 
     /**
      * An [IndexScanPhysicalOperatorNode] is always executable
@@ -199,8 +191,8 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
      * @return Partitioned [IndexScanPhysicalOperatorNode]
      */
     override fun partition(partitions: Int, p: Int): Physical {
-        check(!this.hasTrait(NotPartitionableTrait)) { "IndesScanPhysicalOperatorNode with index ${this.index.dbo.name} cannot be partitioned. This is a programmer's error!"}
-        return IndexScanPhysicalOperatorNode(this.groupId + p, this.index, this.predicate, this.fetch.map { it.first.copy() to it.second }, p, partitions)
+        check(!this.hasTrait(NotPartitionableTrait)) { "IndexScanPhysicalOperatorNode with index ${this.index.dbo.name} cannot be partitioned. This is a programmer's error!"}
+        return IndexScanPhysicalOperatorNode(this.groupId + p, this.columns.map { it.copy() }, this.index, this.predicate, p, partitions)
     }
 
     /**
@@ -210,7 +202,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
      */
     override fun toOperator(ctx: QueryContext): Operator {
         /** Generate and return IndexScanOperator. */
-        return IndexScanOperator(this.groupId, this.index, this.predicate, this.fetch, this.partitionIndex, this.partitions, ctx)
+        return IndexScanOperator(this.groupId, this.index, this.predicate, this.columns, this.partitionIndex, this.partitions, ctx)
     }
 
     /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */
@@ -223,7 +215,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
      */
     override fun digest(): Digest {
         var result = this.index.dbo.name.hashCode().toLong()
-        result += 31L * result + this.fetch.hashCode()
+        result += 31L * result + this.columns.hashCode()
         result += 31L * result + this.partitionIndex.hashCode()
         result += 31L * result + this.partitions.hashCode()
         result += 31L * result + this.predicate.hashCode()
