@@ -38,35 +38,41 @@ abstract class AbstractDynamicExplorationGraph<I,V>(val degree: Int): Iterable<P
         val newNodeId = count + 1
         val newNode = Node(identifier, Long2ObjectArrayMap(this.degree))
 
-
-        if (size() <= this.degree + 1)  { /* Case 1: Graph satisfies regularity condition: Create new node and make all existing nodes connect to */
+        if (size() <= this.degree + 1)  { /* Case 1: Graph does not satisfy regularity condition since it is too small: Create new node and make all existing nodes connect to */
             for ((nodeId, node) in this) {
                 val distance = this.distance(vector, node.vector)
                 node.addEdge(newNodeId, distance)
                 newNode.addEdge(nodeId, distance)
             }
         } else { /* Case 2: Graph is not regular. */
-            val seed = this.getSeedNodes()
             val nearest = this.search(vector, this.degree, epsilon)
             var skipRng = false
 
             /* Start insert procedure (. */
             while (nearest.size < this.degree) {
-                val b = seed.entries.filter { !nearest.containsKey(it.key) }.associate { it.key to it.value }.toMutableMap()
-                while (nearest.size < this.degree && b.isNotEmpty()) {
-                    var closestNodeId = b.keys.first()
-                    var closestNode: Node = b.values.first()
+                val nodesToExplore = nearest.entries.filter { !nearest.containsKey(it.key) }.associate { it.key to it.value.first }.toMutableMap()
+                while (nearest.size < this.degree && nodesToExplore.isNotEmpty()) {
+                    var closestNodeId = nodesToExplore.keys.first()
+                    var closestNode = nodesToExplore.values.first()
                     var closestDistance = Double.MAX_VALUE
-                    for ((nodeId, node) in b) {
+                    for ((nodeId, node) in nodesToExplore.entries) {
                         val distance = this.distance(vector, node.vector)
                         if (distance < closestDistance) {
                             closestDistance = distance
                             closestNodeId = nodeId
                             closestNode = node
                         }
-                        b.remove(closestNodeId)
+                        nodesToExplore.remove(closestNodeId)
+
+                        /* Identify the best vertex to connect to existing vertex. */
                         if (skipRng || checkMrng(newNode, closestNode)) {
-                             /* TODO */
+                            val longestEdge = closestNode.neighbours.entries.filter { newNode.neighbours.containsKey(it.key) }.maxBy { it.value }
+                            newNode.addEdge(longestEdge.key, distance)
+                            newNode.addEdge(closestNodeId, closestDistance)
+
+                            /* Update receiving node. */
+                            closestNode.removeEdge(longestEdge.key)
+                            storeNode(closestNodeId, closestNode)
                         }
                     }
                 }
