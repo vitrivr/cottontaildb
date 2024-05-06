@@ -3,8 +3,6 @@ package org.vitrivr.cottontail.utilities.graph.memory
 import it.unimi.dsi.fastutil.objects.Object2FloatOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.utilities.graph.Graph
-import kotlin.math.max
-import kotlin.math.sign
 
 /**
  * An in memory implementation of the [Graph] interface.
@@ -52,8 +50,8 @@ class InMemoryGraph<V>(val maxDegree: Int = Int.MAX_VALUE): Graph<V> {
         val e1 = this.map[from] ?: throw NoSuchElementException("The vertex $from does not exist in the graph." )
         val e2 = this.map[to] ?: throw NoSuchElementException("The vertex $to does not exist in the graph." )
         if (!e1.containsKey(to) && !e2.containsKey(from)) {
-            check(e1.size <= this.maxDegree) { "The vertex $from already has too many edges (maxDegree = ${this.maxDegree})." }
-            check(e2.size <= this.maxDegree) { "The vertex $from already has too many edges (maxDegree = ${this.maxDegree})." }
+            check(e1.size < this.maxDegree) { "The vertex $from already has too many edges (maxDegree = ${this.maxDegree})." }
+            check(e2.size < this.maxDegree) { "The vertex $from already has too many edges (maxDegree = ${this.maxDegree})." }
             e1[to] = weight
             e2[from] = weight
             return true
