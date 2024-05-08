@@ -1,12 +1,14 @@
 package org.vitrivr.cottontail.utilities.graph
 
+import org.vitrivr.cottontail.core.basics.CloseableIterator
+
 /**
  * A simple, weighted [Graph] data structure on elements of type [V].
  *
  * @author Ralph Gasser
  * @version 1.0.0
  */
-interface Graph<V>: Iterable<V> {
+interface Graph<V> {
     /**
      * Returns the number of vertexes in this [Graph].
      *
@@ -65,6 +67,13 @@ interface Graph<V>: Iterable<V> {
      * @return [Map] of edges and their weights.
      */
     fun edges(from: V): Map<V,Float>
+
+    /**
+     * Creates and returns a [CloseableIterator] for this [Graph].
+     *
+     * @return A [CloseableIterator] over all vertices [V] in this [Graph].
+     */
+    fun vertices(): CloseableIterator<V>
 
     /**
      * Returns the weight from one vertex [V] to another vertex [V] in this [Graph].

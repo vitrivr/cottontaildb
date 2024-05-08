@@ -43,7 +43,7 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(val degree: In
 
         if (count <= this.degree) { /* Case 1: Graph does not satisfy regularity condition since it is too small; make all existing nodes connect to the new node. */
             this.graph.addVertex(newNode)
-            for (node in this.graph) {
+            for (node in this.graph.vertices()) {
                 if (node == newNode) continue
                 val distance = this.distance(value, this.getValue(node))
                 this.graph.addEdge(node, newNode, distance)
@@ -108,15 +108,17 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(val degree: In
 
         /* Case 1: Small graph - brute-force search. */
         if (this.size() < 1000L) {
-            for (vertex in this.graph) {
-                val distance = Distance(vertex.label, this.distance(query, this.getValue(vertex)))
-                distanceComputationCount++
-                results.add(distance)
-                if (results.size > k) {
-                    results.pollLast()
+            this.graph.vertices().use { vertices ->
+                for (vertex in vertices) {
+                    val distance = Distance(vertex.label, this.distance(query, this.getValue(vertex)))
+                    distanceComputationCount++
+                    results.add(distance)
+                    if (results.size > k) {
+                        results.pollLast()
+                    }
                 }
+                return results.toList()
             }
-            return results.toList()
         }
 
         /* Case 2a: DEG search. Initialize queue with results vertices to check. */
@@ -220,18 +222,19 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(val degree: In
     private fun getSeedNodes(sampleSize: Int): List<Node<I>> {
         val graphSize = this.graph.size()
         require(sampleSize <= graphSize) { "The sample size $sampleSize exceeds graph size of graph (s = $sampleSize, g = $graphSize)." }
-        val iterator = this.graph.iterator()
-        var position = 0L
-        return this.random.longs(0L, graphSize).distinct().limit(sampleSize.toLong()).sorted().mapToObj {
-            while (iterator.hasNext()) {
-                if ((position++) == it) {
-                    break
-                } else {
-                    iterator.next()
+        this.graph.vertices().use { iterator ->
+            var position = 0L
+            return this.random.longs(0L, graphSize).distinct().limit(sampleSize.toLong()).sorted().mapToObj {
+                while (iterator.hasNext()) {
+                    if ((position++) == it) {
+                        break
+                    } else {
+                        iterator.next()
+                    }
                 }
-            }
-            iterator.next()
-        }.toList()
+                iterator.next()
+            }.toList()
+        }
     }
 
     /**

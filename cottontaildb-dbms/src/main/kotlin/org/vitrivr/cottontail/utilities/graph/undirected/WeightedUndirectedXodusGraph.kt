@@ -5,6 +5,7 @@ import jetbrains.exodus.bindings.FloatBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.basics.CloseableIterator
 import org.vitrivr.cottontail.utilities.graph.Graph
 import java.io.ByteArrayInputStream
 import java.util.LinkedList
@@ -21,7 +22,8 @@ class WeightedUndirectedXodusGraph<V>(private val store: Store, private val txn:
     private var count: Long = 0L
 
     init {
-        this.store.openCursor(this.txn.readonlySnapshot).use { cursor ->
+
+        this.store.openCursor(this.txn).use { cursor ->
             while (cursor.nextNoDup) this.count++
         }
     }
@@ -181,18 +183,15 @@ class WeightedUndirectedXodusGraph<V>(private val store: Store, private val txn:
     }
 
     /**
+     * Returns a [CloseableIterator] over vertices [V] for this [WeightedUndirectedXodusGraph].
      *
+     * @return [CloseableIterator]
      */
-    override fun iterator(): Iterator<V> = object: Iterator<V> {
+    override fun vertices(): CloseableIterator<V> = object: CloseableIterator<V> {
         private val cursor = this@WeightedUndirectedXodusGraph.store.openCursor(this@WeightedUndirectedXodusGraph.txn)
-        override fun hasNext(): Boolean {
-            val ret = this.cursor.nextNoDup
-            if (!ret) {
-                this.cursor.close()
-            }
-            return ret
-        }
+        override fun hasNext(): Boolean = this.cursor.nextNoDup
         override fun next(): V = this@WeightedUndirectedXodusGraph.serializer.deserialize(this.cursor.key)
+        override fun close() = this.cursor.close()
     }
 
     /**

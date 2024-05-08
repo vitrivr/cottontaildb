@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.utilities.graph.undirected
 
 import it.unimi.dsi.fastutil.objects.Object2FloatOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
+import org.vitrivr.cottontail.core.basics.CloseableIterator
 import org.vitrivr.cottontail.utilities.graph.Graph
 
 /**
@@ -113,5 +114,13 @@ class WeightedUndirectedInMemoryGraph<V>(private val maxDegree: Int = Int.MAX_VA
     }
 
 
-    override fun iterator(): Iterator<V> = this.map.keys.iterator()
+    /**
+     *
+     */
+    override fun vertices(): CloseableIterator<V> = object : CloseableIterator<V> {
+        private val iterator = this@WeightedUndirectedInMemoryGraph.map.keys.iterator()
+        override fun hasNext(): Boolean = this.iterator.hasNext()
+        override fun next(): V = this.iterator.next()
+        override fun close() {/* No op */ }
+    }
 }
