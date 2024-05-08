@@ -6,34 +6,28 @@ import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.basics.CloseableIterator
-import org.vitrivr.cottontail.utilities.graph.Graph
+import org.vitrivr.cottontail.utilities.graph.MutableGraph
 import java.io.ByteArrayInputStream
 import java.util.LinkedList
 
 /**
- * An weighted, undirected implementation of the [Graph] interface that stores its data in an Xodus [Store].
+ * An weighted, undirected implementation of the [MutableGraph] interface that stores its data in an Xodus [Store].
  *
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class WeightedUndirectedXodusGraph<V>(private val store: Store, private val txn: Transaction, private val serializer: VertexSerializer<V>, val maxDegree: Int = Int.MAX_VALUE): Graph<V> {
+class WeightedUndirectedXodusGraph<V>(private val store: Store, private val txn: Transaction, private val serializer: VertexSerializer<V>): MutableGraph<V> {
 
-    /** Internal counter of the number of vertices in this [WeightedUndirectedXodusGraph]. Used for speed-up */
-    private var count: Long = 0L
+    /** The number of vertices in this [WeightedUndirectedXodusGraph]. */
+    override var size: Long = 0L
+        private set
 
     init {
 
         this.store.openCursor(this.txn).use { cursor ->
-            while (cursor.nextNoDup) this.count++
+            while (cursor.nextNoDup) this.size++
         }
     }
-
-    /**
-     * Returns the number of vertices [V] in this [WeightedUndirectedXodusGraph].
-     *
-     * @return Number of vertices [V]  in this [WeightedUndirectedXodusGraph].
-     */
-    override fun size(): Long = this.count
 
     /**
      * Adds a new vertex of type [V] to this [WeightedUndirectedXodusGraph].
@@ -43,7 +37,7 @@ class WeightedUndirectedXodusGraph<V>(private val store: Store, private val txn:
      */
     override fun addVertex(v: V): Boolean {
         if (this.store.add(this.txn, this.serializer.serialize(v), ByteIterable.EMPTY)) {
-            this.count++
+            this.size++
             return true
         } else {
             return false
@@ -61,7 +55,7 @@ class WeightedUndirectedXodusGraph<V>(private val store: Store, private val txn:
         val vertexRaw = this.serializer.serialize(v)
         this.store.openCursor(this.txn).use {
             /* Remove all edges FROM the deleted vertex. */
-            val key = it.getSearchKey(vertexRaw) ?: return false
+            it.getSearchKey(vertexRaw) ?: return false
             do {
                 edgesRaw.add(it.value)
                 it.deleteCurrent()
@@ -75,12 +69,12 @@ class WeightedUndirectedXodusGraph<V>(private val store: Store, private val txn:
         }
 
         /* Decrement counter. */
-        this.count--
+        this.size--
         return true
     }
 
     /**
-     * Adds an edge between two vertices to this [Graph]
+     * Adds an edge between two vertices to this [MutableGraph]
      *
      * @param from The vertex [V] to start the edge at.
      * @param to The vertex [V] to end the edg at.
@@ -116,7 +110,7 @@ class WeightedUndirectedXodusGraph<V>(private val store: Store, private val txn:
     }
 
     /**
-     * Removes an edge between two vertices to this [Graph]
+     * Removes an edge between two vertices to this [MutableGraph]
      *
      * @param from The start vertex [V].
      * @param to The end vertex [V].

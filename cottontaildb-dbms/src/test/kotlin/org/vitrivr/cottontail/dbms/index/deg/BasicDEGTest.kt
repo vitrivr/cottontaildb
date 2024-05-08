@@ -52,10 +52,10 @@ class BasicDEGTest {
                 val graph = XodusDynamicExplorationGraph<TupleId, FloatVectorValue>(4, 16, 0.2f, store, txn, TupleIdNodeSerializer()) { v1, v2 -> distance.invoke(v1, v2).value.toFloat() }
 
                 /* Index vectors and build graph & ground truth. */
-                this.index(graph, list)
+                this.index(graph)
 
                 /* Perform search. */
-                this.search(graph, list, distance)
+                this.search(graph, distance)
             }
         }
     }
@@ -68,29 +68,27 @@ class BasicDEGTest {
         /* Prepare parameters. */
         val type = Types.FloatVector(128)
         val distance = EuclideanDistance.FloatVector(type)
-        val list = LinkedList<FloatVectorValue>()
         val graph = InMemoryDynamicExplorationGraph<TupleId, FloatVectorValue>(4, 16, 0.2f) { v1, v2 -> distance.invoke(v1, v2).value.toFloat() }
 
         /* Index vectors and build graph & ground truth. */
-        this.index(graph, list)
+        this.index(graph)
 
         /* Perform search. */
-        this.search(graph, list, distance)
+        this.search(graph, distance)
     }
 
     /**
      * Indexes the SIFT test data.
      *
      * @param graph The [AbstractDynamicExplorationGraph] to add to.
-     * @param list The [LinkedList] for brute-force search.
      */
-    private fun index(graph: AbstractDynamicExplorationGraph<TupleId, FloatVectorValue>, list: LinkedList<FloatVectorValue> ) {
+    private fun index(graph: AbstractDynamicExplorationGraph<TupleId, FloatVectorValue>) {
         /* Read vectors and build graph. */
         FVecsReader(this.javaClass.getResourceAsStream("/sift/siftsmall_base.fvecs")!!).use { reader ->
+            var index = 1L
             while (reader.hasNext()) {
                 val next = FloatVectorValue(reader.next())
-                list.add(next)
-                graph.index(list.size.toLong(), next)
+                graph.index(index++, next)
             }
         }
     }
@@ -99,10 +97,9 @@ class BasicDEGTest {
      * Searches the SIFT test data.
      *
      * @param graph The [AbstractDynamicExplorationGraph] to add to.
-     * @param list The [LinkedList] for brute-force search.
      * @param distance The [EuclideanDistance] function.
      */
-    private fun search(graph: AbstractDynamicExplorationGraph<TupleId, FloatVectorValue>, list: LinkedList<FloatVectorValue>, distance: EuclideanDistance<FloatVectorValue>) {
+    private fun search(graph: AbstractDynamicExplorationGraph<TupleId, FloatVectorValue>, distance: EuclideanDistance<FloatVectorValue>) {
         /* Fetch results through full table scan. */
         FVecsReader(this.javaClass.getResourceAsStream("/sift/siftsmall_query.fvecs")!!).use { reader ->
             var queries = 0
@@ -114,8 +111,11 @@ class BasicDEGTest {
                 val query = FloatVectorValue(reader.next())
                 val bruteForceResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(K)
                 bruteForceDuration += measureTime {
-                    list.forEachIndexed { index, vector ->
-                        bruteForceResults.offer(ComparablePair((index + 1L), distance.invoke(query, vector)!!))
+                    graph.vertices().use { vertices ->
+                        var index = 1L
+                        for (vertex in vertices) {
+                            bruteForceResults.offer(ComparablePair(index++, distance.invoke(query, graph.getValue(vertex))!!))
+                        }
                     }
                 }
 
@@ -133,6 +133,7 @@ class BasicDEGTest {
 
             /* Since the data comes pre-clustered, accuracy should always be greater than 90%. */
             Assertions.assertTrue(recall >= 0.8f) { "Recall attained by indexed search is too small (r = $recall)." }
+            Assertions.assertTrue(bruteForceDuration >= indexDuration) { "Index search was slower than brute-force (withIndex = $indexDuration, bruteForce = $bruteForceDuration)." }
             println("Search using DEG completed (r = $recall, withIndex = $indexDuration, bruteForce = $bruteForceDuration). Brute-force duration is always in memory!")
         }
     }

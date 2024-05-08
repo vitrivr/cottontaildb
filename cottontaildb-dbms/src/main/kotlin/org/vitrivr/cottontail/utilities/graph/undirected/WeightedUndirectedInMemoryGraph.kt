@@ -3,25 +3,22 @@ package org.vitrivr.cottontail.utilities.graph.undirected
 import it.unimi.dsi.fastutil.objects.Object2FloatOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.basics.CloseableIterator
-import org.vitrivr.cottontail.utilities.graph.Graph
+import org.vitrivr.cottontail.utilities.graph.MutableGraph
 
 /**
- * An undirected, in-memory implementation of the [Graph] interface.
+ * An undirected, in-memory implementation of the [MutableGraph] interface.
  *
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class WeightedUndirectedInMemoryGraph<V>(private val maxDegree: Int = Int.MAX_VALUE): Graph<V> {
+class WeightedUndirectedInMemoryGraph<V>: MutableGraph<V> {
 
     /** An [Object2ObjectLinkedOpenHashMap] used as adjacency list for this [WeightedUndirectedInMemoryGraph]. */
     private val map = Object2ObjectLinkedOpenHashMap<V, Object2FloatOpenHashMap<V>>()
 
-    /**
-     * Returns the number of vertices [V] in this [Graph].
-     *
-     * @return Number of vertices [V] in this [Graph].
-     */
-    override fun size(): Long = this.map.size.toLong()
+    /** The number of vertices in this [WeightedUndirectedInMemoryGraph]. */
+    override val size: Long
+        get() = this.map.size.toLong()
 
     /**
      * Returns an unmodifiable [Map] of all edges from the given Vertex [V] in this [WeightedUndirectedInMemoryGraph].
@@ -59,7 +56,7 @@ class WeightedUndirectedInMemoryGraph<V>(private val maxDegree: Int = Int.MAX_VA
     }
 
     /**
-     * Adds an edge between two vertices to this [Graph]
+     * Adds an edge between two vertices to this [MutableGraph]
      *
      * @param from The vertex [V] to start the edge at.
      * @param to The vertex [V] to end the edg at.
@@ -74,8 +71,6 @@ class WeightedUndirectedInMemoryGraph<V>(private val maxDegree: Int = Int.MAX_VA
 
         /* Add edge if it does not exist. */
         if (!e1.containsKey(to) && !e2.containsKey(from)) {
-            check(e1.size < this.maxDegree) { "The vertex $from already has too many edges (maxDegree = ${this.maxDegree})." }
-            check(e2.size < this.maxDegree) { "The vertex $from already has too many edges (maxDegree = ${this.maxDegree})." }
             e1[to] = weight
             e2[from] = weight
             return true
@@ -84,7 +79,7 @@ class WeightedUndirectedInMemoryGraph<V>(private val maxDegree: Int = Int.MAX_VA
     }
 
     /**
-     * Removes an edge between two vertices to this [Graph]
+     * Removes an edge between two vertices to this [MutableGraph]
      *
      * @param from The start vertex [V].
      * @param to The end vertex [V].
@@ -113,7 +108,6 @@ class WeightedUndirectedInMemoryGraph<V>(private val maxDegree: Int = Int.MAX_VA
         return e.getFloat(to)
     }
 
-
     /**
      *
      */
@@ -121,6 +115,6 @@ class WeightedUndirectedInMemoryGraph<V>(private val maxDegree: Int = Int.MAX_VA
         private val iterator = this@WeightedUndirectedInMemoryGraph.map.keys.iterator()
         override fun hasNext(): Boolean = this.iterator.hasNext()
         override fun next(): V = this.iterator.next()
-        override fun close() {/* No op */ }
+        override fun close() { /* No op */ }
     }
 }

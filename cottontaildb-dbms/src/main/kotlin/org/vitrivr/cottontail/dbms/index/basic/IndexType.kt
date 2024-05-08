@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.index.basic
 
+import org.vitrivr.cottontail.dbms.index.diskann.graph.DEGIndex
 import org.vitrivr.cottontail.dbms.index.hash.BTreeIndex
 import org.vitrivr.cottontail.dbms.index.hash.UQBTreeIndex
 import org.vitrivr.cottontail.dbms.index.lsh.LSHIndex
@@ -14,7 +15,7 @@ import org.vitrivr.cottontail.dbms.index.va.VAFIndex
  * TODO: This could actually be more of a 'registry' type of facility, which would allow for extensions
  *
  * @author Ralph Gasser
- * @version 3.1.0
+ * @version 3.2.0
  */
 enum class IndexType(val descriptor: IndexDescriptor<*>, val defaultEmptyState: IndexState) {
     BTREE_UQ(UQBTreeIndex, IndexState.CLEAN), /* A btree-based index with unique values. */
@@ -29,5 +30,9 @@ enum class IndexType(val descriptor: IndexDescriptor<*>, val defaultEmptyState: 
 
     IVFPQ(IVFPQIndex, IndexState.STALE), /* A product quantization (PQ) based index for billion scale approximate nearest neighbour search using an inverted file. */
 
-    LSH(LSHIndex, IndexState.STALE) /* A locality sensitive hashing (LSH) based index for approximate nearest neighbour search. */
+    /** A locality sensitive hashing (LSH) based index for approximate nearest neighbour search. */
+    LSH(LSHIndex, IndexState.STALE),
+
+    /** A dynamic exploration graph (DEG) based index for approximate nearest neighbour search. */
+    DEG(DEGIndex, IndexState.STALE)
 }

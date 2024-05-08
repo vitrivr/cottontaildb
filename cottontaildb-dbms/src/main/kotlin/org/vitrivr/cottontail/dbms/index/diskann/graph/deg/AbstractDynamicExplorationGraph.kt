@@ -1,32 +1,33 @@
 package org.vitrivr.cottontail.dbms.index.diskann.graph.deg
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
+import org.vitrivr.cottontail.core.basics.CloseableIterator
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.types.VectorValue
-import org.vitrivr.cottontail.dbms.index.diskann.graph.DEGIndexConfig
 import org.vitrivr.cottontail.dbms.index.diskann.graph.primitives.Distance
 import org.vitrivr.cottontail.dbms.index.diskann.graph.primitives.Node
-import org.vitrivr.cottontail.utilities.graph.Graph
+import org.vitrivr.cottontail.utilities.graph.MutableGraph
 import java.util.*
 import kotlin.math.max
 
 
 /**
- * This class implements a Dynamic Exploration Graph (DEG) as proposed in [1]. It can be used to perform approximate nearest neighbour search (ANNS).
- *
- * Literature:
- * [1] Hezel, Nico, et al. "Fast Approximate Nearest Neighbor Search with a Dynamic Exploration Graph using Continuous Refinement." arXiv preprint arXiv:2307.10479 (2023)
+ * This is an abstract implementation of the [DynamicExplorationGraph], that decouples storage from that basic logic.
  *
  * @author Ralph Gasser
  * @version 1.0.0
  */
-abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(val degree: Int, val kExt: Int, val epsilonExt: Float) {
+abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val degree: Int, val kExt: Int, val epsilonExt: Float): DynamicExplorationGraph<I,V> {
 
     /** The [SplittableRandom] to create random numbers to find seed nodes. */
     private val random = SplittableRandom()
 
-    /** The [Graph] backing this [AbstractDynamicExplorationGraph]. */
-    protected abstract val graph: Graph<Node<I>>
+    /** The [MutableGraph] backing this [AbstractDynamicExplorationGraph]. */
+    protected abstract val graph: MutableGraph<Node<I>>
+
+    /** The size of  this [DynamicExplorationGraph]. */
+    override val size: Long
+        get() = this.graph.size
 
     /**
      * This method indexes a new entry consisting of an identifier [I] and a vector [V] into this [AbstractDynamicExplorationGraph].
@@ -34,14 +35,12 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(val degree: In
      * @param identifier The identifier [I] of the entry to index.
      * @param value The value [V] of the entry to index.
      */
-    fun index(identifier: I, value: V) {
-        val count = this.size()
-
+    override fun index(identifier: I, value: V) {
         /* Create new (empty) node and store vector. */
         val newNode = Node(identifier)
         this.storeValue(newNode, value)
 
-        if (count <= this.degree) { /* Case 1: Graph does not satisfy regularity condition since it is too small; make all existing nodes connect to the new node. */
+        if (this.size <= this.degree) { /* Case 1: Graph does not satisfy regularity condition since it is too small; make all existing nodes connect to the new node. */
             this.graph.addVertex(newNode)
             for (node in this.graph.vertices()) {
                 if (node == newNode) continue
@@ -92,22 +91,24 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(val degree: In
      * @param eps The epsilon value for the search.
      * @return [List] of [Triple]s containing the [TupleId], distance and [VectorValue] of the approximate nearest neighbours.
      */
-    fun search(query: V, k: Int, eps: Float): List<Distance<I>> = search(query, k, eps, this.getSeedNodes(10))
+    override fun search(query: V, k: Int, eps: Float): List<Distance<I>> = search(query, k, eps, this.getSeedNodes(10))
 
     /**
      * Performs a search in this [AbstractDynamicExplorationGraph].
      *
      * @param query The query [VectorValue] to search for.
      * @param k The number of nearest neighbours to return.
+     * @param eps The epsilon value for the search.
+     * @param seeds [List] of seed [Node]s
      * @return [List] of [Triple]s containing the [TupleId], distance and [VectorValue] of the approximate nearest neighbours.
      */
-    protected fun search(query: V, k: Int, eps: Float, seed: List<Node<I>>): List<Distance<I>> {
+    override fun search(query: V, k: Int, eps: Float, seeds: List<Node<I>>): List<Distance<I>> {
         val checked = ObjectOpenHashSet<Node<I>>()
         val results: TreeSet<Distance<I>> = TreeSet<Distance<I>>()
         var distanceComputationCount = 0
 
         /* Case 1: Small graph - brute-force search. */
-        if (this.size() < 1000L) {
+        if (this.size < 1000L) {
             this.graph.vertices().use { vertices ->
                 for (vertex in vertices) {
                     val distance = Distance(vertex.label, this.distance(query, this.getValue(vertex)))
@@ -124,7 +125,7 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(val degree: In
         /* Case 2a: DEG search. Initialize queue with results vertices to check. */
         var radius = Float.MAX_VALUE
         val nextNodes = PriorityQueue<Distance<I>>(k * 10)
-        for (node in seed) {
+        for (node in seeds) {
             if (!checked.contains(node)) {
                 /* Mark node as checked. */
                 checked.add(node)
@@ -182,27 +183,19 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(val degree: In
     }
 
     /**
-     * Returns the size of this [AbstractDynamicExplorationGraph].
      *
-     * @return [Long]
      */
-    protected abstract fun size(): Long
+    override fun vertices(): CloseableIterator<Node<I>> = this.graph.vertices()
 
     /**
-     * Returns the value [V] for the given [Node].
      *
-     * @param node The [Node] for which to load the value [V]
-     * @return The value [V]
      */
-    protected abstract fun getValue(node: Node<I>): V
+    override fun edges(from: Node<I>): Map<Node<I>, Float> = this.graph.edges(from)
 
     /**
-     * Stores the value [V] for the given [Node].
      *
-     * @param node The [Node] for which to store the value [V]
-     * @return The value [V]
      */
-    protected abstract fun storeValue(node: Node<I>, value: V)
+    override fun weight(from: Node<I>, to: Node<I>): Float = this.graph.weight(from, to)
 
     /**
      * Calculates the distance between two values [V]s.
@@ -220,7 +213,7 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(val degree: In
      * @return [List] of [Node]s
      */
     private fun getSeedNodes(sampleSize: Int): List<Node<I>> {
-        val graphSize = this.graph.size()
+        val graphSize = this.size
         require(sampleSize <= graphSize) { "The sample size $sampleSize exceeds graph size of graph (s = $sampleSize, g = $graphSize)." }
         this.graph.vertices().use { iterator ->
             var position = 0L
