@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.core.database.TupleId
  * @author Ralph Gasser
  * @version 1.1.0
  */
-interface Cursor<T>: AutoCloseable, Iterator<T> {
+interface Cursor<T>: CloseableIterator<T> {
     /**
      * Tries to move this [Cursor] to the next entry. Returns true on success and false otherwise.
      * If false is returned, the [Cursor] position should remain unchanged!
