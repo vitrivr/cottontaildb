@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.utilities.graph
 
 /**
- * A [Graph] data structure on elements of type [V] and weighted edges.
+ * A simple, weighted [Graph] data structure on elements of type [V].
  *
  * @author Ralph Gasser
  * @version 1.0.0
@@ -13,11 +13,6 @@ interface Graph<V>: Iterable<V> {
      * @return Number of vertexes in this [Graph].
      */
     fun size(): Long
-
-    /**
-     *
-     */
-    fun edges(v: V): Map<V,Float>
 
     /**
      * Adds a new vertex of type [V] to this [Graph].
@@ -34,6 +29,13 @@ interface Graph<V>: Iterable<V> {
      * @return True on success, false otherwise.
      */
     fun removeVertex(v: V): Boolean
+
+    /**
+     * Returns a [Collection] of all vertices in this [Graph].
+     *
+     * @return [Collection] of all vertices [V] in this [Graph].
+     */
+    fun vertices(): Collection<V>
 
     /**
      * Adds an edge between two vertices to this [Graph]
@@ -62,4 +64,21 @@ interface Graph<V>: Iterable<V> {
      * @return True on success, false otherwise.
      */
     fun removeEdge(from: V, to: V): Boolean
+
+    /**
+     * Returns all edges of a vertex [V] in this [Graph].
+     *
+     * @param from The vertex [V] for which to return the edges.
+     * @return [Map] of edges and their weights.
+     */
+    fun edges(from: V): Map<V,Float>
+
+    /**
+     * Returns the weight from one vertex [V] to another vertex [V] in this [Graph].
+     *
+     * @param from The vertex [V] from which the edge should lead.
+     * @param from The vertex [V] to which the edge should lead.
+     * @return [Float] weight of the edge.
+     */
+    fun weight(from: V, to: V): Float
 }

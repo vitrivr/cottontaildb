@@ -183,7 +183,7 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
     class FloatVectorVectorized(type: Types.Vector<FloatVectorValue,*>): EuclideanDistance<FloatVectorValue>(type), VectorisedFunction<DoubleValue> {
         companion object {
             @JvmStatic
-           private val SPECIES: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
+            private val SPECIES: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
         }
 
         override val name: Name.FunctionName = FUNCTION_NAME
@@ -197,19 +197,19 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
             val query = (arguments[1] as FloatVectorValue).data
 
             /* Vectorised distance calculation. */
-            var vectorSum = jdk.incubator.vector.FloatVector.zero(SPECIES)
+            var sum = 0.0f
             val bound = SPECIES.loopBound(this.vectorSize)
             for (i in 0 until bound step SPECIES.length()) {
                 val vp = jdk.incubator.vector.FloatVector.fromArray(SPECIES, probing, i)
                 val vq = jdk.incubator.vector.FloatVector.fromArray(SPECIES, query, i)
-                val diff = vp.lanewise(VectorOperators.SUB, vq)
-                vectorSum = vectorSum.lanewise(VectorOperators.ADD, diff.lanewise(VectorOperators.MUL, diff))
+                val diff = vp.sub(vq)
+                sum += diff.mul(diff).reduceLanes(VectorOperators.ADD)
             }
 
             /* Scalar version for remainder. */
-            var sum = vectorSum.reduceLanes(VectorOperators.ADD)
             for (i in bound until this.vectorSize) {
-                sum += (query[i] - probing[i]).pow(2)
+                val diff: Float = query[i] - probing[i]
+                sum = Math.fma(diff, diff, sum)
             }
             return DoubleValue(sqrt(sum))
         }
