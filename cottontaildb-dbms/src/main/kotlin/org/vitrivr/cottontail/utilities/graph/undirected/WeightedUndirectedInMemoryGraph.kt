@@ -23,13 +23,6 @@ class WeightedUndirectedInMemoryGraph<V>(private val maxDegree: Int = Int.MAX_VA
     override fun size(): Long = this.map.size.toLong()
 
     /**
-     * Returns a collection of all vertices in this [WeightedUndirectedInMemoryGraph].
-     *
-     * @return [Collection] of all vertices in this [WeightedUndirectedInMemoryGraph].
-     */
-    override fun vertices(): Collection<V> = this.map.keys
-
-    /**
      * Returns an unmodifiable [Map] of all edges from the given Vertex [V] in this [WeightedUndirectedInMemoryGraph].
      *
      * @return [Map] of all edges from [V] in this [WeightedUndirectedInMemoryGraph].
@@ -73,8 +66,12 @@ class WeightedUndirectedInMemoryGraph<V>(private val maxDegree: Int = Int.MAX_VA
      * @return True on success, false otherwise.
      */
     override fun addEdge(from: V, to: V, weight: Float): Boolean {
-        val e1 = this.map[from] ?: throw NoSuchElementException("The vertex $from does not exist in the graph." )
-        val e2 = this.map[to] ?: throw NoSuchElementException("The vertex $to does not exist in the graph." )
+        /* Sanity checks. */
+        require(from != to) { "Failed to add edge: FROM and TO vertex are the same."}
+        val e1 = this.map[from] ?: throw NoSuchElementException("Failed to add edge: FROM vertex $from does not exist in the graph." )
+        val e2 = this.map[to] ?: throw NoSuchElementException("Failed to add edge: TO vertex $to does not exist in the graph." )
+
+        /* Add edge if it does not exist. */
         if (!e1.containsKey(to) && !e2.containsKey(from)) {
             check(e1.size < this.maxDegree) { "The vertex $from already has too many edges (maxDegree = ${this.maxDegree})." }
             check(e2.size < this.maxDegree) { "The vertex $from already has too many edges (maxDegree = ${this.maxDegree})." }
@@ -93,8 +90,12 @@ class WeightedUndirectedInMemoryGraph<V>(private val maxDegree: Int = Int.MAX_VA
      * @return True on success, false otherwise.
      */
     override fun removeEdge(from: V, to: V): Boolean {
-        val e1 = this.map[from] ?: throw NoSuchElementException("The vertex $from does not exist in the graph." )
-        val e2 = this.map[to] ?: throw NoSuchElementException("The vertex $to does not exist in the graph." )
+        /* Sanity checks. */
+        require(from != to) { "Failed to add edge: FROM and TO vertex are the same."}
+        val e1 = this.map[from] ?: throw NoSuchElementException("Failed to add edge: FROM vertex $from does not exist in the graph." )
+        val e2 = this.map[to] ?: throw NoSuchElementException("Failed to add edge: TO vertex $to does not exist in the graph." )
+
+        /* Remove edge if it exists. */
         if (e1.containsKey(to) && e2.containsKey(from)) {
             e1.removeFloat(to)
             e2.removeFloat(from)

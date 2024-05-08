@@ -31,13 +31,6 @@ interface Graph<V>: Iterable<V> {
     fun removeVertex(v: V): Boolean
 
     /**
-     * Returns a [Collection] of all vertices in this [Graph].
-     *
-     * @return [Collection] of all vertices [V] in this [Graph].
-     */
-    fun vertices(): Collection<V>
-
-    /**
      * Adds an edge between two vertices to this [Graph]
      *
      * @param from The vertex [V] to start the edge at.
