@@ -44,7 +44,7 @@ class WeightedUndirectedInMemoryGraph<V>(private val maxDegree: Int = Int.MAX_VA
      */
     override fun addVertex(v: V): Boolean {
         if (!this.map.containsKey(v)) {
-            val edges = Object2FloatOpenHashMap<V>(this.maxDegree, 0.75f)
+            val edges = Object2FloatOpenHashMap<V>()
             edges.defaultReturnValue(Float.MIN_VALUE)
             this.map[v] = edges
             return true
@@ -58,7 +58,11 @@ class WeightedUndirectedInMemoryGraph<V>(private val maxDegree: Int = Int.MAX_VA
      * @param v The vertex [V] to remove.
      * @return True on success, false otherwise.
      */
-    override fun removeVertex(v: V): Boolean = (this.map.remove(v) != null)
+    override fun removeVertex(v: V): Boolean {
+        val edges = this.map.remove(v) ?: return false
+        edges.keys.forEach { this.map[it]?.removeFloat(v) }
+        return true
+    }
 
     /**
      * Adds an edge between two vertices to this [Graph]
