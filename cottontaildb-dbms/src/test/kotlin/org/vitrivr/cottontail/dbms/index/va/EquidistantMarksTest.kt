@@ -4,8 +4,8 @@ import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.RepeatedTest
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.euclidean.EuclideanDistance
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.generators.DoubleVectorValueGenerator
 import org.vitrivr.cottontail.dbms.index.va.bounds.L1Bounds

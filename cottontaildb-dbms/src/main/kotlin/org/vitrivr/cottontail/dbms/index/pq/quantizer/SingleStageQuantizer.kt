@@ -1,6 +1,11 @@
 package org.vitrivr.cottontail.dbms.index.pq.quantizer
 
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.*
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.CosineDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.InnerProductDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.euclidean.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.squaredeuclidean.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.dbms.index.pq.PQIndexConfig
 import org.vitrivr.cottontail.dbms.index.pq.signature.PQLookupTable
@@ -43,7 +48,7 @@ data class SingleStageQuantizer constructor(val codebooks: Array<PQCodebook>) {
             /* Prepare k-means clusterer. */
             val reshape = distance.copy(dimensionsPerSubspace)
             val random = SplittableRandom(System.currentTimeMillis())
-            val clusterer = KMeansClusterer(config.numCentroids, reshape, random)
+            val clusterer = KMeansClusterer(config.numCentroids, reshape.type, random)
 
             /* Prepare codebooks. */
             val codebooks = Array(subspaces) { j ->

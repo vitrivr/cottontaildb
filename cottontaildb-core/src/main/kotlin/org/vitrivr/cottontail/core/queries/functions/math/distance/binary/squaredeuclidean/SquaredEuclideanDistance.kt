@@ -1,11 +1,11 @@
-package org.vitrivr.cottontail.core.queries.functions.math.distance.binary
+package org.vitrivr.cottontail.core.queries.functions.math.distance.binary.squaredeuclidean
 
-import jdk.incubator.vector.VectorOperators
-import jdk.incubator.vector.VectorSpecies
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.*
 import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.HaversineDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.MinkowskiDistance
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
@@ -17,7 +17,7 @@ import kotlin.math.pow
  * A [SquaredEuclideanDistance] implementation to calculate the squared Euclidean or L2 distance between two [VectorValue]s.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): MinkowskiDistance<T>(type) {
 
@@ -55,12 +55,22 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
     }
 
     /** The [Cost] of applying this [SquaredEuclideanDistance]. */
-    override val cost: Cost
-        get() = ((Cost.FLOP * 3.0f + Cost.MEMORY_ACCESS * 2.0f) * this.vectorSize) + Cost.MEMORY_ACCESS
+    override val cost: Cost by lazy {
+        ((Cost.FLOP * 3.0f + Cost.MEMORY_ACCESS * 2.0f) * this.vectorSize) + Cost.MEMORY_ACCESS
+    }
 
     /** The [SquaredEuclideanDistance] is a [MinkowskiDistance] with p = 2. */
-    override val p: Int
-        get() = 2
+    override val p: Int = 2
+
+    /**
+     * This is a convenience function for the [SquaredEuclideanDistance]. It calculates the distance between
+     * two vectors up to a specific maximum. If this maximum is reached, calculation is aborted.
+     *
+     * @param left The first [VectorValue] to calculate the distance for.
+     * @param right The second [VectorValue] to calculate the distance for.
+     * @param maximum The maximum distance to calculate.
+     */
+    abstract fun invokeOrMaximum(left: VectorValue<*>, right: VectorValue<*>, maximum: DoubleValue): DoubleValue
 
     /**
      * [SquaredEuclideanDistance] for a [Complex64VectorValue].
@@ -68,11 +78,21 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
     class Complex64Vector(type: Types.Vector<Complex64VectorValue,*>): SquaredEuclideanDistance<Complex64VectorValue>(type) {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as Complex64VectorValue
-            val query = arguments[1] as Complex64VectorValue
+            val probing = (arguments[0] as Complex64VectorValue).data
+            val query = (arguments[1] as Complex64VectorValue).data
             var sum = 0.0
             for (i in 0 until 2 * this.vectorSize) {
-                sum += (query.data[i] - probing.data[i]).pow(2)
+                sum += (query[i] - probing[i]).pow(2)
+            }
+            return DoubleValue(sum)
+        }
+        override fun invokeOrMaximum(left: VectorValue<*>, right: VectorValue<*>, maximum: DoubleValue): DoubleValue {
+            val probing = (left as Complex64VectorValue).data
+            val query = (right as Complex64VectorValue).data
+            var sum = 0.0
+            for (i in 0 until this.vectorSize) {
+                sum += (query[i] - probing[i]).pow(2)
+                if (sum > maximum.value) break
             }
             return DoubleValue(sum)
         }
@@ -85,11 +105,21 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
     class Complex32Vector(type: Types.Vector<Complex32VectorValue,*>): SquaredEuclideanDistance<Complex32VectorValue>(type) {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as Complex32VectorValue
-            val query = arguments[1] as Complex32VectorValue
-            var sum = 0.0
+            val probing = (arguments[0] as Complex32VectorValue).data
+            val query = (arguments[1] as Complex32VectorValue).data
+            var sum = 0.0f
             for (i in 0 until 2 * this.vectorSize) {
-                sum += (query.data[i] - probing.data[i]).pow(2)
+                sum += (query[i] - probing[i]).pow(2)
+            }
+            return DoubleValue(sum)
+        }
+        override fun invokeOrMaximum(left: VectorValue<*>, right: VectorValue<*>, maximum: DoubleValue): DoubleValue {
+            val probing = (left as Complex32VectorValue).data
+            val query = (right as Complex32VectorValue).data
+            var sum = 0.0
+            for (i in 0 until this.vectorSize) {
+                sum += (query[i] - probing[i]).pow(2)
+                if (sum > maximum.value) break
             }
             return DoubleValue(sum)
         }
@@ -99,18 +129,29 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
     /**
      * [SquaredEuclideanDistance] for a [DoubleVectorValue].
      */
-    class DoubleVector(type: Types.Vector<DoubleVectorValue,*>): SquaredEuclideanDistance<DoubleVectorValue>(type) {
+    class DoubleVector(type: Types.Vector<DoubleVectorValue,*>): SquaredEuclideanDistance<DoubleVectorValue>(type), VectorisableFunction<DoubleValue>  {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as DoubleVectorValue
-            val query = arguments[1] as DoubleVectorValue
+            val probing = (arguments[0] as DoubleVectorValue).data
+            val query = (arguments[1] as DoubleVectorValue).data
             var sum = 0.0
             for (i in 0 until this.vectorSize) {
-                sum += (query.data[i] - probing.data[i]).pow(2)
+                sum += (query[i] - probing[i]).pow(2)
+            }
+            return DoubleValue(sum)
+        }
+        override fun invokeOrMaximum(left: VectorValue<*>, right: VectorValue<*>, maximum: DoubleValue): DoubleValue {
+            val probing = (left as DoubleVectorValue).data
+            val query = (right as DoubleVectorValue).data
+            var sum = 0.0
+            for (i in 0 until this.vectorSize) {
+                sum += (query[i] - probing[i]).pow(2)
+                if (sum > maximum.value) break
             }
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = DoubleVector(Types.DoubleVector(d))
+        override fun vectorized() = SquaredEuclideanDistanceVectorised.DoubleVector(this.type)
     }
 
     /**
@@ -119,48 +160,26 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
     class FloatVector(type: Types.Vector<FloatVectorValue,*>): SquaredEuclideanDistance<FloatVectorValue>(type), VectorisableFunction<DoubleValue> {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as FloatVectorValue
-            val query = arguments[1] as FloatVectorValue
-            var sum = 0.0
+            val probing = (arguments[0] as FloatVectorValue).data
+            val query = (arguments[1] as FloatVectorValue).data
+            var sum = 0.0f
             for (i in 0 until this.vectorSize) {
-                sum += (query.data[i] - probing.data[i]).pow(2)
+                sum += (query[i] - probing[i]).pow(2)
+            }
+            return DoubleValue(sum)
+        }
+        override fun invokeOrMaximum(left: VectorValue<*>, right: VectorValue<*>, maximum: DoubleValue): DoubleValue {
+            val probing = (left as FloatVectorValue).data
+            val query = (right as FloatVectorValue).data
+            var sum = 0.0f
+            for (i in 0 until this.vectorSize) {
+                sum += (query[i] - probing[i]).pow(2)
+                if (sum > maximum.value) break
             }
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
-
-        override fun vectorized() = FloatVectorVectorized(this.type)
-    }
-
-    /**
-     * SIMD implementation: [SquaredEuclideanDistance] for a [FloatVectorValue]
-     */
-    class FloatVectorVectorized(type: Types.Vector<FloatVectorValue,*>): EuclideanDistance<FloatVectorValue>(type), VectorisedFunction<DoubleValue> {
-        override val name: Name.FunctionName = FUNCTION_NAME
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            // Changing SPECIES to SPECIES.PREFERRED results in a HUGE performance decrease
-            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
-            val probing = arguments[0] as FloatVectorValue
-            val query = arguments[1] as FloatVectorValue
-            var vectorSum = jdk.incubator.vector.FloatVector.zero(species)
-
-            //Vectorized calculation
-            for (i in 0 until species.loopBound(this.vectorSize) step species.length()) {
-                val vp = jdk.incubator.vector.FloatVector.fromArray(species, probing.data, i)
-                val vq = jdk.incubator.vector.FloatVector.fromArray(species, query.data, i)
-                vectorSum = vectorSum.lanewise(VectorOperators.ADD, vp.lanewise(VectorOperators.SUB, vq).pow(2f))
-            }
-
-            var sum = vectorSum.reduceLanes(VectorOperators.ADD)
-
-            // Scalar calculation for the remaining lanes, since SPECIES.loopBound(this.d) <= this.d
-            for (i in species.loopBound(this.vectorSize) until this.vectorSize) {
-                sum += (query.data[i] - probing.data[i]).pow(2f)
-            }
-
-            return DoubleValue(sum)
-        }
-        override fun copy(d: Int) = FloatVectorVectorized(Types.FloatVector(d))
+        override fun vectorized() = SquaredEuclideanDistanceVectorised.FloatVector(this.type)
     }
 
     /**
@@ -169,11 +188,21 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
     class LongVector(type: Types.Vector<LongVectorValue,*>): SquaredEuclideanDistance<LongVectorValue>(type) {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as LongVectorValue
-            val query = arguments[1] as LongVectorValue
+            val probing = (arguments[0] as LongVectorValue).data
+            val query = (arguments[1] as LongVectorValue).data
             var sum = 0.0
             for (i in 0 until this.vectorSize) {
-                sum += (query.data[i] - probing.data[i]).toDouble().pow(2)
+                sum += (query[i] - probing[i]).toDouble().pow(2)
+            }
+            return DoubleValue(sum)
+        }
+        override fun invokeOrMaximum(left: VectorValue<*>, right: VectorValue<*>, maximum: DoubleValue): DoubleValue {
+            val probing = (left as LongVectorValue).data
+            val query = (right as LongVectorValue).data
+            var sum = 0.0
+            for (i in 0 until this.vectorSize) {
+                sum += (query[i] - probing[i]).toDouble().pow(2)
+                if (sum > maximum.value) break
             }
             return DoubleValue(sum)
         }
@@ -186,11 +215,21 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
     class IntVector(type: Types.Vector<IntVectorValue,*>): SquaredEuclideanDistance<IntVectorValue>(type) {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as IntVectorValue
-            val query = arguments[1] as IntVectorValue
+            val probing = (arguments[0] as IntVectorValue).data
+            val query = (arguments[1] as IntVectorValue).data
             var sum = 0.0
             for (i in 0 until this.vectorSize) {
-                sum += (query.data[i] - probing.data[i]).toDouble().pow(2)
+                sum += (query[i] - probing[i]).toDouble().pow(2)
+            }
+            return DoubleValue(sum)
+        }
+        override fun invokeOrMaximum(left: VectorValue<*>, right: VectorValue<*>, maximum: DoubleValue): DoubleValue {
+            val probing = (left as IntVectorValue).data
+            val query = (right as IntVectorValue).data
+            var sum = 0.0
+            for (i in 0 until this.vectorSize) {
+                sum += (query[i] - probing[i]).toDouble().pow(2)
+                if (sum > maximum.value) break
             }
             return DoubleValue(sum)
         }

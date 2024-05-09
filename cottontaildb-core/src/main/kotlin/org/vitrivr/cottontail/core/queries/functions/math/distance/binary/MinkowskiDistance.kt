@@ -9,6 +9,6 @@ import org.vitrivr.cottontail.core.types.VectorValue
  * @author Ralph Gasser
  * @version 1.2.0
  */
-sealed class MinkowskiDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): VectorDistance<T>(type) {
+abstract class MinkowskiDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): VectorDistance<T>(type) {
     abstract val p: Int
 }

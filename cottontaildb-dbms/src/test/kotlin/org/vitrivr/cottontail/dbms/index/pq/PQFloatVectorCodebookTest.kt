@@ -4,7 +4,7 @@ import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.euclidean.EuclideanDistance
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.dbms.index.pq.quantizer.SerializableSingleStageProductQuantizer

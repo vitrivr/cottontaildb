@@ -4,9 +4,9 @@ import jetbrains.exodus.bindings.LongBinding
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.binding.MissingTuple
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.euclidean.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.squaredeuclidean.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple

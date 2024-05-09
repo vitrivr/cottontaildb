@@ -6,9 +6,9 @@ import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.CosineDistance
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.euclidean.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.squaredeuclidean.SquaredEuclideanDistance
 import org.vitrivr.cottontail.dbms.index.basic.IndexConfig
 import java.io.ByteArrayInputStream
 

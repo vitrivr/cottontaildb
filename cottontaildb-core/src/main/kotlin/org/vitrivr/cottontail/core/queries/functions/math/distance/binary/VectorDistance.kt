@@ -14,24 +14,20 @@ import org.vitrivr.cottontail.core.values.DoubleValue
  * and always return a [Types.Double].
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-sealed class VectorDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>): Function<DoubleValue> {
+abstract class VectorDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>): Function<DoubleValue> {
 
     /** The [Types.Vector] accepted by this [VectorDistance]. */
     abstract val name: Name.FunctionName
 
     /** The dimensionality of this [VectorDistance]. */
-    val vectorSize: Int
-        get() = this.type.logicalSize
+    val vectorSize: Int = this.type.logicalSize
 
     /** Signature of a [VectorDistance] is defined by the argument type it accepts. */
-    override val signature: Signature.Closed<DoubleValue>
-        get() = Signature.Closed(name, arrayOf(this.type, this.type), Types.Double)
-
-
-    /** */
-    open fun invokeOrMaximum(left: VectorValue<*>, right: VectorValue<*>, maximum: DoubleValue): DoubleValue? = this.invoke(left, right)
+    override val signature: Signature.Closed<DoubleValue> by lazy {
+        Signature.Closed(name, arrayOf(this.type, this.type), Types.Double)
+    }
 
     /**
      * Creates a copy of this [VectorDistance].

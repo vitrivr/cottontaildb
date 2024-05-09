@@ -5,7 +5,7 @@ import jetbrains.exodus.env.StoreConfig
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.euclidean.EuclideanDistance
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue

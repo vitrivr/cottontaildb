@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.dbms.index.pq.signature
 
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.CosineDistance
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.InnerProductDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.euclidean.EuclideanDistance
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
 import org.vitrivr.cottontail.dbms.index.pq.quantizer.PQCodebook

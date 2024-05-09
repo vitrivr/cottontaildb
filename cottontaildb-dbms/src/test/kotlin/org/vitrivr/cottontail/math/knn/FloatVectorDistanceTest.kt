@@ -3,6 +3,8 @@ package org.vitrivr.cottontail.math.knn
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.*
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.euclidean.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.squaredeuclidean.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.ternary.HyperplaneDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.ternary.WeightedManhattanDistance
 import org.vitrivr.cottontail.core.types.Types
@@ -92,7 +94,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
         var time3 = Duration.ZERO
 
-        val kernel = SquaredEuclideanDistance.FloatVectorVectorized(query.type as Types.FloatVector)
+        val kernel = SquaredEuclideanDistance.FloatVector(query.type as Types.FloatVector)
         collection.forEach {
             time1 += measureTime {
                 sum1 += kernel(query, it).value.toFloat()

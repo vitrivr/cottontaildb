@@ -10,8 +10,8 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.functions.Signature
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.euclidean.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
@@ -42,9 +42,9 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import kotlin.concurrent.withLock
 
 /**
- * An [AbstractIndex] structure for proximity based queries that uses the product quantization (PQ) algorithm described in.
+ * An [AbstractIndex] structure for proximity based queries that uses the product quantization (PQ) algorithm described in [1].
  *
- *  Can be used for all type of [VectorValue]s and distance metrics. Implements the ADC algorithm described in [1], which is well
+ * Can be used for all type of [VectorValue]s and distance metrics. Implements the ADC algorithm described in [1], which is well
  * suited for million-scale datasets.
  *
  * References:

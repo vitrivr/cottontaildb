@@ -93,7 +93,7 @@ sealed class ChisquaredDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Ve
     /**
      * SIMD implementation: [ChisquaredDistance] for a [FloatVectorValue]
      */
-    class FloatVectorVectorized(type: Types.Vector<FloatVectorValue,*>): EuclideanDistance<FloatVectorValue>(type), VectorisedFunction<DoubleValue> {
+    class FloatVectorVectorized(type: Types.Vector<FloatVectorValue,*>): ChisquaredDistance<FloatVectorValue>(type), VectorisedFunction<DoubleValue> {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
             // Changing SPECIES to SPECIES.PREFERRED results in a HUGE performance decrease

@@ -5,6 +5,8 @@ import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.core.queries.functions.math.arithmetics.scalar.*
 import org.vitrivr.cottontail.core.queries.functions.math.arithmetics.vector.Sum
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.*
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.euclidean.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.squaredeuclidean.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.ternary.HyperplaneDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.ternary.WeightedManhattanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.score.FulltextScore

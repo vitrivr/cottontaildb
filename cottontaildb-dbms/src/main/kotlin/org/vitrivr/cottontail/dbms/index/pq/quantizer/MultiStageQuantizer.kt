@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.dbms.index.pq.quantizer
 
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.euclidean.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.squaredeuclidean.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.dbms.index.pq.IVFPQIndexConfig
 import org.vitrivr.cottontail.dbms.index.pq.signature.IVFPQSignature
@@ -43,8 +43,8 @@ data class MultiStageQuantizer(val coarse: PQCodebook, val fine: Array<PQCodeboo
             /* Prepare k-means clusterer. */
             val reshape = distance.copy(dimensionsPerSubspace)
             val random = SplittableRandom(System.currentTimeMillis())
-            val coarseClusterer = KMeansClusterer(config.numCoarseCentroids, distance, random)
-            val fineClusterer = KMeansClusterer(config.numCentroids, reshape, random)
+            val coarseClusterer = KMeansClusterer(config.numCoarseCentroids, distance.type, random)
+            val fineClusterer = KMeansClusterer(config.numCentroids,  distance.type, random)
 
             /* Prepare codebooks. */
             val coarse = PQCodebook(distance, coarseClusterer.cluster(data).map { it.center }.toTypedArray())

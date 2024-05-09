@@ -4,6 +4,7 @@ import jdk.incubator.vector.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.config.Config
+import org.vitrivr.cottontail.core.queries.functions.math.distance.SIMD
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.legacy.VersionProber
@@ -41,12 +42,13 @@ fun main(args: Array<String>) {
         if (config.execution.simd) {
             try {
                 println("Cottontail DB is running with SIMD extensions through the Java Vector API. This feature is experimental!")
-                println("(Byte) Preferred: ${ByteVector.SPECIES_MAX}. Maximum: ${ByteVector.SPECIES_MAX}")
-                println("(Short) Preferred: ${ShortVector.SPECIES_MAX}. Maximum: ${ShortVector.SPECIES_MAX}")
-                println("(Int) Preferred: ${IntVector.SPECIES_MAX}. Maximum: ${IntVector.SPECIES_MAX}")
-                println("(Long) Preferred: ${LongVector.SPECIES_MAX}. Maximum: ${LongVector.SPECIES_MAX}")
-                println("(Float) Preferred: ${FloatVector.SPECIES_MAX}. Maximum: ${FloatVector.SPECIES_MAX}t")
-                println("(Double) Preferred: ${DoubleVector.SPECIES_MAX}. Maximum: ${DoubleVector.SPECIES_MAX}")
+                println("(Byte) Preferred: ${ByteVector.SPECIES_PREFERRED}. Maximum: ${ByteVector.SPECIES_MAX}")
+                println("(Short) Preferred: ${ShortVector.SPECIES_PREFERRED}. Maximum: ${ShortVector.SPECIES_MAX}")
+                println("(Int) Preferred: ${IntVector.SPECIES_PREFERRED}. Maximum: ${IntVector.SPECIES_MAX}")
+                println("(Long) Preferred: ${LongVector.SPECIES_PREFERRED}. Maximum: ${LongVector.SPECIES_MAX}")
+                println("(Float) Preferred: ${FloatVector.SPECIES_PREFERRED}. Maximum: ${FloatVector.SPECIES_MAX}t")
+                println("(Double) Preferred: ${DoubleVector.SPECIES_PREFERRED}. Maximum: ${DoubleVector.SPECIES_MAX}")
+                SIMD.SIMD_ENABLED = true
             } catch (e: NoClassDefFoundError) {
                 System.err.println("Failed to start Cottontail DB due to error: No support for Java Vector API. Please unset 'execution.simd' flag in config.")
                 exitProcess(1)
