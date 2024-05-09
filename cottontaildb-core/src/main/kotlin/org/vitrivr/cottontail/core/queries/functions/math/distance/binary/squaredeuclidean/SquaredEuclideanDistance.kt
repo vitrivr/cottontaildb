@@ -119,7 +119,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
             var sum = 0.0
             for (i in 0 until this.vectorSize) {
                 sum += (query[i] - probing[i]).pow(2)
-                if (sum > maximum.value) break
+                if (sum >= maximum.value) break
             }
             return DoubleValue(sum)
         }
@@ -146,7 +146,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
             var sum = 0.0
             for (i in 0 until this.vectorSize) {
                 sum += (query[i] - probing[i]).pow(2)
-                if (sum > maximum.value) break
+                if (sum >= maximum.value) break
             }
             return DoubleValue(sum)
         }
@@ -174,7 +174,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
             var sum = 0.0f
             for (i in 0 until this.vectorSize) {
                 sum += (query[i] - probing[i]).pow(2)
-                if (sum > maximum.value) break
+                if (sum >= maximum.value) break
             }
             return DoubleValue(sum)
         }
@@ -202,7 +202,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
             var sum = 0.0
             for (i in 0 until this.vectorSize) {
                 sum += (query[i] - probing[i]).toDouble().pow(2)
-                if (sum > maximum.value) break
+                if (sum >= maximum.value) break
             }
             return DoubleValue(sum)
         }
@@ -229,7 +229,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
             var sum = 0.0
             for (i in 0 until this.vectorSize) {
                 sum += (query[i] - probing[i]).toDouble().pow(2)
-                if (sum > maximum.value) break
+                if (sum >= maximum.value) break
             }
             return DoubleValue(sum)
         }

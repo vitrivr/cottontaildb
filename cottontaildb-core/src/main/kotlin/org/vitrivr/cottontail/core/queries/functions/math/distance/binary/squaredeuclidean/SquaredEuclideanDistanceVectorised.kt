@@ -78,14 +78,14 @@ sealed class SquaredEuclideanDistanceVectorised<T : VectorValue<*>>(type: Types.
                 val vq = jdk.incubator.vector.FloatVector.fromArray(SIMD.FLOAT_VECTOR_SPECIES, query, i)
                 val diff = vp.sub(vq)
                 sum += diff.mul(diff).reduceLanes(VectorOperators.ADD)
-                if (sum > maximum.value) break
+                if (sum >= maximum.value) break
             }
 
             /* Tail loop: Scalar version for remainder. */
             for (i in this.loopBound until this.vectorSize) {
                 val diff: Float = query[i] - probing[i]
                 sum = Math.fma(diff, diff, sum)
-                if (sum > maximum.value) break
+                if (sum >= maximum.value) break
             }
             return DoubleValue(sum)
         }
@@ -136,14 +136,14 @@ sealed class SquaredEuclideanDistanceVectorised<T : VectorValue<*>>(type: Types.
                 val vq = jdk.incubator.vector.DoubleVector.fromArray(SIMD.DOUBLE_VECTOR_SPECIES, query, i)
                 val diff = vp.sub(vq)
                 sum += diff.mul(diff).reduceLanes(VectorOperators.ADD)
-                if (sum > maximum.value) break
+                if (sum >= maximum.value) break
             }
 
             /* Tail loop: Scalar version for remainder. */
             for (i in this.loopBound until this.vectorSize) {
                 val diff: Double = query[i] - probing[i]
                 sum = Math.fma(diff, diff, sum)
-                if (sum > maximum.value) break
+                if (sum >= maximum.value) break
             }
             return DoubleValue(sum)
         }
