@@ -11,10 +11,6 @@ import org.vitrivr.cottontail.core.types.VectorValue
  * @version 1.0.0
  */
 interface Clusterer {
-
-    /** The [VectorDistance] used by this [Cluster]. */
-    val distance: VectorDistance<*>
-
     /**
      * Clusters a [List] of points [VectorValue] with this [Clusterer].
      *
