@@ -53,11 +53,11 @@ class UniqueHashIndexTest : AbstractIndexTest() {
         val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
 
         /* Obtain necessary transactions. */
-        val catalogueTx = this.catalogue.newTx(ctx)
+        val catalogueTx = this.catalogue.createOrResumeTx(ctx)
         val schema = catalogueTx.schemaForName(this.schemaName)
         val schemaTx = schema.newTx(ctx)
         val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = entity.newTx(ctx)
+        val entityTx = entity.createOrResumeTx(ctx)
         val index = entityTx.indexForName(this.indexName)
         val indexTx = index.newTx(ctx)
 
@@ -94,11 +94,11 @@ class UniqueHashIndexTest : AbstractIndexTest() {
         val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
 
         /* Obtain necessary transactions. */
-        val catalogueTx = this.catalogue.newTx(ctx)
+        val catalogueTx = this.catalogue.createOrResumeTx(ctx)
         val schema = catalogueTx.schemaForName(this.schemaName)
         val schemaTx = schema.newTx(ctx)
         val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = entity.newTx(ctx)
+        val entityTx = entity.createOrResumeTx(ctx)
         val index = entityTx.indexForName(this.indexName)
         val indexTx = index.newTx(ctx)
 

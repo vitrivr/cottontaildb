@@ -71,8 +71,8 @@ object NNSIndexScanClass1Rule : RewriteRule {
         /* Extract index hint and search for candidate. */
         val predicate = ProximityPredicate.Scan(physicalQueryColumn, node.out, function, vectorLiteral)
         val hint = ctx.hints.filterIsInstance<QueryHint.IndexHint>().firstOrNull() ?: QueryHint.IndexHint.All
-        val candidate = scan.entity.listIndexes().map {
-            scan.entity.indexForName(it).newTx(ctx)
+        val candidate = scan.tx.listIndexes().map {
+            scan.tx.indexForName(it).newTx(scan.tx)
         }.find {
             it.state != IndexState.DIRTY && hint.matches(it.dbo) && it.canProcess(predicate)
         }
@@ -80,12 +80,11 @@ object NNSIndexScanClass1Rule : RewriteRule {
         /* If candidate has been found, execute replacement. */
         if (candidate != null) {
             val produces = candidate.columnsFor(predicate)
-            val distanceColumn = predicate.distanceColumn
             if (produces.contains(predicate.distanceColumn.column)) {
                 var replacement: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, listOf(node.out.copy()), candidate, predicate)
                 val newFetch = scan.columns.filter { !produces.contains(it.physical) && it != predicate.column }
                 if (newFetch.isNotEmpty()) {
-                    replacement = FetchPhysicalOperatorNode(replacement, scan.entity, newFetch)
+                    replacement = FetchPhysicalOperatorNode(replacement, scan.tx, newFetch)
                 }
                 return node.output?.copyWithOutput(replacement) ?: replacement
             }

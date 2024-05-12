@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * An [Operator.SourceOperator] that scans an [Index] and streams all [Tuple]s found within.
  *
  * @author Ralph Gasser
- * @version 1.8.0
+ * @version 1.9.0
  */
 class IndexScanOperator(
     groupId: GroupId,
@@ -52,7 +52,7 @@ class IndexScanOperator(
         if (this@IndexScanOperator.partitions == 1) {
             this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate)
         } else {
-            val entityTx = this@IndexScanOperator.index.dbo.parent.newTx(this@IndexScanOperator.context)
+            val entityTx = this@IndexScanOperator.index.parent
             this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate, entityTx.partitionFor(this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions))
         }.use { cursor ->
             while (cursor.moveNext()) {

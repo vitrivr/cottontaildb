@@ -4,7 +4,6 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
-import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.events.IndexEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
@@ -12,9 +11,10 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
-import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.IndexRebuilderState
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
+import org.vitrivr.cottontail.server.Instance
+import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
@@ -23,9 +23,9 @@ import java.util.concurrent.atomic.AtomicLong
  * A [TransactionObserver] that listens for [IndexEvent]s and triggers rebuilding of [Index]es that become [IndexState.STALE].
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-class AutoRebuilderService(private val catalogue: Catalogue): TransactionObserver {
+class AutoRebuilderService(private val instance: Instance): TransactionObserver {
 
     companion object {
         private const val MAX_INDEX_REBUILDING_RETRY = 3
@@ -53,23 +53,23 @@ class AutoRebuilderService(private val catalogue: Catalogue): TransactionObserve
      * @param events The list of [Event]s in order at which they were applied.
      */
     override fun onCommit(txId: TransactionId, events: List<Event>) {
-        val set = ObjectOpenHashSet<Pair<Name.IndexName, IndexType>>()
+        val set = ObjectOpenHashSet<Index>()
         for (event in events) {
             when (event) {
                 is IndexEvent.State -> if (event.state == IndexState.STALE) {
-                    set.add(event.index to event.type)
+                    set.add(event.index)
                 } else {
-                    set.remove(event.index to event.type)
+                    set.remove(event.index)
                 }
-                is IndexEvent.Created -> set.add(event.index to event.type)
-                is IndexEvent.Dropped -> set.remove(event.index to event.type)
+                is IndexEvent.Created -> set.add(event.index)
+                is IndexEvent.Dropped -> set.remove(event.index)
                 else -> { /* No op. */ }
             }
         }
 
         /* Schedule task for each index that needs rebuilding. */
-        for ((index, type) in set) {
-            this.schedule(index, type)
+        for (index in set) {
+            this.schedule(index)
         }
     }
 
@@ -83,68 +83,74 @@ class AutoRebuilderService(private val catalogue: Catalogue): TransactionObserve
     /**
      * Schedules a new [Task] for rebuilding the specified index.
      *
-     * @param index The [Name.IndexName] of the [Index] to rebuild.
-     * @param type The [IndexType] of the [Index] to rebuild.
+     * @param index The [Index] to rebuild.
      */
-    fun schedule(index: Name.IndexName, type: IndexType) {
-        this.catalogue.transactionManager.executionManager.serviceWorkerPool.schedule(Task(index, type), 500L, TimeUnit.MILLISECONDS)
+    fun schedule(index: Index) {
+        this.instance.executor.serviceWorkerPool.schedule(Task(index), 500L, TimeUnit.MILLISECONDS)
     }
 
     /**
      * The actual [Runnable] that rebuilds an [Index].
      */
-    inner class Task(private val index: Name.IndexName, private val type: IndexType): Runnable {
+    inner class Task(index: Index): Runnable {
+
+        /** A weak reference to the [Index] that should be rebuilt; if index is removed while this tasks is waiting for execution, rebuild can be skipped. */
+        private val index = WeakReference(index)
+
         override fun run() {
+            val index = this.index.get() ?: return
             val start = System.currentTimeMillis()
-            val success = if (this.type.descriptor.supportsAsyncRebuild && this.type.descriptor.supportsIncrementalUpdate) {
+            val success = if (index.type.descriptor.supportsAsyncRebuild && index.type.descriptor.supportsIncrementalUpdate) {
                 LOGGER.info("Starting asynchronous index auto-rebuilding for $index.")
-                this.performConcurrentRebuild()
+                this.performConcurrentRebuild(index)
             } else {
                 LOGGER.info("Starting index auto-rebuilding for $index.")
-                this.performRebuild()
+                this.performRebuild(index)
             }
             val end = System.currentTimeMillis()
             if (success) {
                 LOGGER.info("Index auto-rebuilding for $index completed (took ${end-start}ms).")
             } else {
-                this.tryScheduleRetry()
+                this.tryScheduleRetry(index)
             }
         }
 
         /**
-         * Tries to schedule a another task if the task before has failed. This is repeated up to [MAX_INDEX_REBUILDING_RETRY] times.
+         * Tries to schedule another task if the task before has failed. This is repeated up to [MAX_INDEX_REBUILDING_RETRY] times.
+         *
+         * @param index The [Index] to rebuild.
          */
-        private fun tryScheduleRetry() {
-            val failures = this@AutoRebuilderService.failures.compute(this.index) { _, v -> (v ?: 0) + 1 }
+        private fun tryScheduleRetry(index: Index) {
+            val failures = this@AutoRebuilderService.failures.compute(index.name) { _, v -> (v ?: 0) + 1 }
             if (failures!! <= MAX_INDEX_REBUILDING_RETRY) {
                 LOGGER.warn("Index auto-rebuilding for $index failed $failures time(s). Re-scheduling the task...")
-                this@AutoRebuilderService.catalogue.transactionManager.executionManager.serviceWorkerPool.schedule(Task(this.index, this.type), 5000L, TimeUnit.MILLISECONDS)
+                this@AutoRebuilderService.instance.executor.serviceWorkerPool.schedule(Task(index), 5000L, TimeUnit.MILLISECONDS)
             } else {
                 LOGGER.error("Index auto-rebuilding for $index failed $failures time(s). Aborting...")
-                this@AutoRebuilderService.failures.remove(this.index)
+                this@AutoRebuilderService.failures.remove(index.name)
             }
         }
 
         /**
          * Synchronous [Index] rebuilding.
          *
+         * @param index The [Index] to rebuild.
          * @return True on success, false otherwise.
          */
-        private fun performRebuild(): Boolean {
-            val transaction = this@AutoRebuilderService.catalogue.transactionManager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
-            val context = DefaultQueryContext("auto-rebuild-${this@AutoRebuilderService.counter.incrementAndGet()}", this@AutoRebuilderService.catalogue, transaction)
+        private fun performRebuild(index: Index): Boolean {
+            val transaction = this@AutoRebuilderService.instance.transactions.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
+            val context = DefaultQueryContext("auto-rebuild-${this@AutoRebuilderService.counter.incrementAndGet()}", this@AutoRebuilderService.instance, transaction)
             try {
-                val catalogueTx = this@AutoRebuilderService.catalogue.newTx(context)
-                val schema = catalogueTx.schemaForName(this.index.schema())
-                val schemaTx = schema.newTx(context)
-                val entity = schemaTx.entityForName(this.index.entity())
-                val entityTx = entity.newTx(context)
-                val index = entityTx.indexForName(this.index)
-                val ret = index.newRebuilder(context).rebuild()
+                val schema = context.catalogueTx.schemaForName(index.name.schema())
+                val schemaTx = schema.newTx(context.catalogueTx)
+                val entity = schemaTx.entityForName(index.name.entity())
+                val entityTx = entity.createOrResumeTx(schemaTx)
+                val indexTx = index.newTx(entityTx)
+                val ret = index.newRebuilder(context).rebuild(indexTx)
                 if (ret) {
                     transaction.commit()
                 } else {
-                    transaction.rollback()
+                    transaction.abort()
                 }
                 return ret
             } catch (e: Throwable) {
@@ -154,7 +160,7 @@ class AutoRebuilderService(private val catalogue: Catalogue): TransactionObserve
                     is DatabaseException.IndexDoesNotExistException -> LOGGER.warn("Index auto-rebuilding for $index failed because DBO no longer exists.")
                     else -> LOGGER.error("Index auto-rebuilding for $index failed due to exception: ${e.message}.")
                 }
-                transaction.rollback()
+                transaction.abort()
                 return false
             }
         }
@@ -162,32 +168,12 @@ class AutoRebuilderService(private val catalogue: Catalogue): TransactionObserve
         /**
          * Performs asynchronous index rebuilding in two steps (SCAN -> MERGE).
          *
+         * @param index The [Index] to rebuild.
          * @return True on success, false otherwise.
          */
-        private fun performConcurrentRebuild(): Boolean {
+        private fun performConcurrentRebuild(index: Index): Boolean {
             /* Step 1a: Scan index (read-only). */
-            val transaction = this@AutoRebuilderService.catalogue.transactionManager.startTransaction(TransactionType.SYSTEM_READONLY)
-            val context = DefaultQueryContext("auto-rebuild-prepare", this@AutoRebuilderService.catalogue, transaction)
-            val rebuilder = try {
-                val catalogueTx = this@AutoRebuilderService.catalogue.newTx(context)
-                val schema = catalogueTx.schemaForName(this.index.schema())
-                val schemaTx = schema.newTx(context)
-                val entity = schemaTx.entityForName(this.index.entity())
-                val entityTx = entity.newTx(context)
-                val index = entityTx.indexForName(this.index)
-                val ret = index.newAsyncRebuilder(context)
-                transaction.commit()
-                ret
-            } catch (e: Throwable) {
-                when (e) {
-                    is DatabaseException.SchemaDoesNotExistException,
-                    is DatabaseException.EntityAlreadyExistsException,
-                    is DatabaseException.IndexDoesNotExistException -> LOGGER.warn("Index auto-rebuilding for $index failed because DBO no longer exists.")
-                    else -> LOGGER.error("Index auto-rebuilding (SCAN) for $index failed due to exception: ${e.message}.")
-                }
-                transaction.rollback()
-                return false
-            }
+            val rebuilder = index.newAsyncRebuilder(this@AutoRebuilderService.instance)
 
             try {
                 /* Step 1: Start BUILD process and perform sanity check to prevent obtaining an exclusive transaction unnecessarily. */
@@ -198,16 +184,12 @@ class AutoRebuilderService(private val catalogue: Catalogue): TransactionObserve
 
                 /* Step 2: Start REPLACE process (write). */
                 rebuilder.replace()
-                if (rebuilder.state != IndexRebuilderState.FINISHED) {
-                    return false
-                }
-
-                return true
+                return rebuilder.state == IndexRebuilderState.FINISHED
             } catch (e: Throwable) {
                 LOGGER.error("Index auto-rebuilding (MERGE) for $index failed due to exception: ${e.message}.")
                 return false
             } finally {
-                this@AutoRebuilderService.catalogue.transactionManager.deregister(rebuilder)
+                this@AutoRebuilderService.instance.transactions.deregister(rebuilder)
                 rebuilder.close()
             }
         }

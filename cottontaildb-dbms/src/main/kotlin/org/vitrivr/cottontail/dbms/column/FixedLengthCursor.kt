@@ -8,20 +8,18 @@ import org.vitrivr.cottontail.core.database.TabletId
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.tablets.Tablet
-import org.vitrivr.cottontail.dbms.catalogue.storeName
-import org.vitrivr.cottontail.dbms.column.FixedLengthColumn.Companion.TABLET_SHR
-import org.vitrivr.cottontail.dbms.column.FixedLengthColumn.Companion.TABLET_SIZE
+import org.vitrivr.cottontail.dbms.column.ColumnMetadata.Companion.storeName
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.storage.serializers.SerializerFactory
-import org.vitrivr.cottontail.storage.serializers.tablets.TabletSerializer
-
 /**
  * A [Cursor] to iterate over the [Tablet]s of a [Column].
  */
 class FixedLengthCursor<T: Value>(column: FixedLengthColumn<T>.Tx): Cursor<T?> {
 
     /** The Xodus transaction snapshot used by this FixedLengthCursor. */
-    private val xodusTx = column.context.txn.xodusTx.readonlySnapshot
+    private val xodusTx = column.xodusTx.readonlySnapshot
+
+    /** */
+    private val file = column.file
 
     /** Internal data [Store] reference. */
     private val store: Store = this.xodusTx.environment.openStore(
@@ -31,69 +29,40 @@ class FixedLengthCursor<T: Value>(column: FixedLengthColumn<T>.Tx): Cursor<T?> {
         false
     ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${column.dbo.name} is missing.")
 
-
-    /** The internal [TabletSerializer] reference used for de-/serialization. */
-    private val serializer: TabletSerializer<T> = SerializerFactory.tablet(column.columnDef.type, TABLET_SIZE, column.dbo.compression)
-
     /** Internal Xodus cursor instance.  */
     private val cursor = this.store.openCursor(this.xodusTx)
 
     /** The [TabletId] of the currently loaded [Tablet]. -1 if no [Tablet] has been loaded. */
     private var tupleId: TupleId = -1
 
-    /** The [TabletId] of the currently loaded [Tablet]. -1 if no [Tablet] has been loaded. */
-    private var tabletId: TabletId = -1
-
-    /** The [TabletId] of the currently loaded [Tablet]. -1 if no [Tablet] has been loaded. */
-    private var tabletIndex: Int = -1
-
-    /** The currently loaded [Tablet]. */
-    private var tablet: Tablet<T>? = null
-
     override fun moveNext(): Boolean = this.moveTo(this.tupleId + 1)
     override fun movePrevious(): Boolean  = this.moveTo(this.tupleId - 1)
-
     override fun moveTo(tupleId: TupleId): Boolean {
         if (tupleId < 0) return false
-        if (this.tupleId == tupleId) return true
-
-        /* Adjust tabletId. */
-        val tabletId = tupleId ushr TABLET_SHR
-        when(tabletId) {
-            this.tabletId -> {}
-            this.tabletId + 1 -> {
+        return when (tupleId) {
+            this.tupleId -> true
+            this.tupleId + 1 -> {
                 if (this.cursor.next) {
-                    this.tablet = this.serializer.fromEntry(this.cursor.value)
+                    this.tupleId = tupleId
+                    true
                 } else {
-                    return false
+                    false
                 }
             }
-            this.tabletId - 1 -> {
+            this.tupleId - 1 -> {
                 if (this.cursor.prev) {
-                    this.tablet = this.serializer.fromEntry(this.cursor.value)
+                    this.tupleId = tupleId
+                    true
                 } else {
-                    return false
+                    false
                 }
             }
-            else -> {
-                val tablet = this.cursor.getSearchKey(LongBinding.longToCompressedEntry(tabletId))
-                if (tablet != null) {
-                    this.tablet = this.serializer.fromEntry(tablet)
-                } else {
-                    return false
-                }
-            }
+            else -> this.cursor.getSearchKey(LongBinding.longToCompressedEntry(tupleId)) != null
         }
-
-        /* Update tupleId. */
-        this.tabletId = tabletId
-        this.tupleId = tupleId
-        this.tabletIndex = (tupleId % TABLET_SIZE).toInt()
-        return true
     }
 
     override fun key(): TupleId = this.tupleId
-    override fun value(): T? = this.tablet!![this.tabletIndex]
+    override fun value(): T = this.file.get(LongBinding.entryToLong(this.cursor.key))
     override fun close() {
         this.cursor.close()
         this.xodusTx.abort()

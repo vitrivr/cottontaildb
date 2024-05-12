@@ -19,7 +19,7 @@ import kotlin.system.measureTimeMillis
 class AnalyseEntityOperator(private val tx: CatalogueTx, private val name: Name.EntityName, override val context: QueryContext) : AbstractDataDefinitionOperator(name, "ANALYSE ENTITY") {
     override fun toFlow(): Flow<Tuple> = flow {
         val time = measureTimeMillis {
-            this@AnalyseEntityOperator.tx.dbo.statisticsManager.gatherStatisticsForEntity(this@AnalyseEntityOperator.name)
+            this@AnalyseEntityOperator.context.statistics.gatherStatisticsForEntity(this@AnalyseEntityOperator.name)
         }
         emit(this@AnalyseEntityOperator.statusRecord(time))
     }

@@ -5,7 +5,7 @@ import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.SignedDoubleBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.RealVectorValue
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructuralMetadata
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.statistics.values.*
 import java.io.ByteArrayInputStream
@@ -16,7 +16,7 @@ import java.io.ByteArrayInputStream
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 1.3.0
  */
-class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, IndexStructCatalogueEntry() {
+class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, IndexStructuralMetadata() {
 
     /**
      * A [ComparableBinding] to serialize and deserialize [EquidistantVAFMarks].
@@ -140,7 +140,7 @@ class EquidistantVAFMarks(override val marks: Array<DoubleArray>): VAFMarks, Ind
      * @param other The [EquidistantVAFMarks] object to compare this [EquidistantVAFMarks] object to.
      * @return [Int]
      */
-    override fun compareTo(other: IndexStructCatalogueEntry): Int {
+    override fun compareTo(other: IndexStructuralMetadata): Int {
         if (other !is EquidistantVAFMarks) return -1
         for ((i,d) in this.marks.withIndex()) {
             if (i >= other.marks.size) return Int.MIN_VALUE

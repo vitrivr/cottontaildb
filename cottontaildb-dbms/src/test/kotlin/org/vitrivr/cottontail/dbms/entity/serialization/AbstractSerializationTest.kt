@@ -65,11 +65,11 @@ abstract class AbstractSerializationTest: AbstractEntityTest() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("serialization", this.catalogue, txn)
         try {
-            val catalogueTx = this.catalogue.newTx(ctx)
+            val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.newTx(ctx)
+            val entityTx = entity.createOrResumeTx(ctx)
             repeat(TestConstants.TEST_COLLECTION_SIZE - 1) {
                 val reference = this.nextRecord(it)
                 val retrieved = entityTx.read(it.toLong(), this.columns)
@@ -78,7 +78,7 @@ abstract class AbstractSerializationTest: AbstractEntityTest() {
                 }
             }
         } finally {
-            txn.rollback()
+            txn.abort()
         }
     }
 
@@ -95,11 +95,11 @@ abstract class AbstractSerializationTest: AbstractEntityTest() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val ctx = DefaultQueryContext("serialization-populate", this.catalogue, txn)
-            val catalogueTx = this.catalogue.newTx(ctx)
+            val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.newTx(ctx)
+            val entityTx = entity.createOrResumeTx(ctx)
 
             /* Insert data and track how many entries have been stored for the test later. */
             repeat(TestConstants.TEST_COLLECTION_SIZE) {
@@ -107,7 +107,7 @@ abstract class AbstractSerializationTest: AbstractEntityTest() {
             }
             txn.commit()
         } catch (e: Throwable) {
-            txn.rollback()
+            txn.abort()
             throw e
         }
     }

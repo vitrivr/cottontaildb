@@ -2,17 +2,16 @@ package org.vitrivr.cottontail.dbms.index.pq
 
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.ShortBinding
+import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.binding.MissingTuple
-import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.DoubleValue
-import org.vitrivr.cottontail.dbms.index.pq.quantizer.PQCodebook
+import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata.Companion.storeName
+import org.vitrivr.cottontail.dbms.index.pq.quantizer.MultiStageQuantizer
 import org.vitrivr.cottontail.dbms.index.pq.signature.IVFPQSignature
 import org.vitrivr.cottontail.dbms.index.pq.signature.PQLookupTable
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
@@ -26,41 +25,35 @@ import java.util.concurrent.atomic.AtomicBoolean
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class IVFPQIndexCursor(val predicate: ProximityPredicate.Scan, val index: IVFPQIndex.Tx): Cursor<Tuple> {
-
-    /** The [PQCodebook] used for coarse quantization. */
-    private val coarse: PQCodebook = this.index.quantizer.coarse
+class IVFPQIndexCursor(query: VectorValue<*>, quantizer: MultiStageQuantizer, private val columns: Array<ColumnDef<*>>, index: IVFPQIndex.Tx): Cursor<Tuple> {
 
     /** [PQLookupTable]s for the given query vector(s). */
-    private val lookupTable: PQLookupTable
+    private val lookupTable: PQLookupTable = quantizer.createLookupTable(query)
 
     /** The sub-transaction this [Cursor] operates upon.  */
-    private val subTx = this.index.context.txn.xodusTx.readonlySnapshot
+    private val xodusTx = index.xodusTx.readonlySnapshot
 
     /** The internal cursor used by this index. */
-    private val cursor = this.index.dataStore.openCursor(this.subTx)
+    private val store = this.xodusTx.environment.openStore(index.dbo.name.storeName(), StoreConfig.USE_EXISTING,  this.xodusTx)
 
-    /** The [ColumnDef] produced by  this [Cursor]. */
-    private val produces = this.index.columnsFor(predicate).toTypedArray()
+    /** Cursor backing this [PQIndexCursor]. */
+    private val cursor: jetbrains.exodus.env.Cursor = this.store.openCursor(this.xodusTx)
+
+    /** The sub-transaction this [Cursor] operates upon.  */
 
     /** A [Deque] for bucket numbers left to explore. */
     private val queue: Deque<Short>
 
-    /** A begin of cursor flag. */
+    /** A beginning of cursor flag. */
     private val boc = AtomicBoolean(false)
 
     init {
         /* Prepare list of Voronoi cells that should be scanned. */
-        val nprobe = this@IVFPQIndexCursor.coarse.numberOfCentroids / 32
+        val nprobe = quantizer.coarse.numberOfCentroids / 32
         val selection = MinHeapSelection<ComparablePair<Int,Double>>(nprobe)
 
-        with(MissingTuple) {
-            with(this@IVFPQIndexCursor.index.context.bindings) {
-                this@IVFPQIndexCursor.lookupTable = this@IVFPQIndexCursor.index.quantizer.createLookupTable(this@IVFPQIndexCursor.predicate.query.getValue() as VectorValue<*>)
-                for (c in coarse.centroids.indices) {
-                    selection.offer(ComparablePair(c, this@IVFPQIndexCursor.coarse.distanceFrom(this@IVFPQIndexCursor.predicate.query.getValue() as RealVectorValue<*>, c)))
-                }
-            }
+        for (c in quantizer.coarse.centroids.indices) {
+            selection.offer(ComparablePair(c, quantizer.coarse.distanceFrom(query, c)))
         }
 
         this.queue = ArrayDeque(nprobe)
@@ -95,14 +88,14 @@ class IVFPQIndexCursor(val predicate: ProximityPredicate.Scan, val index: IVFPQI
     override fun value(): Tuple {
         val signature = IVFPQSignature.fromEntry(this.cursor.value)
         val approximation = DoubleValue(this.lookupTable.approximateDistance(signature))
-        return StandaloneTuple(signature.tupleId, this.produces, arrayOf(approximation))
+        return StandaloneTuple(signature.tupleId, this.columns, arrayOf(approximation))
     }
 
     /**
      * Closes this [IVFPQIndexCursor]
      */
     override fun close() {
-        this.subTx.abort()
+        this.xodusTx.abort()
         this.cursor.close()
     }
 

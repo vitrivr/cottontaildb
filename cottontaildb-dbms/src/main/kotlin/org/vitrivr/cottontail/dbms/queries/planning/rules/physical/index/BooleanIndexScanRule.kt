@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * through a single [IndexScanPhysicalOperatorNode].
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
 object BooleanIndexScanRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean
@@ -33,8 +33,8 @@ object BooleanIndexScanRule : RewriteRule {
             val parent = node.input
             if (parent is EntityScanPhysicalOperatorNode) {
                 /* Extract index hint and search for candidate. */
-                val candidate = parent.entity.listIndexes().map {
-                    parent.entity.indexForName(it).newTx(ctx)
+                val candidate = parent.tx.listIndexes().map {
+                    parent.tx.indexForName(it).newTx(parent.tx)
                 }.find {
                     it.state != IndexState.DIRTY && it.canProcess(node.predicate)
                 }
@@ -45,7 +45,7 @@ object BooleanIndexScanRule : RewriteRule {
                     val fetchColumns = parent.columns.filter { !produced.contains(it.physical!!) }
                     var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, indexColumns, candidate, node.predicate)
                     if (fetchColumns.isNotEmpty()) {
-                        p = FetchPhysicalOperatorNode(p, parent.entity, fetchColumns)
+                        p = FetchPhysicalOperatorNode(p, parent.tx, fetchColumns)
                     }
                     return node.output?.copyWithOutput(p) ?: p
                 }

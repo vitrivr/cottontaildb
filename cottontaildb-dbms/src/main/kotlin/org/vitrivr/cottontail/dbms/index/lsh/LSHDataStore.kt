@@ -4,25 +4,21 @@ import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.env.Transaction
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
-import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata.Companion.storeName
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignature
 
 /**
  * This is an abstraction over a Xodus [Store] that provides certain primitives required by the [LSHIndex].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 @JvmInline
 value class LSHDataStore internal constructor(val store: Store) {
-
-
     companion object {
-        internal fun open(transaction: Transaction, index: LSHIndex): LSHDataStore {
-            val store = index.catalogue.transactionManager.environment.openStore(index.name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, transaction, false)
-                ?: throw DatabaseException.DataCorruptionException("Data store for index ${index.name} is missing.")
+        fun open(indexTx: LSHIndex.Tx): LSHDataStore {
+            val store = indexTx.xodusTx.environment.openStore(indexTx.dbo.name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, indexTx.xodusTx)
             return LSHDataStore(store)
         }
     }

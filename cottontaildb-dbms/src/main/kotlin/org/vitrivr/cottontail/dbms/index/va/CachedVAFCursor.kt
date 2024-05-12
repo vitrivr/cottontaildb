@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.dbms.index.va
 
 import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.env.Store
+import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.binding.MissingTuple
@@ -14,10 +16,13 @@ import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.DoubleValue
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructuralMetadata
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
+import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata.Companion.storeName
 import org.vitrivr.cottontail.dbms.index.cache.CacheKey
 import org.vitrivr.cottontail.dbms.index.cache.InMemoryIndexCache
 import org.vitrivr.cottontail.dbms.index.va.bounds.Bounds
@@ -32,7 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * A [Cursor] implementation for the [VAFIndex].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 @Suppress("UNCHECKED_CAST")
 sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: LongRange, protected val predicate: T, protected val index: VAFIndex.Tx): Cursor<Tuple> {
@@ -42,13 +47,17 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
     /** The [Bounds] objects used for filtering. */
     protected val bounds: Bounds
 
-    /** The sub-transaction used by this [VAFCursor]. */
-    protected val subTx = this.index.context.txn.xodusTx.readonlySnapshot
+    /** The sub-transaction used by this [VAFIndexCursor]. */
+    private val xodusTx = index.xodusTx.readonlySnapshot
 
-    /** Cursor backing this [VAFCursor]. */
-    protected val cursor = this.index.dataStore.openCursor(this.subTx)
+    /** The Xodus [Store] used to store [VAFSignature]s. */
+    private val store: Store = this.xodusTx.environment.openStore(index.dbo.name.storeName(), StoreConfig.USE_EXISTING, this.xodusTx, false)
+        ?: throw DatabaseException.DataCorruptionException("Store for VAF index ${index.dbo.name} is missing.")
 
-    /** A begin of cursor (BoC) flag. */
+    /** Cursor backing this [VAFIndexCursor]. */
+    protected val cursor: jetbrains.exodus.env.Cursor = this.store.openCursor(this.xodusTx)
+
+    /** A beginning of cursor (BoC) flag. */
     protected val boc = AtomicBoolean(false)
 
     /** Internal [ColumnTx] used to access actual values. */
@@ -61,7 +70,9 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
     protected val endKey = this.partition.last.toKey()
 
     /** Cached in-memory version of the [EquidistantVAFMarks] used by this [Cursor]. */
-    protected val marks = this.index.marks
+    protected val marks: EquidistantVAFMarks by lazy {
+        IndexStructuralMetadata.read(this.index, EquidistantVAFMarks.Binding) ?: throw DatabaseException.DataCorruptionException("Marks for VAF index ${index.dbo.name} are missing.")
+    }
 
     /** The columns produced by this [Cursor]. */
     protected val produces = this.index.columnsFor(this.predicate).toTypedArray()
@@ -90,8 +101,8 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
         }
 
         /* Obtain Tx object for column. */
-        val entityTx: EntityTx = this.index.dbo.parent.newTx(this.index.context)
-        this.columnTx = entityTx.columnForName(this.index.columns[0].name).newTx(this.index.context) as ColumnTx<RealVectorValue<*>>
+        val entityTx: EntityTx = this.index.parent
+        this.columnTx = entityTx.columnForName(this.index.columns[0].name).newTx(entityTx) as ColumnTx<RealVectorValue<*>>
     }
 
     /**
@@ -99,11 +110,11 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
      */
     override fun close() {
         this.cursor.close()
-        this.subTx.abort()
+        this.xodusTx.abort()
     }
 
     /**
-     * A [VAFCursor] for limiting [ProximityPredicate], i.e., [ProximityPredicate.NNS] and [ProximityPredicate.FNS]
+     * A [VAFIndexCursor] for limiting [ProximityPredicate], i.e., [ProximityPredicate.NNS] and [ProximityPredicate.FNS]
      */
     sealed class KLimited<T : ProximityPredicate.KLimitedSearch>(partition: LongRange, predicate: T, index: VAFIndex.Tx) : CachedVAFCursor<T>(partition, predicate, index) {
 
@@ -151,7 +162,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
         }
 
         /**
-         * Prepares the [HeapSelection] for this [VAFCursor.KLimited]
+         * Prepares the [HeapSelection] for this [VAFIndexCursor.KLimited]
          *
          * @return [HeapSelection]
          */
@@ -159,7 +170,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
     }
 
     /**
-     * A [VAFCursor] implementation for nearest neighbour search.
+     * A [VAFIndexCursor] implementation for nearest neighbour search.
      */
     class NNS(partition: LongRange, predicate: ProximityPredicate.NNS, index: VAFIndex.Tx) : KLimited<ProximityPredicate.NNS>(partition, predicate, index) {
         /**
@@ -244,7 +255,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
     }
 
     /**
-     * A [VAFCursor] implementation for farthest neighbour search.
+     * A [VAFIndexCursor] implementation for farthest neighbour search.
      */
     class FNS(partition: LongRange, predicate: ProximityPredicate.FNS, index: VAFIndex.Tx) : KLimited<ProximityPredicate.FNS>(partition, predicate, index) {
         /**
@@ -287,7 +298,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
     }
 
     /**
-     * An (experimental) [VAFCursor] implementation for range search.
+     * An (experimental) [VAFIndexCursor] implementation for range search.
      */
     class ENN(partition: LongRange, predicate: ProximityPredicate.ENN, index: VAFIndex.Tx) : CachedVAFCursor<ProximityPredicate.ENN>(partition, predicate, index) {
 

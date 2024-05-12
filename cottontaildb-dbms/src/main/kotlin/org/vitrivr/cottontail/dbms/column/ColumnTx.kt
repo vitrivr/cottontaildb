@@ -4,22 +4,36 @@ import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.dbms.general.Tx
+import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.execution.transactions.SubTransaction
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
- * A [Tx] that operates on a single [Column]. [Tx]s are a unit of isolation for data operations (read/write).
+ * A [SubTransaction] that operates on a single [Column]. [SubTransaction]s are a unit of isolation for data operations (read/write).
  *
- * This interface defines the basic operations supported by such a [Tx]. However, it does not
+ * This interface defines the basic operations supported by such a [SubTransaction]. However, it does not
  * dictate the isolation level. It is up to the implementation to define and implement the desired
  * level of isolation.
  *
  * @author Ralph Gasser
- * @version 4.0.0
+ * @version 5.0.0
  */
-interface ColumnTx<T : Value> : Tx {
+interface ColumnTx<T : Value> : SubTransaction {
     /** Reference to the [Column] this [ColumnTx] belongs to. */
     override val dbo: Column<T>
+
+    /** The parent [EntityTx] this [ColumnTx] belongs to. */
+    val parent: EntityTx
+
+    /** The [QueryContext] this [ColumnTx] belongs to. Typically determined by parent [EntityTx]. */
+    val context: QueryContext
+        get() = this.parent.context
+
+    /** The [Transaction] this [ColumnTx] belongs to. Typically determined by parent [EntityTx]. */
+    override val transaction: Transaction
+        get() = this.context.txn
 
     /** The [ColumnDef] of the [Column] underlying this [ColumnTx]. */
     val columnDef: ColumnDef<T>

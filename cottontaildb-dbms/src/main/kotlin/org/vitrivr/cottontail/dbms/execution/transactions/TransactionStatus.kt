@@ -17,11 +17,17 @@ enum class TransactionStatus(val canCommit: Boolean, val canRollback: Boolean, v
     ERROR(false, true, false),
 
     /** [TransactionMetadata] is committing or rolling back. Query execution not possible. */
-    FINALIZING(false, false, false),
+    PREPARE(false, false, false),
 
     /** [TransactionMetadata] was committed. Query execution not possible. */
     COMMIT(false, false, false),
 
+    /** [TransactionMetadata] was committed. Query execution not possible. */
+    ABORT(false, false, false),
+
+    /** [TransactionMetadata] was committed. Query execution not possible. */
+    COMMITTED(false, false, false),
+
     /** [TransactionMetadata] was rolled back. Query execution not possible.  */
-    ROLLBACK(false, false, false),
+    ABORTED(false, false, false)
 }

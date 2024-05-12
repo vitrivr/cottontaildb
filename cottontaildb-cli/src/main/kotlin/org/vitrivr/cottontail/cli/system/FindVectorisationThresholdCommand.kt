@@ -5,6 +5,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
 import org.apache.commons.math3.random.JDKRandomGenerator
 import org.vitrivr.cottontail.cli.basics.AbstractCottontailCommand
+import org.vitrivr.cottontail.core.queries.functions.math.distance.SIMD
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.euclidean.EuclideanDistance
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.generators.FloatVectorValueGenerator
@@ -48,6 +49,10 @@ class FindVectorisationThresholdCommand : AbstractCottontailCommand(name = "simd
      * Executes this command.
      */
     override fun exec() {
+        if (!SIMD.SIMD_ENABLED) {
+            println("SIMD is not enabled.")
+            return
+        }
         var dimension = 0
         var total = Duration.ZERO
         var totalVectorised = Duration.ZERO

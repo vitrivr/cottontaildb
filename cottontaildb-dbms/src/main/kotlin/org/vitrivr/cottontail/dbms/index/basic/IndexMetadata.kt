@@ -8,6 +8,7 @@ import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 
@@ -15,7 +16,7 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
  * A metadata about [Index]s as stored in the Cottontail DB catalogue
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
 data class IndexMetadata(val type: IndexType, val state: IndexState, val columns: List<String>, val config: IndexConfig<*>) {
     companion object {
@@ -23,26 +24,12 @@ data class IndexMetadata(val type: IndexType, val state: IndexState, val columns
         private const val CATALOGUE_INDEX_STORE_NAME: String = "org.vitrivr.cottontail.indexes"
 
         /**
-         * Initializes the store used to store [IndexMetadata] entries in Cottontail DB.
+         * Opens the Xodus [Store] used to store [IndexMetadata] entries in Cottontail DB.
          *
-         * @param catalogue The [DefaultCatalogue] to initialize.
          * @param transaction The [Transaction] to use.
+         * @return Xodus [Store] for [IndexMetadata] entries.
          */
-        internal fun init(catalogue: DefaultCatalogue, transaction: Transaction) {
-            catalogue.transactionManager.environment.openStore(CATALOGUE_INDEX_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
-                ?: throw DatabaseException.DataCorruptionException("Failed to create store for index catalogue.")
-        }
-
-        /**
-         * Returns the [Store] for [IndexMetadata] entries.
-         *
-         * @param catalogue [DefaultCatalogue] to retrieve [IndexMetadata] from.
-         * @param transaction The Xodus [Transaction] to use.
-         * @return [Store]
-         */
-        internal fun store(catalogue: DefaultCatalogue, transaction: Transaction): Store =
-            catalogue.transactionManager.environment.openStore(CATALOGUE_INDEX_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open store for index catalogue.")
+        fun store(transaction: Transaction) = transaction.environment.openStore(CATALOGUE_INDEX_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction)
 
         /**
          * De-serializes a [IndexMetadata] from the given [ByteIterable].
@@ -52,8 +39,8 @@ data class IndexMetadata(val type: IndexType, val state: IndexState, val columns
          */
         fun fromEntry(entry: ByteIterable): IndexMetadata {
             val stream = ByteArraySizedInputStream(entry.bytesUnsafe, 0, entry.length)
-            val type = IndexType.values()[IntegerBinding.readCompressed(stream)]
-            val state = IndexState.values()[IntegerBinding.readCompressed(stream)]
+            val type = IndexType.entries[IntegerBinding.readCompressed(stream)]
+            val state = IndexState.entries[IntegerBinding.readCompressed(stream)]
             val columns = (0 until IntegerBinding.readCompressed(stream)).map {
                 StringBinding.BINDING.readObject(stream)
             }
@@ -82,5 +69,13 @@ data class IndexMetadata(val type: IndexType, val state: IndexState, val columns
             entry.type.descriptor.configBinding().writeObject(output, entry.config)
             return output.asArrayByteIterable()
         }
+
+
+        /**
+         * Internal function used to obtain the name of the Xodus store for the given [Name.IndexName].
+         *
+         * @return Store name.
+         */
+        internal fun Name.IndexName.storeName(): String = "${CATALOGUE_INDEX_STORE_NAME}.${this.schema}.${this.entity}.${this.index}"
     }
 }

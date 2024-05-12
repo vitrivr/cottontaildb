@@ -14,13 +14,14 @@ import kotlin.system.measureTimeMillis
  * An [Operator.SourceOperator] used during query execution. Truncates an [Entity] (i.e., drops and re-creates it).
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 class TruncateEntityOperator(private val tx: CatalogueTx, private val name: Name.EntityName, override val context: QueryContext) : AbstractDataDefinitionOperator(name, "TRUNCATE ENTITY") {
     override fun toFlow(): Flow<Tuple> = flow {
-        val schemaTxn = this@TruncateEntityOperator.tx.schemaForName(this@TruncateEntityOperator.name.schema()).newTx(this@TruncateEntityOperator.context)
+        val schemaTxn = this@TruncateEntityOperator.tx.schemaForName(this@TruncateEntityOperator.name.schema()).newTx(this@TruncateEntityOperator.tx)
+        val entityTx = schemaTxn.entityForName(this@TruncateEntityOperator.name).createOrResumeTx(schemaTxn)
         val time = measureTimeMillis {
-            schemaTxn.truncateEntity(this@TruncateEntityOperator.name)
+            entityTx.truncate()
         }
         emit(this@TruncateEntityOperator.statusRecord(time))
     }

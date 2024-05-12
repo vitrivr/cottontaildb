@@ -1,16 +1,17 @@
 package org.vitrivr.cottontail.dbms.index.pq
 
 import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.binding.MissingTuple
-import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.dbms.catalogue.toKey
+import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata.Companion.storeName
+import org.vitrivr.cottontail.dbms.index.pq.quantizer.SingleStageQuantizer
 import org.vitrivr.cottontail.dbms.index.pq.signature.PQLookupTable
 import org.vitrivr.cottontail.dbms.index.pq.signature.SPQSignature
 import java.util.concurrent.atomic.AtomicBoolean
@@ -19,17 +20,20 @@ import java.util.concurrent.atomic.AtomicBoolean
  * A [Cursor] implementation for the [PQIndex].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
-class PQIndexCursor(partition: LongRange, val predicate: ProximityPredicate.Scan, val index: PQIndex.Tx): Cursor<Tuple> {
-        /** Prepares [PQLookupTable]s for the given query vector(s). */
-    private val lookupTable: PQLookupTable
+class PQIndexCursor(partition: LongRange, query: VectorValue<*>, quantizer: SingleStageQuantizer, private val columns: Array<ColumnDef<*>>, index: PQIndex.Tx): Cursor<Tuple> {
+    /** Prepares [PQLookupTable]s for the given query vector(s). */
+    private val lookupTable: PQLookupTable = quantizer.createLookupTable(query)
 
     /** The sub-transaction this [Cursor] operates upon.  */
-    private val subTx = this.index.context.txn.xodusTx.readonlySnapshot
+    private val xodusTx = index.xodusTx.readonlySnapshot
 
     /** The internal cursor used by this index. */
-    private val cursor = this.index.dataStore.openCursor(this.subTx)
+    private val store = this.xodusTx.environment.openStore(index.dbo.name.storeName(), StoreConfig.USE_EXISTING,  this.xodusTx)
+
+    /** Cursor backing this [PQIndexCursor]. */
+    private val cursor: jetbrains.exodus.env.Cursor = this.store.openCursor(this.xodusTx)
 
     /** The start key. */
     private val startKey = partition.first.toKey()
@@ -37,19 +41,10 @@ class PQIndexCursor(partition: LongRange, val predicate: ProximityPredicate.Scan
     /* The end key. */
     private val endKey = partition.last.toKey()
 
-    /** The [ColumnDef] produced by  this [Cursor]. */
-    private val produces = this.index.columnsFor(predicate).toTypedArray()
-
     /** A begin of cursor flag. */
     private val boc = AtomicBoolean(true)
 
     init {
-        with(MissingTuple) {
-            with(this@PQIndexCursor.index.context.bindings) {
-                this@PQIndexCursor.lookupTable = this@PQIndexCursor.index.quantizer.createLookupTable(this@PQIndexCursor.predicate.query.getValue() as VectorValue<*>)
-            }
-        }
-
         if (this.cursor.getSearchKeyRange(this.startKey) == null) {
             this.boc.set(false)
         }
@@ -76,14 +71,14 @@ class PQIndexCursor(partition: LongRange, val predicate: ProximityPredicate.Scan
     override fun value(): Tuple {
         val signature = SPQSignature.fromEntry(this.cursor.value)
         val approximation = DoubleValue(this.lookupTable.approximateDistance(signature))
-        return StandaloneTuple(LongBinding.compressedEntryToLong(cursor.key), this.produces, arrayOf(approximation))
+        return StandaloneTuple(LongBinding.compressedEntryToLong(cursor.key), this.columns, arrayOf(approximation))
     }
 
     /**
      * Closes this [PQIndexCursor].
      */
     override fun close() {
-        this.subTx.abort()
+        this.xodusTx.abort()
         this.cursor.close()
     }
 }

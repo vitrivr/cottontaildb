@@ -1,11 +1,8 @@
 package org.vitrivr.cottontail.dbms.entity.sequence
 
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.core.values.IntValue
-import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.generators.StringValueGenerator
 import org.vitrivr.cottontail.dbms.entity.AbstractEntityTest
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
@@ -29,11 +26,11 @@ abstract class AbstractSequenceTest: AbstractEntityTest() {
         val ctx1 = DefaultQueryContext("test-sequence-insert", this.catalogue, txn1)
 
         /* Insert all entries. */
-        val catalogueTx1 = this.catalogue.newTx(ctx1)
+        val catalogueTx1 = this.catalogue.createOrResumeTx(ctx1)
         val schema1 = catalogueTx1.schemaForName(this.schemaName)
         val schemaTx1 = schema1.newTx(ctx1)
         val entity1 = schemaTx1.entityForName(TestConstants.TEST_ENTITY_NAME)
-        val entityTx1 = entity1.newTx(ctx1)
+        val entityTx1 = entity1.createOrResumeTx(ctx1)
         repeat(TestConstants.TEST_COLLECTION_SIZE - 1) {
             entityTx1.insert(this.nextRecord())
         }
@@ -44,11 +41,11 @@ abstract class AbstractSequenceTest: AbstractEntityTest() {
         val ctx2 = DefaultQueryContext("test-sequence-read", this.catalogue, txn2)
 
         /* Insert all entries. */
-        val catalogueTx2 = this.catalogue.newTx(ctx2)
+        val catalogueTx2 = this.catalogue.createOrResumeTx(ctx2)
         val schema2 = catalogueTx2.schemaForName(this.schemaName)
         val schemaTx2 = schema2.newTx(ctx2)
         val entity2 = schemaTx2.entityForName(TestConstants.TEST_ENTITY_NAME)
-        val entityTx2 = entity2.newTx(ctx2)
+        val entityTx2 = entity2.createOrResumeTx(ctx2)
         val cursor = entityTx2.cursor(this.entities[0].second.toTypedArray())
         for ((i, record) in cursor.withIndex()) {
             test(record[this.entities[0].second[0]], i)

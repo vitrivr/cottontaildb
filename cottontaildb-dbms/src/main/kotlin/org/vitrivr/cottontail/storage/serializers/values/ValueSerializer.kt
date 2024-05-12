@@ -6,6 +6,7 @@ import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
 import java.io.ByteArrayInputStream
 import org.vitrivr.cottontail.core.types.Value
+import java.nio.ByteBuffer
 
 /**
  * A serializer for Xodus based [Value] serialization and deserialization.

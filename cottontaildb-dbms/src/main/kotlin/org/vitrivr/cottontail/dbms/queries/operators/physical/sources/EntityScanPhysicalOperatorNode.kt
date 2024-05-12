@@ -26,10 +26,10 @@ import java.lang.Math.floorDiv
  * A [UnaryPhysicalOperatorNode] that formalizes a scan of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 3.0.0
+ * @version 3.1.0
  */
 @Suppress("UNCHECKED_CAST")
-class EntityScanPhysicalOperatorNode(override val groupId: Int,  val entity: EntityTx, override val columns: List<Binding.Column>, val partitionIndex: Int = 0, val partitions: Int = 1) : NullaryPhysicalOperatorNode() {
+class EntityScanPhysicalOperatorNode(override val groupId: Int, val tx: EntityTx, override val columns: List<Binding.Column>, val partitionIndex: Int = 0, val partitions: Int = 1) : NullaryPhysicalOperatorNode() {
 
     companion object {
         private const val NODE_NAME = "ScanEntity"
@@ -44,13 +44,13 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int,  val entity: Ent
 
     /** The number of rows returned by this [EntityScanPhysicalOperatorNode] equals to the number of rows in the [Entity]. */
     override val outputSize by lazy {
-        floorDiv(this.entity.count(), this.partitions)
+        floorDiv(this.tx.count(), this.partitions)
     }
 
     /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
     override val statistics by lazy {
         this.columns.associate {
-            it.column to this.entity.columnForName(it.physical!!.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
+            it.column to this.tx.columnForName(it.physical!!.name).newTx(this.tx).statistics() as ValueStatistics<Value>
         }
     }
 
@@ -73,7 +73,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int,  val entity: Ent
      *
      * @return Copy of this [EntityScanPhysicalOperatorNode].
      */
-    override fun copy() = EntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns.map { it.copy() })
+    override fun copy() = EntityScanPhysicalOperatorNode(this.groupId, this.tx, this.columns.map { it.copy() })
 
     /**
      * An [EntityScanPhysicalOperatorNode] is always executable
@@ -109,7 +109,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int,  val entity: Ent
      * @param p The partition index.
      * @return Partitioned [EntityScanPhysicalOperatorNode]
      */
-    override fun partition(partitions: Int, p: Int): Physical = EntityScanPhysicalOperatorNode(this.groupId + p, this.entity, this.columns.map { it.copy() }, p, partitions)
+    override fun partition(partitions: Int, p: Int): Physical = EntityScanPhysicalOperatorNode(this.groupId + p, this.tx, this.columns.map { it.copy() }, p, partitions)
 
     /**
      * Converts this [EntityScanPhysicalOperatorNode] to a [EntityScanOperator].
@@ -117,7 +117,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int,  val entity: Ent
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      * @return [EntityScanOperator]
      */
-    override fun toOperator(ctx: QueryContext): EntityScanOperator = EntityScanOperator(this.groupId, this.entity, this.columns, this.partitionIndex, this.partitions, ctx)
+    override fun toOperator(ctx: QueryContext): EntityScanOperator = EntityScanOperator(this.groupId, this.tx, this.columns, this.partitionIndex, this.partitions, ctx)
 
     /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.physical!!.name.toString() }}]"
@@ -128,7 +128,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int,  val entity: Ent
      * @return [Digest]
      */
     override fun digest(): Digest {
-        var result = this.entity.dbo.name.hashCode() + 1L
+        var result = this.tx.dbo.name.hashCode() + 1L
         result += 31L * result + this.columns.hashCode()
         result += 31L * result + this.partitionIndex.hashCode()
         result += 31L * result + this.partitions.hashCode()

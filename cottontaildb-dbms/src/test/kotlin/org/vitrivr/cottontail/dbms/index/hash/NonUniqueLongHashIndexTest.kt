@@ -52,11 +52,11 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
         try {
-            val catalogueTx = this.catalogue.newTx(ctx)
+            val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.newTx(ctx)
+            val entityTx = entity.createOrResumeTx(ctx)
             val index = entityTx.indexForName(this.indexName)
             val indexTx = index.newTx(ctx)
 
@@ -98,11 +98,11 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
         /* Obtain necessary transactions. */
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
-        val catalogueTx = this.catalogue.newTx(ctx)
+        val catalogueTx = this.catalogue.createOrResumeTx(ctx)
         val schema = catalogueTx.schemaForName(this.schemaName)
         val schemaTx = schema.newTx(ctx)
         val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = entity.newTx(ctx)
+        val entityTx = entity.createOrResumeTx(ctx)
         val index = entityTx.indexForName(this.indexName)
         val indexTx = index.newTx(ctx)
 

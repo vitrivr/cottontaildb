@@ -32,16 +32,6 @@ interface DynamicExplorationGraph<I:Comparable<I>,V>: Graph<Node<I>> {
      *
      * @param query The query [VectorValue] to search for.
      * @param k The number of nearest neighbours to return.
-     * @param eps The epsilon value for the search.
-     * @return [List] of [Triple]s containing the [Distance] elements for the nearest neighbours.
-     */
-    fun search(query: V, k: Int, eps: Float): List<Distance<I>>
-
-    /**
-     * Performs a search in this [AbstractDynamicExplorationGraph].
-     *
-     * @param query The query [VectorValue] to search for.
-     * @param k The number of nearest neighbours to return.
      * @return [List] of [Triple]s containing the [Distance] elements for the nearest neighbours.
      */
     fun search(query: V, k: Int, eps: Float, seeds: List<Node<I>>): List<Distance<I>>
@@ -51,7 +41,7 @@ interface DynamicExplorationGraph<I:Comparable<I>,V>: Graph<Node<I>> {
      *
      * @return [CloseableIterator] over all [Node]s.
      */
-    override fun vertices(): CloseableIterator<Node<I>>
+    override fun vertices(): Iterator<Node<I>>
 
     /**
      * Returns the value [V] for the given [Node].

@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.entity
 
 import jetbrains.exodus.env.BitmapIterator
+import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.tree.LongIterator
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
@@ -9,6 +10,7 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.dbms.entity.EntityMetadata.Companion.storeName
 
 /**
  * A [Cursor] implementation for the [DefaultEntity].
@@ -25,7 +27,7 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
     /** The wrapped [Cursor] to iterate over columns. */
     @Suppress("UNCHECKED_CAST")
     private val txs: Array<Cursor<Value>> = Array(columns.size) {
-        (entity.columnForName(columns[it].name).newTx(entity.context).cursor() as Cursor<Value>)
+        (entity.columnForName(columns[it].name).newTx(entity).cursor() as Cursor<Value>)
     }
 
     /** The array of output [ColumnDef] produced by this [DefaultEntityCursor]. */
@@ -34,10 +36,10 @@ class DefaultEntityCursor(entity: DefaultEntity.Tx, columns: Array<ColumnDef<*>>
     }.toTypedArray()
 
     /** The transaction snapshot used for the cursor. */
-    private val snapshot = entity.context.txn.xodusTx.readonlySnapshot
+    private val snapshot = entity.xodusTx.readonlySnapshot
 
     /** The [LongIterator] backing this [DefaultEntityCursor]. */
-    private val iterator = entity.bitmap.iterator(this.snapshot) as BitmapIterator
+    private val iterator = this.snapshot.environment.openBitmap(entity.dbo.name.storeName(), StoreConfig.USE_EXISTING, this.snapshot).iterator(this.snapshot) as BitmapIterator
 
     /** The [TupleId] this [DefaultEntityCursor] is currently pointing to. */
     private var current: TupleId = -1

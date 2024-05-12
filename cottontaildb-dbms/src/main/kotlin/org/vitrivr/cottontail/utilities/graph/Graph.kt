@@ -10,7 +10,16 @@ import org.vitrivr.cottontail.core.basics.CloseableIterator
  */
 interface Graph<V> {
     /** The number of vertices in this [MutableGraph]. */
-    val size: Long
+    val size: Int
+
+    /**
+     * Checks if this [Graph] contains an edge from vertex [V] to vertex [V].
+     *
+     * @param from The from vertex [V].
+     * @param to THe to vertex[V]
+     * @return True if an edge exists, false otherwise.
+     */
+    fun hasEdge(from: V, to: V): Boolean
 
     /**
      * Returns all edges of a vertex [V] in this [MutableGraph].
@@ -25,7 +34,7 @@ interface Graph<V> {
      *
      * @return A [CloseableIterator] over all vertices [V] in this [MutableGraph].
      */
-    fun vertices(): CloseableIterator<V>
+    fun vertices(): Iterator<V>
 
     /**
      * Returns the weight from one vertex [V] to another vertex [V] in this [MutableGraph].

@@ -5,73 +5,57 @@ import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.types.RealVectorValue
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
-import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
-import org.vitrivr.cottontail.dbms.catalogue.storeName
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructuralMetadata
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata
+import org.vitrivr.cottontail.dbms.index.basic.AbstractIndex
+import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata.Companion.storeName
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractAsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.IndexRebuilderState
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
-import org.vitrivr.cottontail.dbms.index.va.VAFIndexConfig
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
-import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.index.IndexStatistic
-import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
+import org.vitrivr.cottontail.server.Instance
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * An [AbstractAsyncIndexRebuilder] that can be used to concurrently rebuild a [VAFIndex].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
-class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAsyncIndexRebuilder<VAFIndex>(index, context.catalogue, context.txn.manager) {
+class AsyncVAFIndexRebuilder(index: VAFIndex, instance: Instance): AbstractAsyncIndexRebuilder<VAFIndex>(index, instance) {
 
     /** A temporary [Store] used to */
     private val tmpDataStore: Store = this.tmpEnvironment.openStore(this.index.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.tmpTx, true)
         ?: throw DatabaseException.DataCorruptionException("Temporary data store for index ${this.index.name} could not be created.")
 
     /** Reference to [EquidistantVAFMarks] used by this [AsyncVAFIndexRebuilder] (only available after [IndexRebuilderState.INITIALIZED]). */
-    private val newMarks: EquidistantVAFMarks
+    private lateinit var newMarks: EquidistantVAFMarks
 
     /** Reference to [EquidistantVAFMarks] used by this [AsyncVAFIndexRebuilder] (only available after [IndexRebuilderState.INITIALIZED]). */
-    private val indexedColumn: ColumnDef<*>
+    private lateinit var indexedColumn: ColumnDef<*>
 
     /** A [ConcurrentLinkedQueue] that acts as log for side-channel events. TODO: Make persistent. */
     private val log = ConcurrentLinkedQueue<VAFIndexingEvent>()
 
-    init {
-        /* Read basic index properties. */
-        val indexMetadataStore = IndexMetadata.store(this.index.catalogue, context.txn.xodusTx)
-        val indexEntryRaw = indexMetadataStore.get(context.txn.xodusTx, NameBinding.Index.toEntry(this@AsyncVAFIndexRebuilder.index.name)) ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index ${this@AsyncVAFIndexRebuilder.index.name}: Could not read catalogue entry for index.")
-        val indexEntry = IndexMetadata.fromEntry(indexEntryRaw)
-        val config = indexEntry.config as VAFIndexConfig
-        val column = this.index.name.entity().column(indexEntry.columns[0])
-
-        /* Tx objects required for index rebuilding. */
-        val entityTx = this.index.parent.newTx(context)
-        val columnTx = entityTx.columnForName(column).newTx(context)
-        this.indexedColumn = columnTx.columnDef
-
-        /* Generates new marks. */
-        this.newMarks = EquidistantVAFMarks(columnTx.statistics() as RealVectorValueStatistics<*>, config.marksPerDimension)
-    }
-
     /**
      * Internal scan method that is being executed when executing the BUILD stage of this [AsyncVAFIndexRebuilder].
      *
-     * @param context The [QueryContext] to execute the BUILD stage in.
+     * @param indexTx The [AbstractIndex.Tx] to execute the REPLACE stage with.
      * @return True on success, false otherwise.
      */
-    override fun internalBuild(context: QueryContext): Boolean {
+    override fun internalBuild(indexTx: AbstractIndex.Tx): Boolean {
+        require(indexTx is VAFIndex.Tx) { "VAFIndexRebuilder can only be used with VAFIndex.Tx instances." }
+        this.newMarks = VAFIndex.obtainMarks(indexTx)
+        this.indexedColumn = indexTx.columns[0]
+
         /* Tx objects required for index rebuilding. */
-        val entityTx = this.index.parent.newTx(context)
-        val columnTx = entityTx.columnForName(this.indexedColumn.name).newTx(context)
-        val count = entityTx.count()
+        val columnTx = indexTx.parent.columnForName(this.indexedColumn.name).newTx(indexTx.parent)
+
+        val count = indexTx.parent.count()
 
         /* Iterate over entity and update index with entries. */
         var counter = 0
@@ -99,25 +83,27 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
     /**
      * Internal merge method that is being executed when executing the MERGE stage of this [AsyncVAFIndexRebuilder].
      *
-     * @param context The [QueryContext] to execute the MERGE stage in.
+     * @param indexTx The [AbstractIndex.Tx] to execute the REPLACE stage with.
      * @param store The [Store] to merge data into.
      * @return True on success, false otherwise.
      */
-    override fun internalReplace(context: QueryContext, store: Store): Boolean {
+    override fun internalReplace(indexTx: AbstractIndex.Tx, store: Store): Boolean {
+        require(indexTx is VAFIndex.Tx) { "VAFIndexRebuilder can only be used with VAFIndex.Tx instances." }
+
         /* Begin replacement process. */
         val count = this.tmpDataStore.count(this.tmpTx)
         this.tmpDataStore.openCursor(this.tmpTx).use {cursor ->
             var counter = 0
             while (cursor.next) {
                 if (this.state != IndexRebuilderState.REPLACING) return false
-                if (!store.add(context.txn.xodusTx, cursor.key, cursor.value)) {
+                if (!store.add(indexTx.xodusTx, cursor.key, cursor.value)) {
                     return false
                 }
 
                 /* Data is flushed every once in a while. */
                 if ((++counter) % 1_000_000 == 0) {
                     LOGGER.debug("Rebuilding index (MERGE) {} ({}) still running ({} / {})...", this.index.name, this.index.type, counter, count)
-                    if (!context.txn.xodusTx.flush()) {
+                    if (!indexTx.xodusTx.flush()) {
                         return false
                     }
                 }
@@ -125,10 +111,10 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractAs
         }
 
         /* Update stored VAFMarks. */
-        IndexStructCatalogueEntry.write(this.index.name, this.newMarks, this.index.catalogue, context.txn.xodusTx, EquidistantVAFMarks.Binding)
+        IndexStructuralMetadata.write(indexTx, this.newMarks, EquidistantVAFMarks.Binding)
 
         /* Reset to default efficiency of VAF after rebuild. */
-        this.index.catalogue.indexStatistics.updatePersistently(this.index.name, IndexStatistic(VAFIndex.FILTER_EFFICIENCY_CACHE_KEY, VAFIndex.DEFAULT_FILTER_EFFICIENCY.toString()), context.txn.xodusTx)
+        indexTx.context.statistics[this.index.name] = listOf(IndexStatistic(VAFIndex.FILTER_EFFICIENCY_CACHE_KEY, VAFIndex.DEFAULT_FILTER_EFFICIENCY.toString()))
         return true
     }
 

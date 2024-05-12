@@ -8,19 +8,33 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.column.Column
-import org.vitrivr.cottontail.dbms.general.Tx
+import org.vitrivr.cottontail.dbms.column.ColumnTx
+import org.vitrivr.cottontail.dbms.execution.transactions.SubTransaction
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexConfig
 import org.vitrivr.cottontail.dbms.index.basic.IndexTx
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
 /**
- * A [Tx] that operates on a single [Entity]. [Tx]s are a unit of isolation for data operations (read/write).
+ * A [SubTransaction] that operates on a single [Entity]. [SubTransaction]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 3.0.0
+ * @version 4.0.0
  */
-interface EntityTx : Tx, Scanable, Countable, Modifiable {
+interface EntityTx : SubTransaction, Scanable, Countable, Modifiable {
+    /** The parent [SchemaTx] this [EntityTx] belongs to. */
+    val parent: SchemaTx
+
+    /** The [QueryContext] this [EntityTx] belongs to. Typically determined by parent [SchemaTx]. */
+    val context: QueryContext
+        get() = this.parent.context
+
+    /** The [Transaction] this [EntityTx] belongs to. Typically determined by parent [SchemaTx]. */
+    override val transaction: Transaction
+        get() = this.context.txn
 
     /** Reference to the [Entity] this [EntityTx] belongs to. */
     override val dbo: Entity
@@ -96,7 +110,7 @@ interface EntityTx : Tx, Scanable, Countable, Modifiable {
      * @param type Type of the [Index] to create.
      * @param columns The list of [Name.ColumnName] to create [Index] for.
      * @param configuration The [IndexConfig] to initialize the [Index] with.
-     * @return Newly created [Index] for use in context of this [Tx]
+     * @return Newly created [Index] for use in context of this [SubTransaction]
      */
     fun createIndex(name: Name.IndexName, type: IndexType, columns: List<Name.ColumnName>, configuration: IndexConfig<*>): Index
 
@@ -106,4 +120,9 @@ interface EntityTx : Tx, Scanable, Countable, Modifiable {
      * @param name [Name.IndexName] of the [Index] to drop.
      */
     fun dropIndex(name: Name.IndexName)
+
+    /**
+     * Truncates the [Entity] backed by this [EntityTx]. This operation will remove all data from the [Entity
+     */
+    fun truncate()
 }

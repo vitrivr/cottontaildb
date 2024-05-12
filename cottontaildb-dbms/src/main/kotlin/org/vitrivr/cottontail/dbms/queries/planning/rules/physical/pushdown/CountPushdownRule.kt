@@ -40,7 +40,7 @@ object CountPushdownRule : RewriteRule {
         require(input is EntityScanPhysicalOperatorNode) { "Called CountPushdownRule.apply() on a node that does not directly follow an entity scan. This is a programmer's error!" }
 
         /* Preform rewrite. */
-        val p = EntityCountPhysicalOperatorNode(input.groupId, input.entity, node.out)
+        val p = EntityCountPhysicalOperatorNode(input.groupId, input.tx, node.out)
         return node.output?.copyWithOutput(p) ?: p
     }
 }

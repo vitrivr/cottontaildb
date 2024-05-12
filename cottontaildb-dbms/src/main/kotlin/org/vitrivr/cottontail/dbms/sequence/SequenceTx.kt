@@ -1,17 +1,33 @@
 package org.vitrivr.cottontail.dbms.sequence
 
 import org.vitrivr.cottontail.core.values.LongValue
-import org.vitrivr.cottontail.dbms.general.Tx
+import org.vitrivr.cottontail.dbms.column.ColumnTx
+import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.execution.transactions.SubTransaction
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
 /**
- * A [Tx] that operates on a single [SequenceTx].
+ * A [SubTransaction] that operates on a single [SequenceTx].
  *
- * [Tx]s are a unit of isolation for data  operations (read/write).
+ * [SubTransaction]s are a unit of isolation for data  operations (read/write).
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
-interface SequenceTx: Tx {
+interface SequenceTx: SubTransaction {
+    /** The parent [SchemaTx] this [SequenceTx] belongs to. */
+    val parent: SchemaTx
+
+    /** The [QueryContext] this [SequenceTx] belongs to. Typically determined by parent [SchemaTx]. */
+    val context: QueryContext
+        get() = this.parent.context
+
+    /** The [Transaction] this [SequenceTx] belongs to. Typically determined by parent [SchemaTx]. */
+    override val transaction: Transaction
+        get() = this.context.txn
+
     /**
      * Returns the next value of this [Sequence].
      *

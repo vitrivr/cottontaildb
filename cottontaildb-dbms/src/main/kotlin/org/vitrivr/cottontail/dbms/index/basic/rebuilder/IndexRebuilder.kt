@@ -1,7 +1,9 @@
 package org.vitrivr.cottontail.dbms.index.basic.rebuilder
 
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.index.basic.AbstractIndex
 import org.vitrivr.cottontail.dbms.index.basic.Index
+import org.vitrivr.cottontail.dbms.index.basic.IndexTx
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
@@ -20,7 +22,8 @@ interface IndexRebuilder<T: Index> {
     /**
      * Starts the index rebuilding process for this [IndexRebuilder].
      *
+     * @param indexTx The [IndexTx] to use.
      * @return True on success, false otherwise.
      */
-    fun rebuild(): Boolean
+    fun rebuild(indexTx: IndexTx): Boolean
 }

@@ -5,15 +5,16 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.general.DBO
-import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import org.vitrivr.cottontail.dbms.execution.transactions.SubTransaction
 
 /**
  * A [DBO] in the Cottontail DB data model that represents a [Column]. A [Column] can hold values
  * of a given type, as specified by the [ColumnDef].
  *
  * @author Ralph Gasser
- * @version 3.0.0
+ * @version 4.0.0
  */
 interface Column<T: Value> : DBO {
 
@@ -53,9 +54,10 @@ interface Column<T: Value> : DBO {
         get() = this.columnDef.nullable
 
     /**
-     * Creates a new [ColumnTx] for the given [QueryContext].
+     * Creates a new [SubTransaction] for the given parent [EntityTx].
      *
-     * @param context [QueryContext] to create [ColumnTx] for.
+     * @param parent The parent [EntityTx] object.
+     * @return New [ColumnTx]
      */
-    override fun newTx(context: QueryContext): ColumnTx<T>
+    fun newTx(parent: EntityTx): ColumnTx<T>
 }

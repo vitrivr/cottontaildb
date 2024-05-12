@@ -124,8 +124,7 @@ object GrpcQueryBinder {
     context(QueryContext)
     fun bind(insert: CottontailGrpc.InsertMessage): InsertLogicalOperatorNode {
         /* Parse entity for INSERT. */
-        val entity = parseAndBindEntity(insert.from.scan.entity)
-        val entityTx = entity.newTx(this@QueryContext)
+        val entityTx = parseAndBindEntity(insert.from.scan.entity)
 
         /* Parse columns to INSERT. */
         val columns = Array<ColumnDef<*>>(insert.elementsCount) {
@@ -160,8 +159,7 @@ object GrpcQueryBinder {
     context(QueryContext)
     fun bind(insert: CottontailGrpc.BatchInsertMessage): InsertLogicalOperatorNode {
         /* Parse entity for BATCH INSERT. */
-        val entity = parseAndBindEntity(insert.from.scan.entity)
-        val entityTx = entity.newTx(this@QueryContext)
+        val entityTx = parseAndBindEntity(insert.from.scan.entity)
 
         /* Parse columns to BATCH INSERT. */
         val columns = Array<ColumnDef<*>>(insert.columnsCount) {
@@ -274,8 +272,7 @@ object GrpcQueryBinder {
     private fun parseAndBindFrom(from: CottontailGrpc.From, columns: Map<Name.ColumnName, Name?>): OperatorNode.Logical = try {
         when (from.fromCase) {
             CottontailGrpc.From.FromCase.SCAN -> {
-                val entity = parseAndBindEntity(from.scan.entity)
-                val entityTx = entity.newTx(this@QueryContext)
+                val entityTx = parseAndBindEntity(from.scan.entity)
                 val fetch = entityTx.listColumns().map { def ->
                     val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && (c.value as Name.ColumnName).matches(def.name) }
                     if (name == null || name.key.column == Name.WILDCARD) {
@@ -287,8 +284,7 @@ object GrpcQueryBinder {
                 EntityScanLogicalOperatorNode(this@QueryContext.nextGroupId(), entityTx, fetch)
             }
             CottontailGrpc.From.FromCase.SAMPLE -> {
-                val entity = parseAndBindEntity(from.sample.entity)
-                val entityTx = entity.newTx(this@QueryContext)
+                val entityTx = parseAndBindEntity(from.sample.entity)
                 val fetch = entityTx.listColumns().map { def ->
                     val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && (c.value as Name.ColumnName).matches(def.name) }
                     if (name == null || name.key.column == Name.WILDCARD) {
@@ -313,11 +309,11 @@ object GrpcQueryBinder {
      * @return [Entity] that matches [CottontailGrpc.EntityName]
      */
     context(QueryContext)
-    private fun parseAndBindEntity(entity: CottontailGrpc.EntityName): Entity {
+    private fun parseAndBindEntity(entity: CottontailGrpc.EntityName): EntityTx {
         val name = entity.parse()
-        val catalogueTx = this@QueryContext.catalogue.newTx(this@QueryContext)
-        val schemaTx = catalogueTx.schemaForName(name.schema()).newTx(this@QueryContext)
-        return schemaTx.entityForName(name)
+        val catalogueTx = this@QueryContext.catalogueTx
+        val schemaTx = catalogueTx.schemaForName(name.schema()).newTx(catalogueTx)
+        return schemaTx.entityForName(name).createOrResumeTx(schemaTx)
     }
 
     /**

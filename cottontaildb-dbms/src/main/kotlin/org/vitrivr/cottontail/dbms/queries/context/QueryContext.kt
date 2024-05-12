@@ -7,11 +7,14 @@ import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
+import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
+import org.vitrivr.cottontail.dbms.statistics.StatisticsManager
+import org.vitrivr.cottontail.server.Instance
 
 /**
  * A context for query binding, planning and execution. The [QueryContext] bundles all the
@@ -19,15 +22,21 @@ import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
  * and [BindingContext]
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.4.0
  */
 interface QueryContext {
 
     /** An identifier for this [QueryContext]. */
     val queryId: String
 
-    /** The [Catalogue] this [QueryContext] belongs to.. */
+    /** The [Catalogue] this [QueryContext] uses. */
     val catalogue: Catalogue
+
+    /** The [StatisticsManager] this [QueryContext] uses. */
+    val statistics: StatisticsManager
+
+    /** The canonical [CatalogueTx] for this [QueryContext]. */
+    val catalogueTx: CatalogueTx
 
     /** The [Transaction] the query held by this [QueryContext] is associated with. */
     val txn: Transaction

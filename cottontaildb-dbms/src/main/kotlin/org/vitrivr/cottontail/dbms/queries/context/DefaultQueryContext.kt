@@ -9,12 +9,15 @@ import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
+import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
+import org.vitrivr.cottontail.dbms.statistics.StatisticsManager
+import org.vitrivr.cottontail.server.Instance
 import java.util.*
 
 /**
@@ -24,7 +27,18 @@ import java.util.*
  * @author Ralph Gasser
  * @version 3.1.0
  */
-class DefaultQueryContext(override val queryId: String, override val catalogue: Catalogue, override val txn: Transaction, override val hints: Set<QueryHint> = emptySet()): QueryContext {
+class DefaultQueryContext(override val queryId: String, instance: Instance, override val txn: Transaction, override val hints: Set<QueryHint> = emptySet()): QueryContext {
+
+    /** The canonical [CatalogueTx] for this [QueryContext]. */
+    override val catalogueTx by lazy {
+        this.catalogue.createOrResumeTx(this)
+    }
+
+    /** The [Catalogue] this [QueryContext] uses. */
+    override val catalogue: Catalogue = instance.catalogue
+
+    /** The [StatisticsManager] this [QueryContext] uses. */
+    override val statistics: StatisticsManager = instance.statistics
 
     /** List of bound [Value]s for this [DefaultQueryContext]. */
     override val bindings: BindingContext = DefaultBindingContext()
@@ -150,6 +164,10 @@ class DefaultQueryContext(override val queryId: String, override val catalogue: 
             get() = this@DefaultQueryContext.queryId
         override val catalogue: Catalogue
             get() = this@DefaultQueryContext.catalogue
+        override val statistics: StatisticsManager
+            get() = this@DefaultQueryContext.statistics
+        override val catalogueTx: CatalogueTx
+            get() = this@DefaultQueryContext.catalogueTx
         override val txn: Transaction
             get() = this@DefaultQueryContext.txn
         override val hints: Set<QueryHint>

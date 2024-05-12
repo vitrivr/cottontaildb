@@ -55,11 +55,11 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn)
-            val catalogueTx = this.catalogue.newTx(ctx)
+            val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.newTx(ctx)
+            val entityTx = entity.createOrResumeTx(ctx)
             val bindings = this.columns.map { ctx.bindings.bind(it, it) }
 
             /* Prepare simple SAMPLE with projection. */
@@ -72,7 +72,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
                 DeferFetchOnFetchRewriteRule.apply(sample0, ctx)
             }
         } finally {
-            txn.rollback()
+            txn.abort()
         }
     }
 
@@ -84,11 +84,11 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn)
-            val catalogueTx = this.catalogue.newTx(ctx)
+            val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.newTx(ctx)
+            val entityTx = entity.createOrResumeTx(ctx)
             val bindings = this.columns.map { ctx.bindings.bind(it, it) }
 
             /* Prepare simple SAMPLE with projection. */
@@ -102,7 +102,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
             /* Output should be null because no deferral can take place. */
             Assertions.assertEquals(null, result1)
         } finally {
-            txn.rollback()
+            txn.abort()
         }
     }
 
@@ -114,11 +114,11 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn)
-            val catalogueTx = this.catalogue.newTx(ctx)
+            val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.newTx(ctx)
+            val entityTx = entity.createOrResumeTx(ctx)
             val bindings = this.columns.map { ctx.bindings.bind(it, it) }
 
             /* Prepare simple scan with projection. */
@@ -138,7 +138,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
             Assertions.assertTrue(result1.columns == projection0.columns) /* Columns of the resulting PROJECTION should be the same as the original PROJECTION */
             Assertions.assertTrue((result1.input as EntityScanPhysicalOperatorNode).columns == projection0.columns) /* Columns SCANNED should only contain the projected columns. */
         } finally {
-            txn.rollback()
+            txn.abort()
         }
     }
 
@@ -150,11 +150,11 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn)
-            val catalogueTx = this.catalogue.newTx(ctx)
+            val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.newTx(ctx)
+            val entityTx = entity.createOrResumeTx(ctx)
             val bindings = this.columns.map { ctx.bindings.bind(it, it) }
 
             /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
@@ -186,7 +186,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
             Assertions.assertTrue(scan1.columns.all { combined.contains(it) }) /* Columns FETCHED + columns SCANNED should be all columns in the original SCAN. */
             Assertions.assertTrue(scan1.columns == filter0.predicate.columns.toList()) /* Columns SCANNED should only contain the columns used by FILTER. */
         } finally {
-            txn.rollback()
+            txn.abort()
         }
     }
 
@@ -197,11 +197,11 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("populate-database", this.catalogue, txn)
         try {
-            val catalogueTx = this.catalogue.newTx(ctx)
+            val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.newTx(ctx)
+            val entityTx = entity.createOrResumeTx(ctx)
 
             /* Insert data and track how many entries have been stored for the test later. */
             entityTx.insert(StandaloneTuple(1L, this.columns.toTypedArray(), arrayOf(LongValue(1L), DoubleValue(0.0), StringValue("test"), IntValue(1), BooleanValue(true))))
@@ -209,7 +209,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
 
             txn.commit()
         } catch (e: Throwable) {
-            txn.rollback()
+            txn.abort()
             throw e
         }
     }

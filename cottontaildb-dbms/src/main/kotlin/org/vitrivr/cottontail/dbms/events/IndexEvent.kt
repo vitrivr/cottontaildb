@@ -1,9 +1,7 @@
 package org.vitrivr.cottontail.dbms.events
 
-import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.index.basic.IndexState
-import org.vitrivr.cottontail.dbms.index.basic.IndexType
 
 /**
  * An [Event] that signals changes with respect to [Index] structures.
@@ -11,25 +9,22 @@ import org.vitrivr.cottontail.dbms.index.basic.IndexType
  * @author Ralph Gasser
  * @version 1.0.0
  */
-interface IndexEvent: Event {
-    /** The name of the [Index] affected by this [IndexEvent]. */
-    val index: Name.IndexName
-
-    /** The [IndexType] of the [Index] affected by this [IndexEvent]. */
-    val type: IndexType
+sealed interface IndexEvent: Event {
+    /** The [Index] affected by this [IndexEvent]. */
+    val index: Index
 
     /**
      * An [IndexEvent] that signals creation of an [Index].
      */
-    data class Created(override val index: Name.IndexName, override val type: IndexType): IndexEvent
+    data class Created(override val index: Index): IndexEvent
 
     /**
      * An [IndexEvent] that signals dropping of an [Index].
      */
-    data class Dropped(override val index: Name.IndexName, override val type: IndexType): IndexEvent
+    data class Dropped(override val index: Index): IndexEvent
 
     /**
      * An [IndexEvent] that signals [IndexState] change of an [Index].
      */
-    data class State(override val index: Name.IndexName, override val type: IndexType, val state: IndexState): IndexEvent
+    data class State(override val index: Index, val state: IndexState): IndexEvent
 }

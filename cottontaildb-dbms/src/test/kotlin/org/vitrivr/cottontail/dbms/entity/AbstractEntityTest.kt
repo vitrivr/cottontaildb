@@ -61,7 +61,7 @@ abstract class AbstractEntityTest: AbstractDatabaseTest() {
         this.logger.info("Creating schema ${this.schemaName}.")
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx = DefaultQueryContext("index-test-prepare", this.catalogue, txn)
-        val catalogueTx = this.catalogue.newTx(ctx)
+        val catalogueTx = this.catalogue.createOrResumeTx(ctx)
         val ret = catalogueTx.createSchema(this.schemaName)
         txn.commit()
         return ret
@@ -75,7 +75,7 @@ abstract class AbstractEntityTest: AbstractDatabaseTest() {
         val ctx = DefaultQueryContext("index-test-prepare-entity", this.catalogue, txn)
         for (e in this.entities) {
             this.logger.info("Creating schema ${e.first}.")
-            val catalogueTx = this.catalogue.newTx(ctx)
+            val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
             schemaTx.createEntity(e.first, e.second.map { it.name to ColumnMetadata(it.type, Compression.NONE, it.nullable, it.primary, it.autoIncrement) })

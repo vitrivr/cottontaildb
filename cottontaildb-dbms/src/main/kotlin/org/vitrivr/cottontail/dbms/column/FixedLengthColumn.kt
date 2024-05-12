@@ -1,5 +1,8 @@
 package org.vitrivr.cottontail.dbms.column
 
+import it.unimi.dsi.fastutil.longs.Long2ObjectFunction
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
@@ -10,19 +13,21 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.tablets.AbstractTablet
-import org.vitrivr.cottontail.core.values.tablets.Tablet
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.catalogue.storeName
+import org.vitrivr.cottontail.dbms.catalogue.toKey
+import org.vitrivr.cottontail.dbms.column.ColumnMetadata.Companion.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.general.AbstractTx
+import org.vitrivr.cottontail.dbms.execution.transactions.SubTransaction
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.statistics.defaultStatistics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
-import org.vitrivr.cottontail.storage.serializers.SerializerFactory
+import org.vitrivr.cottontail.storage.blob.VectorFile
+import org.vitrivr.cottontail.storage.blob.VectorId
 import org.vitrivr.cottontail.storage.serializers.tablets.Compression
-import org.vitrivr.cottontail.storage.serializers.tablets.TabletSerializer
-import kotlin.concurrent.withLock
+import java.nio.file.Paths
 
 /**
  * The default [Column] implementation for fixed-length columns based on JetBrains Xodus. [Value]s are stored in [AbstractTablet]s of 64 entries.
@@ -35,13 +40,7 @@ import kotlin.concurrent.withLock
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, override val parent: DefaultEntity, val compression: Compression) : Column<T> {
-
-    companion object {
-        const val TABLET_SIZE = 128
-        const val TABLET_SHR = 7
-    }
-
+class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, override val parent: DefaultEntity) : Column<T> {
 
     /** The [Name.ColumnName] of this [VariableLengthColumn]. */
     override val name: Name.ColumnName
@@ -51,49 +50,45 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
     override val catalogue: DefaultCatalogue
         get() = this.parent.catalogue
 
+    /** An internal cache of all ongoing [DefaultSchema.Tx]s for this [DefaultSchema]. */
+    private val transactions = Long2ObjectOpenHashMap<FixedLengthColumn<T>.Tx>()
+
     init {
-        require(type !is Types.String && this.columnDef.type !is Types.ByteString) {
-            "FixedLengthColumn can only be used for fixed-length types."
-        }
+        require(type !is Types.String && this.columnDef.type !is Types.ByteString) { "FixedLengthColumn can only be used for fixed-length types." }
     }
 
     /**
-     * Creates and returns a new [VariableLengthColumn.Tx] for the given [QueryContext].
+     * Creates and returns a new [VariableLengthColumn.Tx] for the given [EntityTx].
      *
-     * @param context The [QueryContext] to create the [VariableLengthColumn.Tx] for.
+     * @param parent The parent [EntityTx] to create the [VariableLengthColumn.Tx] for.
      * @return New [VariableLengthColumn.Tx]
      */
-    override fun newTx(context: QueryContext): ColumnTx<T> = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
+    override fun newTx(parent: EntityTx): ColumnTx<T> {
+        require(parent is DefaultEntity.Tx) { "FixedLengthColumn can only be accessed with a DefaultEntity.Tx!" }
+        return this.transactions.computeIfAbsent(parent.context.txn.transactionId, Long2ObjectFunction {
+            val subTransaction = Tx(parent)
+            parent.context.txn.registerSubtransaction(subTransaction)
+            subTransaction
+        })
+    }
 
     /**
      * A [Tx] that affects this [VariableLengthColumn].
      */
-    inner class Tx constructor(context: QueryContext) : AbstractTx(context), ColumnTx<T>, org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization {
+    inner class Tx(override val parent: DefaultEntity.Tx): ColumnTx<T>, SubTransaction.WithCommit {
 
-        init {
-            /* Cache this Tx for future use. */
-            context.txn.cacheTx(this)
-        }
+        /** Reference to the surrounding entities Xodus transaction. */
+        internal val xodusTx = this.parent.xodusTx
+
+        /** The [VectorFile] backing this [FixedLengthColumn]. */
+        internal val file = VectorFile(Paths.get(this.xodusTx.environment.location).resolve(this.dbo.name.simple), this@FixedLengthColumn.type)
 
         /** Internal data [Store] reference. */
-        private val dataStore: Store = this@FixedLengthColumn.catalogue.transactionManager.environment.openStore(
+        private val store: Store = this.xodusTx.environment.openStore(
             this@FixedLengthColumn.name.storeName(),
-            StoreConfig.USE_EXISTING,
-            this.context.txn.xodusTx,
-            false
-        ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@FixedLengthColumn.name} is missing.")
-
-        /** The internal [TabletSerializer] reference used for de-/serialization. */
-        private val serializer: TabletSerializer<T> = SerializerFactory.tablet(this@FixedLengthColumn.columnDef.type, TABLET_SIZE, this@FixedLengthColumn.compression)
-
-        /** The [TupleId] of the currently loaded [Tablet]. -1 if no [Tablet] has been loaded. */
-        private var tabletId: TupleId = -1
-
-        /** The currently loaded [Tablet]. */
-        private var tablet: Tablet<T>? = null
-
-        /** Flag indicating, that the currently loaded [Tablet] has been changed. */
-        private var dirty: Boolean = false
+            StoreConfig.WITHOUT_DUPLICATES,
+            this.xodusTx
+        )
 
         /** Reference to [Column] this [Tx] belongs to. */
         override val dbo: FixedLengthColumn<T>
@@ -105,8 +100,9 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
          * @return [ValueStatistics].
          */
         @Suppress("UNCHECKED_CAST")
-        override fun statistics(): ValueStatistics<T> = this.txLatch.withLock {
-            val statistics = this@FixedLengthColumn.catalogue.statisticsManager[this@FixedLengthColumn.name]?.statistics as? ValueStatistics<T>
+        @Synchronized
+        override fun statistics(): ValueStatistics<T> {
+            val statistics = this.context.statistics[this@FixedLengthColumn.name]?.statistics as? ValueStatistics<T>
             if (statistics != null) return statistics
             return this.columnDef.type.defaultStatistics()
         }
@@ -117,11 +113,11 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
          * @param tupleId The ID of the desired entry
          * @return The desired [Value] or null.
          */
-        override fun read(tupleId: TupleId): T? = this.txLatch.withLock {
-            val tabletId = tupleId ushr TABLET_SHR
-            val tabletIdx = (tupleId % TABLET_SIZE).toInt()
-            loadTabletF(tabletId)
-            return this.tablet!![tabletIdx]
+        @Synchronized
+        override fun read(tupleId: TupleId): T? {
+            val vectorIdRaw = this.store.get(this.xodusTx, tupleId.toKey()) ?: return null
+            val vectorId: VectorId = LongBinding.compressedEntryToLong(vectorIdRaw)
+            return this.file.get(vectorId)
         }
 
         /**
@@ -129,16 +125,14 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
          *
          * @param tupleId The ID of the desired entry
          * @param value The new value [T] for the entry (or null).
-         * @return The desired entry.
+         * @return The previous [Value] entry.
          */
-        override fun write(tupleId: TupleId, value: T) = this.txLatch.withLock {
-            val tabletId = tupleId ushr TABLET_SHR
-            val tabletIdx = (tupleId % TABLET_SIZE).toInt()
-            loadTabletF(tabletId)
-            val old = this.tablet!![tabletIdx]
-            this.tablet!![tabletIdx] = value
-            this.dirty = true
-            old
+        @Synchronized
+        override fun write(tupleId: TupleId, value: T): T? {
+            val old = this.read(tupleId)
+            val vectorId = this.file.append(value)
+            this.store.put(this.xodusTx, tupleId.toKey(), vectorId.toKey())
+            return old
         }
 
         /**
@@ -147,14 +141,10 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
          * @param tupleId The ID of the entry to delete.
          * @return The previous [Value] entry.
          */
-        override fun delete(tupleId: TupleId): T? = this.txLatch.withLock {
-            val tabletId = tupleId ushr TABLET_SHR
-            val tabletIdx = (tupleId % TABLET_SIZE).toInt()
-            loadTabletF(tabletId)
-            val old = this.tablet!![tabletIdx]
-            this.tablet!![tabletIdx] = null
-            this.dirty = true
-            old
+        override fun delete(tupleId: TupleId): T? {
+            val old = this.read(tupleId)
+            this.store.delete(this.xodusTx, tupleId.toKey())
+            return old
         }
 
         /**
@@ -163,44 +153,26 @@ class FixedLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, overrid
          * @return [Cursor]
          */
         @Suppress("UNCHECKED_CAST")
+        @Synchronized
         override fun cursor(): Cursor<T?> {
-            val count = this.dataStore.count(this.context.txn.xodusTx)
+            val count = this.store.count(this.xodusTx)
             if (count == 0L) return EmptyColumnCursor as Cursor<T?>
             return FixedLengthCursor(this)
         }
 
         /**
-         * Flushes in-memory [AbstractTablet] to disk, if needed.
-         */
-        override fun beforeCommit() {
-            this.flushTablet()
-        }
-
-        /**
-         * Loads the [AbstractTablet] with the specified [TupleId] into memory.
          *
-         * @param tabletId [TupleId] of the [AbstractTablet] to load.
          */
-        private fun loadTabletF(tabletId: TupleId) {
-            if (this.tabletId == tabletId) return
-            this.flushTablet() /* Flush tablet to disk if necessary. */
-            this.tabletId = tabletId
-            val rawTablet = this.dataStore.get(this.context.txn.xodusTx, LongBinding.longToCompressedEntry(tabletId))
-            if (rawTablet != null) {
-                this.tablet = this.serializer.fromEntry(rawTablet)
-            } else {
-                this.tablet = Tablet.of(TABLET_SIZE, this@FixedLengthColumn.type)
-            }
+        override fun commit() {
+            /* No op */
         }
 
         /**
-         * Flushes the currently active tablet to disk, if necessary.
+         * Flushes the [VectorFile] backing this [FixedLengthColumn] to disk before committing.
          */
-        private fun flushTablet() {
-            if (this.dirty && this.tablet != null) { /* Flush current tablet if needed. */
-                this.dataStore.put(this.context.txn.xodusTx, LongBinding.longToCompressedEntry(this.tabletId), this.serializer.toEntry(this.tablet!!))
-                this.dirty = false
-            }
+        override fun prepareCommit(): Boolean {
+            this.file.flush()
+            return true
         }
     }
 }

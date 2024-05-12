@@ -2,9 +2,11 @@ package org.vitrivr.cottontail.dbms.schema
 
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
+import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.general.DBO
+import org.vitrivr.cottontail.dbms.execution.transactions.SubTransaction
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
@@ -17,7 +19,7 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * @see Column
  *
  * @author Ralph Gasser
- * @version 3.0.0
+ * @version 4.0.0
  */
 interface Schema : DBO {
     /** The [Catalogue] this [Schema] belongs to. */
@@ -27,10 +29,10 @@ interface Schema : DBO {
     override val name: Name.SchemaName
 
     /**
-     * Creates and returns a new [SchemaTx] for the given [QueryContext].
+     * Creates a new [SubTransaction] for the given [QueryContext] and parent [CatalogueTx].
      *
-     * @param context The [QueryContext] to create the [SchemaTx] for.
+     * @param parent The parent [CatalogueTx] object.
      * @return New [SchemaTx]
      */
-    override fun newTx(context: QueryContext): SchemaTx
+    fun newTx(parent: CatalogueTx): SchemaTx
 }

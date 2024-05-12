@@ -14,12 +14,12 @@ import kotlin.system.measureTimeMillis
  * An [Operator.SourceOperator] used during query execution. Drops an [Index]
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 class DropIndexOperator(private val tx: CatalogueTx, private val name: Name.IndexName, override val context: QueryContext): AbstractDataDefinitionOperator(name, "DROP INDEX") {
     override fun toFlow(): Flow<Tuple> = flow {
-        val schemaTxn = this@DropIndexOperator.tx.schemaForName(this@DropIndexOperator.name.schema()).newTx(this@DropIndexOperator.context)
-        val entityTxn = schemaTxn.entityForName(this@DropIndexOperator.name.entity()).newTx(this@DropIndexOperator.context)
+        val schemaTxn = this@DropIndexOperator.tx.schemaForName(this@DropIndexOperator.name.schema()).newTx(this@DropIndexOperator.tx)
+        val entityTxn = schemaTxn.entityForName(this@DropIndexOperator.name.entity()).createOrResumeTx(schemaTxn)
         val time = measureTimeMillis {
             entityTxn.dropIndex(this@DropIndexOperator.name)
         }

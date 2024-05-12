@@ -1,5 +1,8 @@
 package org.vitrivr.cottontail.dbms.column
 
+import it.unimi.dsi.fastutil.longs.Long2ObjectFunction
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.basics.Cursor
@@ -8,12 +11,13 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
+import org.vitrivr.cottontail.dbms.column.ColumnMetadata.Companion.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.statistics.defaultStatistics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import org.vitrivr.cottontail.storage.serializers.SerializerFactory
@@ -27,7 +31,7 @@ import kotlin.concurrent.withLock
  * @see ColumnTx
  *
  * @author Ralph Gasser
- * @version 4.0.0
+ * @version 5.0.0
  */
 class VariableLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, override val parent: DefaultEntity) : Column<T> {
 
@@ -39,47 +43,41 @@ class VariableLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, over
     override val catalogue: DefaultCatalogue
         get() = this.parent.catalogue
 
+    /** An internal cache of all ongoing [DefaultSchema.Tx]s for this [DefaultSchema]. */
+    private val transactions = Long2ObjectOpenHashMap<VariableLengthColumn<T>.Tx>()
+
     /**
-     * Creates and returns a new [VariableLengthColumn.Tx] for the given [QueryContext].
+     * Creates and returns a new [VariableLengthColumn.Tx] for the given [EntityTx].
      *
-     * @param context The [QueryContext] to create the [VariableLengthColumn.Tx] for.
+     * @param parent The parent [EntityTx] to create the [VariableLengthColumn.Tx] for.
      * @return New [VariableLengthColumn.Tx]
      */
-    override fun newTx(context: QueryContext): ColumnTx<T>
-        = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
-
-    override fun equals(other: Any?): Boolean {
-        if (other !is VariableLengthColumn<*>) return false
-        if (other.catalogue != this.catalogue) return false
-        if (other.name != this.name) return false
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = name.hashCode()
-        result = 31 * result + parent.hashCode()
-        return result
+    override fun newTx(parent: EntityTx): ColumnTx<T> {
+        require(parent is DefaultEntity.Tx) { "VariableLengthColumns can only be accessed with a DefaultEntity.Tx!" }
+        return this.transactions.computeIfAbsent(parent.context.txn.transactionId, Long2ObjectFunction {
+            val subTransaction = Tx(parent)
+            parent.context.txn.registerSubtransaction(subTransaction)
+            subTransaction
+        })
     }
 
     /**
      * A [Tx] that affects this [VariableLengthColumn].
      */
-    inner class Tx constructor(context: QueryContext) : AbstractTx(context), ColumnTx<T>  {
-        init {
-            /* Cache this Tx for future use. */
-            context.txn.cacheTx(this)
-        }
+    inner class Tx(override val parent: DefaultEntity.Tx): ColumnTx<T>  {
+
+        /** Reference to the surrounding entities Xodus transaction. */
+        internal val xodusTx = this.parent.xodusTx
 
         /** Internal data [Store] reference. */
-        private val dataStore: Store = this@VariableLengthColumn.catalogue.transactionManager.environment.openStore(
+        private val dataStore: Store = this.xodusTx.environment.openStore(
             this@VariableLengthColumn.name.storeName(),
-            StoreConfig.USE_EXISTING,
-            this.context.txn.xodusTx,
-            false
-        ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@VariableLengthColumn.name} is missing.")
+            StoreConfig.WITHOUT_DUPLICATES,
+            this.xodusTx
+        )
 
         /** The internal [ValueSerializer] reference used for de-/serialization. */
-        internal val binding: ValueSerializer<T> = SerializerFactory.value(this@VariableLengthColumn.columnDef.type)
+        private val binding: ValueSerializer<T> = SerializerFactory.value(this@VariableLengthColumn.columnDef.type)
 
         /** Reference to [Column] this [Tx] belongs to. */
         override val dbo: VariableLengthColumn<T>
@@ -91,8 +89,9 @@ class VariableLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, over
          * @return [ValueStatistics].
          */
         @Suppress("UNCHECKED_CAST")
-        override fun statistics(): ValueStatistics<T> = this.txLatch.withLock {
-            val statistics = this@VariableLengthColumn.catalogue.statisticsManager[this@VariableLengthColumn.name]?.statistics as? ValueStatistics<T>
+        @Synchronized
+        override fun statistics(): ValueStatistics<T> {
+            val statistics = this.context.statistics[this@VariableLengthColumn.name]?.statistics as? ValueStatistics<T>
             if (statistics != null) return statistics
             return type.defaultStatistics()
         }
@@ -105,8 +104,9 @@ class VariableLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, over
          * @return The desired entry.
          * @throws DatabaseException If the tuple with the desired ID is invalid.
          */
-        override fun read(tupleId: TupleId): T? = this.txLatch.withLock {
-            val ret = this.dataStore.get(this.context.txn.xodusTx, tupleId.toKey()) ?: return@withLock null
+        @Synchronized
+        override fun read(tupleId: TupleId): T? {
+            val ret = this.dataStore.get(this.xodusTx, tupleId.toKey()) ?: return null
             return this.binding.fromEntry(ret)
         }
 
@@ -117,20 +117,17 @@ class VariableLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, over
          * @param value The [Value]
          * @return True on success, false otherwise.
          */
-        override fun write(tupleId: TupleId, value: T): T? = this.txLatch.withLock {
-            val rawTuple = tupleId.toKey()
+        @Synchronized
+        override fun write(tupleId: TupleId, value: T): T? {
+            val tupleIdRaw = tupleId.toKey()
             val valueRaw = this.binding.toEntry(value)
-            val oldRaw = this.dataStore.get(this.context.txn.xodusTx, tupleId.toKey())
+            val oldRaw = this.dataStore.get(this.xodusTx, tupleIdRaw)
 
             /* Update value. */
-            this.dataStore.put(this.context.txn.xodusTx, rawTuple, valueRaw)
+            this.dataStore.put(this.xodusTx, tupleIdRaw, valueRaw)
 
             /* Return previous value. */
-            if (oldRaw != null) {
-                this.binding.fromEntry(oldRaw)
-            } else {
-                null
-            }
+            return oldRaw?.let { this.binding.fromEntry(it)  }
         }
 
         /**
@@ -139,19 +136,16 @@ class VariableLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, over
          * @param tupleId The [TupleId] of the entry that should be deleted.
          * @return The old [Value]
          */
-        override fun delete(tupleId: TupleId): T? = this.txLatch.withLock {
-            val rawTupleId = tupleId.toKey()
-            val oldRaw = this.dataStore.get(this.context.txn.xodusTx, tupleId.toKey())
+        @Synchronized
+        override fun delete(tupleId: TupleId): T? {
+            val tupleIdRaw = tupleId.toKey()
+            val oldRaw = this.dataStore.get(this.xodusTx, tupleIdRaw)
 
             /* Delete value. */
-            this.dataStore.delete(this.context.txn.xodusTx, rawTupleId)
+            this.dataStore.delete(this.xodusTx, tupleIdRaw)
 
             /* Return previous value. */
-            if (oldRaw != null) {
-                this.binding.fromEntry(oldRaw)
-            } else {
-                null
-            }
+            return oldRaw?.let { this.binding.fromEntry(it) }
         }
 
         /**
@@ -160,8 +154,9 @@ class VariableLengthColumn<T : Value>(override val columnDef: ColumnDef<T>, over
          * @return [Cursor]
          */
         @Suppress("UNCHECKED_CAST")
-        override fun cursor(): Cursor<T?> = this.txLatch.withLock {
-            val count = this.dataStore.count(this.context.txn.xodusTx)
+        @Synchronized
+        override fun cursor(): Cursor<T?> {
+            val count = this.dataStore.count(this.xodusTx)
             if (count == 0L) return EmptyColumnCursor as Cursor<T?>
             return VariableLengthCursor(this)
         }

@@ -1,8 +1,6 @@
 package org.vitrivr.cottontail.utilities.serializers.json
 
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.Serializer
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -11,8 +9,15 @@ import kotlinx.serialization.encoding.Encoder
 import java.nio.file.Path
 import java.nio.file.Paths
 
-@ExperimentalSerializationApi
-@Serializer(forClass = Path::class)
+/**
+ * A [KSerializer] for [Path] objects.
+ *
+ * @author Ralph Gasser
+ * @version 1.0.0
+ *
+ * @see Path
+ * @see KSerializer
+ */
 object PathSerializer : KSerializer<Path> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("NIOPathSerializer", PrimitiveKind.STRING)
     override fun deserialize(decoder: Decoder): Path = Paths.get(decoder.decodeString())

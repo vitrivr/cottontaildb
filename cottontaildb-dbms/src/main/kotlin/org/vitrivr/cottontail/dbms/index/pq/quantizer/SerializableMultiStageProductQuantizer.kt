@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.IntVectorValue
 import org.vitrivr.cottontail.core.values.LongVectorValue
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructuralMetadata
 import org.xerial.snappy.Snappy
 import java.io.ByteArrayInputStream
 
@@ -19,7 +19,7 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class SerializableMultiStageProductQuantizer(val coarse: Array<DoubleArray>, val fine: Array<Array<DoubleArray>>): IndexStructCatalogueEntry()  {
+class SerializableMultiStageProductQuantizer(val coarse: Array<DoubleArray>, val fine: Array<Array<DoubleArray>>): IndexStructuralMetadata()  {
 
     /**
      * The [ComparableBinding] used to de-/serialize the [SerializableSingleStageProductQuantizer].
@@ -116,12 +116,12 @@ class SerializableMultiStageProductQuantizer(val coarse: Array<DoubleArray>, val
     }
 
     /**
-     * Trivial comparator between two [IndexStructCatalogueEntry]. Proably never used.
+     * Trivial comparator between two [IndexStructuralMetadata]. Proably never used.
      *
-     * @param other The other [IndexStructCatalogueEntry] to compare this [IndexStructCatalogueEntry] to.
+     * @param other The other [IndexStructuralMetadata] to compare this [IndexStructuralMetadata] to.
      * @return -1, 0 or 1
      */
-    override fun compareTo(other: IndexStructCatalogueEntry): Int {
+    override fun compareTo(other: IndexStructuralMetadata): Int {
         if (other !is SerializableMultiStageProductQuantizer) return -1
         for ((i, cb) in this.coarse.withIndex()) {
             for ((j, d) in cb.withIndex()) {

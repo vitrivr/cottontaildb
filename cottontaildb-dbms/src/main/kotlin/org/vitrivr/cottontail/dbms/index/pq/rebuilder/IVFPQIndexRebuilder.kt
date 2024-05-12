@@ -6,9 +6,10 @@ import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.VectorValue
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructuralMetadata
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.vitrivr.cottontail.dbms.index.basic.AbstractIndex
 import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.pq.IVFPQIndex
@@ -21,7 +22,7 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * An [AbstractIndexRebuilder] for the [IVFPQIndex].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
 class IVFPQIndexRebuilder(index: IVFPQIndex, context: QueryContext): AbstractIndexRebuilder<IVFPQIndex>(index, context) {
 
@@ -30,19 +31,20 @@ class IVFPQIndexRebuilder(index: IVFPQIndex, context: QueryContext): AbstractInd
      *
      * @return True on success, false on failure.
      */
-    override fun rebuildInternal(): Boolean {
+    override fun rebuildInternal(indexTx: AbstractIndex.Tx): Boolean {
+        require(indexTx is IVFPQIndex.Tx) { "IVFPQIndexRebuilder can only be accessed with a IVFPQIndex.Tx!" }
+
         /* Read basic index properties. */
-        val indexMetadataStore = IndexMetadata.store(this.index.catalogue, context.txn.xodusTx)
-        val indexEntryRaw = indexMetadataStore.get(context.txn.xodusTx, NameBinding.Index.toEntry(this@IVFPQIndexRebuilder.index.name)) ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index ${this@IVFPQIndexRebuilder.index.name}: Could not read catalogue entry for index.")
+        val indexMetadataStore = IndexMetadata.store(indexTx.parent.parent.xodusTx)
+        val indexEntryRaw = indexMetadataStore.get(indexTx.parent.parent.xodusTx, NameBinding.Index.toEntry(this@IVFPQIndexRebuilder.index.name)) ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index ${this@IVFPQIndexRebuilder.index.name}: Could not read catalogue entry for index.")
         val indexEntry = IndexMetadata.fromEntry(indexEntryRaw)
         val config = indexEntry.config as IVFPQIndexConfig
         val column = this.index.name.entity().column(indexEntry.columns[0])
 
         /* Tx objects required for index rebuilding. */
-        val entityTx = this.index.parent.newTx(this.context)
-        val columnTx = entityTx.columnForName(column).newTx(this.context)
-        val dataStore = this.tryClearAndOpenStore() ?: return false
-        val count = entityTx.count()
+        val columnTx = indexTx.parent.columnForName(column).newTx(indexTx.parent)
+        val dataStore = this.tryClearAndOpenStore(indexTx) ?: return false
+        val count = indexTx.parent.count()
 
         /* Obtain PQ data structure. */
         val type = columnTx.columnDef.type as Types.Vector<*,*>
@@ -59,14 +61,14 @@ class IVFPQIndexRebuilder(index: IVFPQIndex, context: QueryContext): AbstractInd
                 val value = cursor.value()
                 if (value is VectorValue<*>) {
                     val signature = quantizer.quantize(cursor.key(), value)
-                    if (!dataStore.put(this.context.txn.xodusTx, ShortBinding.shortToEntry(signature.first), signature.second.toEntry())) {
+                    if (!dataStore.put(indexTx.xodusTx, ShortBinding.shortToEntry(signature.first), signature.second.toEntry())) {
                         return false
                     }
 
                     /* Data is flushed every once in a while. */
                     if ((++counter) % 1_000_000 == 0) {
                         LOGGER.debug("Rebuilding index {} ({}) still running ({} / {})...", this.index.name, this.index.type, counter, count)
-                        if (!this.context.txn.xodusTx.flush()) {
+                        if (!indexTx.xodusTx.flush()) {
                             return false
                         }
                     }
@@ -75,7 +77,7 @@ class IVFPQIndexRebuilder(index: IVFPQIndex, context: QueryContext): AbstractInd
         }
 
         /* Update stored ProductQuantizer. */
-        IndexStructCatalogueEntry.write(this.index.name, quantizer.toSerializableProductQuantizer(), this.index.catalogue, this.context.txn.xodusTx, SerializableMultiStageProductQuantizer.Binding)
+        IndexStructuralMetadata.write(indexTx, quantizer.toSerializableProductQuantizer(), SerializableMultiStageProductQuantizer.Binding)
         return true
     }
 }

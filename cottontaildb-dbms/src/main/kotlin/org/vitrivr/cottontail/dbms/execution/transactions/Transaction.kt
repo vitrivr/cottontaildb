@@ -5,12 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.execution.ExecutionContext
-import org.vitrivr.cottontail.dbms.execution.locking.Lock
-import org.vitrivr.cottontail.dbms.execution.locking.LockManager
-import org.vitrivr.cottontail.dbms.execution.locking.LockMode
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.general.DBO
-import org.vitrivr.cottontail.dbms.general.Tx
 
 /**
  * A [Transaction] can be used to query and interact with a [Transaction].
@@ -18,12 +13,9 @@ import org.vitrivr.cottontail.dbms.general.Tx
  * This is the view of a [Transaction] that is available to the operators that execute a query.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 3.0.0
  */
 interface Transaction: ExecutionContext, TransactionMetadata {
-
-    /** The Xodus [Transaction] associated with this [Transaction]. */
-    val xodusTx: Transaction
 
     /** The [TransactionManager] this [Transaction] belongs to. */
     val manager: TransactionManager
@@ -44,7 +36,7 @@ interface Transaction: ExecutionContext, TransactionMetadata {
     /**
      * Rolls back this [Transaction] thus reverting all operations executed so far.
      */
-    fun rollback()
+    fun abort()
 
     /**
      * Tries to kill this [Transaction] interrupting all running queries.
@@ -55,20 +47,11 @@ interface Transaction: ExecutionContext, TransactionMetadata {
     fun kill()
 
     /**
-     * Caches a [Tx] for later re-use.
+     * Registers a [Substransaction] with this [Transaction].
      *
-     * @param tx The [DBO] to create the [Tx] for.
-     * @return True on success, false otherwise.
+     * @param subTransaction The [SubTransaction] to register.
      */
-    fun cacheTx(tx: Tx): Boolean
-
-    /**
-     * Obtains a cached [Tx] for the given [DBO].
-     *
-     * @param dbo The [DBO] to create the [Tx] for.
-     * @return The resulting [Tx] or null
-     */
-    fun <T: Tx> getCachedTxForDBO(dbo: DBO): T?
+    fun registerSubtransaction(subTransaction: SubTransaction)
 
     /**
      * Signals an [Event] to this [Transaction].

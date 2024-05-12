@@ -52,7 +52,7 @@ class IndexStatisticsManager(private val environment: Environment, transaction: 
                 val name = NameBinding.Index.fromEntry(cursor.key)
                 val map = Object2ObjectLinkedOpenHashMap<String,IndexStatistic>()
                 do {
-                    val item = IndexStatistic.entryToObject(cursor.value) as IndexStatistic
+                    val item = IndexStatistic.entryToObject(cursor.value)
                     map[item.key] = item
                 } while (cursor.nextDup)
                 this.statistics[name] = map

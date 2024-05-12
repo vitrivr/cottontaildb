@@ -4,7 +4,6 @@ import com.google.protobuf.Empty
 import io.grpc.Status
 import jetbrains.exodus.ExodusException
 import kotlinx.coroutines.flow.Flow
-import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
@@ -13,16 +12,17 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.system.ListTransac
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.TXNGrpc
 import org.vitrivr.cottontail.grpc.TXNGrpcKt
+import org.vitrivr.cottontail.server.Instance
 import kotlin.time.ExperimentalTime
 
 /**
  * Implementation of [TXNGrpc.TXNImplBase], the gRPC endpoint for managing [TransactionManager.TransactionImpl]s in Cottontail DB
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 2.4.0
  */
 @ExperimentalTime
-class TXNService constructor(override val catalogue: Catalogue) : TXNGrpcKt.TXNCoroutineImplBase(), TransactionalGrpcService {
+class TXNService constructor(override val instance: Instance) : TXNGrpcKt.TXNCoroutineImplBase(), TransactionalGrpcService {
     /**
      * gRPC endpoint for beginning an new [TransactionManager.TransactionImpl].
      */
@@ -63,7 +63,7 @@ class TXNService constructor(override val catalogue: Catalogue) : TXNGrpcKt.TXNC
             throw Status.INVALID_ARGUMENT.withDescription("Failed to execute ROLLBACK: Invalid transaction identifier ${request.transactionId }!").asException()
         val ctx = this.queryContextFromMetadata(request, false)
         try {
-            ctx.txn.rollback()
+            ctx.txn.abort()
             return Empty.getDefaultInstance()
         } catch (e: Throwable) {
             throw Status.INTERNAL.withDescription("Failed to execute COMMIT due to unexpected error: ${e.message}").asException()

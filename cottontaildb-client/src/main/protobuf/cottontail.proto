@@ -142,6 +142,7 @@ enum IndexType {
     PQ = 4;
     IVFPQ = 5;
     LSH = 6;
+    DEG = 7;
 }
 
 /** The mode of the transaction. */

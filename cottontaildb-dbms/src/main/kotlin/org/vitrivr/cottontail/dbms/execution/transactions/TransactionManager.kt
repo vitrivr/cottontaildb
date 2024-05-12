@@ -5,33 +5,29 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
-import jetbrains.exodus.env.Environment
-import jetbrains.exodus.env.Environments
-import jetbrains.exodus.vfs.ClusteringStrategy
-import jetbrains.exodus.vfs.VfsConfig
-import jetbrains.exodus.vfs.VirtualFileSystem
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.vitrivr.cottontail.config.Config
-import org.vitrivr.cottontail.core.database.Name
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.exceptions.TransactionException
-import org.vitrivr.cottontail.dbms.execution.ExecutionManager
 import org.vitrivr.cottontail.dbms.execution.locking.LockManager
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager.AbstractTransaction
 import org.vitrivr.cottontail.dbms.general.DBO
-import org.vitrivr.cottontail.dbms.general.Tx
+import org.vitrivr.cottontail.server.Instance
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.lang.ref.SoftReference
 import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.StampedLock
+import kotlin.collections.HashSet
+import kotlin.collections.LinkedHashSet
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -39,14 +35,20 @@ import kotlin.coroutines.CoroutineContext
  * create and execute queries within different [AbstractTransaction]s.
  *
  * @author Ralph Gasser
- * @version 1.9.0
+ * @version 2.0.0
  */
-class TransactionManager(val executionManager: ExecutionManager, val config: Config) {
+class TransactionManager(val instance: Instance) {
+
+    companion object {
+        /** [Logger] instance used by [TransactionManager]. */
+        private val LOGGER: Logger = LoggerFactory.getLogger(TransactionManager::class.java)
+    }
+
     /** Map of [AbstractTransaction]s that are currently PENDING or RUNNING. */
-    private val transactions = Collections.synchronizedMap(Long2ObjectOpenHashMap<AbstractTransaction>(this.config.execution.transactionTableSize, VERY_FAST_LOAD_FACTOR))
+    private val transactions = Collections.synchronizedMap(Long2ObjectOpenHashMap<AbstractTransaction>(this.instance.config.execution.transactionTableSize, VERY_FAST_LOAD_FACTOR))
 
     /** List of past [TransactionMetadata] objects. */
-    private val transactionHistory: MutableList<TransactionMetadata> = Collections.synchronizedList(ArrayList(this.config.execution.transactionHistorySize))
+    private val transactionHistory: MutableList<TransactionMetadata> = Collections.synchronizedList(ArrayList(this.instance.config.execution.transactionHistorySize))
 
     /** Set of [TransactionObserver]s registered with this [TransactionManager]. */
     private val observers = Collections.synchronizedSet(ObjectOpenHashSet<TransactionObserver>())
@@ -59,30 +61,6 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
 
     /** The [LockManager] instance used by this [TransactionManager]. */
     internal val lockManager = LockManager<DBO>()
-
-    /** The main Xodus [Environment] used by Cottontail DB. This is an internal variable and not part of the official interface. */
-    internal val environment: Environment = Environments.newInstance(
-        this.config.dataFolder().toFile(),
-        this.config.xodus.toEnvironmentConfig()
-    )
-
-    /** The [VirtualFileSystem] used by this [TransactionManager]. */
-    internal val vfs: VirtualFileSystem
-
-    init {
-        val tx = this.environment.beginExclusiveTransaction()
-        try {
-            /** Initialize virtual file system. */
-            val config = VfsConfig()
-            config.clusteringStrategy = ClusteringStrategy.QuadraticClusteringStrategy(65536)
-            config.clusteringStrategy.maxClusterSize = 65536 * 16
-            this.vfs = VirtualFileSystem(this.environment, config, tx)
-            tx.commit()
-        } catch (e: Throwable) {
-            tx.abort()
-            throw e
-        }
-    }
 
     /**
      * Returns the [AbstractTransaction] for the provided [TransactionId].
@@ -148,15 +126,6 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
     }
 
     /**
-     * Attempts to shut down this [TransactionManager].
-     */
-    fun shutdown() {
-        this.vfs.shutdown()
-        this.executionManager.shutdownAndWait()
-        this.environment.close()
-    }
-
-    /**
      * A concrete [AbstractTransaction] used for executing a query.
      *
      * A [AbstractTransaction] can be of different [TransactionType]s. Their execution semantics may differ slightly.
@@ -187,8 +156,8 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
          */
         private val localObservers: MutableMap<TransactionObserver, SoftReference<MutableList<Event>>> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
-        /** Map of all [Tx] that have been created as part of this [AbstractTransaction]. */
-        private val txns: MutableMap<Name, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
+        /** A [LinkedHashSet] of all [SubTransaction] instances associated with this [AbstractTransaction]. */
+        private val subTransactions = LinkedHashSet<SubTransaction>()
 
         /** A [Mutex] data structure used for synchronisation on the [AbstractTransaction]. */
         private val mutex = Mutex()
@@ -197,8 +166,7 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
         private val activeContexts = HashSet<CoroutineContext>()
 
         /** Timestamp of when this [AbstractTransaction] was created. */
-        final override val created: Long
-            get() = this.xodusTx.startTime
+        final override val created: Long = System.currentTimeMillis()
 
         /** Timestamp of when this [AbstractTransaction] was either COMMITTED or ABORTED. */
         final override var ended: Long? = null
@@ -220,11 +188,11 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
 
         /** The number of available workers for query execution. */
         override val availableQueryWorkers: Int
-            get() = this@TransactionManager.executionManager.availableQueryWorkers()
+            get() = this@TransactionManager.instance.executor.availableQueryWorkers()
 
         /** The number of available workers for intra-query execution. */
         override val availableIntraQueryWorkers: Int
-            get() = this@TransactionManager.executionManager.availableIntraQueryWorkers()
+            get() = this@TransactionManager.instance.executor.availableIntraQueryWorkers()
 
         init {
             /** Add this transaction to the manager's transaction table. */
@@ -239,22 +207,6 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
                 this.localObservers[observer] = SoftReference(LinkedList<Event>())
             }
         }
-        /**
-         * Caches a [Tx] in this [TransactionManager.AbstractTransaction]s cache.
-         *
-         * @param tx The [Tx] to cache
-         * @return True if [Tx] was cached.
-         */
-        override fun cacheTx(tx: Tx): Boolean = this.txns.putIfAbsent(tx.dbo.name, tx) != null
-
-        /**
-         * Tries to retrieve a cached [Tx] from this [TransactionManager.AbstractTransaction]s cache.
-         *
-         * @param dbo The [DBO] to obtain the [Tx] for.
-         * @return The [Tx] or null
-         */
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : Tx> getCachedTxForDBO(dbo: DBO): T? = this.txns[dbo.name] as T?
 
         /**
          * Signals an [Event] to this [AbstractTransaction].
@@ -273,11 +225,20 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
         }
 
         /**
+         * Registers a [SubTransaction] with this [Transaction].
+         *
+         * @param subTransaction The [SubTransaction] to register.
+         */
+        override fun registerSubtransaction(subTransaction: SubTransaction) {
+            this.subTransactions.add(subTransaction)
+        }
+
+        /**
          * Schedules an [Operator] for execution in this [AbstractTransaction] and blocks, until execution has completed.
          *
          * @param operator The [Operator.SinkOperator] that should be executed.
          */
-        override fun execute(operator: Operator): Flow<Tuple> = operator.toFlow().flowOn(this@TransactionManager.executionManager.queryDispatcher).onStart {
+        override fun execute(operator: Operator): Flow<Tuple> = operator.toFlow().flowOn(this@TransactionManager.instance.executor.queryDispatcher).onStart {
             this@AbstractTransaction.mutex.withLock {  /* Update transaction state; synchronise with ongoing COMMITS or ROLLBACKS. */
                 check(this@AbstractTransaction.state.canExecute) {
                     "Cannot start execution of transaction ${this@AbstractTransaction.transactionId} because it is in the wrong state (s = ${this@AbstractTransaction.state})."
@@ -312,57 +273,63 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
             this@AbstractTransaction.mutex.withLock { /* Synchronise with ongoing COMMITS, ROLLBACKS or queries that are being scheduled. */
                 if (!this@AbstractTransaction.state.canCommit)
                     throw TransactionException.Commit(this@AbstractTransaction.transactionId, "Unable to COMMIT because transaction is in wrong state (s = ${this@AbstractTransaction.state}).")
-                this@AbstractTransaction.state = TransactionStatus.FINALIZING
+                this@AbstractTransaction.state = TransactionStatus.PREPARE
+            }
 
-                try {
-                    /* Execute commit finalization. */
-                    for (txn in this@AbstractTransaction.txns.values.filterIsInstance<Tx.WithCommitFinalization>()) {
-                        txn.beforeCommit()
-                    }
+            /* Phase 1: Reach consensus about global commit. */
+            val commitable = this@AbstractTransaction.subTransactions.filterIsInstance<SubTransaction.WithCommit>()
+            val canCommit = try {
+                /* Phase 1: Issue 'PREPARE TO COMMIT' Execute commit finalization. */
+                commitable.all { it.prepareCommit() }
+            } catch (e: Throwable) {
+                LOGGER.error("Failed to commit transaction ${this@AbstractTransaction.transactionId} due to error in PREPARE phase. Aborting...", e)
+                false
+            }
 
-                    /* Execute actual commit. */
-                    if (this@AbstractTransaction.xodusTx.isIdempotent) {
-                        this@AbstractTransaction.xodusTx.abort()
-                    } else if (!this@AbstractTransaction.xodusTx.commit()) {
-                        throw TransactionException.InConflict(this@AbstractTransaction.transactionId)
-                    }
-                    this@AbstractTransaction.state = TransactionStatus.COMMIT
-                } catch (e: Throwable) {
-                    this@AbstractTransaction.xodusTx.abort()
-                    this@AbstractTransaction.state = TransactionStatus.ROLLBACK
-                    throw e
-                } finally {
-                    this@AbstractTransaction.finalizeTransaction()
-                    if (this@AbstractTransaction.state === TransactionStatus.COMMIT) {
-                        this@AbstractTransaction.notifyObservers()
-                    }
-                }
+            /* If the transaction cannot commit, perform a rollback. */
+            if (!canCommit) {
+                this@AbstractTransaction.state = TransactionStatus.ABORT
+                this@AbstractTransaction.performRollback()
+                return@runBlocking
+            } else {
+                this@AbstractTransaction.state = TransactionStatus.COMMIT
+            }
+
+            /* Phase 2: Issue global commit */
+            try {
+                commitable.forEach { it.commit() }
+                this@AbstractTransaction.state = TransactionStatus.COMMITTED
+            } catch (e: Throwable) {
+                LOGGER.error("Failed to commit transaction ${this@AbstractTransaction.transactionId} due to error in GLOBAL COMMIT phase. Trying to abort. Data may be inconsistent", e)
+            } finally {
+                this@AbstractTransaction.finalizeTransaction()
             }
         }
 
         /**
          * Rolls back this [AbstractTransaction] thus reverting all operations executed so far.
          */
-        override fun rollback() = runBlocking {
-            this@AbstractTransaction.mutex.withLock {
+        override fun abort() = runBlocking {
+            this@AbstractTransaction.mutex.withLock { /* Synchronise with ongoing COMMITS, ROLLBACKS or queries that are being scheduled. */
                 if (!this@AbstractTransaction.state.canRollback)
-                    throw TransactionException.Rollback(this@AbstractTransaction.transactionId, "Unable to ROLLBACK because transaction is in wrong state (s = ${this@AbstractTransaction.state}).")
-                this@AbstractTransaction.performRollback()
+                    throw TransactionException.Rollback(this@AbstractTransaction.transactionId, "Unable to ABORT because transaction is in wrong state (s = ${this@AbstractTransaction.state}).")
+                this@AbstractTransaction.state = TransactionStatus.ABORT
             }
+            this@AbstractTransaction.performRollback()
         }
 
         /**
          * Kills this [AbstractTransaction] interrupting all running queries and rolling it back.
          */
         override fun kill() = runBlocking {
-            this@AbstractTransaction.mutex.withLock {
+            this@AbstractTransaction.mutex.withLock { /* Synchronise with ongoing COMMITS, ROLLBACKS or queries that are being scheduled. */
                 /* Cancel all running queries. */
                 if (this@AbstractTransaction.state === TransactionStatus.RUNNING) {
                     this@AbstractTransaction.activeContexts.forEach {
                         it.cancel(CancellationException("Transaction ${this@AbstractTransaction.transactionId} was killed by user."))
                     }
                 }
-                this@AbstractTransaction.state = TransactionStatus.FINALIZING
+                this@AbstractTransaction.state = TransactionStatus.ABORT
             }
 
             /* Wait for all queries to be cancelled. */
@@ -375,16 +342,18 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
         }
 
         /**
-         * Actually performs transaction rollback.
+         * Actually performs transaction rollback; this method is not synchronized!
          */
         private fun performRollback() {
-            this@AbstractTransaction.state = TransactionStatus.FINALIZING
+            require(this.state == TransactionStatus.ABORT) { "Cannot perform rollback of transaction ${this.transactionId} because it is in wrong state (s = ${this.state})." }
             try {
-                for (txn in this@AbstractTransaction.txns.values.filterIsInstance<Tx.WithRollbackFinalization>()) {
-                    txn.beforeRollback()
+                for (txn in this@AbstractTransaction.subTransactions.filterIsInstance<SubTransaction.WithAbort>()) {
+                    txn.abort()
                 }
-                this.xodusTx.abort()
-                this.state = TransactionStatus.ROLLBACK
+                this.state = TransactionStatus.ABORTED
+            } catch (e: Throwable) {
+                this.state = TransactionStatus.ERROR
+                LOGGER.error("Failed to rollback transaction ${this@AbstractTransaction.transactionId} due to error in ABORT phase.", e)
             } finally {
                 this@AbstractTransaction.finalizeTransaction()
             }
@@ -394,7 +363,12 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
          * Finalizes the state of this [AbstractTransaction].
          */
         protected open fun finalizeTransaction() {
-            this@AbstractTransaction.txns.clear()
+            this@AbstractTransaction.subTransactions.removeAll {
+                if (it is SubTransaction.WithFinalization) {
+                    it.finalize(this.state == TransactionStatus.COMMITTED)
+                }
+                true
+            }
             this@AbstractTransaction.ended = System.currentTimeMillis()
 
             /* Remove this transaction from the list of ongoing transactions. */
@@ -402,9 +376,12 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
 
             /* Add this transaction to the transaction history. */
             this@TransactionManager.transactionHistory.add(FinishedTransaction(this))
-            if (this@TransactionManager.transactionHistory.size > this@TransactionManager.config.execution.transactionHistorySize) {
+            if (this@TransactionManager.transactionHistory.size > this@TransactionManager.instance.config.execution.transactionHistorySize) {
                 this@TransactionManager.transactionHistory.removeAt(0)
             }
+
+            /* Notify observers. */
+            this.notifyObservers()
         }
 
         /**
@@ -432,9 +409,6 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
         init {
             require(type.readonly) { "Unsupported transaction type $type for read-only transaction." }
         }
-
-        /** The Xodus [Transaction] backing this [ReadonlyTransaction]. */
-        override val xodusTx = this@TransactionManager.environment.beginReadonlyTransaction()
     }
 
     /**
@@ -447,16 +421,13 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
         }
 
         /** An [ExclusiveTransaction] acquires an exclusive lock on the surrounding [TransactionManager]. */
-        private val stamp = this@TransactionManager.exclusiveLock.tryWriteLock(this@TransactionManager.config.execution.transactionTimeoutMs, TimeUnit.MILLISECONDS)
+        private val stamp = this@TransactionManager.exclusiveLock.tryWriteLock(this@TransactionManager.instance.config.execution.transactionTimeoutMs, TimeUnit.MILLISECONDS)
 
         init {
             if (this.stamp == -1L) {
                 throw TransactionException.Timeout(this.transactionId)
             }
         }
-
-        /** The Xodus [Transaction] backing this [ExclusiveTransaction]. */
-        override val xodusTx = this@TransactionManager.environment.beginExclusiveTransaction()
 
         /**
          * The [ExclusiveTransaction] relinquishes its exclusive lock when it is finalized.

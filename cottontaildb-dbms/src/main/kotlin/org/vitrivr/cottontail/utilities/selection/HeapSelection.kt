@@ -66,7 +66,7 @@ class HeapSelection<T>(val k: Int, val comparator: Comparator<T>) : Iterable<T> 
      * @return The i-th smallest value retained by this [MinHeapSelection]
      */
     operator fun get(i: Int): T {
-        val maxId =  this.heap.size - 1
+        val maxId = this.size - 1
         if (i == maxId) {
             return this.heap[0] ?: throw NoSuchElementException("Element at index $i does not exist in HeapSelection.")
         } else if (!this.sorted) {

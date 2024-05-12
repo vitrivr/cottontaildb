@@ -11,7 +11,6 @@ import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.dbms.index.diskann.graph.deg.AbstractDynamicExplorationGraph
 import org.vitrivr.cottontail.dbms.index.diskann.graph.deg.InMemoryDynamicExplorationGraph
-import org.vitrivr.cottontail.dbms.index.diskann.graph.deg.XodusDynamicExplorationGraph
 import org.vitrivr.cottontail.dbms.index.diskann.graph.serializer.TupleIdNodeSerializer
 import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.utilities.formats.FVecsReader

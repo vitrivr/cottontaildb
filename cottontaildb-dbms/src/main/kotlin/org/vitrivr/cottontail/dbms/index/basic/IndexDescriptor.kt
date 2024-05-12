@@ -2,16 +2,15 @@ package org.vitrivr.cottontail.dbms.index.basic
 
 import jetbrains.exodus.bindings.ComparableBinding
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 
 /**
  * An abstract description of an [Index].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
 interface IndexDescriptor<T: Index> {
 
@@ -37,21 +36,19 @@ interface IndexDescriptor<T: Index> {
      * Initializes the necessary data structures for an [Index] with the given [Name.IndexName] and the given [DefaultEntity.Tx].
      *
      * @param name The [Name.IndexName] of the [Index].
-     * @param catalogue: [Catalogue] reference.
-     * @param context The [Transaction] to perform the transaction with.
+     * @param parent [EntityTx] that requested initialization of the [Index].
      * @return true on success, false otherwise.
      */
-    fun initialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean
+    fun initialize(name: Name.IndexName, parent: EntityTx): Boolean
 
     /**
      * De-initializes the data structures associated with an [Index] with the given [Name.IndexName] and the given [DefaultEntity.Tx].
      *
      * @param name The [Name.IndexName] of the [Index].
-     * @param catalogue: [Catalogue] reference.
-     * @param context The [Transaction] to perform the transaction with.
+     * @param parent [EntityTx] that requested de-initialization of the [Index].
      * @return true on success, false otherwise.
      */
-    fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean
+    fun deinitialize(name: Name.IndexName, parent: EntityTx): Boolean
 
     /**
      * Creates and returns a default [IndexConfig], optionally, initialized with the provided [parameters].

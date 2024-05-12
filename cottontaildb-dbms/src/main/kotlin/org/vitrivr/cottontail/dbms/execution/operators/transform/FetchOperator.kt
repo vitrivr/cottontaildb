@@ -17,9 +17,9 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * the specified [Entity]. Can  be used for late population of requested [ColumnDef]s.
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.2.0
  */
-class FetchOperator(parent: Operator, private val entity: EntityTx, private val fetch: List<Binding.Column>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
+class FetchOperator(parent: Operator, private val tx: EntityTx, private val fetch: List<Binding.Column>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
 
     /** Columns returned by [FetchOperator] are a combination of the parent and the [FetchOperator]'s columns */
     override val columns: List<ColumnDef<*>> = this.parent.columns + this.fetch.map { it.column }
@@ -38,7 +38,7 @@ class FetchOperator(parent: Operator, private val entity: EntityTx, private val 
         val incoming = this@FetchOperator.parent.toFlow()
         val numberOfInputColumns = this@FetchOperator.parent.columns.size
         val cursors = fetch.map {
-            this@FetchOperator.entity.columnForName(it.name).newTx(this@FetchOperator.context).cursor()
+            this@FetchOperator.tx.columnForName(it.name).newTx(this@FetchOperator.tx).cursor()
         }
 
         /* Return mapping flow. */

@@ -19,10 +19,10 @@ import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
  * A [NullaryPhysicalOperatorNode] that formalizes the random sampling of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.7.0
+ * @version 2.8.0
  */
 @Suppress("UNCHECKED_CAST")
-class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, override val columns: List<Binding.Column>, val p: Float, val seed: Long = System.currentTimeMillis()) : NullaryPhysicalOperatorNode() {
+class EntitySamplePhysicalOperatorNode(override val groupId: Int, val tx: EntityTx, override val columns: List<Binding.Column>, val p: Float, val seed: Long = System.currentTimeMillis()) : NullaryPhysicalOperatorNode() {
 
     companion object {
         private const val NODE_NAME = "SampleEntity"
@@ -38,12 +38,12 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
         get() = NODE_NAME
 
     /** The output size of the [EntitySamplePhysicalOperatorNode] is actually limited by the size of the [Entity]s. */
-    override val outputSize: Long = (this.entity.count() * this.p).toLong()
+    override val outputSize: Long = (this.tx.count() * this.p).toLong()
 
     /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
     override val statistics  by lazy {
         this.columns.associate {
-            it.column to this.entity.columnForName(it.physical!!.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
+            it.column to this.tx.columnForName(it.physical!!.name).newTx(this.tx).statistics() as ValueStatistics<Value>
         }
     }
 
@@ -60,7 +60,7 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
      *
      * @return Copy of this [EntityScanPhysicalOperatorNode].
      */
-    override fun copy() = EntitySamplePhysicalOperatorNode(this.groupId, this.entity, this.columns, this.p, this.seed)
+    override fun copy() = EntitySamplePhysicalOperatorNode(this.groupId, this.tx, this.columns, this.p, this.seed)
 
     /**
      * An [EntitySamplePhysicalOperatorNode] is always executable
@@ -75,7 +75,7 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): EntitySampleOperator = EntitySampleOperator(this.groupId, this.entity, this.columns, this.p, this.seed, ctx)
+    override fun toOperator(ctx: QueryContext): EntitySampleOperator = EntitySampleOperator(this.groupId, this.tx, this.columns, this.p, this.seed, ctx)
 
     /** Generates and returns a [String] representation of this [EntitySamplePhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.physical!!.name.toString() }}]"
@@ -86,7 +86,7 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
      * @return [Digest]
      */
     override fun digest(): Digest {
-        var result = this.entity.dbo.name.hashCode() + 2L
+        var result = this.tx.dbo.name.hashCode() + 2L
         result += 31L * result + this.p.hashCode()
         result += 31L * result + this.columns.hashCode()
         return result

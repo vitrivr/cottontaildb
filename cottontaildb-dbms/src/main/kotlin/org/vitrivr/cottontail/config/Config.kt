@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.utilities.serializers.json.PathSerializer
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.UUID
 
 /**
  * Cottontail DB configuration class.
@@ -44,7 +45,10 @@ data class Config(
         val memory: MemoryConfig = MemoryConfig()
 ) {
         /** Returns a path to the main data folder used by Cottontail DB. */
-        fun dataFolder(): Path = this.root.resolve("xodus")
+        fun catalogueFolder(): Path = this.root.resolve("catalogue")
+
+        /** Returns a path to the main data folder used by Cottontail DB. */
+        fun dataFolder(uuid: UUID): Path = this.root.resolve("data").resolve(uuid.toString())
 
         /** Returns a path to the statistics data folder used by Cottontail DB. */
         fun statisticsFolder(): Path = this.root.resolve("statistics")

@@ -19,14 +19,14 @@ import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
  * An [Operator.SourceOperator] used during query execution. Retrieves information about an entity.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.EntityName, override val context: QueryContext) : Operator.SourceOperator() {
     override val columns: List<ColumnDef<*>> = ColumnSets.DDL_ABOUT_COLUMNS
 
     override fun toFlow(): Flow<Tuple> = flow {
-        val schemaTxn = this@AboutEntityOperator.tx.schemaForName(this@AboutEntityOperator.name.schema()).newTx(this@AboutEntityOperator.context)
-        val entityTxn = schemaTxn.entityForName(this@AboutEntityOperator.name).newTx(this@AboutEntityOperator.context)
+        val schemaTxn = this@AboutEntityOperator.tx.schemaForName(this@AboutEntityOperator.name.schema()).newTx(this@AboutEntityOperator.tx)
+        val entityTxn = schemaTxn.entityForName(this@AboutEntityOperator.name).createOrResumeTx(schemaTxn)
 
         val columns = this@AboutEntityOperator.columns.toTypedArray()
         var rowId = 0L
@@ -47,21 +47,20 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
         /* Describe columns. */
         val cols = entityTxn.listColumns()
         cols.forEach {
-            val column = entityTxn.columnForName(it.name)
             emit(
                 StandaloneTuple(rowId++, columns, arrayOf(
-                StringValue(it.name.toString()),
-                StringValue("COLUMN"),
-                StringValue(it.type.name),
-                LongValue(entityTxn.count()),
-                IntValue(it.type.logicalSize),
-                BooleanValue(it.nullable),
-                if (it.primary) {
-                    StringValue("PRIMARY KEY")
-                } else {
-                    null
-                }
-            ))
+                    StringValue(it.name.toString()),
+                    StringValue("COLUMN"),
+                    StringValue(it.type.name),
+                    LongValue(entityTxn.count()),
+                    IntValue(it.type.logicalSize),
+                    BooleanValue(it.nullable),
+                    if (it.primary) {
+                        StringValue("PRIMARY KEY")
+                    } else {
+                        null
+                    })
+                )
             )
         }
 
@@ -69,7 +68,7 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
         val indexes = entityTxn.listIndexes()
         indexes.forEach {
             val index = entityTxn.indexForName(it)
-            val indexTx = index.newTx(this@AboutEntityOperator.context)
+            val indexTx = index.newTx(entityTxn)
             emit(
                 StandaloneTuple(rowId++, columns, arrayOf(
                 StringValue(it.toString()),

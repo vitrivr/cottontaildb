@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.dbms.index.lucene
 
+import it.unimi.dsi.fastutil.longs.Long2ObjectFunction
 import jetbrains.exodus.bindings.ComparableBinding
+import jetbrains.exodus.vfs.VirtualFileSystem
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.document.Document
 import org.apache.lucene.index.IndexWriter
@@ -25,26 +27,25 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
-import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.execution.transactions.SubTransaction
 import org.vitrivr.cottontail.dbms.index.basic.*
-import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.hash.BTreeIndex
+import org.vitrivr.cottontail.dbms.index.lsh.LSHIndex
+import org.vitrivr.cottontail.dbms.index.pq.rebuilder.AsyncPQIndexRebuilder
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import org.vitrivr.cottontail.server.Instance
 import org.vitrivr.cottontail.storage.lucene.XodusDirectory
-import kotlin.concurrent.withLock
 
 /**
  * An Apache Lucene based [AbstractIndex]. The [LuceneIndex] allows for fast search on text using the EQUAL or LIKE operator.
@@ -86,13 +87,14 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * Initialize the [XodusDirectory] for a [LuceneIndex].
          *
          * @param name The [Name.IndexName] of the [LuceneIndex].
-         * @param catalogue [Catalogue] reference.
-         * @param context The [Transaction] to perform the transaction with.
+         * @param parent The [EntityTx] that requested index initialization.
          * @return True on success, false otherwise.
          */
-        override fun initialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean {
+        override fun initialize(name: Name.IndexName, parent: EntityTx): Boolean {
+            require(parent is DefaultEntity.Tx) { "LuceneIndex can only be used with DefaultEntity.Tx" }
+            val vfs = VirtualFileSystem(parent.xodusTx.environment)
             return try {
-                val directory = XodusDirectory(catalogue.transactionManager.vfs, name.toString(), context.xodusTx)
+                val directory = XodusDirectory(vfs, name.toString(), parent.xodusTx)
                 val config = IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE).setMergeScheduler(SerialMergeScheduler())
                 val writer = IndexWriter(directory, config)
                 writer.close()
@@ -101,6 +103,8 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
             } catch (e: Throwable) {
                 LOGGER.error("Failed to initialize Lucene Index $name due to an exception: ${e.message}.")
                 false
+            } finally {
+                vfs.shutdown()
             }
         }
 
@@ -108,20 +112,25 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * De-initializes the [XodusDirectory] for a [LuceneIndex].
          *
          * @param name The [Name.IndexName] of the [LuceneIndex].
-         * @param catalogue [Catalogue] reference.
-         * @param context The [Transaction] to perform the transaction with.
+         * @param parent The [EntityTx] that requested index de-initialization.
          * @return True on success, false otherwise.
          */
-        override fun deinitialize(name: Name.IndexName, catalogue: Catalogue, context: Transaction): Boolean = try {
-            val directory = XodusDirectory(catalogue.transactionManager.vfs, name.toString(), context.xodusTx)
-            for (file in directory.listAll()) {
-                directory.deleteFile(file)
+        override fun deinitialize(name: Name.IndexName, parent: EntityTx): Boolean {
+            require(parent is DefaultEntity.Tx) { "LuceneIndex can only be used with DefaultEntity.Tx" }
+            val vfs = VirtualFileSystem(parent.xodusTx.environment)
+            try {
+                val directory = XodusDirectory(vfs, name.toString(), parent.xodusTx)
+                for (file in directory.listAll()) {
+                    directory.deleteFile(file)
+                }
+                directory.close()
+                return true
+            } catch (e: Throwable) {
+                LOGGER.error("Failed to de-initialize Lucene Index $name due to an exception: ${e.message}.")
+                return false
+            } finally {
+                vfs.shutdown()
             }
-            directory.close()
-            true
-        } catch (e: Throwable) {
-            LOGGER.error("Failed to de-initialize Lucene Index $name due to an exception: ${e.message}.")
-            false
         }
 
         /**
@@ -149,13 +158,18 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
     override val type: IndexType = IndexType.LUCENE
 
     /**
-     * Opens and returns a new [IndexTx] object that can be used to interact with this [AbstractIndex].
+     * Opens and returns a new [IndexTx] object that can be used to interact with this [Index].
      *
-     * @param context If the [QueryContext] to create the [IndexTx] for.
-     * @return [IndexTx]
+     * @param parent If parent [EntityTx] this [IndexTx] belongs to.
      */
-    override fun newTx(context: QueryContext): IndexTx
-        = context.txn.getCachedTxForDBO(this) ?: this.Tx(context)
+    override fun newTx(parent: EntityTx): IndexTx {
+        require(parent is DefaultEntity.Tx) { "LuceneIndex can only be used with DefaultEntity.Tx" }
+        return this.transactions.computeIfAbsent(parent.context.txn.transactionId, Long2ObjectFunction {
+            val subTransaction = Tx(parent)
+            parent.context.txn.registerSubtransaction(subTransaction)
+            subTransaction
+        })
+    }
 
     /**
      * Returns a new [LuceneIndexRebuilder] instance.
@@ -163,19 +177,28 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
      * @param context If the [QueryContext] to create the [LuceneIndexRebuilder] for.
      * @return [LuceneIndexRebuilder]
      */
-    override fun newRebuilder(context: QueryContext): AbstractIndexRebuilder<*>
-        = LuceneIndexRebuilder(this, context)
+    override fun newRebuilder(context: QueryContext) = LuceneIndexRebuilder(this, context)
 
-    override fun newAsyncRebuilder(context: QueryContext): AsyncIndexRebuilder<LuceneIndex>
-        = throw UnsupportedOperationException("LuceneIndex does not support asynchronous index rebuilding.")
+    /**
+     * Opens and returns a new [AsyncPQIndexRebuilder] object that can be used to rebuild with this [LuceneIndex].
+     *
+     * @param instance The [Instance] that requested the [AsyncIndexRebuilder].
+     * @return [AsyncPQIndexRebuilder]
+     */
+    override fun newAsyncRebuilder(instance: Instance): AsyncIndexRebuilder<*> {
+        throw UnsupportedOperationException("LuceneIndex does not support asynchronous rebuilding.")
+    }
 
     /**
      * An [IndexTx] that affects this [LuceneIndex].
      */
-    inner class Tx(context: QueryContext) : AbstractIndex.Tx(context), org.vitrivr.cottontail.dbms.general.Tx.WithCommitFinalization, org.vitrivr.cottontail.dbms.general.Tx.WithRollbackFinalization  {
+    inner class Tx(parent: DefaultEntity.Tx): AbstractIndex.Tx(parent), SubTransaction.WithCommit {
+
+        /** A [VirtualFileSystem] that can be used with this [Tx]. */
+        private val vfs = VirtualFileSystem(this.xodusTx.environment)
 
         /** The [LuceneIndexDataStore] backing this [LuceneIndex]. */
-        private val store = LuceneIndexDataStore(XodusDirectory(this@LuceneIndex.catalogue.transactionManager.vfs, this@LuceneIndex.name.toString(), this.context.txn.xodusTx), this.columns[0].name)
+        private val store = LuceneIndexDataStore(XodusDirectory(this.vfs, this@LuceneIndex.name.toString(), this.xodusTx), this.columns[0].name)
 
         /**
          * Converts a [BooleanPredicate] to a [Query] supported by Apache Lucene.
@@ -264,7 +287,8 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          *
          * @return [List] of [ColumnDef].
          */
-        override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> = this.txLatch.withLock {
+        @Synchronized
+        override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> {
             require(predicate is BooleanPredicate) { "Lucene can only process boolean predicates." }
             return listOf(ColumnDef(this@LuceneIndex.parent.name.column("score"), Types.Double))
         }
@@ -275,9 +299,10 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * @param predicate [Predicate] to check.
          * @return List that describes the sort order of the values returned by the [BTreeIndex]
          */
-        override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> = this.txLatch.withLock {
+        @Synchronized
+        override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> {
             require(predicate is BooleanPredicate) { "Lucene Index can only process Boolean predicates." }
-            mapOf(
+            return mapOf(
                 NotPartitionableTrait to NotPartitionableTrait,
                 //OrderTrait to OrderTrait(listOf(ColumnDef(this@LuceneIndex.parent.name.column("score"), Types.Double) to SortOrder.DESCENDING))
             )
@@ -306,15 +331,15 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          *
          * @return Number of [Document]s in this [LuceneIndex]
          */
-        override fun count(): Long = this.txLatch.withLock {
-            return this.store.indexReader.numDocs().toLong()
-        }
+        @Synchronized
+        override fun count(): Long = this.store.indexReader.numDocs().toLong()
 
         /**
          * Updates the [LuceneIndex] with the provided [DataEvent.Insert].
          *
          * @param event [DataEvent.Insert] to apply.
          */
+        @Synchronized
         override fun tryApply(event: DataEvent.Insert): Boolean {
             val newValue = event.data[this.columns[0]] ?: return true
             this.store.addDocument(event.tupleId, newValue as StringValue)
@@ -326,6 +351,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          *
          * @param event [DataEvent.Update] to apply.
          */
+        @Synchronized
         override fun tryApply(event: DataEvent.Update): Boolean {
             val newValue = event.data[this.columns[0]]?.second
             if (newValue == null) {
@@ -341,6 +367,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          *
          * @param event [DataEvent.Delete] to apply.
          */
+        @Synchronized
         override fun tryApply(event: DataEvent.Delete): Boolean {
             this.store.deleteDocument(event.tupleId)
             return true
@@ -355,50 +382,15 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * @param predicate The [Predicate] for the lookup*
          * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate) = this.txLatch.withLock {
-            object : Cursor<Tuple> {
-
-                /** Cast [BooleanPredicate] (if such a cast is possible). */
-                private val predicate = if (predicate !is BooleanPredicate) {
-                    throw QueryException.UnsupportedPredicateException("Index '${this@LuceneIndex.name}' (lucene index) does not support predicates of type '${predicate::class.simpleName}'.")
-                } else {
-                    predicate
+        @Synchronized
+        override fun filter(predicate: Predicate): Cursor<Tuple> {
+            require(predicate is BooleanPredicate) { "LuceneIndex can only process Boolean predicates." }
+            val (columns, query) = with(MissingTuple) {
+                with(this@Tx.context.bindings) {
+                    this@Tx.columnsFor(predicate).toTypedArray() to predicate.toLuceneQuery()
                 }
-
-                /** The [ColumnDef] generated by this [Cursor]. */
-                private val columns = this@Tx.columnsFor(predicate).toTypedArray()
-
-                /** Number of [TupleId]s returned by this [Iterator]. */
-                @Volatile
-                private var returned = 0
-
-                /** Lucene [Query] representation of [BooleanPredicate] . */
-                private val query: Query = this.predicate.toLuceneQuery()
-
-                /** [IndexSearcher] instance used for lookup. */
-                private val searcher = IndexSearcher(this@Tx.store.indexReader)
-
-                /* Execute query and add results. */
-                private val results = this.searcher.search(this.query, Integer.MAX_VALUE)
-
-                override fun moveNext(): Boolean {
-                    return this.returned < this.results.totalHits.value
-                }
-
-                override fun key(): TupleId {
-                    val scores = this.results.scoreDocs[this.returned]
-                    val doc = this.searcher.doc(scores.doc)
-                    return doc[TID_COLUMN].toLong()
-                }
-
-                override fun value(): Tuple {
-                    val scores = this.results.scoreDocs[this.returned++]
-                    val doc = this.searcher.doc(scores.doc)
-                    return StandaloneTuple(doc[TID_COLUMN].toLong(), this.columns, arrayOf(DoubleValue(scores.score)))
-                }
-
-                override fun close() {}
             }
+            return LuceneCursor(this, query, columns)
         }
 
         /**
@@ -412,18 +404,17 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
             throw UnsupportedOperationException("The LuceneIndex does not support ranged filtering!")
         }
 
-        /**
-         * Commits changes made through the [IndexWriter]
-         */
-        override fun beforeCommit() {
-            this.store.close()
+        override fun commit() {
+            /* Nothing to do here. */
         }
 
         /**
-         * Rolls back changes made through the [IndexWriter]
+         * Commits changes made through the [IndexWriter]
          */
-        override fun beforeRollback() {
+        override fun prepareCommit(): Boolean {
             this.store.close()
+            this.vfs.shutdown()
+            return true
         }
     }
 }

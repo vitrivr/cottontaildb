@@ -24,6 +24,7 @@ import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.server.Instance
 import java.util.*
 import kotlin.time.DurationUnit
 import kotlin.time.ExperimentalTime
@@ -33,7 +34,7 @@ import kotlin.time.TimeSource
  * A facility common to all service that handle [TransactionManager.AbstractTransaction]s over gRPC.
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 2.0.0
  */
 @ExperimentalTime
 internal interface TransactionalGrpcService {
@@ -42,12 +43,16 @@ internal interface TransactionalGrpcService {
         private val LOGGER = LoggerFactory.getLogger(TransactionalGrpcService::class.java)
     }
 
+    /** The Cottontail DB [Instance] used by this [TransactionalGrpcService]. */
+    val instance: Instance
+
     /** The [Catalogue] instance used by this [TransactionalGrpcService]. */
     val catalogue: Catalogue
+        get() = this.instance.catalogue
 
     /** The [TransactionManager] instance used by this [TransactionalGrpcService]. */
     val manager: TransactionManager
-        get() = this.catalogue.transactionManager
+        get() = this.instance.transactions
 
     /**
      * Generates and returns a new [DefaultQueryContext] for the given [CottontailGrpc.RequestMetadata].
@@ -106,7 +111,7 @@ internal interface TransactionalGrpcService {
             ))
         }
 
-        return DefaultQueryContext(queryId, this.catalogue, transactionContext, hints)
+        return DefaultQueryContext(queryId, this.instance, transactionContext, hints)
     }
 
     /**
@@ -167,7 +172,7 @@ internal interface TransactionalGrpcService {
             /* Handle potential error & associated auto-rollback (if applicable). */
             if (it != null) {
                 if (context.txn.type.autoRollback) {
-                    context.txn.rollback()
+                    context.txn.abort()
                 }
                 throw context.handleError(it, true)
             }
@@ -177,7 +182,7 @@ internal interface TransactionalGrpcService {
                 try {
                     context.txn.commit()
                 }  catch (e: Throwable) {
-                    context.txn.rollback()
+                    context.txn.abort()
                     throw context.handleError(e, true)
                 }
             }

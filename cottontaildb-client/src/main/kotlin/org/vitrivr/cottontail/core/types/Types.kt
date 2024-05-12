@@ -354,7 +354,6 @@ sealed class Types<T : Value> {
         init {
             require(this.logicalSize > 0) { "Logical size of a vector must be greater than zero." }
         }
-
         override val name = "HALF_VECTOR"
         override val ordinal: kotlin.Int = 21
         override val physicalSize = this.logicalSize * kotlin.Short.SIZE_BYTES

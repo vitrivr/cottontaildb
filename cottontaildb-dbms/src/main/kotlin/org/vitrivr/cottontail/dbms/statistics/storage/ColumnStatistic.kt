@@ -33,6 +33,7 @@ data class ColumnStatistic(val type: Types<*>, val statistics: ValueStatistics<*
             val serializer = SerializerFactory.metrics(type)
             return ColumnStatistic(type, serializer.read(stream))
         }
+
         /**
          * Serializes a [ColumnStatistic] to a [ArrayByteIterable].
          *

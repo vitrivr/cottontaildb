@@ -1,11 +1,12 @@
 package org.vitrivr.cottontail.dbms.index.va.rebuilder
 
 import org.vitrivr.cottontail.core.types.RealVectorValue
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructuralMetadata
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.vitrivr.cottontail.dbms.index.basic.AbstractIndex
 import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
@@ -18,7 +19,7 @@ import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
  * An [AbstractIndexRebuilder] for the [VAFIndex].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
 class VAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractIndexRebuilder<VAFIndex>(index, context) {
 
@@ -27,19 +28,20 @@ class VAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractIndexRe
      *
      * @return True on success, false on failure.
      */
-    override fun rebuildInternal(): Boolean {
+    override fun rebuildInternal(indexTx: AbstractIndex.Tx): Boolean {
+        require(indexTx is VAFIndex.Tx) { "VAFIndexRebuilder can only be accessed with a VAFIndex.Tx!" }
+
         /* Read basic index properties. */
-        val indexMetadataStore = IndexMetadata.store(this.index.catalogue, context.txn.xodusTx)
-        val indexEntryRaw = indexMetadataStore.get(context.txn.xodusTx, NameBinding.Index.toEntry(this@VAFIndexRebuilder.index.name)) ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index ${this@VAFIndexRebuilder.index.name}: Could not read catalogue entry for index.")
+        val indexMetadataStore = IndexMetadata.store(indexTx.parent.parent.parent.xodusTx)
+        val indexEntryRaw = indexMetadataStore.get(indexTx.parent.parent.parent.xodusTx, NameBinding.Index.toEntry(this@VAFIndexRebuilder.index.name)) ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index ${this@VAFIndexRebuilder.index.name}: Could not read catalogue entry for index.")
         val indexEntry = IndexMetadata.fromEntry(indexEntryRaw)
         val config = indexEntry.config as VAFIndexConfig
         val column = this.index.name.entity().column(indexEntry.columns[0])
 
         /* Tx objects required for index rebuilding. */
-        val entityTx = this.index.parent.newTx(this.context)
-        val columnTx = entityTx.columnForName(column).newTx(this.context) as ColumnTx<*>
-        val dataStore = this.tryClearAndOpenStore() ?: return false
-        val count = entityTx.count()
+        val columnTx = indexTx.parent.columnForName(column).newTx(indexTx.parent) as ColumnTx<*>
+        val dataStore = this.tryClearAndOpenStore(indexTx) ?: return false
+        val count = indexTx.parent.count()
 
         /* Obtain new marks. */
         val marks = EquidistantVAFMarks(columnTx.statistics() as RealVectorValueStatistics<*>, config.marksPerDimension)
@@ -50,14 +52,14 @@ class VAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractIndexRe
             while (cursor.hasNext()) {
                 val value = cursor.value()
                 if (value is RealVectorValue<*>) {
-                    if (!dataStore.put(this.context.txn.xodusTx, cursor.key().toKey(), marks.getSignature(value).toEntry())) {
+                    if (!dataStore.put(indexTx.xodusTx, cursor.key().toKey(), marks.getSignature(value).toEntry())) {
                         return false
                     }
 
                     /* Data is flushed every once in a while. */
                     if ((counter ++) % 1_000_000 == 0) {
                         LOGGER.debug("Rebuilding index {} ({}) still running ({} / {})...", this.index.name, this.index.type, counter, count)
-                        if (!this.context.txn.xodusTx.flush()) {
+                        if (!indexTx.xodusTx.flush()) {
                             return false
                         }
                     }
@@ -66,7 +68,7 @@ class VAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractIndexRe
         }
 
         /* Update stored VAFMarks. */
-        IndexStructCatalogueEntry.write(this.index.name, marks, this.index.catalogue, this.context.txn.xodusTx, EquidistantVAFMarks.Binding)
+        IndexStructuralMetadata.write(indexTx, marks, EquidistantVAFMarks.Binding)
         return true
     }
 }

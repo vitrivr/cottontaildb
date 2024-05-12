@@ -18,7 +18,7 @@ import kotlin.system.measureTimeMillis
  */
 class DropEntityOperator(private val tx: CatalogueTx, private val name: Name.EntityName, override val context: QueryContext) : AbstractDataDefinitionOperator(name, "DROP ENTITY") {
     override fun toFlow(): Flow<Tuple> = flow {
-        val schemaTxn = this@DropEntityOperator.tx.schemaForName(this@DropEntityOperator.name.schema()).newTx(this@DropEntityOperator.context)
+        val schemaTxn = this@DropEntityOperator.tx.schemaForName(this@DropEntityOperator.name.schema()).newTx(this@DropEntityOperator.tx)
         val time = measureTimeMillis {
             schemaTxn.dropEntity(this@DropEntityOperator.name)
         }

@@ -88,11 +88,11 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
         try {
             val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
-            val catalogueTx = this.catalogue.newTx(ctx)
+            val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.newTx(ctx)
+            val entityTx = entity.createOrResumeTx(ctx)
             val bindings = this.columns.map { ctx.bindings.bind(it, it)}
 
             /* Bind EQUALS operator. */
@@ -109,10 +109,10 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
 
             /* Check if index scan was selected. */
             Assertions.assertTrue(ctx.physical.firstOrNull()?.base?.firstOrNull() is IndexScanPhysicalOperatorNode)
-            Assertions.assertEquals(this.indexName, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.name)
-            Assertions.assertEquals(this.indexType, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.type)
+            Assertions.assertEquals(this.indexName, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).tx.dbo.name)
+            Assertions.assertEquals(this.indexType, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).tx.dbo.type)
         } finally {
-            txn.rollback()
+            txn.abort()
         }
     }
 
@@ -124,11 +124,11 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn, setOf(QueryHint.IndexHint.None))
-            val catalogueTx = this.catalogue.newTx(ctx)
+            val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.newTx(ctx)
+            val entityTx = entity.createOrResumeTx(ctx)
             val bindings = this.columns.map { ctx.bindings.bind(it, it) }
 
             /* Bind EQUALS operator. */
@@ -146,7 +146,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             /* Check if index scan was selected. */
             Assertions.assertTrue(ctx.physical.firstOrNull()?.base?.firstOrNull() is EntityScanPhysicalOperatorNode)
         } finally {
-            txn.rollback()
+            txn.abort()
         }
     }
 
@@ -159,11 +159,11 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn)
-            val catalogueTx = this.catalogue.newTx(ctx)
+            val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.newTx(ctx)
+            val entityTx = entity.createOrResumeTx(ctx)
             val bindings = this.columns.map { ctx.bindings.bind(it, it) }
 
             /* Bind IN operator. */
@@ -180,10 +180,10 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
 
             /* Check if index scan was selected. */
             Assertions.assertTrue(ctx.physical.firstOrNull()?.base?.firstOrNull() is IndexScanPhysicalOperatorNode)
-            Assertions.assertEquals(this.indexName, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.name)
-            Assertions.assertEquals(this.indexType, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.type)
+            Assertions.assertEquals(this.indexName, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).tx.dbo.name)
+            Assertions.assertEquals(this.indexType, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).tx.dbo.type)
         } finally {
-            txn.rollback()
+            txn.abort()
         }
         /* Add more records. */
         this.populateDatabase()
@@ -197,11 +197,11 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn)
-            val catalogueTx = this.catalogue.newTx(ctx)
+            val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.newTx(ctx)
+            val entityTx = entity.createOrResumeTx(ctx)
             val bindings = this.columns.map { ctx.bindings.bind(it, it)}
 
             /* Bind IN operator. */
@@ -219,10 +219,10 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
 
             /* Check if index scan was selected. */
             Assertions.assertTrue(ctx.physical.firstOrNull()?.base?.firstOrNull() is IndexScanPhysicalOperatorNode)
-            Assertions.assertEquals(this.indexName, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.name)
-            Assertions.assertEquals(this.indexType, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).index.dbo.type)
+            Assertions.assertEquals(this.indexName, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).tx.dbo.name)
+            Assertions.assertEquals(this.indexType, (ctx.physical.first().base.first() as IndexScanPhysicalOperatorNode).tx.dbo.type)
         } finally {
-            txn.rollback()
+            txn.abort()
         }
     }
 
@@ -234,11 +234,11 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
         try {
             val ctx = DefaultQueryContext("test", this.catalogue, txn, setOf(QueryHint.IndexHint.None))
-            val catalogueTx = this.catalogue.newTx(ctx)
+            val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = schema.newTx(ctx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.newTx(ctx)
+            val entityTx = entity.createOrResumeTx(ctx)
             val bindings = this.columns.map { ctx.bindings.bind(it, it)}
 
             /* Bind IN operator. */
@@ -256,7 +256,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             /* Check if index scan was selected. */
             Assertions.assertTrue(ctx.physical.firstOrNull()?.base?.firstOrNull() is EntityScanPhysicalOperatorNode)
         } finally {
-            txn.rollback()
+            txn.abort()
         }
     }
 

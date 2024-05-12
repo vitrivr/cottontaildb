@@ -9,44 +9,30 @@ import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import java.io.ByteArrayInputStream
+import java.util.*
 
 /**
  * A [EntityMetadata] in the Cottontail DB [Catalogue]. Used to store metadata about [Entity]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
-data class EntityMetadata(val created: Long, val columns: List<String>) {
+data class EntityMetadata(val uuid: UUID, val created: Long, val columns: List<String>) {
 
     companion object {
         /** Name of the Xodus [Store] used to store [EntityMetadata]. */
         private const val CATALOGUE_ENTITY_STORE_NAME: String = "org.vitrivr.cottontail.entity"
 
         /**
-         * Initializes the Xodus [Store] used to store [DefaultEntity] information in Cottontail DB.
-         *
-         * @param catalogue The [DefaultCatalogue] to initialize.
-         * @param transaction The [Transaction] to use.
-         */
-        fun init(catalogue: DefaultCatalogue, transaction: Transaction) {
-            catalogue.transactionManager.environment.openStore(CATALOGUE_ENTITY_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
-                ?: throw DatabaseException.DataCorruptionException("Failed to create entity catalogue.")
-        }
-
-        /**
          * Returns the Xodus [Store] used to store [EntityMetadata].
          *
-         * @param catalogue [DefaultCatalogue] to access [Store] for.
          * @param transaction The Xodus [Transaction] to use. If not set, a new [Transaction] will be created.
          * @return [Store]
          */
-        fun store(catalogue: DefaultCatalogue, transaction: Transaction): Store =
-            catalogue.transactionManager.environment.openStore(CATALOGUE_ENTITY_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open store for entity catalogue.")
+        fun store(transaction: Transaction): Store = transaction.environment.openStore(CATALOGUE_ENTITY_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction)
 
         /**
          * De-serializes a [EntityMetadata] from the given [ByteArrayInputStream].
@@ -54,10 +40,11 @@ data class EntityMetadata(val created: Long, val columns: List<String>) {
         fun fromEntry(entry: ByteIterable): EntityMetadata {
             val stream = ByteArraySizedInputStream(entry.bytesUnsafe, 0, entry.length)
             val created = LongBinding.readCompressed(stream)
+            val uuid = UUID(LongBinding.BINDING.readObject(stream), LongBinding.BINDING.readObject(stream))
             val columns = (0 until IntegerBinding.readCompressed(stream)).map {
                 StringBinding.BINDING.readObject(stream)
             }
-            return EntityMetadata(created, columns)
+            return EntityMetadata(uuid, created, columns)
         }
 
         /**
@@ -69,11 +56,20 @@ data class EntityMetadata(val created: Long, val columns: List<String>) {
         fun toEntry(entry: EntityMetadata): ByteIterable {
             val output = LightOutputStream()
             LongBinding.writeCompressed(output,  entry.created)
+            LongBinding.BINDING.writeObject(output, entry.uuid.mostSignificantBits)
+            LongBinding.BINDING.writeObject(output, entry.uuid.leastSignificantBits)
             IntegerBinding.writeCompressed(output,entry.columns.size)
             for (columnName in entry.columns) {
                 StringBinding.BINDING.writeObject(output, columnName)
             }
             return output.asArrayByteIterable()
         }
+
+        /**
+         * Internal function used to obtain the name of the Xodus store for the given [Name.EntityName].
+         *
+         * @return Store name.
+         */
+        fun Name.EntityName.storeName(): String = "$CATALOGUE_ENTITY_STORE_NAME.${this.schema}.${this.entity}"
     }
 }

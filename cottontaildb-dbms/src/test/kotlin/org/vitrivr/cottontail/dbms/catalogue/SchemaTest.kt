@@ -42,7 +42,7 @@ class SchemaTest: AbstractDatabaseTest() {
         val ctx1 = DefaultQueryContext("create-entity-test-01", this.catalogue, txn1)
 
         try {
-            val catalogueTx1 = this.catalogue.newTx(ctx1)
+            val catalogueTx1 = this.catalogue.createOrResumeTx(ctx1)
             val schema = catalogueTx1.createSchema(this.schemaName)
             val schemaTx1 = schema.newTx(ctx1)
             for (name in entityNames) {
@@ -50,7 +50,7 @@ class SchemaTest: AbstractDatabaseTest() {
             }
             txn1.commit()
         } catch (t: Throwable) {
-            txn1.rollback()
+            txn1.abort()
             throw t
         }
 
@@ -58,7 +58,7 @@ class SchemaTest: AbstractDatabaseTest() {
         val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx2 = DefaultQueryContext("create-entity-test-02", this.catalogue, txn2)
         try {
-            val catalogueTx2 = this.catalogue.newTx(ctx2)
+            val catalogueTx2 = this.catalogue.createOrResumeTx(ctx2)
             val schema = catalogueTx2.schemaForName(this.schemaName)
             val schemaTx2 = schema.newTx(ctx2)
             for (name in entityNames) {
@@ -72,7 +72,7 @@ class SchemaTest: AbstractDatabaseTest() {
             assertEquals(entityNames.size, fetchedEntities.size)
             assertTrue(fetchedEntities.all { entityNames.contains(it) })
         } finally {
-            txn2.rollback()
+            txn2.abort()
         }
     }
 
@@ -88,7 +88,7 @@ class SchemaTest: AbstractDatabaseTest() {
         val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx1 = DefaultQueryContext("create-entity-test-01", this.catalogue, txn1)
         try {
-            val catalogueTx1 = this.catalogue.newTx(ctx1)
+            val catalogueTx1 = this.catalogue.createOrResumeTx(ctx1)
             val schema = catalogueTx1.createSchema(this.schemaName)
             val schemaTx1 = schema.newTx(ctx1)
             for (name in entityNames) {
@@ -108,7 +108,7 @@ class SchemaTest: AbstractDatabaseTest() {
             )
             txn1.commit()
         } catch (t: Throwable) {
-            txn1.rollback()
+            txn1.abort()
             throw t
         }
 
@@ -116,7 +116,7 @@ class SchemaTest: AbstractDatabaseTest() {
         val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx2 = DefaultQueryContext("create-entity-test-02", this.catalogue, txn2)
         try {
-            val catalogueTx2 = this.catalogue.newTx(ctx2)
+            val catalogueTx2 = this.catalogue.createOrResumeTx(ctx2)
             val schema = catalogueTx2.schemaForName(this.schemaName)
             val schemaTx2 = schema.newTx(ctx2)
             for (name in entityNames) {
@@ -130,7 +130,7 @@ class SchemaTest: AbstractDatabaseTest() {
             assertEquals(entityNames.size, fetchedEntities.size)
             assertTrue(fetchedEntities.all { entityNames.contains(it) })
         } finally {
-            txn2.rollback()
+            txn2.abort()
         }
     }
 
@@ -143,7 +143,7 @@ class SchemaTest: AbstractDatabaseTest() {
         val txn0 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx0 = DefaultQueryContext("create-entity-test-01", this.catalogue, txn0)
         try {
-            val catalogueTx0 = this.catalogue.newTx(ctx0)
+            val catalogueTx0 = this.catalogue.createOrResumeTx(ctx0)
             catalogueTx0.createSchema(this.schemaName)
         } finally {
             txn0.commit()
@@ -153,21 +153,21 @@ class SchemaTest: AbstractDatabaseTest() {
         val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx1 = DefaultQueryContext("create-entity-test-02", this.catalogue, txn1)
         try {
-            val catalogueTx1 = this.catalogue.newTx(ctx1)
+            val catalogueTx1 = this.catalogue.createOrResumeTx(ctx1)
             val schema = catalogueTx1.schemaForName(this.schemaName)
             val schemaTx1 = schema.newTx(ctx1)
             for (name in entityNames) {
                 schemaTx1.createEntity(name, listOf(name.column("id") to ColumnMetadata(Types.String, Compression.NONE, false, true, false)))
             }
         } finally {
-            txn1.rollback()
+            txn1.abort()
         }
 
         /* Transaction 2: Query. */
         val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx2 = DefaultQueryContext("create-entity-test-03", this.catalogue, txn2)
         try {
-            val catalogueTx2 = this.catalogue.newTx(ctx2)
+            val catalogueTx2 = this.catalogue.createOrResumeTx(ctx2)
             val schema = catalogueTx2.schemaForName(this.schemaName)
             val schemaTx2 = schema.newTx(ctx2)
             for (name in entityNames) {
@@ -176,7 +176,7 @@ class SchemaTest: AbstractDatabaseTest() {
                 }
             }
         } finally {
-            txn2.rollback()
+            txn2.abort()
         }
     }
 
@@ -189,7 +189,7 @@ class SchemaTest: AbstractDatabaseTest() {
         val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx1 = DefaultQueryContext("create-entity-test-01", this.catalogue, txn1)
         try {
-            val catalogueTx1 = this.catalogue.newTx(ctx1)
+            val catalogueTx1 = this.catalogue.createOrResumeTx(ctx1)
             val schema = catalogueTx1.createSchema(this.schemaName)
             val schemaTx1 = schema.newTx(ctx1)
             for (name in this.entityNames) {
@@ -203,12 +203,12 @@ class SchemaTest: AbstractDatabaseTest() {
         val txn2 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx2 = DefaultQueryContext("create-entity-test-02", this.catalogue, txn2)
         try {
-            val catalogueTx2 = this.catalogue.newTx(ctx2)
+            val catalogueTx2 = this.catalogue.createOrResumeTx(ctx2)
             val schema = catalogueTx2.schemaForName(this.schemaName)
             val schemaTx2 = schema.newTx(ctx2)
             for (name in this.entityNames) {
                 val entity = schemaTx2.entityForName(name)
-                val entityTx = entity.newTx(ctx2)
+                val entityTx = entity.createOrResumeTx(ctx2)
                 assertEquals(1, entityTx.listColumns().size)
                 schemaTx2.dropEntity(name)
                 schemaTx2.createEntity(
@@ -227,12 +227,12 @@ class SchemaTest: AbstractDatabaseTest() {
         val txn3 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         val ctx3 = DefaultQueryContext("create-entity-test-02", this.catalogue, txn3)
         try {
-            val catalogueTx3 = this.catalogue.newTx(ctx3)
+            val catalogueTx3 = this.catalogue.createOrResumeTx(ctx3)
             val schema = catalogueTx3.schemaForName(this.schemaName)
             val schemaTx3 = schema.newTx(ctx3)
             for (name in this.entityNames) {
                 val entity = schemaTx3.entityForName(name)
-                val entityTx3 = entity.newTx(ctx3)
+                val entityTx3 = entity.createOrResumeTx(ctx3)
                 assertEquals(2, entityTx3.listColumns().size)
             }
         } finally {

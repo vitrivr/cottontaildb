@@ -27,7 +27,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * - Function: Executed function must be the [FulltextScore] function.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.5.0
  */
 object FulltextIndexRule : RewriteRule {
 
@@ -64,8 +64,8 @@ object FulltextIndexRule : RewriteRule {
         val predicate = BooleanPredicate.Comparison(ComparisonOperator.Match(probingArgument, queryString))
 
         /* This rule does not heed index hints, because it can lead the planner to not produce a plan at all. */
-        val candidate = scan.entity.listIndexes().map {
-            scan.entity.indexForName(it).newTx(ctx)
+        val candidate = scan.tx.listIndexes().map {
+            scan.tx.indexForName(it).newTx(scan.tx)
         }.find {
             it.state != IndexState.DIRTY && it.canProcess(predicate)
         }
@@ -75,7 +75,7 @@ object FulltextIndexRule : RewriteRule {
                 if (candidate != null) {
                     val produces = candidate.columnsFor(predicate)
                     val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, listOf(ctx.bindings.bind(node.out.column, produces[0])), candidate, predicate)
-                    val fetch = FetchPhysicalOperatorNode(indexScan, scan.entity, scan.columns.filter { !produces.contains(it.column) })
+                    val fetch = FetchPhysicalOperatorNode(indexScan, scan.tx, scan.columns.filter { !produces.contains(it.column) })
                     if (node.output == null) return fetch
                     return OperatorNodeUtilities.chainIf(fetch, node.output!!) {
                         when (it) {

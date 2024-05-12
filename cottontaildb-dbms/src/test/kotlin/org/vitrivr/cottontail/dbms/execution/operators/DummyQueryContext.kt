@@ -44,7 +44,7 @@ object DummyQueryContext: QueryContext {
             get() = this
         override val version: DBOVersion
             get() = DBOVersion.UNDEFINED
-        override fun newTx(context: QueryContext): CatalogueTx = throw UnsupportedOperationException("Operation not supported for dummy catalogue.")
+        override fun createOrResumeTx(context: QueryContext): CatalogueTx = throw UnsupportedOperationException("Operation not supported for dummy catalogue.")
         override fun close() {}
     }
     override val txn: Transaction

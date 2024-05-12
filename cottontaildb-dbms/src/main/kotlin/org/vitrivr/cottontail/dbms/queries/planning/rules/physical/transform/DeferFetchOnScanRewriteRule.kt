@@ -57,9 +57,9 @@ object DeferFetchOnScanRewriteRule: RewriteRule {
                         if (candidates.size == node.columns.size) {
                             candidates.removeFirst()
                         }
-                        var p = next.copyWithExistingInput().base.first().output!!.copyWithOutput(EntityScanPhysicalOperatorNode(originalGroupId, node.entity, node.columns.filter { !candidates.contains(it) })).root
+                        var p = next.copyWithExistingInput().base.first().output!!.copyWithOutput(EntityScanPhysicalOperatorNode(originalGroupId, node.tx, node.columns.filter { !candidates.contains(it) })).root
                         if (next.output != null) {
-                            p = FetchPhysicalOperatorNode(p, node.entity, candidates)
+                            p = FetchPhysicalOperatorNode(p, node.tx, candidates)
                             p = next.output?.copyWithOutput(p) ?: p
                         }
                         return p
@@ -70,7 +70,7 @@ object DeferFetchOnScanRewriteRule: RewriteRule {
                     next = next.output
                 }
                 /* This usually only happens for count(*) or exists (*) queries. */
-                return prev!!.copyWithExistingInput().base.first().output!!.copyWithOutput(EntityScanPhysicalOperatorNode(originalGroupId, node.entity, node.columns.filter { !candidates.contains(it) }))
+                return prev!!.copyWithExistingInput().base.first().output!!.copyWithOutput(EntityScanPhysicalOperatorNode(originalGroupId, node.tx, node.columns.filter { !candidates.contains(it) }))
             }
         }
     }

@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.core.queries.functions.math.distance.binary.euclidean
 
+import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.VectorisedFunction
@@ -41,10 +42,10 @@ sealed class EuclideanDistanceVectorised<T : VectorValue<*>>(type: Types.Vector<
         override val name: Name.FunctionName = FUNCTION_NAME
 
         /** The loop bound for this function. */
-        override val loopBound = FLOAT_VECTOR_SPECIES.loopBound(this.vectorSize)
+        override val loopBound = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED.loopBound(this.vectorSize)
 
         /** The step-size for this function. */
-        override val stepSize = FLOAT_VECTOR_SPECIES.length()
+        override val stepSize = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED.length()
 
         override fun invoke(vararg arguments: Value?): DoubleValue {
             val probing = (arguments[0] as FloatVectorValue).data
@@ -53,8 +54,8 @@ sealed class EuclideanDistanceVectorised<T : VectorValue<*>>(type: Types.Vector<
             /* Vectorised distance calculation. */
             var sum = 0.0f
             for (i in 0 until this.loopBound step this.stepSize) {
-                val vp = jdk.incubator.vector.FloatVector.fromArray(FLOAT_VECTOR_SPECIES, probing, i)
-                val vq = jdk.incubator.vector.FloatVector.fromArray(FLOAT_VECTOR_SPECIES, query, i)
+                val vp = jdk.incubator.vector.FloatVector.fromArray(jdk.incubator.vector.FloatVector.SPECIES_PREFERRED, probing, i)
+                val vq = jdk.incubator.vector.FloatVector.fromArray(jdk.incubator.vector.FloatVector.SPECIES_PREFERRED, query, i)
                 val diff = vp.sub(vq)
                 sum += diff.mul(diff).reduceLanes(VectorOperators.ADD)
             }
@@ -76,20 +77,19 @@ sealed class EuclideanDistanceVectorised<T : VectorValue<*>>(type: Types.Vector<
         override val name: Name.FunctionName = FUNCTION_NAME
 
         /** The loop bound for this function. */
-        override val loopBound = DOUBLE_VECTOR_SPECIES.loopBound(this.vectorSize)
+        override val loopBound = jdk.incubator.vector.DoubleVector.SPECIES_PREFERRED.loopBound(this.vectorSize)
 
         /** The step-size for this function. */
-        override val stepSize = DOUBLE_VECTOR_SPECIES.length()
+        override val stepSize = jdk.incubator.vector.DoubleVector.SPECIES_PREFERRED.length()
 
         override fun invoke(vararg arguments: Value?): DoubleValue {
             val probing = (arguments[0] as DoubleVectorValue).data
             val query = (arguments[1] as DoubleVectorValue).data
-
             /* Vectorised distance calculation. */
             var sum = 0.0
             for (i in 0 until this.loopBound step this.stepSize) {
-                val vp = jdk.incubator.vector.DoubleVector.fromArray(DOUBLE_VECTOR_SPECIES, probing, i)
-                val vq = jdk.incubator.vector.DoubleVector.fromArray(DOUBLE_VECTOR_SPECIES, query, i)
+                val vp = jdk.incubator.vector.DoubleVector.fromArray(jdk.incubator.vector.DoubleVector.SPECIES_PREFERRED, probing, i)
+                val vq = jdk.incubator.vector.DoubleVector.fromArray(jdk.incubator.vector.DoubleVector.SPECIES_PREFERRED, query, i)
                 val diff = vp.sub(vq)
                 sum += diff.mul(diff).reduceLanes(VectorOperators.ADD)
             }

@@ -15,7 +15,7 @@ import kotlin.system.measureTimeMillis
  * An [Operator.SourceOperator] used during query execution. Creates an [Index]
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 class CreateIndexOperator(
     private val tx: CatalogueTx,
@@ -27,8 +27,8 @@ class CreateIndexOperator(
 ) : AbstractDataDefinitionOperator(name, "CREATE INDEX") {
     override fun toFlow(): Flow<Tuple> = flow {
         val time = measureTimeMillis {
-            val schemaTxn = this@CreateIndexOperator.tx.schemaForName(this@CreateIndexOperator.name.schema()).newTx(this@CreateIndexOperator.context)
-            val entityTxn = schemaTxn.entityForName(this@CreateIndexOperator.name.entity()).newTx(this@CreateIndexOperator.context)
+            val schemaTxn = this@CreateIndexOperator.tx.schemaForName(this@CreateIndexOperator.name.schema()).newTx(this@CreateIndexOperator.tx)
+            val entityTxn = schemaTxn.entityForName(this@CreateIndexOperator.name.entity()).createOrResumeTx(schemaTxn)
             val columns = this@CreateIndexOperator.indexColumns.map { entityTxn.columnForName(it).columnDef.name }
             entityTxn.createIndex(this@CreateIndexOperator.name, this@CreateIndexOperator.type, columns, this@CreateIndexOperator.type.descriptor.buildConfig(this@CreateIndexOperator.params))
         }

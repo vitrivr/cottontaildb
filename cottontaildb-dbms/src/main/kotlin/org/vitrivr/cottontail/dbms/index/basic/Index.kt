@@ -3,10 +3,12 @@ package org.vitrivr.cottontail.dbms.index.basic
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.IndexRebuilder
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import org.vitrivr.cottontail.server.Instance
 
 /**
  * Represents a (secondary) [Index] structure in the Cottontail DB data model. An [Index] belongs
@@ -18,7 +20,7 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * @see IndexTx
  *
  * @author Ralph Gasser
- * @version 3.1.0
+ * @version 4.0.0
  */
 interface Index : DBO {
 
@@ -43,9 +45,9 @@ interface Index : DBO {
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [Index].
      *
-     * @param context If the [QueryContext] that requested the [IndexTx].
+     * @param parent If parent [EntityTx] this [IndexTx] belongs to.
      */
-    override fun newTx(context: QueryContext): IndexTx
+    fun newTx(parent: EntityTx): IndexTx
 
     /**
      * Creates and returns a new [IndexRebuilder] for this [Index].
@@ -58,8 +60,8 @@ interface Index : DBO {
     /**
      * Creates and returns a new [AsyncIndexRebuilder] for this [Index].
      *
-     * @param context If the [QueryContext] that requested the [AsyncIndexRebuilder].
+     * @param instance The [Instance] that requested the [AsyncIndexRebuilder].
      * @return [AsyncIndexRebuilder]
      */
-    fun newAsyncRebuilder(context: QueryContext): AsyncIndexRebuilder<*>
+    fun newAsyncRebuilder(instance: Instance): AsyncIndexRebuilder<*>
 }

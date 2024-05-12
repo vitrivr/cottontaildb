@@ -23,10 +23,10 @@ import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
  * This can be used for late population, which can lead to optimized performance for kNN queries
  *
  * @author Ralph Gasser
- * @version 2.9.0
+ * @version 2.10.0
  */
 @Suppress("UNCHECKED_CAST")
-class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch: List<Binding.Column>) : UnaryPhysicalOperatorNode(input) {
+class FetchPhysicalOperatorNode(input: Physical, val tx: EntityTx, val fetch: List<Binding.Column>) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Fetch"
@@ -58,7 +58,7 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
     /** Local reference to entity statistics. */
     private val localStatistics by lazy {
         this.fetch.associate {
-            it.column to this.entity.columnForName(it.physical!!.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
+            it.column to this.tx.columnForName(it.physical!!.name).newTx(this.tx).statistics() as ValueStatistics<Value>
         }
     }
 
@@ -70,7 +70,7 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
      */
     override fun copyWithNewInput(vararg input: Physical): FetchPhysicalOperatorNode {
         require(input.size == 1) { "The input arity for FetchPhysicalOperatorNode.copyWithNewInput() must be 1 but is ${input.size}. This is a programmer's error!"}
-        return FetchPhysicalOperatorNode(input = input[0], entity = this.entity, fetch = this.fetch.map { it.copy() })
+        return FetchPhysicalOperatorNode(input = input[0], tx = this.tx, fetch = this.fetch.map { it.copy() })
     }
 
     /**
@@ -80,7 +80,7 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
      */
     override fun toOperator(ctx: QueryContext): FetchOperator {
         /* Generate and return FetchOperator. */
-        return FetchOperator(this.input.toOperator(ctx), this.entity, this.fetch, ctx)
+        return FetchOperator(this.input.toOperator(ctx), this.tx, this.fetch, ctx)
     }
 
     /** Generates and returns a [String] representation of this [FetchPhysicalOperatorNode]. */
@@ -92,7 +92,7 @@ class FetchPhysicalOperatorNode(input: Physical, val entity: EntityTx, val fetch
      * @return [Digest]
      */
     override fun digest(): Digest {
-        var result = this.entity.dbo.name.hashCode().toLong()
+        var result = this.tx.dbo.name.hashCode().toLong()
         result += 31L * result + this.fetch.hashCode()
         return result
     }

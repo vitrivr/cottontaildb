@@ -3,9 +3,11 @@ package org.vitrivr.cottontail.dbms.entity
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.general.DBO
+import org.vitrivr.cottontail.dbms.execution.transactions.SubTransaction
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
+import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
 /**
  * Represents a single entity in the Cottontail DB data model. An [Entity] has name that must remain
@@ -17,7 +19,7 @@ import org.vitrivr.cottontail.dbms.schema.Schema
  * @see EntityTx
  *
  * @author Ralph Gasser
- * @version 3.0.0
+ * @version 4.0.0
  */
 interface Entity : DBO {
 
@@ -28,10 +30,10 @@ interface Entity : DBO {
     override val parent: Schema
 
     /**
-     * Creates and returns a new [EntityTx] for the given [QueryContext].
+     * Creates a new [SubTransaction] for the given [QueryContext] and parent [SchemaTx].
      *
-     * @param context The [QueryContext] to create the [EntityTx] for.
+     * @param parent The parent [SchemaTx] object.
      * @return New [EntityTx]
      */
-    override fun newTx(context: QueryContext): EntityTx
+    fun createOrResumeTx(parent: SchemaTx): EntityTx
 }

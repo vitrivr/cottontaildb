@@ -100,11 +100,11 @@ class PQFloatIndexTest : AbstractIndexTest() {
         val predicate = ProximityPredicate.Scan(column = idxCol, distanceColumn = distCol, distance = function, query = ctx.bindings.bind(query))
 
         /* Obtain necessary transactions. */
-        val catalogueTx = this.catalogue.newTx(ctx)
+        val catalogueTx = this.catalogue.createOrResumeTx(ctx)
         val schema = catalogueTx.schemaForName(this.schemaName)
         val schemaTx = schema.newTx(ctx)
         val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = entity.newTx(ctx)
+        val entityTx = entity.createOrResumeTx(ctx)
         val index = entityTx.indexForName(this.indexName)
         val indexTx = index.newTx(ctx)
 

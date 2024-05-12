@@ -12,16 +12,17 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.Def
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DMLGrpc
 import org.vitrivr.cottontail.grpc.DMLGrpcKt
+import org.vitrivr.cottontail.server.Instance
 import kotlin.time.ExperimentalTime
 
 /**
  * Implementation of [DMLGrpc.DMLImplBase], the gRPC endpoint for inserting data into Cottontail DB [DefaultEntity]s.
  *
  * @author Ralph Gasser
- * @version 2.3.1
+ * @version 2.4.0
  */
 @ExperimentalTime
-class DMLService(override val catalogue: Catalogue) : DMLGrpcKt.DMLCoroutineImplBase(), TransactionalGrpcService {
+class DMLService(override val instance: Instance) : DMLGrpcKt.DMLCoroutineImplBase(), TransactionalGrpcService {
 
     /** [CottontailQueryPlanner] instance used to generate execution plans from query definitions. */
     private val planner = CottontailQueryPlanner(

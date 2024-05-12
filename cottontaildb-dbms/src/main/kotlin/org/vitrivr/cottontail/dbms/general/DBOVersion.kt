@@ -4,7 +4,7 @@ package org.vitrivr.cottontail.dbms.general
  * Enum listing the different [DBOVersion]s for Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 enum class DBOVersion {
     /** Undefined [DBOVersion]. Used as placeholder in certain areas. */
@@ -20,9 +20,12 @@ enum class DBOVersion {
     V3_0,
 
     /** The fourth, iteration of the Cottontail DB file organisation, which is based on JetBrains Xodus. */
-    V3_1;
+    V3_1,
+
+    /** The fifth, iteration of the Cottontail DB file organisation, which is based on JetBrains Xodus. */
+    V3_2;
 
     companion object {
-        fun current() = DBOVersion.V3_1
+        fun current() = V3_2
     }
 }

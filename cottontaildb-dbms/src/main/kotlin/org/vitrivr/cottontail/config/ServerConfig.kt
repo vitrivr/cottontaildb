@@ -8,7 +8,7 @@ import java.nio.file.Path
  * Configuration for Cottontail DB's server.
  *
  * @author Ralph Gasser
- * @version 1.0.3
+ * @version 1.0.4
  */
 @Serializable
 data class ServerConfig(

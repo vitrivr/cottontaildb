@@ -10,19 +10,33 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.dbms.column.ColumnTx
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
-import org.vitrivr.cottontail.dbms.general.Tx
+import org.vitrivr.cottontail.dbms.execution.transactions.SubTransaction
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
 /**
- * A [Tx] that operates on a single [Index]. [Tx]s are a unit of isolation for data operations (read/write).
+ * A [SubTransaction] that operates on a single [Index]. [SubTransaction]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 3.1.0
+ * @version 4.0.0
  */
-interface IndexTx: Tx, Filterable, Countable {
-
+interface IndexTx: SubTransaction, Filterable, Countable {
     /** Reference to the [Index] this [IndexTx] belongs to. */
     override val dbo: Index
+
+    /** The parent [EntityTx] this [IndexTx] belongs to. */
+    val parent: EntityTx
+
+    /** The [QueryContext] this [IndexTx] belongs to. Typically determined by parent [EntityTx]. */
+    val context: QueryContext
+        get() = this.parent.context
+
+    /** The [Transaction] this [IndexTx] belongs to. Typically determined by parent [EntityTx]. */
+    override val transaction: Transaction
+        get() = this.context.txn
 
     /** True, if the [Index] backing this [IndexTx] supports incremental updates, i.e., can be updated tuple by tuple. */
     val supportsIncrementalUpdate: Boolean

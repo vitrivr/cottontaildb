@@ -5,9 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.queries.functions.math.distance.SIMD
-import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.DBOVersion
-import org.vitrivr.cottontail.legacy.VersionProber
 import org.vitrivr.cottontail.server.CottontailServer
 import java.io.FileNotFoundException
 import java.nio.file.Files
@@ -137,16 +135,7 @@ fun standalone(config: Config) {
     }
 
     /* Start gRPC Server and print message. */
-    val server = try {
-        embedded(config)
-    } catch (e: DatabaseException.VersionMismatchException) {
-        if (migrate(config, e.found, e.expected)) {
-            println("Cottontail DB upgrade to ${e.expected} was successful. Please restart Cottontail DB now!")
-            return
-        } else {
-            throw e
-        }
-    }
+    val server = embedded(config)
 
     println(
         "Cottontail DB server is up and running at port ${config.server.port}! Hop along... (catalogue: ${DBOVersion.current()}, pid: ${
@@ -183,32 +172,6 @@ fun embedded(config: Config): CottontailServer {
         Files.createDirectories(config.root)
     }
 
-    /* Check catalogue version. */
-    val detected = VersionProber(config).probe()
-    if (detected != VersionProber.EXPECTED && detected != DBOVersion.UNDEFINED) {
-        throw DatabaseException.VersionMismatchException(VersionProber.EXPECTED, detected)
-    }
-
     /* Start gRPC Server and return it. */
     return CottontailServer(config)
-}
-
-/**
- * Tries to migrate the Cottontail DB version.
- */
-@ExperimentalTime
-fun migrate(config: Config, from: DBOVersion, to: DBOVersion): Boolean {
-    /* Start CLI (if configured); wait for gRPC server to be stopped. */
-    val scanner = Scanner(System.`in`)
-    println("Cottontail DB detected a version mismatch (expected: $to, found: $from). Would you like to perform a upgrade (y/n)?")
-    while (true) {
-        when (scanner.nextLine().lowercase()) {
-            "yes", "y" -> {
-                VersionProber(config).migrate()
-                return true
-            }
-            "no", "n" -> return false
-        }
-        Thread.sleep(100)
-    }
 }

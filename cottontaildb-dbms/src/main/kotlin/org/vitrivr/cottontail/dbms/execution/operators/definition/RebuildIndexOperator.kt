@@ -15,18 +15,19 @@ import kotlin.system.measureTimeMillis
  * An [Operator.SourceOperator] used during query execution. Can be used to optimize a single [Index]
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.4.0
  */
 class RebuildIndexOperator(private val tx: CatalogueTx, private val name: Name.IndexName, private val service: AutoRebuilderService? = null, override val context: QueryContext): AbstractDataDefinitionOperator(name, "OPTIMIZE INDEX") {
     override fun toFlow(): Flow<Tuple> = flow {
-        val schemaTxn = this@RebuildIndexOperator.tx.schemaForName(this@RebuildIndexOperator.name.schema()).newTx(this@RebuildIndexOperator.context)
-        val entityTxn = schemaTxn.entityForName(this@RebuildIndexOperator.name.entity()).newTx(this@RebuildIndexOperator.context)
+        val schemaTxn = this@RebuildIndexOperator.tx.schemaForName(this@RebuildIndexOperator.name.schema()).newTx(this@RebuildIndexOperator.tx)
+        val entityTxn = schemaTxn.entityForName(this@RebuildIndexOperator.name.entity()).createOrResumeTx(schemaTxn)
         val index = entityTxn.indexForName(this@RebuildIndexOperator.name)
+        val indexTx = index.newTx(entityTxn)
         val time = measureTimeMillis {
             if (this@RebuildIndexOperator.service != null) {
-                this@RebuildIndexOperator.service.schedule(this@RebuildIndexOperator.name, index.type)
+                this@RebuildIndexOperator.service.schedule(index)
             } else {
-                index.newRebuilder(this@RebuildIndexOperator.context).rebuild()
+                index.newRebuilder(this@RebuildIndexOperator.context).rebuild(indexTx)
             }
         }
         emit(this@RebuildIndexOperator.statusRecord(time))

@@ -20,7 +20,7 @@ import java.io.ByteArrayInputStream
  * A [SchemaMetadata] in the Cottontail DB [Catalogue]. Used to store metadata about [Schema]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
 data class SchemaMetadata(val created: Long, val updated: Long) {
     companion object {
@@ -29,27 +29,12 @@ data class SchemaMetadata(val created: Long, val updated: Long) {
         private const val CATALOGUE_SCHEMA_STORE_NAME: String = "org.vitrivr.cottontail.schema"
 
         /**
-         * Initializes the Xodus [Store] used to store [SchemaMetadata] information in Cottontail DB.
-         *
-         * @param catalogue The [DefaultCatalogue] to initialize.
-         * @param transaction The [Transaction] to use.
-         */
-        internal fun init(catalogue: DefaultCatalogue, transaction: Transaction) {
-            catalogue.transactionManager.environment.openStore(CATALOGUE_SCHEMA_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
-                ?: throw DatabaseException.DataCorruptionException("Failed to create schema catalogue store.")
-        }
-
-        /**
          * Returns the Xodus [Store] used to store [SchemaMetadata] information in Cottontail DB.
          *
-         * @param catalogue [DefaultCatalogue] to access [Store] for.
          * @param transaction The Xodus [Transaction] to use.
          * @return [Store]
          */
-        internal fun store(catalogue: DefaultCatalogue, transaction: Transaction): Store {
-            return catalogue.transactionManager.environment.openStore(CATALOGUE_SCHEMA_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open store for schema catalogue.")
-        }
+        fun store(transaction: Transaction): Store = transaction.environment.openStore(CATALOGUE_SCHEMA_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction)
 
         /**
          * De-serializes a [SchemaMetadata] from the given [ByteIterable].

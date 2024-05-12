@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.dbms.index.va
 
 import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.env.Store
+import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.binding.MissingTuple
@@ -15,9 +17,12 @@ import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.DoubleValue
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructuralMetadata
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
+import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata.Companion.storeName
 import org.vitrivr.cottontail.dbms.index.va.bounds.Bounds
 import org.vitrivr.cottontail.dbms.index.va.bounds.L1Bounds
 import org.vitrivr.cottontail.dbms.index.va.bounds.L2Bounds
@@ -30,26 +35,30 @@ import java.util.concurrent.atomic.AtomicBoolean
  * A [Cursor] implementation for the [VAFIndex].
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 @Suppress("UNCHECKED_CAST")
-sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange, protected val predicate: T, protected val index: VAFIndex.Tx): Cursor<Tuple> {
+sealed class VAFIndexCursor<T: ProximityPredicate>(protected val partition: LongRange, protected val predicate: T, protected val index: VAFIndex.Tx): Cursor<Tuple> {
     /** [VectorValue] used for query. Must be prepared before using the [Iterator]. */
     protected val query: RealVectorValue<*>
 
     /** The [Bounds] objects used for filtering. */
     protected val bounds: Bounds
 
-    /** The sub-transaction used by this [VAFCursor]. */
-    private val subTx = this.index.context.txn.xodusTx.readonlySnapshot
+    /** The sub-transaction used by this [VAFIndexCursor]. */
+    private val xodusTx = index.xodusTx.readonlySnapshot
 
-    /** Cursor backing this [VAFCursor]. */
-    protected val indexCursor = this.index.dataStore.openCursor(this.subTx)
+    /** The Xodus [Store] used to store [VAFSignature]s. */
+    private val store: Store = this.xodusTx.environment.openStore(index.dbo.name.storeName(), StoreConfig.USE_EXISTING, this.xodusTx, false)
+        ?: throw DatabaseException.DataCorruptionException("Store for VAF index ${index.dbo.name} is missing.")
+
+    /** Cursor backing this [VAFIndexCursor]. */
+    protected val cursor: jetbrains.exodus.env.Cursor = this.store.openCursor(this.xodusTx)
 
     /** The [Cursor] used to access underlying column values. */
     protected val columnCursor: Cursor<Value?>
 
-    /** A begin of cursor (BoC) flag. */
+    /** A beginning of cursor (BoC) flag. */
     protected val boc = AtomicBoolean(true)
 
     /** The [TupleId] to start with. */
@@ -59,19 +68,21 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
     protected val endKey = this.partition.last.toKey()
 
     /** Cached in-memory version of the [EquidistantVAFMarks] used by this [Cursor]. */
-    protected val marks = this.index.marks
+    protected val marks : EquidistantVAFMarks by lazy {
+        IndexStructuralMetadata.read(this.index, EquidistantVAFMarks.Binding) ?: throw DatabaseException.DataCorruptionException("Marks for VAF index ${index.dbo.name} are missing.")
+    }
 
     /** The columns produced by this [Cursor]. */
-    protected val produces = this.index.columnsFor(this.predicate).toTypedArray()
+    protected val produces = index.columnsFor(this.predicate).toTypedArray()
 
     init {
         /* Extract query vector from binding. */
         val queryVectorBinding = this.predicate.query
         with(MissingTuple) {
-            with(this@VAFCursor.index.context.bindings) {
+            with(index.context.bindings) {
                 val value = queryVectorBinding.getValue()
                 check(value is RealVectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
-                this@VAFCursor.query = value
+                this@VAFIndexCursor.query = value
             }
         }
 
@@ -85,11 +96,11 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
         }
 
         /* Obtain Tx object for column. */
-        val entityTx: EntityTx = this.index.dbo.parent.newTx(this.index.context)
-        this.columnCursor = entityTx.columnForName(this.predicate.column.physical!!.name).newTx(this.index.context).cursor() as Cursor<Value?>
+        val entityTx: EntityTx = index.parent
+        this.columnCursor = entityTx.columnForName(this.predicate.column.physical!!.name).newTx(entityTx).cursor() as Cursor<Value?>
 
         /* Move cursors to correct position. */
-        if (this.indexCursor.getSearchKeyRange(this.startKey) == null) {
+        if (this.cursor.getSearchKeyRange(this.startKey) == null) {
             this.boc.set(false)
         }
     }
@@ -99,8 +110,8 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
      */
     override fun close() {
         this.columnCursor.close()
-        this.indexCursor.close()
-        this.subTx.abort()
+        this.cursor.close()
+        this.xodusTx.abort()
     }
 
     /**
@@ -117,9 +128,9 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
     }
 
     /**
-     * A [VAFCursor] for limiting [ProximityPredicate], i.e., [ProximityPredicate.NNS] and [ProximityPredicate.FNS]
+     * A [VAFIndexCursor] for limiting [ProximityPredicate], i.e., [ProximityPredicate.NNS] and [ProximityPredicate.FNS]
      */
-    sealed class KLimited<T : ProximityPredicate.KLimitedSearch>(partition: LongRange, predicate: T, index: VAFIndex.Tx) : VAFCursor<T>(partition, predicate, index) {
+    sealed class KLimited<T : ProximityPredicate.KLimitedSearch>(partition: LongRange, predicate: T, index: VAFIndex.Tx) : VAFIndexCursor<T>(partition, predicate, index) {
 
         /** The [Iterator] over the top k entries. */
         protected val selection: Iterator<Tuple> by lazy {
@@ -165,7 +176,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
         }
 
         /**
-         * Prepares the [HeapSelection] for this [VAFCursor.KLimited]
+         * Prepares the [HeapSelection] for this [VAFIndexCursor.KLimited]
          *
          * @return [HeapSelection]
          */
@@ -173,7 +184,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
     }
 
     /**
-     * A [VAFCursor] implementation for nearest neighbour search.
+     * A [VAFIndexCursor] implementation for nearest neighbour search.
      */
     class NNS(partition: LongRange, predicate: ProximityPredicate.NNS, index: VAFIndex.Tx) : KLimited<ProximityPredicate.NNS>(partition, predicate, index) {
 
@@ -188,20 +199,20 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                 /* First phase: Just add entries until we have k-results. */
                 var threshold: Double
                 do {
-                    val tupleId = LongBinding.compressedEntryToLong(indexCursor.key)
+                    val tupleId = LongBinding.compressedEntryToLong(cursor.key)
                     if (this.columnCursor.moveTo(tupleId)) {
                         val value = this.columnCursor.value()
                         val distance = this.predicate.distance(this.query, value)!!
                         localSelection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))
                     }
-                } while (localSelection.size < localSelection.k && this.indexCursor.next && this.indexCursor.key <= this.endKey)
+                } while (localSelection.size < localSelection.k && this.cursor.next && this.cursor.key <= this.endKey)
 
                 /* Second phase: Use lower-bound to decide whether entry should be added. */
                 threshold = (localSelection.peek()!![0] as DoubleValue).value
-                while (this.indexCursor.next && this.indexCursor.key <= this.endKey) {
-                    val signature = VAFSignature.fromEntry(indexCursor.value)
+                while (this.cursor.next && this.cursor.key <= this.endKey) {
+                    val signature = VAFSignature.fromEntry(cursor.value)
                     if (this.bounds.lb(signature, threshold) < threshold) {
-                        val tupleId = LongBinding.compressedEntryToLong(indexCursor.key)
+                        val tupleId = LongBinding.compressedEntryToLong(cursor.key)
                         this.columnCursor.moveTo(tupleId)
                         val value = this.columnCursor.value()
                         val distance = this.predicate.distance(this.query, value)!!
@@ -220,7 +231,7 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
     }
 
     /**
-     * A [VAFCursor] implementation for farthest neighbour search.
+     * A [VAFIndexCursor] implementation for farthest neighbour search.
      */
     class FNS(partition: LongRange, predicate: ProximityPredicate.FNS, index: VAFIndex.Tx) : KLimited<ProximityPredicate.FNS>(partition, predicate, index) {
         /**
@@ -234,19 +245,19 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
                 /* First phase: Just add entries until we have k-results. */
                 var threshold: Double
                 do {
-                    val tupleId = LongBinding.compressedEntryToLong(indexCursor.key)
+                    val tupleId = LongBinding.compressedEntryToLong(cursor.key)
                     this.columnCursor.moveTo(tupleId)
                     val value = this.columnCursor.value()
                     val distance = this.predicate.distance(this.query, value)!!
                     localSelection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))
-                } while (localSelection.size < localSelection.k && this.indexCursor.next && this.indexCursor.key <= this.endKey)
+                } while (localSelection.size < localSelection.k && this.cursor.next && this.cursor.key <= this.endKey)
 
                 /* Second phase: Use lower-bound to decide whether entry should be added. */
                 threshold = (localSelection.peek()!![0] as DoubleValue).value
-                while (this.indexCursor.next && this.indexCursor.key <= this.endKey) {
-                    val signature = VAFSignature.fromEntry(indexCursor.value)
+                while (this.cursor.next && this.cursor.key <= this.endKey) {
+                    val signature = VAFSignature.fromEntry(cursor.value)
                     if (this.bounds.ub(signature, threshold) < threshold) {
-                        val tupleId = LongBinding.compressedEntryToLong(indexCursor.key)
+                        val tupleId = LongBinding.compressedEntryToLong(cursor.key)
                         this.columnCursor.moveTo(tupleId)
                         val value = this.columnCursor.value()
                         val distance = this.predicate.distance(this.query, value)!!
@@ -265,13 +276,13 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
     }
 
     /**
-     * An (experimental) [VAFCursor] implementation for range search.
+     * An (experimental) [VAFIndexCursor] implementation for range search.
      */
-    class ENN(partition: LongRange, predicate: ProximityPredicate.ENN, index: VAFIndex.Tx) : VAFCursor<ProximityPredicate.ENN>(partition, predicate, index) {
+    class ENN(partition: LongRange, predicate: ProximityPredicate.ENN, index: VAFIndex.Tx) : VAFIndexCursor<ProximityPredicate.ENN>(partition, predicate, index) {
 
         override fun moveNext(): Boolean {
-            while (this.boc.compareAndExchange(true, false) || (this.indexCursor.next && this.indexCursor.key < this.endKey)) {
-                val signature = VAFSignature.fromEntry(this.indexCursor.value)
+            while (this.boc.compareAndExchange(true, false) || (this.cursor.next && this.cursor.key < this.endKey)) {
+                val signature = VAFSignature.fromEntry(this.cursor.value)
                 val (lb,ub) = this.bounds.bounds(signature)
                 if (this.predicate.eMin.value >= lb && this.predicate.eMax.value < ub) {
                     return true
@@ -280,9 +291,9 @@ sealed class VAFCursor<T: ProximityPredicate>(protected val partition: LongRange
             return false
         }
 
-        override fun key(): TupleId = LongBinding.compressedEntryToLong(this.indexCursor.key)
+        override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
         override fun value(): Tuple {
-            val tupleId = LongBinding.compressedEntryToLong(this.indexCursor.key)
+            val tupleId = LongBinding.compressedEntryToLong(this.cursor.key)
             this.columnCursor.moveTo(tupleId)
             val value = this.columnCursor.value()
             val distance = this.predicate.distance(this.query, value)!!

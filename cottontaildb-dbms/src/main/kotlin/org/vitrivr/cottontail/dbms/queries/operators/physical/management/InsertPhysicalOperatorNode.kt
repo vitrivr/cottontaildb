@@ -25,10 +25,10 @@ import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
  * A [InsertPhysicalOperatorNode] that formalizes a INSERT operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.9.0
+ * @version 2.10.0
  */
 @Suppress("UNCHECKED_CAST")
-class InsertPhysicalOperatorNode(override val groupId: GroupId, val context: QueryContext, val entity: EntityTx, val tuples: MutableList<Tuple>) : NullaryPhysicalOperatorNode() {
+class InsertPhysicalOperatorNode(override val groupId: GroupId, val context: QueryContext, val tx: EntityTx, val tuples: MutableList<Tuple>) : NullaryPhysicalOperatorNode() {
     companion object {
         private const val NODE_NAME = "Insert"
     }
@@ -57,8 +57,8 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val context: Que
     init {
         /* Obtain statistics costs and  */
         var estimatedInsertSize = 0
-        this.entity.listColumns().forEach { columnDef ->
-            val statistic = this.entity.columnForName(columnDef.name).newTx(this.entity.context).statistics() as ValueStatistics<Value>
+        this.tx.listColumns().forEach { columnDef ->
+            val statistic = this.tx.columnForName(columnDef.name).newTx(this.tx).statistics() as ValueStatistics<Value>
             this.statistics[columnDef] = statistic
             estimatedInsertSize += if (columnDef.type == Types.String) {
                 statistic.avgWidth * Char.SIZE_BYTES  /* GA: This is not a good cost estimate for empty tables but we don't really need a better one. */
@@ -75,7 +75,7 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val context: Que
      *
      * @return Copy of this [InsertLogicalOperatorNode].
      */
-    override fun copy() = InsertPhysicalOperatorNode(this.groupId, this.context, this.entity, this.tuples)
+    override fun copy() = InsertPhysicalOperatorNode(this.groupId, this.context, this.tx, this.tuples)
 
     /**
      * An [InsertPhysicalOperatorNode] is always executable
@@ -90,7 +90,7 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val context: Que
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): Operator = InsertOperator(this.groupId, this.entity, this.tuples, ctx)
+    override fun toOperator(ctx: QueryContext): Operator = InsertOperator(this.groupId, this.tx, this.tuples, ctx)
 
     /**
      * The [InsertPhysicalOperatorNode] cannot be partitioned.
@@ -103,7 +103,7 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val context: Que
      * @return [Digest]
      */
     override fun digest(): Digest {
-        var result = this.entity.dbo.name.hashCode().toLong()
+        var result = this.tx.dbo.name.hashCode().toLong()
         result += 31L * result + this.tuples.hashCode()
         return result
     }
