@@ -18,7 +18,6 @@ import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructuralMetadata
 import org.vitrivr.cottontail.dbms.catalogue.toKey
-import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
@@ -60,8 +59,8 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
     /** A beginning of cursor (BoC) flag. */
     protected val boc = AtomicBoolean(false)
 
-    /** Internal [ColumnTx] used to access actual values. */
-    protected val columnTx: ColumnTx<RealVectorValue<*>>
+    /** Internal [EntityTx] used to access actual values. */
+    protected val entityTx: EntityTx
 
     /** The [TupleId] to start with. */
     protected val startKey = this.partition.first.toKey()
@@ -101,8 +100,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
         }
 
         /* Obtain Tx object for column. */
-        val entityTx: EntityTx = this.index.parent
-        this.columnTx = entityTx.columnForName(this.index.columns[0].name).newTx(entityTx) as ColumnTx<RealVectorValue<*>>
+        this.entityTx = this.index.parent
     }
 
     /**
@@ -187,7 +185,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
             var threshold: Double
             for (i in 0 until localSelection.k) {
                 val tupleId = signatures[i].first
-                val value = this.columnTx.read(tupleId)
+                val value = this.entityTx.read(tupleId)[this.index.columns[0]]
                 val distance = this.predicate.distance(this.query, value)!!
                 localSelection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))
             }
@@ -198,7 +196,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
                 val entry = signatures[i]
                 if (this.bounds.lb(entry.second, threshold) < threshold) {
                     val tupleId = entry.first
-                    val value = this.columnTx.read(tupleId)
+                    val value = this.entityTx.read(tupleId)[this.index.columns[0]]
                     val distance = this.predicate.distance(this.query, value)!!
                     threshold = (localSelection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
                 }
@@ -225,7 +223,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
                     val signature = VAFSignature.fromEntry(cursor.value)
                     val tupleId = LongBinding.compressedEntryToLong(cursor.key)
                     signatures.add(tupleId to signature)
-                    val value = this.columnTx.read(tupleId)
+                    val value = this.entityTx.read(tupleId)[this.index.columns[0]]
                     val distance = this.predicate.distance(this.query, value)!!
                     localSelection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))
                 } while (this.cursor.next && this.cursor.key < this.endKey && localSelection.size < localSelection.k)
@@ -237,7 +235,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
                     val signature = VAFSignature.fromEntry(cursor.value)
                     signatures.add(tupleId to signature)
                     if (this.bounds.lb(signature, threshold) < threshold) {
-                        val value = this.columnTx.read(tupleId)
+                        val value = this.entityTx.read(tupleId)[this.index.columns[0]]
                         val distance = this.predicate.distance(this.query, value)!!
                         threshold = (localSelection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
                     }
@@ -270,7 +268,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
                 var threshold: Double
                 do {
                     val tupleId = LongBinding.compressedEntryToLong(cursor.key)
-                    val value = this.columnTx.read(tupleId)
+                    val value = this.entityTx.read(tupleId)[this.index.columns[0]]
                     val distance = this.predicate.distance(this.query, value)!!
                     selection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))
                 } while (this.cursor.next  && this.cursor.key < this.endKey && selection.size < selection.k)
@@ -281,7 +279,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
                     val signature = VAFSignature.fromEntry(cursor.value)
                     if (this.bounds.ub(signature, threshold) < threshold) {
                         val tupleId = LongBinding.compressedEntryToLong(cursor.key)
-                        val value =  this.columnTx.read(tupleId)
+                        val value =  this.entityTx.read(tupleId)[this.index.columns[0]]
                         val distance = this.predicate.distance(this.query, value)!!
                         threshold = (selection.offer(StandaloneTuple(tupleId, this.produces, arrayOf(distance, value)))[0] as DoubleValue).value
                     }
@@ -301,7 +299,6 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
      * An (experimental) [VAFIndexCursor] implementation for range search.
      */
     class ENN(partition: LongRange, predicate: ProximityPredicate.ENN, index: VAFIndex.Tx) : CachedVAFCursor<ProximityPredicate.ENN>(partition, predicate, index) {
-
         override fun moveNext(): Boolean {
             while (this.boc.compareAndExchange(true, false) || (this.cursor.next && this.cursor.key < this.endKey)) {
                 val signature = VAFSignature.fromEntry(this.cursor.value)
@@ -316,7 +313,7 @@ sealed class CachedVAFCursor<T: ProximityPredicate>(protected val partition: Lon
         override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
         override fun value(): Tuple {
             val tupleId = LongBinding.compressedEntryToLong(this.cursor.key)
-            val value = this.columnTx.read(tupleId)
+            val value = this.entityTx.read(tupleId)[this.index.columns[0]]
             val distance = this.predicate.distance(this.query, value)!!
             return StandaloneTuple(tupleId, this.produces, arrayOf(distance, value))
         }

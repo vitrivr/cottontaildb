@@ -5,7 +5,8 @@ import io.grpc.StatusException
 import jetbrains.exodus.ExodusException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.buffer
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.onCompletion
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.client.language.basics.Constants
@@ -122,7 +123,7 @@ internal interface TransactionalGrpcService {
      * @param prepare The action that prepares the query [Operator]
      * @return [Flow] of [CottontailGrpc.QueryResponseMessage]
      */
-    fun prepareAndExecute(metadata: CottontailGrpc.RequestMetadata, readOnly: Boolean, prepare: (ctx: DefaultQueryContext) -> Operator): Flow<CottontailGrpc.QueryResponseMessage> = flow {
+    fun prepareAndExecute(metadata: CottontailGrpc.RequestMetadata, readOnly: Boolean, prepare: (ctx: DefaultQueryContext) -> Operator): Flow<CottontailGrpc.QueryResponseMessage> = channelFlow<CottontailGrpc.QueryResponseMessage> {
         /* Phase 1a: Obtain query context. */
         val m1 = TimeSource.Monotonic.markNow()
         val context = try {
@@ -164,7 +165,7 @@ internal interface TransactionalGrpcService {
 
         /* Contextual information used by Flow. */
         val headerSize = responseBuilder.build().serializedSize
-        var accumulatedSize = headerSize
+        var accumulated = headerSize
         var results = 0
 
         /* Phase 2b: Execute query and stream back results. */
@@ -190,27 +191,27 @@ internal interface TransactionalGrpcService {
             /* Flush remaining tuples (final transmission). */
             if (results == 0 || responseBuilder.tuplesCount > 0) {
                 responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS)
-                emit(responseBuilder.build())
+                send(responseBuilder.build())
             }
 
             /* Debug message. */
             LOGGER.info("[{}, {}] Execution of {} completed successfully in {}.", context.txn.transactionId, context.queryId, context.physical.firstOrNull()?.name, m2.elapsedNow())
         }.collect {
-            val tuple = it.toTuple()
+            val tuple = it.toTuple().build()
             val tupleSize = tuple.serializedSize
-            if (accumulatedSize + tupleSize >= Constants.MAX_PAGE_SIZE_BYTES) {
+            if (accumulated + tupleSize >= Constants.MAX_PAGE_SIZE_BYTES) {
                 responseBuilder.metadataBuilder.planDuration = m2.elapsedNow().toLong(DurationUnit.MILLISECONDS) /* Query duration is, re-evaluated for every batch. */
-                emit(responseBuilder.build())
+                send(responseBuilder.build())
                 responseBuilder.clearTuples()
-                accumulatedSize = headerSize
+                accumulated = headerSize
             }
 
             /* Add entry to page and increment counter. */
             responseBuilder.addTuples(tuple)
-            accumulatedSize += tupleSize
+            accumulated += tupleSize
             results += 1
         }
-    }
+    }.buffer(1024)
 
     /**
      *  Converts the provided [Throwable] to a [StatusException] that can be returned to the caller. The

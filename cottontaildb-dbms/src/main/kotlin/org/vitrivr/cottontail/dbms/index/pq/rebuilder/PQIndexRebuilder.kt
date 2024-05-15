@@ -26,7 +26,6 @@ class PQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractIndexRebu
         require(indexTx is PQIndex.Tx) { "PQIndexRebuilder can only be accessed with a PQIndex.Tx!" }
 
         /* Tx objects required for index rebuilding. */
-        val columnTx = indexTx.parent.columnForName(indexTx.columns[0].name).newTx(indexTx.parent)
         val dataStore = this.tryClearAndOpenStore(indexTx) ?: return false
         val count = indexTx.parent.count()
 
@@ -35,9 +34,9 @@ class PQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractIndexRebu
 
         /* Iterate over column and update index with entries. */
         var counter = 0
-        columnTx.cursor().use { cursor ->
+        indexTx.parent.cursor(indexTx.columns).use { cursor ->
             while (cursor.moveNext()) {
-                val value = cursor.value()
+                val value = cursor.value()[0]
                 if (value is VectorValue<*>) {
                     if (!dataStore.put(indexTx.parent.xodusTx, cursor.key().toKey(), quantizer.quantize(value).toEntry())) {
                         return false

@@ -98,6 +98,9 @@ sealed class Types<T : Value> {
     /** The ordinal value of a [Types] implementation. */
     abstract val ordinal: kotlin.Int
 
+    /** */
+    abstract val fixed: kotlin.Boolean
+
     /**
      * A [Scalar] type.
      */
@@ -115,7 +118,9 @@ sealed class Types<T : Value> {
      * A [Numeric] type.
      */
     @Serializable
-    sealed class Numeric<T: NumericValue<*>>: Scalar<T>()
+    sealed class Numeric<T: NumericValue<*>>: Scalar<T>() {
+        override val fixed = true
+    }
 
     /**
      * A [Complex] type.
@@ -130,6 +135,7 @@ sealed class Types<T : Value> {
     sealed class Vector<T: VectorValue<*>, E: ScalarValue<*>>: Types<T>() {
         /** The element type of this [Vector] type. */
         abstract val elementType: Scalar<E>
+        override val fixed = true
         override fun equals(other: Any?): kotlin.Boolean =
             (this === other) || (other is Vector<*,*> && other.ordinal == this.ordinal && other.logicalSize == this.logicalSize)
         override fun hashCode(): kotlin.Int = 31 * this.ordinal.hashCode() + this.logicalSize.hashCode()
@@ -142,6 +148,7 @@ sealed class Types<T : Value> {
         override val name = "BOOLEAN"
         override val ordinal: kotlin.Int = 0
         override val physicalSize = kotlin.Byte.SIZE_BYTES
+        override val fixed = true
     }
 
     @Serializable
@@ -182,6 +189,7 @@ sealed class Types<T : Value> {
         override val name = "DATE"
         override val ordinal: kotlin.Int = 5
         override val physicalSize = kotlin.Long.SIZE_BYTES
+        override val fixed = true
     }
 
     @Serializable
@@ -207,6 +215,7 @@ sealed class Types<T : Value> {
         override val ordinal: kotlin.Int = 8
         override val logicalSize = LOGICAL_SIZE_UNKNOWN
         override val physicalSize = LOGICAL_SIZE_UNKNOWN * Char.SIZE_BYTES
+        override val fixed = false
     }
 
     @Serializable
@@ -215,6 +224,7 @@ sealed class Types<T : Value> {
         override val name = "UUID"
         override val ordinal: kotlin.Int = 9
         override val physicalSize = 2 * kotlin.Long.SIZE_BYTES
+        override val fixed = true
     }
 
     @Serializable
@@ -333,6 +343,7 @@ sealed class Types<T : Value> {
         override val ordinal: kotlin.Int = 19
         override val logicalSize = LOGICAL_SIZE_UNKNOWN
         override val physicalSize = LOGICAL_SIZE_UNKNOWN * Char.SIZE_BYTES
+        override val fixed = false
     }
 
     @Serializable

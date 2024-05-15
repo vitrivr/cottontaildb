@@ -79,6 +79,6 @@ value class DateValue(override val value: Long) : ScalarValue<Long>, PublicValue
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setDateData(this.value).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setDateData(this.value)
 }

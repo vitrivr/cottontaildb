@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.function.FunctionPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntityScanPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.IndexScanPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 
 /**
@@ -81,11 +80,7 @@ object NNSIndexScanClass1Rule : RewriteRule {
         if (candidate != null) {
             val produces = candidate.columnsFor(predicate)
             if (produces.contains(predicate.distanceColumn.column)) {
-                var replacement: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, listOf(node.out.copy()), candidate, predicate)
-                val newFetch = scan.columns.filter { !produces.contains(it.physical) && it != predicate.column }
-                if (newFetch.isNotEmpty()) {
-                    replacement = FetchPhysicalOperatorNode(replacement, scan.tx, newFetch)
-                }
+                val replacement: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, listOf(node.out.copy()), candidate, predicate)
                 return node.output?.copyWithOutput(replacement) ?: replacement
             }
         }

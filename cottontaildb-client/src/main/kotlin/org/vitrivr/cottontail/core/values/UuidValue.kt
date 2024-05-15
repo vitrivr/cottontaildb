@@ -86,7 +86,7 @@ value class UuidValue(override val value: UUID) : ScalarValue<UUID>, PublicValue
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal = CottontailGrpc.Literal.newBuilder().setUuidData(Uuid.newBuilder().setLeastSignificant(this.value.leastSignificantBits).setMostSignificant(this.value.mostSignificantBits)).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder = CottontailGrpc.Literal.newBuilder().setUuidData(Uuid.newBuilder().setLeastSignificant(this.value.leastSignificantBits).setMostSignificant(this.value.mostSignificantBits))
 
     /**
      * Returns the [value] held by this [StringValue].

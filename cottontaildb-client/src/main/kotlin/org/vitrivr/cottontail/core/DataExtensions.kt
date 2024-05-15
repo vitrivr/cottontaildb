@@ -24,14 +24,14 @@ fun CottontailGrpc.QueryResponseMessage.Tuple.toTuple(tupleId: TupleId, schema: 
  *
  * @return [CottontailGrpc.QueryResponseMessage.Tuple]
  */
-fun Tuple.toTuple(): CottontailGrpc.QueryResponseMessage.Tuple {
+fun Tuple.toTuple(): CottontailGrpc.QueryResponseMessage.Tuple.Builder {
     val tuple = CottontailGrpc.QueryResponseMessage.Tuple.newBuilder()
     for (i in 0 until this.size) {
         tuple.addData((this[i] as? PublicValue?)?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(
             CottontailGrpc.Null.newBuilder().setType(this.columns[i].type.proto()).setSize(this.columns[i].type.logicalSize)
-        ).build())
+        ))
     }
-    return tuple.build()
+    return tuple
 }
 
 /**

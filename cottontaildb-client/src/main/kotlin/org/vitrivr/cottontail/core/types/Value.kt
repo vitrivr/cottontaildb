@@ -24,6 +24,4 @@ interface Value : Comparable<Value> {
      * @return true if equal, false otherwise.
      */
     fun isEqual(other: Value): Boolean
-
-
 }

@@ -60,8 +60,8 @@ value class ShortVectorValue(val data: ShortArray) : RealVectorValue<Short>, Pub
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setShort(CottontailGrpc.IntVector.newBuilder().addAllVector(this.map { it.value.toInt() }))).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setShort(CottontailGrpc.IntVector.newBuilder().addAllVector(this.map { it.value.toInt() })))
 
     /**
      * Returns the indices of this [ShortVectorValue].

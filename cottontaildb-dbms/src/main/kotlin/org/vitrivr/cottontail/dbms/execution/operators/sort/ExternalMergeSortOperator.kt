@@ -111,7 +111,7 @@ class ExternalMergeSortOperator(parent: Operator, sortOn: List<Pair<Binding.Colu
         val path = this.tmpPath.resolve("sort_${this.identifier}_${this.chunks.size}")
         chunk.sortWith(this@ExternalMergeSortOperator.comparator)
         Files.newOutputStream(path, StandardOpenOption.CREATE_NEW).use { os ->
-            for (t in chunk) t.toTuple().writeDelimitedTo(os)
+            for (t in chunk) t.toTuple().build().writeDelimitedTo(os)
         }
         chunk.clear()
         this.chunks.add(path)

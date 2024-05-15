@@ -127,10 +127,9 @@ value class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Floa
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal =
-        CottontailGrpc.Literal.newBuilder().setVectorData(
-            CottontailGrpc.Vector.newBuilder().setComplex32(CottontailGrpc.Complex32Vector.newBuilder().addAllVector(this.map { CottontailGrpc.Complex32.newBuilder().setReal(it.real.value).setImaginary(it.imaginary.value).build() }))
-        ).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder = CottontailGrpc.Literal.newBuilder().setVectorData(
+        CottontailGrpc.Vector.newBuilder().setComplex32(CottontailGrpc.Complex32Vector.newBuilder().addAllVector(this.map { CottontailGrpc.Complex32.newBuilder().setReal(it.real.value).setImaginary(it.imaginary.value).build() }))
+    )
 
     /**
      * Returns the indices of this [Complex32VectorValue].

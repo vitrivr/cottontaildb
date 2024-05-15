@@ -21,7 +21,7 @@ import java.util.*
  * Uses a simple format, that encode complex structures to text (i.e. needed for CSV exports).
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 class TupleSimpleSerializer(val columns: Array<ColumnDef<*>>): KSerializer<Tuple> {
     /** The [TupleSerializer] returns a [List] of [PublicValue] types. */

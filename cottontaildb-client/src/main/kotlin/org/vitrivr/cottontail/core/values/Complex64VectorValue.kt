@@ -116,10 +116,10 @@ value class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Dou
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal =
+    override fun toGrpc(): CottontailGrpc.Literal.Builder =
         CottontailGrpc.Literal.newBuilder().setVectorData(
             CottontailGrpc.Vector.newBuilder().setComplex64(CottontailGrpc.Complex64Vector.newBuilder().addAllVector(this.map { CottontailGrpc.Complex64.newBuilder().setReal(it.real.value).setImaginary(it.imaginary.value).build() }))
-        ).build()
+        )
 
     /**
      * Returns the indices of this [Complex64VectorValue].

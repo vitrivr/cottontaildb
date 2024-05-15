@@ -53,16 +53,14 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, instance: Instance): AbstractAsync
         this.indexedColumn = indexTx.columns[0]
 
         /* Tx objects required for index rebuilding. */
-        val columnTx = indexTx.parent.columnForName(this.indexedColumn.name).newTx(indexTx.parent)
-
         val count = indexTx.parent.count()
 
         /* Iterate over entity and update index with entries. */
         var counter = 0
-        columnTx.cursor().use { cursor ->
+        indexTx.parent.cursor(indexTx.columns).use { cursor ->
             while (cursor.hasNext()) {
                 if (this.state != IndexRebuilderState.REBUILDING) return false
-                val value = cursor.value()
+                val value = cursor.value()[0]
                 if (value is RealVectorValue<*>) {
                     if (!this.tmpDataStore.add(this.tmpTx, cursor.key().toKey(), this.newMarks.getSignature(value).toEntry())) {
                         return false

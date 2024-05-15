@@ -129,7 +129,7 @@ object GrpcQueryBinder {
         /* Parse columns to INSERT. */
         val columns = Array<ColumnDef<*>>(insert.elementsCount) {
             val columnName = insert.elementsList[it].column.parse()
-            entityTx.columnForName(columnName).columnDef
+            entityTx.columnForName(columnName)
         }
         val values = Array(insert.elementsCount) {
             val literal = insert.elementsList[it].value.toValue()
@@ -162,9 +162,9 @@ object GrpcQueryBinder {
         val entityTx = parseAndBindEntity(insert.from.scan.entity)
 
         /* Parse columns to BATCH INSERT. */
-        val columns = Array<ColumnDef<*>>(insert.columnsCount) {
+        val columns = Array(insert.columnsCount) {
             val columnName = insert.columnsList[it].parse()
-            entityTx.columnForName(columnName).columnDef
+            entityTx.columnForName(columnName)
         }
 
         /* Parse records to BATCH INSERT. */

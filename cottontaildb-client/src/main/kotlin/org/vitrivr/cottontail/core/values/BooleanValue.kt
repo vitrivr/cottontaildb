@@ -72,6 +72,6 @@ value class BooleanValue(override val value: Boolean): ScalarValue<Boolean>, Pub
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setBooleanData(this.value).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setBooleanData(this.value)
 }

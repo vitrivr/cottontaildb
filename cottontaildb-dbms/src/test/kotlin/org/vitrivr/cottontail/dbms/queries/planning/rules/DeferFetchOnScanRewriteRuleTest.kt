@@ -17,9 +17,6 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.predicates.FilterP
 import org.vitrivr.cottontail.dbms.queries.operators.physical.projection.SelectProjectionPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntitySamplePhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntityScanPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnFetchRewriteRule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnScanRewriteRule
 
 /**
  * A collection of test cases for the [DeferFetchOnScanRewriteRule].

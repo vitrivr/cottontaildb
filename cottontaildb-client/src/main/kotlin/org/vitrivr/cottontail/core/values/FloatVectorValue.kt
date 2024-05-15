@@ -71,8 +71,10 @@ value class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float>, Pub
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setFloat(CottontailGrpc.FloatVector.newBuilder().addAllVector(this.map { it.value }))).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder()
+            .setVectorData(CottontailGrpc.Vector.newBuilder().setFloat( CottontailGrpc.FloatVector.newBuilder().addAllVector(Iterable { this@FloatVectorValue.data.iterator() })))
+
 
     /**
      * Returns the indices of this [FloatVectorValue].

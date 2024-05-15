@@ -1,12 +1,13 @@
 package org.vitrivr.cottontail.dbms.execution.operators.function
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.functions.Function
-import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.dbms.entity.values.StoredTuple
+import org.vitrivr.cottontail.dbms.entity.values.StoredValue
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
@@ -29,22 +30,17 @@ class FunctionOperator(parent: Operator, private val function: Binding.Function,
      *
      * @return [Flow] representing this [FunctionOperator]
      */
-    override fun toFlow(): Flow<Tuple> = flow {
+    override fun toFlow(): Flow<Tuple> = with(this@FunctionOperator.context.bindings) {
         val outColumns = this@FunctionOperator.columns.toTypedArray()
-        val incoming = this@FunctionOperator.parent.toFlow()
-        with(this@FunctionOperator.context.bindings) {
-            incoming.collect { record ->
-                with(record) {
-                    /* Materialize new values array. */
-                    val outValues = Array(outColumns.size) {
-                        if (it < outColumns.size - 1) {
-                            this[it]
-                        } else {
-                            this@FunctionOperator.function.getValue()
-                        }
+        this@FunctionOperator.parent.toFlow().map { record ->
+            with(record) {
+                StoredTuple(record.tupleId, outColumns, Array(outColumns.size) {
+                    if (it < outColumns.size - 1) {
+                        (this as StoredTuple).values[it] as StoredValue
+                    } else {
+                        this@FunctionOperator.function.getValue()?.let { v -> StoredValue.Inline(v) }
                     }
-                    emit(StandaloneTuple(record.tupleId, outColumns, outValues))
-                }
+                })
             }
         }
     }

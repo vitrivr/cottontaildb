@@ -42,7 +42,7 @@ class EntityScanOperator(groupId: GroupId, private val entity: EntityTx, private
         val partition = this@EntityScanOperator.entity.partitionFor(this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)
         var read = 0
         this@EntityScanOperator.entity.cursor(fetch, partition, rename).use { cursor ->
-            while (cursor.moveNext()) {
+        while (cursor.moveNext()) {
                 emit(cursor.value())
                 read += 1
             }

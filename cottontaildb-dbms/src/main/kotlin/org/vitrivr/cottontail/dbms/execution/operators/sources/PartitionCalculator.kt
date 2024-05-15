@@ -1,8 +1,6 @@
 package org.vitrivr.cottontail.dbms.execution.operators.sources
 
-import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import java.lang.Long.max
 import java.lang.Long.min
 import java.lang.Math.floorDiv
 

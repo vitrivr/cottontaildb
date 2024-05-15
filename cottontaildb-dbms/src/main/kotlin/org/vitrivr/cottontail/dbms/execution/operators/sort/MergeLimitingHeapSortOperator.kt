@@ -1,10 +1,8 @@
 package org.vitrivr.cottontail.dbms.execution.operators.sort
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.channelFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.merge
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.ColumnDef
@@ -14,7 +12,6 @@ import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.utilities.selection.HeapSelection
-import java.util.concurrent.atomic.AtomicLong
 
 /**
  * A [MergeLimitingHeapSortOperator] merges the results of multiple incoming operators into a single [Flow],
@@ -46,40 +43,15 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<B
      *
      * @return [Flow] representing this [MergeLimitingHeapSortOperator]
      */
-    override fun toFlow(): Flow<Tuple> = channelFlow {
-
-        /* Prepare a global heap selection. */
-        val incoming = this@MergeLimitingHeapSortOperator.parents
-        val globalSelection = HeapSelection((this@MergeLimitingHeapSortOperator.limit), this@MergeLimitingHeapSortOperator.comparator)
-        val globalCollected = AtomicLong(0L)
-
-        /*
-         * Collect incoming flows into a local HeapSelection object (one per flow to avoid contention).
-         *
-         * For pre-sorted and pre-limited input, the HeapSelection should incur only minimal overhead because
-         * sorting only kicks in if k entries have been added.
-         */
-        val mutex = Mutex()
-        val jobs = incoming.map { op ->
-            launch {
-                val localSelection = HeapSelection(this@MergeLimitingHeapSortOperator.limit.toInt(), this@MergeLimitingHeapSortOperator.comparator)
-                var localCollected = 0L
-                op.toFlow().collect {
-                    localCollected += 1L
-                    localSelection.offer(it)
-                }
-                mutex.withLock {
-                    for (r in localSelection) {
-                       globalSelection.offer(r)
-                   }
-                }
-                globalCollected.addAndGet(localCollected)
-            }
+    override fun toFlow(): Flow<Tuple> = flow {
+        val globalSelection = HeapSelection(this@MergeLimitingHeapSortOperator.limit, this@MergeLimitingHeapSortOperator.comparator)
+        this@MergeLimitingHeapSortOperator.parents.map { it.toFlow() }.merge().collect {
+            globalSelection.offer(it)
         }
-        jobs.forEach { it.join() } /* Wait for jobs to complete. */
-        LOGGER.debug("Collection of ${globalCollected.get()} records from ${jobs.size} partitions completed! ")
+
+        /* Emit final result .*/
         for (r in globalSelection) {
-            send(r)
+            emit(r)
         }
     }
 }

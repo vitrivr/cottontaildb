@@ -26,8 +26,6 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.StampedLock
-import kotlin.collections.HashSet
-import kotlin.collections.LinkedHashSet
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -238,7 +236,8 @@ class TransactionManager(val instance: Instance) {
          *
          * @param operator The [Operator.SinkOperator] that should be executed.
          */
-        override fun execute(operator: Operator): Flow<Tuple> = operator.toFlow().flowOn(this@TransactionManager.instance.executor.queryDispatcher).onStart {
+        override fun execute(operator: Operator): Flow<Tuple> = operator.toFlow().flowOn(this@TransactionManager.instance.executor.queryDispatcher)
+        .onStart {
             this@AbstractTransaction.mutex.withLock {  /* Update transaction state; synchronise with ongoing COMMITS or ROLLBACKS. */
                 check(this@AbstractTransaction.state.canExecute) {
                     "Cannot start execution of transaction ${this@AbstractTransaction.transactionId} because it is in the wrong state (s = ${this@AbstractTransaction.state})."

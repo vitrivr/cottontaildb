@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.dbms.index.basic
 
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.general.DBO

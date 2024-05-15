@@ -69,8 +69,8 @@ value class HalfVectorValue(val data: FloatArray) : RealVectorValue<Float>, Publ
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-            = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setHalf(CottontailGrpc.FloatVector.newBuilder().addAllVector(this.map { it.value }))).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+            = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setHalf(CottontailGrpc.FloatVector.newBuilder().addAllVector(this.map { it.value })))
 
     /**
      * Returns the indices of this [HalfVectorValue].

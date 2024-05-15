@@ -32,5 +32,5 @@ object Constants {
     const val COLUMN_NAME_DURATION = "duration_ms"
 
     /** The maximum message size in bytes (slightly smaller than 4MB). */
-    const val MAX_PAGE_SIZE_BYTES = 3_750_000
+    const val MAX_PAGE_SIZE_BYTES = 3_500_000
 }

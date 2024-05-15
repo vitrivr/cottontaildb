@@ -7,8 +7,6 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.dbms.column.Column
-import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.execution.transactions.SubTransaction
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.index.basic.Index
@@ -17,6 +15,7 @@ import org.vitrivr.cottontail.dbms.index.basic.IndexTx
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 
 /**
  * A [SubTransaction] that operates on a single [Entity]. [SubTransaction]s are a unit of isolation for data operations (read/write).
@@ -38,6 +37,13 @@ interface EntityTx : SubTransaction, Scanable, Countable, Modifiable {
 
     /** Reference to the [Entity] this [EntityTx] belongs to. */
     override val dbo: Entity
+
+    /**
+     * Gets and returns [ValueStatistics] for the specified [ColumnDef].
+     *
+     * @return [ValueStatistics].
+     */
+    fun statistics(column: ColumnDef<*>): ValueStatistics<*>
 
     /**
      * Returns the smallest [TupleId] managed by the [Entity] backing this [EntityTx].
@@ -68,9 +74,8 @@ interface EntityTx : SubTransaction, Scanable, Countable, Modifiable {
      * Reads the specified [TupleId] and the specified [ColumnDef] through this [EntityTx].
      *
      * @param tupleId The [TupleId] to read.
-     * @param columns The [ColumnDef] to read.
      */
-    fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Tuple
+    fun read(tupleId: TupleId): Tuple
 
     /**
      * Lists all [ColumnDef]s for the [Entity] associated with this [EntityTx].
@@ -80,13 +85,12 @@ interface EntityTx : SubTransaction, Scanable, Countable, Modifiable {
     fun listColumns(): List<ColumnDef<*>>
 
     /**
-     * Returns the [Column] for the specified [Name.ColumnName]. Should be able to handle
-     * both simple names as well as fully qualified names.
+     * Returns the [ColumnDef] for the specified [Name.ColumnName].
      *
-     * @param name The [Name.ColumnName] of the [Column].
-     * @return [Column].
+     * @param name The [Name.ColumnName] of the column.
+     * @return [ColumnDef] of the column.
      */
-    fun columnForName(name: Name.ColumnName): Column<*>
+    fun columnForName(name: Name.ColumnName): ColumnDef<*>
 
     /**
      * Lists [Name.IndexName] for all [Index] implementations that belong to this [EntityTx].

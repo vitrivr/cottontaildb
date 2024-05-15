@@ -119,8 +119,8 @@ value class DoubleValue(override val value: Double): RealValue<Double>, PublicVa
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setDoubleData(this.value).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setDoubleData(this.value)
 
     override fun asDouble(): DoubleValue = this
     override fun asFloat(): FloatValue = FloatValue(this.value.toFloat())

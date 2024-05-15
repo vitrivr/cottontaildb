@@ -86,6 +86,13 @@ fun Tuple.listSerializer() = TupleListSerializer(this.columns)
  *
  * @return [TupleSimpleSerializer]
  */
+fun List<ColumnDef<*>>.descriptionSerializer() = TupleSimpleSerializer(this.toTypedArray())
+
+/**
+ * Returns a [TupleSimpleSerializer] for a [Array] of [ColumnDef].
+ *
+ * @return [TupleSimpleSerializer]
+ */
 fun Array<ColumnDef<*>>.descriptionSerializer() = TupleSimpleSerializer(this)
 
 /**

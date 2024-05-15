@@ -68,7 +68,7 @@ class Update(entity: Name.EntityName): LanguageFeature() {
             this.builder.addUpdates(
                 CottontailGrpc.UpdateMessage.UpdateElement.newBuilder()
                     .setColumn(Name.ColumnName.parse(assignment.first).proto())
-                    .setValue(CottontailGrpc.Expression.newBuilder().setLiteral(assignment.second?.tryConvertToValue()?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder()).build()))
+                    .setValue(CottontailGrpc.Expression.newBuilder().setLiteral(assignment.second?.tryConvertToValue()?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder())))
             )
         }
         return this
@@ -85,7 +85,7 @@ class Update(entity: Name.EntityName): LanguageFeature() {
             this.builder.addUpdates(
                 CottontailGrpc.UpdateMessage.UpdateElement.newBuilder()
                     .setColumn(Name.ColumnName.parse(assignment.first).proto())
-                .setValue(CottontailGrpc.Expression.newBuilder().setLiteral(assignment.second?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder()).build()))
+                .setValue(CottontailGrpc.Expression.newBuilder().setLiteral(assignment.second?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder())))
             )
         }
         return this

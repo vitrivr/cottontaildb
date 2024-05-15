@@ -94,7 +94,7 @@ class BatchInsert(entity: Name.EntityName): LanguageFeature() {
     fun values(vararg values: PublicValue?): Boolean {
         val insert = CottontailGrpc.BatchInsertMessage.Insert.newBuilder()
         for (v in values) {
-            insert.addValues(v?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder()).build())
+            insert.addValues(v?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder()))
         }
         val builtInserts = insert.build()
         return if (this.estimatedSize() + builtInserts.serializedSize < Constants.MAX_PAGE_SIZE_BYTES) {

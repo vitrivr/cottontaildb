@@ -62,10 +62,10 @@ class TupleIteratorImpl internal constructor(private val results: Iterator<Cotto
         this.queryDuration = next.metadata.queryDuration
 
         /* Parse list of columns. */
-        this.columns = Array(next.columnsList.size) {
+        this.columns = List(next.columnsList.size) {
             val c = next.columnsList[it]
             ColumnDef(c.name.parse(), c.type.toType(c.length), c.nullable, c.primary, c.autoIncrement)
-        }
+        }.toTypedArray()
 
         /* Parse first batch of tuples. */
         next.tuplesList.forEach { t->
@@ -101,7 +101,7 @@ class TupleIteratorImpl internal constructor(private val results: Iterator<Cotto
                 throw IllegalArgumentException("TupleIterator has been drained and no more elements can be loaded. Call hasNext() to ensure that elements are available before calling next().")
             }
             this.results.next().tuplesList.map { t ->
-                this.buffer.add(IteratorTuple(Array<Value?>(this.numberOfColumns) { t.dataList[it].toValue() }))
+                this.buffer.add(IteratorTuple(Array(this.numberOfColumns) { t.dataList[it].toValue() }))
             }
         }
         return this.buffer.poll()!!

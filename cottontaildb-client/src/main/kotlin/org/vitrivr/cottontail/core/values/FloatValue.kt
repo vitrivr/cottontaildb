@@ -121,8 +121,8 @@ value class FloatValue(override val value: Float): RealValue<Float>, PublicValue
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setFloatData(this.value).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setFloatData(this.value)
 
     override fun asDouble(): DoubleValue = DoubleValue(this.value.toDouble())
     override fun asFloat(): FloatValue = this
@@ -132,9 +132,7 @@ value class FloatValue(override val value: Float): RealValue<Float>, PublicValue
     override fun asByte(): ByteValue = ByteValue(this.value.toInt().toByte())
     override fun asComplex32(): Complex32Value = Complex32Value(this.asFloat(), FloatValue(0.0f))
     override fun asComplex64(): Complex64Value = Complex64Value(this.asDouble(), DoubleValue(0.0))
-
     override fun unaryMinus(): FloatValue = FloatValue(-this.value)
-
     override fun plus(other: NumericValue<*>) = FloatValue(this.value + other.value.toFloat())
     override fun minus(other: NumericValue<*>) = FloatValue(this.value - other.value.toFloat())
     override fun times(other: NumericValue<*>) = FloatValue(this.value * other.value.toFloat())

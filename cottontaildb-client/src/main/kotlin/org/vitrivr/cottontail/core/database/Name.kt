@@ -420,7 +420,6 @@ sealed interface Name: Comparable<Name> {
      */
     @Serializable
     data class ColumnName private constructor(val schema: String, val entity: String, val column: String): Name {
-
         companion object {
 
             val ALL_COLUMNS = ColumnName("*", "*", "*")

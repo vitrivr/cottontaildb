@@ -4,8 +4,8 @@ import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
-import java.io.ByteArrayInputStream
 import org.vitrivr.cottontail.core.types.Value
+import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
 
 /**
@@ -37,6 +37,17 @@ sealed interface ValueSerializer<T: Value> {
         val output = LightOutputStream()
         this.write(output, value)
         return output.asArrayByteIterable()
+    }
+
+    /**
+     *
+     */
+    fun fromBuffer(buffer: ByteBuffer): T {
+        TODO()
+    }
+
+    fun toBuffer(value: T): ByteBuffer {
+        TODO()
     }
 
     /**

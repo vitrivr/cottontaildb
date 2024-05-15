@@ -36,7 +36,6 @@ import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalcul
 import org.vitrivr.cottontail.server.Instance
 import org.vitrivr.cottontail.storage.serializers.SerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
-import java.util.*
 import kotlin.math.log10
 
 /**
@@ -229,7 +228,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
         @Synchronized
         override fun costFor(predicate: Predicate): Cost {
             if (predicate !is BooleanPredicate.Comparison || predicate.columns.any { it.physical != this.columns[0] }) return Cost.INVALID
-            val statistics = this.columns.associateWith { this.parent.columnForName(it.name).newTx(this.parent).statistics() }
+            val statistics = this.columns.associateWith { this.parent.statistics(it) }
             val selectivity = with(this@Tx.context.bindings) {
                 with(MissingTuple) {
                     NaiveSelectivityCalculator.estimate(predicate, statistics)

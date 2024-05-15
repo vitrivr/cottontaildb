@@ -6,6 +6,7 @@ import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.StringValue
 import java.io.ByteArrayInputStream
+import java.nio.ByteBuffer
 
 /**
  * A [ComparableBinding] for Xodus based [StringBinding] serialization and deserialization.
@@ -13,8 +14,11 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 3.0.0
  */
-object StringValueValueSerializer: ValueSerializer<StringValue> {
+data object StringValueValueSerializer: ValueSerializer<StringValue> {
+
     override val type = Types.String
+    override fun fromBuffer(buffer: ByteBuffer): StringValue = StringValue(Charsets.UTF_8.decode(buffer).toString())
+    override fun toBuffer(value: StringValue): ByteBuffer = Charsets.UTF_8.encode(value.value).clear()
     override fun write(output: LightOutputStream, value: StringValue) = StringBinding.BINDING.writeObject(output, value.value)
     override fun read(input: ByteArrayInputStream): StringValue = StringValue(StringBinding.BINDING.readObject(input))
 }

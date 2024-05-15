@@ -100,7 +100,7 @@ class StandaloneTuple(override var tupleId: TupleId, override val columns: Array
         if (this === other) return true
         if (other !is Tuple) return false
         if (this.tupleId != other.tupleId) return false
-        if (this.columns.contentDeepEquals(other.columns)) return false
+        if (this.columns != other.columns) return false
         for (i in 0 until this.columns.size) {
             if (this[i] != other[i]) return false
         }

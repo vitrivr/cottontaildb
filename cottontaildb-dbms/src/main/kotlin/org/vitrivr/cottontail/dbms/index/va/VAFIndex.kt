@@ -140,13 +140,9 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         fun obtainMarks(indexTx: VAFIndex.Tx): EquidistantVAFMarks {
             /* Read basic index properties. */
             val config = indexTx.config as VAFIndexConfig
-            val column = indexTx.columns[0]
-
-            /* Tx objects required for index rebuilding. */
-            val columnTx = indexTx.parent.columnForName(column.name).newTx(indexTx.parent)
 
             /* Generates new marks. */
-            return EquidistantVAFMarks(columnTx.statistics() as RealVectorValueStatistics<*>, config.marksPerDimension)
+            return EquidistantVAFMarks(indexTx.parent.statistics(indexTx.columns[0]) as RealVectorValueStatistics<*>, config.marksPerDimension)
         }
     }
 

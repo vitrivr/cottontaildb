@@ -9,7 +9,6 @@ import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntityScanL
 import org.vitrivr.cottontail.dbms.queries.operators.physical.predicates.FilterPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntityScanPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.IndexScanPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 
 /**
@@ -42,11 +41,7 @@ object BooleanIndexScanRule : RewriteRule {
                 if (candidate != null) {
                     val produced = candidate.columnsFor(node.predicate)
                     val indexColumns = parent.columns.filter { produced.contains(it.physical!!) }
-                    val fetchColumns = parent.columns.filter { !produced.contains(it.physical!!) }
-                    var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, indexColumns, candidate, node.predicate)
-                    if (fetchColumns.isNotEmpty()) {
-                        p = FetchPhysicalOperatorNode(p, parent.tx, fetchColumns)
-                    }
+                    val p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, indexColumns, candidate, node.predicate)
                     return node.output?.copyWithOutput(p) ?: p
                 }
             }

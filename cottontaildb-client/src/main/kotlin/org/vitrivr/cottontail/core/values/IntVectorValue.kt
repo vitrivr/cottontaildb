@@ -70,8 +70,8 @@ value class IntVectorValue(val data: IntArray) : RealVectorValue<Int>, PublicVal
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setInt(CottontailGrpc.IntVector.newBuilder().addAllVector(this.map { it.value }))).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setInt(CottontailGrpc.IntVector.newBuilder().addAllVector(this.map { it.value })))
 
 
     /**

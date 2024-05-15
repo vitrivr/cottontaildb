@@ -1,8 +1,6 @@
 package org.vitrivr.cottontail.dbms.sequence
 
 import org.vitrivr.cottontail.core.values.LongValue
-import org.vitrivr.cottontail.dbms.column.ColumnTx
-import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.transactions.SubTransaction
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext

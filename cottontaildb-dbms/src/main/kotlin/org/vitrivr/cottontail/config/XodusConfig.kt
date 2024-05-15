@@ -29,4 +29,5 @@ data class XodusConfig (
         .setTreeMaxPageSize(this.treeMaximumPageSize)
         .setMemoryUsagePercentage(this.logCacheMemoryUsage)
         .setEnvMonitorTxnsExpirationTimeout(0)
+        .setLogCacheUseNio(true)
 }

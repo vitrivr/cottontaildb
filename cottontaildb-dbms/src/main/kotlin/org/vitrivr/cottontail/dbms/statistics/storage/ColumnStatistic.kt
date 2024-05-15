@@ -8,7 +8,6 @@ import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.statistics.values.*
 import org.vitrivr.cottontail.storage.serializers.SerializerFactory
 import org.vitrivr.cottontail.storage.serializers.statistics.MetricsXodusBinding

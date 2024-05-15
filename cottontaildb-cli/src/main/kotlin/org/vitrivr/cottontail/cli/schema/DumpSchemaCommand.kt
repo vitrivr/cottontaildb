@@ -53,7 +53,7 @@ class DumpSchemaCommand(client: SimpleClient) : AbstractSchemaCommand(
     private val compress: Boolean by option(
         "-c",
         "--compress",
-        help = "Whether export should be compressed)"
+        help = "Whether dump should be compressed."
     ).flag(default = true)
 
     override fun exec() {

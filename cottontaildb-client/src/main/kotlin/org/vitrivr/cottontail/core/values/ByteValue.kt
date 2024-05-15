@@ -99,8 +99,8 @@ value class ByteValue(override val value: Byte): RealValue<Byte>, PublicValue {
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setIntData(this.value.toInt()).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setIntData(this.value.toInt())
 
     override fun asDouble(): DoubleValue = DoubleValue(this.value.toDouble())
     override fun asFloat(): FloatValue = FloatValue(this.value.toFloat())

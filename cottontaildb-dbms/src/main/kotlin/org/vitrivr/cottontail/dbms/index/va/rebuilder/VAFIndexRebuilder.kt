@@ -4,7 +4,6 @@ import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructuralMetadata
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
 import org.vitrivr.cottontail.dbms.catalogue.toKey
-import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.index.basic.AbstractIndex
 import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata
@@ -36,21 +35,20 @@ class VAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractIndexRe
         val indexEntryRaw = indexMetadataStore.get(indexTx.parent.parent.parent.xodusTx, NameBinding.Index.toEntry(this@VAFIndexRebuilder.index.name)) ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index ${this@VAFIndexRebuilder.index.name}: Could not read catalogue entry for index.")
         val indexEntry = IndexMetadata.fromEntry(indexEntryRaw)
         val config = indexEntry.config as VAFIndexConfig
-        val column = this.index.name.entity().column(indexEntry.columns[0])
+
 
         /* Tx objects required for index rebuilding. */
-        val columnTx = indexTx.parent.columnForName(column).newTx(indexTx.parent) as ColumnTx<*>
         val dataStore = this.tryClearAndOpenStore(indexTx) ?: return false
         val count = indexTx.parent.count()
 
         /* Obtain new marks. */
-        val marks = EquidistantVAFMarks(columnTx.statistics() as RealVectorValueStatistics<*>, config.marksPerDimension)
+        val marks = EquidistantVAFMarks(indexTx.parent.statistics(indexTx.columns[0]) as RealVectorValueStatistics<*>, config.marksPerDimension)
 
         /* Iterate over entity and update index with entries. */
         var counter = 1
-        columnTx.cursor().use { cursor ->
+        indexTx.parent.cursor(indexTx.columns).use { cursor ->
             while (cursor.hasNext()) {
-                val value = cursor.value()
+                val value = cursor.value()[0]
                 if (value is RealVectorValue<*>) {
                     if (!dataStore.put(indexTx.xodusTx, cursor.key().toKey(), marks.getSignature(value).toEntry())) {
                         return false

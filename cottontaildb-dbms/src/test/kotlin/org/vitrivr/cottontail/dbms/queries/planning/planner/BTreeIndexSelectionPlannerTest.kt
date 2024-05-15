@@ -30,8 +30,6 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.Fulltex
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanClass3Rule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.CountPushdownRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.sort.LimitingSortMergeRule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnFetchRewriteRule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnScanRewriteRule
 
 /**
  * A collection of test cases that test the outcome for index selection in presence of an [IndexType.BTREE].

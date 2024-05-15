@@ -238,7 +238,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         override fun costFor(predicate: Predicate): Cost {
             if (predicate !is BooleanPredicate.Comparison || predicate.columns.any { it.physical != this.columns[0] }) return Cost.INVALID
             val entityTx = this.parent
-            val statistics = this.columns.associateWith { entityTx.columnForName(it.name).newTx(entityTx).statistics() }
+            val statistics = this.columns.associateWith { entityTx.statistics(it) }
             val selectivity = with(this@Tx.context.bindings) {
                 with(MissingTuple) {
                     NaiveSelectivityCalculator.estimate(predicate, statistics)

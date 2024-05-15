@@ -28,11 +28,9 @@ class EntityStatisticsOperator(private val tx: CatalogueTx, private val name: Na
         var rowId = 0L
         val cols = entityTxn.listColumns()
         cols.forEach {
-            val column = entityTxn.columnForName(it.name)
-            val columnTx = column.newTx(entityTxn)
-            val statistics = columnTx.statistics().about()
+            val statistics = entityTxn.statistics(it).about()
             for ((k,v) in statistics) {
-                emit(StandaloneTuple(rowId++, columns.toTypedArray(), arrayOf(StringValue(column.name.fqn), StringValue(k), StringValue(v))))
+                emit(StandaloneTuple(rowId++, columns.toTypedArray(), arrayOf(StringValue(it.name.fqn), StringValue(k), StringValue(v))))
             }
         }
     }

@@ -58,7 +58,7 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val context: Que
         /* Obtain statistics costs and  */
         var estimatedInsertSize = 0
         this.tx.listColumns().forEach { columnDef ->
-            val statistic = this.tx.columnForName(columnDef.name).newTx(this.tx).statistics() as ValueStatistics<Value>
+            val statistic = this.tx.statistics(columnDef) as ValueStatistics<Value>
             this.statistics[columnDef] = statistic
             estimatedInsertSize += if (columnDef.type == Types.String) {
                 statistic.avgWidth * Char.SIZE_BYTES  /* GA: This is not a good cost estimate for empty tables but we don't really need a better one. */

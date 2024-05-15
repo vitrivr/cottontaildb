@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.execution.operators.projection
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
@@ -29,11 +29,8 @@ class SelectProjectionOperator(parent: Operator, fields: List<Binding.Column>, o
      *
      * @return [Flow] representing this [SelectProjectionOperator]
      */
-    override fun toFlow(): Flow<Tuple> = flow {
+    override fun toFlow(): Flow<Tuple> {
         val columns = this@SelectProjectionOperator.columns.toTypedArray()
-        val incoming = this@SelectProjectionOperator.parent.toFlow()
-        incoming.collect { r ->
-            emit(StandaloneTuple(r.tupleId, columns, Array(columns.size) { r[columns[it]]}))
-        }
+        return this@SelectProjectionOperator.parent.toFlow().map { r -> StandaloneTuple(r.tupleId, columns, Array(columns.size) { r[columns[it]] }) }
     }
 }

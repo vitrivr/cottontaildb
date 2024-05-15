@@ -106,8 +106,8 @@ value class IntValue(override val value: Int): RealValue<Int>, PublicValue {
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setIntData(this.value).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setIntData(this.value)
 
     override fun asDouble(): DoubleValue = DoubleValue(this.value.toDouble())
     override fun asFloat(): FloatValue = FloatValue(this.value.toFloat())

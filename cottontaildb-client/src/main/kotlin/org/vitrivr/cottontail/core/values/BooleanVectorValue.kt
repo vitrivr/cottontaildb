@@ -67,8 +67,8 @@ value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int>, P
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setBool(CottontailGrpc.BoolVector.newBuilder().addAllVector(this.data.toList()))).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setBool(CottontailGrpc.BoolVector.newBuilder().addAllVector(this.data.toList())))
 
 
     /**

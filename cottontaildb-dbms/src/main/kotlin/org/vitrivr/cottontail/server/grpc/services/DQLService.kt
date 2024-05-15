@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.server.grpc.services
 
 import com.google.protobuf.Empty
 import kotlinx.coroutines.flow.Flow
-import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.execution.operators.system.ExplainQueryOperator
 import org.vitrivr.cottontail.dbms.queries.QueryHint
 import org.vitrivr.cottontail.dbms.queries.binding.GrpcQueryBinder
@@ -17,8 +16,6 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.Coun
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.simd.FunctionVectorisationRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.sort.ExternalSortRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.sort.LimitingSortMergeRule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnFetchRewriteRule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFetchOnScanRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.transform.DeferFunctionRewriteRule
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpc
@@ -51,8 +48,6 @@ class DQLService(override val instance: Instance) : DQLGrpcKt.DQLCoroutineImplBa
             CountPushdownRule,
             ExternalSortRule,
             LimitingSortMergeRule,
-            DeferFetchOnScanRewriteRule,
-            DeferFetchOnFetchRewriteRule,
             DeferFunctionRewriteRule
         )
         if (this.catalogue.config.execution.simd) {

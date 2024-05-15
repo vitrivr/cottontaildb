@@ -66,8 +66,8 @@ value class StringValue(override val value: String) : ScalarValue<String>, Publi
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setStringData(this.value).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setStringData(this.value)
 
     /**
      * Returns the [value] held by this [StringValue].

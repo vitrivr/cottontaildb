@@ -106,8 +106,8 @@ value class LongValue(override val value: Long): RealValue<Long>, PublicValue {
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setLongData(this.value).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setLongData(this.value)
 
 
     override fun asDouble(): DoubleValue = DoubleValue(this.value.toDouble())

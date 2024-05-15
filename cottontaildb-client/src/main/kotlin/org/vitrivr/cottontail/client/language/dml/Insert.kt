@@ -66,7 +66,7 @@ class Insert(entity: Name.EntityName): LanguageFeature() {
         this.builder.addElements(
             CottontailGrpc.InsertMessage.InsertElement.newBuilder()
                 .setColumn(Name.ColumnName.parse(column).proto())
-                .setValue(value?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder()).build()))
+                .setValue(value?.toGrpc() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.newBuilder())))
         return this
     }
 

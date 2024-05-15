@@ -16,7 +16,6 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.predicates.FilterP
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.InMemorySortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntityScanPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.IndexScanPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 
 /**
@@ -75,9 +74,7 @@ object FulltextIndexRule : RewriteRule {
                 if (candidate != null) {
                     val produces = candidate.columnsFor(predicate)
                     val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, listOf(ctx.bindings.bind(node.out.column, produces[0])), candidate, predicate)
-                    val fetch = FetchPhysicalOperatorNode(indexScan, scan.tx, scan.columns.filter { !produces.contains(it.column) })
-                    if (node.output == null) return fetch
-                    return OperatorNodeUtilities.chainIf(fetch, node.output!!) {
+                    return OperatorNodeUtilities.chainIf(indexScan, node.output!!) {
                         when (it) {
                             is InMemorySortPhysicalOperatorNode -> it.traits[OrderTrait] != indexScan.traits[OrderTrait] /* SortPhysicalOperatorNode is only retained, if order is different from index order. */
                             is FilterPhysicalOperatorNode -> {

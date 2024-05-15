@@ -8,7 +8,7 @@ import java.util.*
  * An [Iterator] for [Tuple]s as returned by the [org.vitrivr.cottontail.client.SimpleClient]
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 interface TupleIterator : Iterator<Tuple>, AutoCloseable {
     /** The ID of the Cottontail DB transaction this [TupleIterator] is associated with. */

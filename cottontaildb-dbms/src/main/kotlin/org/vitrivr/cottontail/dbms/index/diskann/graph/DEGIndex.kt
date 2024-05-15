@@ -155,7 +155,7 @@ class DEGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
      */
     inner class Tx(parent: DefaultEntity.Tx) : AbstractIndex.Tx(parent) {
         /** Constructs a [DefaultDynamicExplorationGraph] for this [DEGIndex]. */
-        private val graph = DefaultDynamicExplorationGraph<VectorValue<*>>(this.config as DEGIndexConfig, this, this.context)
+        private val graph = DefaultDynamicExplorationGraph<VectorValue<*>>(this.config as DEGIndexConfig, this)
 
         /**
          * Calculates the cost estimate of this [DEGIndex.Tx] processing the provided [Predicate].

@@ -29,7 +29,7 @@ class CreateIndexOperator(
         val time = measureTimeMillis {
             val schemaTxn = this@CreateIndexOperator.tx.schemaForName(this@CreateIndexOperator.name.schema()).newTx(this@CreateIndexOperator.tx)
             val entityTxn = schemaTxn.entityForName(this@CreateIndexOperator.name.entity()).createOrResumeTx(schemaTxn)
-            val columns = this@CreateIndexOperator.indexColumns.map { entityTxn.columnForName(it).columnDef.name }
+            val columns = this@CreateIndexOperator.indexColumns.map { entityTxn.columnForName(it).name }
             entityTxn.createIndex(this@CreateIndexOperator.name, this@CreateIndexOperator.type, columns, this@CreateIndexOperator.type.descriptor.buildConfig(this@CreateIndexOperator.params))
         }
         emit(this@CreateIndexOperator.statusRecord(time))

@@ -1,9 +1,7 @@
 package org.vitrivr.cottontail.dbms.execution.operators.transform
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.buffer
-import kotlinx.coroutines.flow.channelFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.merge
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -32,13 +30,5 @@ class MergeOperator(parents: List<Operator>, override val context: QueryContext)
      *
      * @return [Flow] representing this [MergeOperator]
      */
-    override fun toFlow(): Flow<Tuple> = channelFlow {
-        this@MergeOperator.parents.map { p ->
-            launch {
-                p.toFlow().collect {
-                    send(it)
-                }
-            }
-        }
-    }.buffer(2048) /* A maximum of 2048 records are buffered here. */
+    override fun toFlow(): Flow<Tuple> = this@MergeOperator.parents.map { it.toFlow() }.merge()
 }

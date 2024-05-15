@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 
+import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
@@ -43,7 +44,7 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val tx: Entity
     /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
     override val statistics  by lazy {
         this.columns.associate {
-            it.column to this.tx.columnForName(it.physical!!.name).newTx(this.tx).statistics() as ValueStatistics<Value>
+            it.column to this.tx.statistics(it.physical as ColumnDef<Value>) as ValueStatistics<Value>
         }
     }
 

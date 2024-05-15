@@ -39,26 +39,25 @@ class IVFPQIndexRebuilder(index: IVFPQIndex, context: QueryContext): AbstractInd
         val indexEntryRaw = indexMetadataStore.get(indexTx.parent.parent.xodusTx, NameBinding.Index.toEntry(this@IVFPQIndexRebuilder.index.name)) ?: throw DatabaseException.DataCorruptionException("Failed to rebuild index ${this@IVFPQIndexRebuilder.index.name}: Could not read catalogue entry for index.")
         val indexEntry = IndexMetadata.fromEntry(indexEntryRaw)
         val config = indexEntry.config as IVFPQIndexConfig
-        val column = this.index.name.entity().column(indexEntry.columns[0])
+        val column = indexTx.columns[0]
 
         /* Tx objects required for index rebuilding. */
-        val columnTx = indexTx.parent.columnForName(column).newTx(indexTx.parent)
         val dataStore = this.tryClearAndOpenStore(indexTx) ?: return false
         val count = indexTx.parent.count()
 
         /* Obtain PQ data structure. */
-        val type = columnTx.columnDef.type as Types.Vector<*,*>
+        val type = column.type as Types.Vector<*,*>
         val distanceFunction = this.index.catalogue.functions.obtain(Signature.SemiClosed(config.distance, arrayOf(Argument.Typed(type), Argument.Typed(type)))) as VectorDistance<*>
         val fraction = ((3.0f * config.numCentroids) / count)
         val seed = System.currentTimeMillis()
-        val learningData = DataCollectionUtilities.acquireLearningData(columnTx, fraction, seed)
+        val learningData = DataCollectionUtilities.acquireLearningData(indexTx.parent, column, fraction, seed)
         val quantizer = MultiStageQuantizer.learnFromData(distanceFunction, learningData, config)
 
         /* Iterate over column and update index with entries. */
         var counter = 0
-        columnTx.cursor().use { cursor ->
+        indexTx.parent.cursor(indexTx.columns).use { cursor ->
             while (cursor.moveNext()) {
-                val value = cursor.value()
+                val value = cursor.value()[0]
                 if (value is VectorValue<*>) {
                     val signature = quantizer.quantize(cursor.key(), value)
                     if (!dataStore.put(indexTx.xodusTx, ShortBinding.shortToEntry(signature.first), signature.second.toEntry())) {

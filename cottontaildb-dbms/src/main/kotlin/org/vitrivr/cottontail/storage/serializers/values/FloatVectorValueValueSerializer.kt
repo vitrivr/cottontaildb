@@ -5,6 +5,7 @@ import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import java.io.ByteArrayInputStream
+import java.nio.ByteBuffer
 
 /**
  * A [ValueSerializer] for [FloatVectorValue] serialization and deserialization.
@@ -19,6 +20,18 @@ class FloatVectorValueValueSerializer(val size: Int): ValueSerializer<FloatVecto
     }
 
     override val type: Types<FloatVectorValue> = Types.FloatVector(size)
+
+    override fun fromBuffer(buffer: ByteBuffer): FloatVectorValue = FloatVectorValue(FloatArray(this.size) {
+        buffer.getFloat()
+    })
+
+    override fun toBuffer(value: FloatVectorValue): ByteBuffer {
+        val buffer = ByteBuffer.allocate(this.type.physicalSize)
+        for (v in value.data) {
+            buffer.putFloat(v)
+        }
+        return buffer.clear()
+    }
 
     override fun write(output: LightOutputStream, value: FloatVectorValue) {
         for (v in value.data) {

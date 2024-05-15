@@ -13,9 +13,9 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 @Serializable
 sealed interface PublicValue: Value {
     /**
-     * Converts this [Value] to a [CottontailGrpc.Literal] gRCP representation.
+     * Converts this [Value] to a [CottontailGrpc.Literal.Builder] gRCP representation.
      *
-     * @return [CottontailGrpc.Literal]
+     * @return [CottontailGrpc.Literal.Builder]
      */
-    fun toGrpc(): CottontailGrpc.Literal
+    fun toGrpc(): CottontailGrpc.Literal.Builder
 }

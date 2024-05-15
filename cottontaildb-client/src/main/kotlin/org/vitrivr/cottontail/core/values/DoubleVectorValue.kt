@@ -71,8 +71,8 @@ value class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double>, 
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setDouble(CottontailGrpc.DoubleVector.newBuilder().addAllVector(this.map { it.value }))).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setDouble(CottontailGrpc.DoubleVector.newBuilder().addAllVector(this.map { it.value })))
 
     /**
      * Returns the indices of this [DoubleVectorValue].

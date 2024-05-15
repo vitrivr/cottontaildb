@@ -73,6 +73,6 @@ value class ByteStringValue(override val value: ByteArray) : ScalarValue<ByteArr
      *
      * @return [CottontailGrpc.Literal]
      */
-    override fun toGrpc(): CottontailGrpc.Literal
-        = CottontailGrpc.Literal.newBuilder().setByteStringData(ByteString.copyFrom(this.value)).build()
+    override fun toGrpc(): CottontailGrpc.Literal.Builder
+        = CottontailGrpc.Literal.newBuilder().setByteStringData(ByteString.copyFrom(this.value))
 }

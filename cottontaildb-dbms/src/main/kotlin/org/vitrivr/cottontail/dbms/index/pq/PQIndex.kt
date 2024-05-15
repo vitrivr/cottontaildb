@@ -145,7 +145,6 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
             val column = indexTx.columns[0]
 
             /* Tx objects required for index rebuilding. */
-            val columnTx = indexTx.parent.columnForName(column.name).newTx(indexTx.parent)
             val count = indexTx.parent.count()
 
             /* Generate and obtain signature and distance function. */
@@ -155,7 +154,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
             /* Generates new product quantize. */
             val fraction = ((3.0f * config.numCentroids) / count)
             val seed = System.currentTimeMillis()
-            val learningData = DataCollectionUtilities.acquireLearningData(columnTx, fraction, seed)
+            val learningData = DataCollectionUtilities.acquireLearningData(indexTx.parent, column, fraction, seed)
             return SingleStageQuantizer.learnFromData(distanceFunction, learningData, config)
         }
     }

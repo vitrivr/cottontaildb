@@ -12,7 +12,6 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.function.FunctionP
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.InMemorySortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntityScanPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.IndexScanPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.LimitPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 
@@ -93,11 +92,7 @@ object NNSIndexScanClass3Rule : RewriteRule {
                         if (produces.contains(predicate.column.physical)) {
                             fetch.add(scan.columns.filter { it == predicate.column }.map { it.copy() }.single())
                         }
-                        var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, fetch, candidate, predicate)
-                        val newFetch = scan.columns.filter { !produces.contains(it.column) }
-                        if (newFetch.isNotEmpty()) {
-                            p = FetchPhysicalOperatorNode(p, scan.tx, newFetch)
-                        }
+                        val p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, fetch, candidate, predicate)
                         return limit.output?.copyWithOutput(p) ?: p
                     }
                 }
