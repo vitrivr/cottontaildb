@@ -314,7 +314,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                 IndexState.DIRTY
             }
             val indexEntry = IndexMetadata(type, state, columns.map { it.column }, configuration)
-            if (!store.add(this.xodusTx, NameBinding.Index.toEntry(name), IndexMetadata.toEntry(indexEntry))) {
+            if (!store.add(this.parent.xodusTx, NameBinding.Index.toEntry(name), IndexMetadata.toEntry(indexEntry))) {
                 throw DatabaseException.IndexAlreadyExistsException(name)
             }
 
@@ -348,7 +348,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
 
             /* Remove index entry in store. */
             val store = IndexMetadata.store(this.parent.xodusTx)
-            if (!store.delete(this.xodusTx, NameBinding.Index.toEntry(name))) {
+            if (!store.delete(this.parent.xodusTx, NameBinding.Index.toEntry(name))) {
                 this.indexes[name] = index
                 throw DatabaseException.DataCorruptionException("DROP index $name failed: Failed remove metadata entry.")
             }

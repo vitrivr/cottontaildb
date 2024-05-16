@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.dbms.index.basic
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
@@ -11,9 +10,6 @@ import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.events.IndexEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.general.DBOVersion
-import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 
 /**
  * An abstract [Index] implementation that outlines the fundamental structure. Implementations of
@@ -84,7 +80,7 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
 
         init {
             val indexMetadataStore = IndexMetadata.store(this.parent.parent.xodusTx)
-            val indexEntryRaw = indexMetadataStore.get(this.xodusTx, NameBinding.Index.toEntry(this@AbstractIndex.name)) ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
+            val indexEntryRaw = indexMetadataStore.get(this.parent.parent.xodusTx, NameBinding.Index.toEntry(this@AbstractIndex.name)) ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
             val indexEntry = IndexMetadata.fromEntry(indexEntryRaw)
             this.state = indexEntry.state
 
@@ -92,7 +88,7 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
             val columnMetadataStore =  ColumnMetadata.store(this.parent.parent.xodusTx)
             this.columns = indexEntry.columns.map {
                 val columnName = this@AbstractIndex.name.entity().column(it)
-                val columnEntryRaw = columnMetadataStore.get(this.xodusTx, NameBinding.Column.toEntry(columnName))  ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name} because catalogue entry for column could not be read ${it}.")
+                val columnEntryRaw = columnMetadataStore.get(this.parent.parent.xodusTx, NameBinding.Column.toEntry(columnName))  ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name} because catalogue entry for column could not be read ${it}.")
                 val columnEntity = ColumnMetadata.fromEntry(columnEntryRaw)
                 ColumnDef(columnName, columnEntity.type, columnEntity.nullable, columnEntity.primary, columnEntity.autoIncrement)
             }.toTypedArray()
