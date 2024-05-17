@@ -20,7 +20,7 @@ import kotlin.math.min
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class VariableOOLFile<V: Value>(path: Path, name: String, type: Types<V>): AbstractOOLFile<V, StoredValueRef.OutOfLine.Variable>(path, name, type) {
+class VariableOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, StoredValueRef.OutOfLine.Variable>(path, type) {
     /**
      * Provides a [OOLReader] for this [VariableOOLFile].
      *

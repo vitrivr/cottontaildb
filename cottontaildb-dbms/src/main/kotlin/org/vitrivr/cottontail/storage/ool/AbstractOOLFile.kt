@@ -27,7 +27,7 @@ typealias SegmentId = Long
  * @author Ralph Gasser
  * @version 1.0.0
  */
-abstract class AbstractOOLFile<V: Value, D: StoredValueRef>(final override val path: Path, val name: String, final override val type: Types<V>): OOLFile<V, D> {
+abstract class AbstractOOLFile<V: Value, D: StoredValueRef>(final override val path: Path, final override val type: Types<V>): OOLFile<V, D> {
     companion object {
         /** Maximum number of pen [SharedFileChannel]s. */
         private const val MAX_CHANNELS = 128
@@ -50,7 +50,7 @@ abstract class AbstractOOLFile<V: Value, D: StoredValueRef>(final override val p
     protected var appendSegmentId: Long = Files.list(this.path).map {
         it.fileName
     }.filter {
-        it.startsWith("$name.") && it.endsWith(".ool")
+        it.endsWith(".ool")
     }.map {
         it.toString().substringAfterLast('.').toLong()
     }.max {
@@ -90,7 +90,7 @@ abstract class AbstractOOLFile<V: Value, D: StoredValueRef>(final override val p
      */
     protected fun channelForSegment(segmentId: SegmentId): SharedFileChannel {
         val ret = OPEN_CHANNELS.computeIfAbsent(segmentId, Object2ObjectFunction {
-            val path = this.path.resolve("$name.$segmentId.ool")
+            val path = this.path.resolve("$segmentId.ool")
             SharedFileChannel(if (segmentId == this.appendSegmentId) {
                 FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)
             } else {

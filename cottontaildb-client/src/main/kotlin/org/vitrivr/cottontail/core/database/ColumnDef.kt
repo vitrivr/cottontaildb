@@ -9,12 +9,12 @@ import org.vitrivr.cottontail.core.types.Value
  * of such and facilitates validation of [Value]s with respect to the [ColumnDef].
  *
  * @author Ralph Gasser
- * @version 1.7.0
+ * @version 1.8.0
  */
 @Serializable
-data class ColumnDef<T : Value>(val name: Name.ColumnName, val type: Types<T>, val nullable: Boolean = true, val primary: Boolean = false, val autoIncrement: Boolean = false) {
+data class ColumnDef<T : Value>(val name: Name.ColumnName, val type: Types<T>, val nullable: Boolean = true, val primary: Boolean = false, val autoIncrement: Boolean = false, val inline: Boolean = type.inline) {
     /**
      * Creates and returns a [String] representation of this [ColumnDef].
      */
-    override fun toString(): String = "$name(type=$type, nullable=$nullable, primary=$primary)"
+    override fun toString(): String = "$name(type=$type, nullable=$nullable, primary=$primary, auto=$autoIncrement)"
 }

@@ -25,7 +25,6 @@ import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.events.IndexEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.SubTransaction
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionStatus
 import org.vitrivr.cottontail.dbms.index.basic.*
@@ -102,8 +101,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
     }
 
     /**
-     * A [Tx] that affects this [DefaultEntity]. Opening a [DefaultEntity.Tx] will automatically spawn [ColumnTx]
-     * and [IndexTx] for every [Column] and [IndexTx] associated with this [DefaultEntity].
+     * A [Tx] that affects this [DefaultEntity].
      */
     inner class Tx(override val parent: DefaultSchema.Tx) : EntityTx, SubTransaction.WithCommit, SubTransaction.WithFinalization {
 
@@ -121,7 +119,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          *
          * This starts as a local copy of the [DefaultEntity.indexes] but can be modified by this [DefaultSchema.Tx].
          */
-        private val indexes = Object2ObjectLinkedOpenHashMap(this@DefaultEntity.indexes)
+        private val indexes: Object2ObjectLinkedOpenHashMap<Name.IndexName,Index>
 
         /** The [ColumnDef] held by this [DefaultEntity] */
         private val columns: Array<ColumnDef<*>>
@@ -129,7 +127,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         /** A [List] of [Event]s that were executed through this [Tx]. */
         private val events = LinkedList<Event>()
 
-        /** */
+        /** The [StoredTupleSerializer] used by this [DefaultEntity]. */
         private val serializer: StoredTupleSerializer
 
         init {
@@ -141,23 +139,28 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
 
             /* Load a (ordered) map of columns. This map can be kept in memory for the duration of the transaction, because Transaction works with a fixed snapshot.  */
             val columnMetadataStore = ColumnMetadata.store(this.parent.xodusTx)
-            this.columns = entityMetadata.columns.map { c ->
+            val columns = mutableListOf<ColumnDef<*>>()
+            for (c in entityMetadata.columns) {
                 /* Read and prepare column metadata. */
                 val columnName = this@DefaultEntity.name.column(c)
                 val columnEntry = columnMetadataStore.get(this.parent.xodusTx, NameBinding.Column.toEntry(columnName))?.let {
                     ColumnMetadata.fromEntry(it)
                 } ?: throw DatabaseException.DataCorruptionException("Failed to load specified column $columnName for entity ${this@DefaultEntity.name}")
-                val column = ColumnDef(columnName, columnEntry.type, columnEntry.nullable, columnEntry.primary, columnEntry.autoIncrement)
 
-                /* Initialize the data files. */
-                when (column.type) {
-                    is Types.Vector<*,*> -> this@DefaultEntity.columns.computeIfAbsent(column.name) { name: Name.ColumnName -> FixedOOLFile(location, name.column, column.type) }
-                    is Types.String,
-                    is Types.ByteString -> this@DefaultEntity.columns.computeIfAbsent(column.name) { name: Name.ColumnName ->  VariableOOLFile(location, name.column, column.type) }
-                    else -> { /* No op. */ }
+                /* Prepare column definition. */
+                val column = ColumnDef(columnName, columnEntry.type, columnEntry.nullable, columnEntry.primary, columnEntry.autoIncrement)
+                columns.add(column)
+
+                /* Initialize the OOL files where necessary. */
+                if (column.inline) {
+                    if (column.type.fixedLength) {
+                        this@DefaultEntity.columns.computeIfAbsent(column.name) { name: Name.ColumnName -> FixedOOLFile(this@DefaultEntity.location.resolve(name.column), column.type) }
+                    } else {
+                        this@DefaultEntity.columns.computeIfAbsent(column.name) { name: Name.ColumnName -> VariableOOLFile(this@DefaultEntity.location.resolve(name.column), column.type) }
+                    }
                 }
-                column
-            }.toTypedArray()
+            }
+            this.columns = columns.toTypedArray()
 
             /* Initialize serializer for tuple. */
             this.serializer = StoredTupleSerializer(
@@ -180,6 +183,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                     }
                 }
             }
+            this.indexes = Object2ObjectLinkedOpenHashMap(this@DefaultEntity.indexes)
         }
 
         /**
@@ -206,7 +210,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         }
 
         /**
-         * Reads the values of one or many [Column]s and returns it as a [Tuple]
+         * Reads the values of from this [DefaultEntity] and returns it as a [Tuple]
          *
          * @param tupleId The [TupleId] of the desired entry.
          * @return The desired [Tuple].
@@ -257,9 +261,9 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         }
 
         /**
-         * Lists all [Column]s for the [DefaultEntity] associated with this [EntityTx].
+         * Lists all [ColumnDef]s for the [DefaultEntity] associated with this [EntityTx].
          *
-         * @return List of all [Column]s.
+         * @return List of all [ColumnDef]s.
          */
         @Synchronized
         override fun listColumns(): List<ColumnDef<*>> = this.columns.toList()
@@ -434,14 +438,13 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @param tuple The [Tuple] that should be inserted.
          * @return The generated [Tuple].
          *
-         * @throws TransactionException If some of the [Tx] on [Column] or [Index] level caused an error.
          * @throws DatabaseException If a general database error occurs during the insert.
          */
         override fun insert(tuple: Tuple): Tuple {
            /* Execute INSERT on column level. */
             val tupleId = nextTupleId()
             val inserts = Object2ObjectArrayMap<ColumnDef<*>, Value>(this.columns.size)
-            val tuple = StandaloneTuple(0L, this.columns, Array(this.columns.size) {
+            val insert = StandaloneTuple(0L, this.columns, Array(this.columns.size) {
                 val column = this.columns[it]
 
                 /* Make necessary checks for value. */
@@ -470,7 +473,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             })
 
             /* Store descriptor.  */
-            if (!this.store.add(this.xodusTx, tupleId.toKey(), this.serializer.toEntry(tuple))) {
+            if (!this.store.add(this.xodusTx, tupleId.toKey(), this.serializer.toEntry(insert))) {
                 throw DatabaseException.DataCorruptionException("Failed to INSERT tuple with ID $tupleId because it already exists.")
             }
 

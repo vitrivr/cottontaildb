@@ -64,7 +64,7 @@ class DDLService(override val instance: Instance) : DDLGrpcKt.DDLCoroutineImplBa
             val columns = request.columnsList.map {
                 val type = Types.forName(it.type.name, it.length)
                 val name = entityName.column(it.name.name) /* To make sure that columns belongs to entity. */
-                name to ColumnMetadata(type, it.nullable, it.primary, it.autoIncrement)
+                name to ColumnMetadata(type, it.nullable, it.primary, it.autoIncrement, type.inline)
             }
             ctx.register(CreateEntityPhysicalOperatorNode(this.catalogue.createOrResumeTx(ctx), entityName, request.mayExist, columns, ctx))
             ctx.toOperatorTree()

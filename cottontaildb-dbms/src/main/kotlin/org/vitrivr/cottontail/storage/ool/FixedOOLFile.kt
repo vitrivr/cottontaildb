@@ -22,7 +22,7 @@ import kotlin.concurrent.write
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class FixedOOLFile<V: Value>(path: Path, name: String, type: Types<V>): AbstractOOLFile<V, StoredValueRef.OutOfLine.Fixed>(path, name, type) {
+class FixedOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, StoredValueRef.OutOfLine.Fixed>(path, type) {
     /** The size of a segment in bytes. */
     private val entryPerSegment: Int = (floorDiv(SEGMENT_SIZE, this.type.physicalSize) + 1)
 
