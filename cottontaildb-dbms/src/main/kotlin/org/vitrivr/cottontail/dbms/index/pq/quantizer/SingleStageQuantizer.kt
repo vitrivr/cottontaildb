@@ -29,7 +29,6 @@ data class SingleStageQuantizer constructor(val codebooks: Array<PQCodebook>) {
          * @param config The [PQIndexConfig]
          * @return Newly learned [SingleStageQuantizer].
          */
-        @Suppress("UNCHECKED_CAST")
         fun learnFromData(distance: VectorDistance<*>, data: List<VectorValue<*>>, config: PQIndexConfig): SingleStageQuantizer {
             /* Determine logical size and perform some sanity checks. */
             val logicalSize = distance.type.logicalSize
@@ -43,7 +42,7 @@ data class SingleStageQuantizer constructor(val codebooks: Array<PQCodebook>) {
             /* Prepare k-means clusterer. */
             val reshape = distance.copy(dimensionsPerSubspace)
             val random = SplittableRandom(System.currentTimeMillis())
-            val clusterer = KMeansClusterer(config.numCentroids, reshape, random)
+            val clusterer = KMeansClusterer(config.numCentroids, reshape.type, random)
 
             /* Prepare codebooks. */
             val codebooks = Array(subspaces) { j ->

@@ -29,7 +29,6 @@ data class MultiStageQuantizer(val coarse: PQCodebook, val fine: Array<PQCodeboo
          * @param config The [IVFPQIndexConfig]
          * @return Newly learned [MultiStageQuantizer].
          */
-        @Suppress("UNCHECKED_CAST")
         fun learnFromData(distance: VectorDistance<*>, data: List<VectorValue<*>>, config: IVFPQIndexConfig): MultiStageQuantizer {
             /* Determine logical size and perform some sanity checks. */
             val logicalSize = distance.type.logicalSize
@@ -43,8 +42,8 @@ data class MultiStageQuantizer(val coarse: PQCodebook, val fine: Array<PQCodeboo
             /* Prepare k-means clusterer. */
             val reshape = distance.copy(dimensionsPerSubspace)
             val random = SplittableRandom(System.currentTimeMillis())
-            val coarseClusterer = KMeansClusterer(config.numCoarseCentroids, distance, random)
-            val fineClusterer = KMeansClusterer(config.numCentroids, reshape, random)
+            val coarseClusterer = KMeansClusterer(config.numCoarseCentroids, distance.type, random)
+            val fineClusterer = KMeansClusterer(config.numCentroids, distance.type, random)
 
             /* Prepare codebooks. */
             val coarse = PQCodebook(distance, coarseClusterer.cluster(data).map { it.center }.toTypedArray())

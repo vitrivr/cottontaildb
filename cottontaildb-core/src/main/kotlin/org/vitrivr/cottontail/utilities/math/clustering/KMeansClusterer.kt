@@ -3,12 +3,13 @@ package org.vitrivr.cottontail.utilities.math.clustering
 import org.apache.commons.math3.exception.ConvergenceException
 import org.apache.commons.math3.exception.util.LocalizedFormats
 import org.apache.commons.math3.stat.descriptive.moment.Variance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
+import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.IntValue
 import java.util.*
 import java.util.random.RandomGenerator
-import kotlin.math.pow
 
 /**
  * A [Clusterer] that uses the k-means++ algorithm.
@@ -18,17 +19,27 @@ import kotlin.math.pow
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class KMeansClusterer(val k: Int, override val distance: VectorDistance<*>, private val random: RandomGenerator, private val iterations: Int = MAX_ITERATIONS): Clusterer {
+class KMeansClusterer(val k: Int, type: Types<*>, private val random: RandomGenerator, private val iterations: Int = MAX_ITERATIONS): Clusterer {
 
     companion object {
         /** Maximum number of iterations to use for k means clustering. */
         private const val MAX_ITERATIONS = 250
     }
 
+    /** The [VectorDistance] used by this [KMeansClusterer]. */
+    override val distance: VectorDistance<*>
 
     init {
         require(this.k > 0) { "The number of cluster centers must be greater than zero." }
         require(this.iterations > 0) { "The number of iterations must be greater than zero." }
+        val d = when(type) {
+            is Types.DoubleVector -> SquaredEuclideanDistance.DoubleVector(type)
+            is Types.FloatVector -> SquaredEuclideanDistance.FloatVector(type)
+            is Types.IntVector -> SquaredEuclideanDistance.IntVector(type)
+            is Types.LongVector -> SquaredEuclideanDistance.LongVector(type)
+            else -> throw IllegalArgumentException("Unsupported vector type $type.")
+        }
+        this.distance = d
     }
 
     /**
@@ -132,7 +143,7 @@ class KMeansClusterer(val k: Int, override val distance: VectorDistance<*>, priv
 
         /* To keep track of the minimum distance squared of elements of pointList to elements of resultSet. */
         val minDistSquared = DoubleArray(points.size) {
-            this.distance(points[firstPointIndex], points[it])!!.value.pow(2.0)
+            this.distance(points[firstPointIndex], points[it])!!.value
         }
 
         /* Initialize the elements. Since the only point in resultSet is firstPoint, this is very easy. */
@@ -143,7 +154,7 @@ class KMeansClusterer(val k: Int, override val distance: VectorDistance<*>, priv
             /* Add one new data point as a center. Each point x is chosen with probability proportional to D(x)2. */
             val r = this.random.nextDouble() * distSqSum
 
-            /* The index of the next point to be added to the resultSet.. */
+            /* The index of the next point to be added to the resultSet. */
             var nextPointIndex = -1
 
             /* Sum through the squared min distances again, stopping when sum >= r. */
@@ -182,7 +193,7 @@ class KMeansClusterer(val k: Int, override val distance: VectorDistance<*>, priv
                     /* Now update elements of minDistSquared.  We only have to compute the distance to the new center to do this. */
                     for (j in points.indices) {
                         if (!taken[j]) {
-                            val d2: Double = distance(p, points[j])!!.value.pow(2.0)
+                            val d2: Double = distance(p, points[j])!!.value
                             if (d2 < minDistSquared[j]) {
                                 minDistSquared[j] = d2
                             }
