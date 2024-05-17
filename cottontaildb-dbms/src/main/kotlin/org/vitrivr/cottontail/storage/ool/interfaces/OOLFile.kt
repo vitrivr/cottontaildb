@@ -1,18 +1,19 @@
-package org.vitrivr.cottontail.storage.entries.interfaces
+package org.vitrivr.cottontail.storage.ool.interfaces
 
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.entity.values.StoredValueRef
-import java.io.Closeable
 import java.nio.file.Path
 
 /**
- * A Cottontail DB HARE data file. A [DataFile] is used to store [Value]s in an append-only file.
+ * A Cottontail DB HARE out-of-line (OOL) data file.
+ *
+ * [OOLFile]s are used to store [Value]s out-of-line (i.e., not as part of the record) in an append-only file.
  *
  * @author Ralph Gasser
  * @version 1.0.0
  */
-interface DataFile<V: Value, D: StoredValueRef>: Closeable {
+interface OOLFile<V: Value, D: StoredValueRef> {
     companion object {
         const val SEGMENT_SIZE = 16_000_000 /* A segment size of 16 MB for off-line storage. */
     }
@@ -24,17 +25,17 @@ interface DataFile<V: Value, D: StoredValueRef>: Closeable {
     val type: Types<V>
 
     /**
-     * Provides a [Reader] for this [DataFile].
+     * Provides a [OOLReader] for this [OOLFile].
      *
-     * @param pattern [ReaderPattern] to use for reading.
-     * @return [Reader]
+     * @param pattern [AccessPattern] to use for reading.
+     * @return [OOLReader]
      */
-    fun reader(pattern: ReaderPattern): Reader<V,D>
+    fun reader(pattern: AccessPattern): OOLReader<V,D>
 
     /**
-     * Provides a [Writer] for this [DataFile].
+     * Provides a [OOLWriter] for this [OOLFile].
      *
-     * @return [Writer]
+     * @return [OOLWriter]
      */
-    fun writer(): Writer<V,D>
+    fun writer(): OOLWriter<V,D>
 }

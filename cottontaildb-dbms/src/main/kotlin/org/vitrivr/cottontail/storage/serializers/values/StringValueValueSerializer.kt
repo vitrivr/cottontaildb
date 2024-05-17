@@ -5,6 +5,7 @@ import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.StringValue
+import org.xerial.snappy.Snappy
 import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
 
@@ -15,10 +16,9 @@ import java.nio.ByteBuffer
  * @version 3.0.0
  */
 data object StringValueValueSerializer: ValueSerializer<StringValue> {
-
     override val type = Types.String
-    override fun fromBuffer(buffer: ByteBuffer): StringValue = StringValue(Charsets.UTF_8.decode(buffer).toString())
-    override fun toBuffer(value: StringValue): ByteBuffer = Charsets.UTF_8.encode(value.value).clear()
+    override fun fromBuffer(buffer: ByteBuffer): StringValue = StringValue(Snappy.uncompressString(buffer.array(), 0, buffer.remaining()))
+    override fun toBuffer(value: StringValue): ByteBuffer = ByteBuffer.wrap(Snappy.compress(value.value))
     override fun write(output: LightOutputStream, value: StringValue) = StringBinding.BINDING.writeObject(output, value.value)
     override fun read(input: ByteArrayInputStream): StringValue = StringValue(StringBinding.BINDING.readObject(input))
 }

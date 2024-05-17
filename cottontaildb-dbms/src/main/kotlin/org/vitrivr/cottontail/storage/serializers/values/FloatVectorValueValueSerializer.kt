@@ -21,9 +21,7 @@ class FloatVectorValueValueSerializer(val size: Int): ValueSerializer<FloatVecto
 
     override val type: Types<FloatVectorValue> = Types.FloatVector(size)
 
-    override fun fromBuffer(buffer: ByteBuffer): FloatVectorValue = FloatVectorValue(FloatArray(this.size) {
-        buffer.getFloat()
-    })
+    override fun fromBuffer(buffer: ByteBuffer): FloatVectorValue = FloatVectorValue(buffer)
 
     override fun toBuffer(value: FloatVectorValue): ByteBuffer {
         val buffer = ByteBuffer.allocate(this.type.physicalSize)

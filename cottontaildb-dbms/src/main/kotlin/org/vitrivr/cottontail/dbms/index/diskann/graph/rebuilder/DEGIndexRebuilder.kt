@@ -31,6 +31,7 @@ class DEGIndexRebuilder(index: DEGIndex, context: QueryContext): AbstractIndexRe
         /* Open data store. */
         this.tryClearAndOpenStore(indexTx) ?: return false
         val count = indexTx.parent.count()
+        val column = indexTx.columns[0]
 
         /* Generate Graph structure. */
         val graph = DefaultDynamicExplorationGraph<VectorValue<*>>(config, indexTx)
@@ -39,7 +40,7 @@ class DEGIndexRebuilder(index: DEGIndex, context: QueryContext): AbstractIndexRe
         var counter = 0
         indexTx.parent.cursor(indexTx.columns).use { cursor ->
             while (cursor.moveNext()) {
-                val value = cursor.value()[0]
+                val value = cursor.value()[column]
                 if (value is VectorValue<*>) {
                     graph.index(cursor.key(), value)
 

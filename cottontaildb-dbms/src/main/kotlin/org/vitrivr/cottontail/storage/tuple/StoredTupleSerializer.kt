@@ -12,8 +12,8 @@ import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.entity.values.StoredTuple
 import org.vitrivr.cottontail.dbms.entity.values.StoredValue
 import org.vitrivr.cottontail.dbms.entity.values.StoredValueRef
-import org.vitrivr.cottontail.storage.entries.interfaces.Reader
-import org.vitrivr.cottontail.storage.entries.interfaces.Writer
+import org.vitrivr.cottontail.storage.ool.interfaces.OOLReader
+import org.vitrivr.cottontail.storage.ool.interfaces.OOLWriter
 import org.vitrivr.cottontail.storage.serializers.SerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
 import org.xerial.snappy.Snappy
@@ -26,7 +26,7 @@ import java.io.ByteArrayInputStream
  * @version 1.0.0
  */
 @Suppress("UNCHECKED_CAST")
-class StoredTupleSerializer(val columns: Array<ColumnDef<*>>, private val writers: Map<Name.ColumnName, Writer<*, *>>, private val readers: Map<Name.ColumnName, Reader<*, *>>) {
+class StoredTupleSerializer(val columns: Array<ColumnDef<*>>, private val writers: Map<Name.ColumnName, OOLWriter<*, *>>, private val readers: Map<Name.ColumnName, OOLReader<*, *>>) {
 
     /** The [StoredValueRefSerializer]s used by this [StoredTupleSerializer]. */
     private val serializers = this.columns.map {
@@ -66,12 +66,12 @@ class StoredTupleSerializer(val columns: Array<ColumnDef<*>>, private val writer
             val value = tuple[c]
             when (s) {
                 is StoredValueRefSerializer.Fixed -> {
-                    val writer = this.writers[c.name] as Writer<Value, StoredValueRef.OutOfLine.Fixed>
+                    val writer = this.writers[c.name] as OOLWriter<Value, StoredValueRef.OutOfLine.Fixed>
                     val ref = writer.append(value as Value)
                     s.write(output, ref)
                 }
                 is StoredValueRefSerializer.Variable -> {
-                    val writer = this.writers[c.name] as Writer<Value, StoredValueRef.OutOfLine.Variable>
+                    val writer = this.writers[c.name] as OOLWriter<Value, StoredValueRef.OutOfLine.Variable>
                     val ref = writer.append(value as Value)
                     s.write(output, ref)
                 }
@@ -93,7 +93,7 @@ class StoredTupleSerializer(val columns: Array<ColumnDef<*>>, private val writer
     private fun toValue(column: ColumnDef<*>, ref: StoredValueRef) = when(ref) {
         StoredValueRef.Null -> null
         is StoredValueRef.Inline<*> -> StoredValue.Inline(ref.value)
-        is StoredValueRef.OutOfLine.Fixed -> StoredValue.OutOfLine.Fixed(ref, this.readers[column.name] as? Reader<Value, StoredValueRef.OutOfLine.Fixed> ?: throw IllegalStateException("No reader found for column ${column.name}!"))
-        is StoredValueRef.OutOfLine.Variable -> StoredValue.OutOfLine.Variable(ref, this.readers[column.name] as? Reader<Value, StoredValueRef.OutOfLine.Variable> ?: throw IllegalStateException("No reader found for column ${column.name}!"))
+        is StoredValueRef.OutOfLine.Fixed -> StoredValue.OutOfLine.Fixed(ref, this.readers[column.name] as? OOLReader<Value, StoredValueRef.OutOfLine.Fixed> ?: throw IllegalStateException("No reader found for column ${column.name}!"))
+        is StoredValueRef.OutOfLine.Variable -> StoredValue.OutOfLine.Variable(ref, this.readers[column.name] as? OOLReader<Value, StoredValueRef.OutOfLine.Variable> ?: throw IllegalStateException("No reader found for column ${column.name}!"))
     }
 }

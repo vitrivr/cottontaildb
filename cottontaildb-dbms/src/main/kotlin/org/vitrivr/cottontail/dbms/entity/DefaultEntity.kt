@@ -35,10 +35,10 @@ import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.dbms.sequence.DefaultSequence
 import org.vitrivr.cottontail.dbms.statistics.defaultStatistics
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
-import org.vitrivr.cottontail.storage.entries.FixedLengthFile
-import org.vitrivr.cottontail.storage.entries.VariableLengthFile
-import org.vitrivr.cottontail.storage.entries.interfaces.DataFile
-import org.vitrivr.cottontail.storage.entries.interfaces.ReaderPattern
+import org.vitrivr.cottontail.storage.ool.FixedOOLFile
+import org.vitrivr.cottontail.storage.ool.VariableOOLFile
+import org.vitrivr.cottontail.storage.ool.interfaces.AccessPattern
+import org.vitrivr.cottontail.storage.ool.interfaces.OOLFile
 import org.vitrivr.cottontail.storage.tuple.StoredTupleSerializer
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -80,7 +80,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
      *
      * These are cached to avoid re-creating them for every query.
      */
-    private val columns = Object2ObjectLinkedOpenHashMap<Name.ColumnName, DataFile<*, *>>()
+    private val columns = Object2ObjectLinkedOpenHashMap<Name.ColumnName, OOLFile<*, *>>()
 
     /** The location of this [DefaultEntity]'s data files. */
     val location: Path = Paths.get(this@DefaultEntity.environment.location)
@@ -151,9 +151,9 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
 
                 /* Initialize the data files. */
                 when (column.type) {
-                    is Types.Vector<*,*> -> this@DefaultEntity.columns.computeIfAbsent(column.name) { name: Name.ColumnName -> FixedLengthFile(location, name.column, column.type) }
+                    is Types.Vector<*,*> -> this@DefaultEntity.columns.computeIfAbsent(column.name) { name: Name.ColumnName -> FixedOOLFile(location, name.column, column.type) }
                     is Types.String,
-                    is Types.ByteString -> this@DefaultEntity.columns.computeIfAbsent(column.name) { name: Name.ColumnName ->  VariableLengthFile(location, name.column, column.type) }
+                    is Types.ByteString -> this@DefaultEntity.columns.computeIfAbsent(column.name) { name: Name.ColumnName ->  VariableOOLFile(location, name.column, column.type) }
                     else -> { /* No op. */ }
                 }
                 column
@@ -163,7 +163,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             this.serializer = StoredTupleSerializer(
                 this.columns,
                 this@DefaultEntity.columns.map { it.key to it.value.writer() }.toMap(),
-                this@DefaultEntity.columns.map { it.key to it.value.reader(ReaderPattern.RANDOM) }.toMap()
+                this@DefaultEntity.columns.map { it.key to it.value.reader(AccessPattern.RANDOM) }.toMap()
             )
 
             /* Load a map of indexes. This map can be kept in memory for the duration of the transaction, because Transaction works with a fixed snapshot.  */
@@ -360,7 +360,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }
 
             /* Signal event to transaction context. */
-            val event = IndexEvent.Created(index)
+            val event = IndexEvent.Dropped(index)
             this.events.add(event)
             this.context.txn.signalEvent(event)
         }
@@ -423,7 +423,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             val serializer = StoredTupleSerializer(
                 this.columns,
                 emptyMap(),
-                this@DefaultEntity.columns.map { it.key to it.value.reader(ReaderPattern.SEQUENTIAL) }.toMap()
+                this@DefaultEntity.columns.map { it.key to it.value.reader(AccessPattern.SEQUENTIAL) }.toMap()
             )
             return DefaultEntityCursor(this, serializer, partition, rename)
         }

@@ -4,10 +4,10 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.storage.entries.interfaces.DataFile
+import org.vitrivr.cottontail.storage.ool.interfaces.OOLFile
 
 /**
- * A [Tuple] implementation that lazily loads [Value]s from a [DataFile] when requested.
+ * A [Tuple] implementation that lazily loads [Value]s from a [OOLFile] when requested.
  *
  * @author Ralph Gasser
  * @version 1.0.0

@@ -3,13 +3,12 @@ package org.vitrivr.cottontail.dbms.index.diskann.graph.deg
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.types.VectorValue
-import org.vitrivr.cottontail.dbms.index.diskann.graph.primitives.BoostedEdge
 import org.vitrivr.cottontail.dbms.index.diskann.graph.primitives.Distance
 import org.vitrivr.cottontail.dbms.index.diskann.graph.primitives.Node
-import org.vitrivr.cottontail.utilities.graph.Graph
 import org.vitrivr.cottontail.utilities.graph.MutableGraph
 import java.util.*
 import kotlin.math.max
+import kotlin.math.min
 
 
 /**
@@ -26,9 +25,6 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
     /** The [MutableGraph] backing this [AbstractDynamicExplorationGraph]. */
     protected abstract val graph: MutableGraph<Node<I>>
 
-    /** Internal list of all [Node]s for faster access. */
-    private val vertices: LinkedList<Node<I>> = LinkedList()
-
     /** The size of  this [DynamicExplorationGraph]. */
     override val size: Int
         get() = this.graph.size
@@ -42,7 +38,6 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
     override fun index(identifier: I, value: V) {
         /* Create new (empty) node and store vector. */
         val newNode = Node(identifier)
-        this.vertices.add(newNode)
         this.storeValue(newNode, value)
 
         if (this.size <= this.degree) { /* Case 1: Graph does not satisfy regularity condition since it is too small; make all existing nodes connect to the new node. */
@@ -54,6 +49,7 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
             }
         } else { /* Case 2: Graph satisfies satisfy regularity condition; extend graph by new node. */
             val results = this.search(value, this.kExt, this.epsilonExt, this.randomNodes(1))
+            check(results.size == min(this.graph.size, this.kExt)) { "Search for new node failed." }
             var phase = 0
 
             /* Add new vertex. */
@@ -100,10 +96,13 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
 
         /* Case 1: Small graph - brute-force search. */
         if (this.size < 1000L) {
-            for (vertex in this.vertices) {
+            for (vertex in this.graph.vertices()) {
                 val distance = Distance(vertex.label, this.distance(query, this.getValue(vertex)))
                 distanceComputationCount++
                 results.add(distance)
+                if (results.size > k) {
+                    results.pollLast()
+                }
             }
             return results.toList()
         }
@@ -173,7 +172,7 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
      *
      * @return [Iterator] of all [Node]s in this [AbstractDynamicExplorationGraph].
      */
-    override fun vertices(): Iterator<Node<I>> = this.vertices.iterator()
+    override fun vertices(): Iterator<Node<I>> = this.graph.vertices()
 
     /**
      * Returns a [Map] of all edges in this [AbstractDynamicExplorationGraph] that start from the given [Node]
@@ -209,9 +208,16 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
      */
     fun randomNodes(sampleSize: Int): List<Node<I>> {
         require(sampleSize <= this.size) { "The sample size $sampleSize exceeds graph size of graph (s = $sampleSize, g = ${this.size})." }
-        return this.random.ints(0, this.size).distinct().limit(sampleSize.toLong()).sorted().mapToObj {
-            this.vertices[it]
-        }.toList()
+        val iterator = this.graph.vertices()
+        val nodeIndexes = this.random.ints(0, this.size).distinct().limit(sampleSize.toLong()).sorted()
+        val results = mutableListOf<Node<I>>()
+        for (index in nodeIndexes) {
+            for (i in 0 until index) {
+                iterator.next()
+            }
+            results.add(iterator.next())
+        }
+        return results
     }
 
     /**

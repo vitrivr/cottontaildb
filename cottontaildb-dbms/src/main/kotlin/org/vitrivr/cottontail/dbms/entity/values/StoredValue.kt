@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.entity.values
 
 import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.storage.entries.interfaces.Reader
+import org.vitrivr.cottontail.storage.ool.interfaces.OOLReader
 
 /**
  * A reference to a [StoredValue.OutOfLine].
@@ -24,12 +24,12 @@ sealed interface StoredValue<T: Value> {
      */
     sealed interface OutOfLine<T: Value>: StoredValue<T> {
         /** A reference to a fixed value. */
-        class Fixed<V: Value>(private val ref: StoredValueRef.OutOfLine.Fixed, val reader: Reader<V, StoredValueRef.OutOfLine.Fixed>): OutOfLine<V> {
+        class Fixed<V: Value>(private val ref: StoredValueRef.OutOfLine.Fixed, val reader: OOLReader<V, StoredValueRef.OutOfLine.Fixed>): OutOfLine<V> {
             override val value: V by lazy { this.reader.read(this.ref) }
         }
 
         /** A reference to a variable value. */
-        class Variable<V: Value>(private val ref: StoredValueRef.OutOfLine.Variable, val reader: Reader<V, StoredValueRef.OutOfLine.Variable>): OutOfLine<V> {
+        class Variable<V: Value>(private val ref: StoredValueRef.OutOfLine.Variable, val reader: OOLReader<V, StoredValueRef.OutOfLine.Variable>): OutOfLine<V> {
             override val value: V by lazy { this.reader.read(this.ref) }
         }
     }

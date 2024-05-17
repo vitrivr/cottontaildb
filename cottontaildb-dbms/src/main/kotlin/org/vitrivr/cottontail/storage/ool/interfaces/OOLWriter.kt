@@ -1,18 +1,18 @@
-package org.vitrivr.cottontail.storage.entries.interfaces
+package org.vitrivr.cottontail.storage.ool.interfaces
 
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.entity.values.StoredValue
 import org.vitrivr.cottontail.dbms.entity.values.StoredValueRef
 
 /**
- * A [Reader] is used to read [Value]s from a [DataFile].
+ * A [OOLReader] is used to read [Value]s from a [OOLFile].
  *
  * @author Ralph Gasser
  * @version 1.0.0
  */
-interface Writer<V: Value, D: StoredValueRef> {
-    /** The [DataFile] this [Reader] belongs to. */
-    val file: DataFile<V, D>
+interface OOLWriter<V: Value, D: StoredValueRef> {
+    /** The [OOLFile] this [OOLReader] belongs to. */
+    val file: OOLFile<V, D>
 
     /**
      * Reads a [Value] from the provided [StoredValue].
@@ -23,7 +23,7 @@ interface Writer<V: Value, D: StoredValueRef> {
     fun append(value: V): D
 
     /**
-     * Flushes the data written through this [Writer] to the underlying [DataFile].
+     * Flushes the data written through this [OOLWriter] to the underlying [OOLFile].
      */
     fun flush()
 }
