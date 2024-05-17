@@ -12,7 +12,6 @@ import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
-import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.queries.QueryHint
@@ -27,7 +26,7 @@ import org.vitrivr.cottontail.test.TestConstants
  * A dummy [QueryContext] that can be used for testing operators.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 object DummyQueryContext: QueryContext {
     override val queryId: String = "test"
@@ -36,10 +35,6 @@ object DummyQueryContext: QueryContext {
         override val functions: FunctionRegistry = FunctionRegistry()
         override val name = Name.RootName
         override val parent: DBO? = null
-        override val transactionManager: TransactionManager
-            get() =  throw UnsupportedOperationException("Operation not supported for dummy catalogue.")
-        override val statisticsManager: StatisticsManager
-            get() =  throw UnsupportedOperationException("Operation not supported for dummy catalogue.")
         override val catalogue: Catalogue
             get() = this
         override val version: DBOVersion
@@ -47,6 +42,10 @@ object DummyQueryContext: QueryContext {
         override fun createOrResumeTx(context: QueryContext): CatalogueTx = throw UnsupportedOperationException("Operation not supported for dummy catalogue.")
         override fun close() {}
     }
+    override val statistics: StatisticsManager
+        get() =  throw UnsupportedOperationException("Operation not supported for dummy catalogue.")
+    override val catalogueTx: CatalogueTx
+        get() =  throw UnsupportedOperationException("Operation not supported for dummy catalogue.")
     override val txn: Transaction
         get() = throw UnsupportedOperationException("Operation not supported for dummy query context.")
     override val bindings: BindingContext = DefaultBindingContext()

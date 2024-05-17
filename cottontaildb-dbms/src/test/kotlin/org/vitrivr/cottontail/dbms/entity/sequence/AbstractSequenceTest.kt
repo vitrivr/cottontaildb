@@ -14,7 +14,7 @@ import java.util.*
  * An abstract class for test cases that test for correctness of sequences
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 abstract class AbstractSequenceTest: AbstractEntityTest() {
     /** [SplittableRandom] used to generate random values. */
@@ -23,14 +23,14 @@ abstract class AbstractSequenceTest: AbstractEntityTest() {
     @Test
     fun testSequence() {
         val txn1 = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
-        val ctx1 = DefaultQueryContext("test-sequence-insert", this.catalogue, txn1)
+        val ctx1 = DefaultQueryContext("test-sequence-insert", this.instance, txn1)
 
         /* Insert all entries. */
         val catalogueTx1 = this.catalogue.createOrResumeTx(ctx1)
         val schema1 = catalogueTx1.schemaForName(this.schemaName)
-        val schemaTx1 = schema1.newTx(ctx1)
+        val schemaTx1 = schema1.newTx(catalogueTx1)
         val entity1 = schemaTx1.entityForName(TestConstants.TEST_ENTITY_NAME)
-        val entityTx1 = entity1.createOrResumeTx(ctx1)
+        val entityTx1 = entity1.createOrResumeTx(schemaTx1)
         repeat(TestConstants.TEST_COLLECTION_SIZE - 1) {
             entityTx1.insert(this.nextRecord())
         }
@@ -38,14 +38,14 @@ abstract class AbstractSequenceTest: AbstractEntityTest() {
 
         /* Iterate over entries and read IDs. */
         val txn2 = this.manager.startTransaction(TransactionType.USER_READONLY)
-        val ctx2 = DefaultQueryContext("test-sequence-read", this.catalogue, txn2)
+        val ctx2 = DefaultQueryContext("test-sequence-read", this.instance, txn2)
 
         /* Insert all entries. */
         val catalogueTx2 = this.catalogue.createOrResumeTx(ctx2)
         val schema2 = catalogueTx2.schemaForName(this.schemaName)
-        val schemaTx2 = schema2.newTx(ctx2)
+        val schemaTx2 = schema2.newTx(catalogueTx2)
         val entity2 = schemaTx2.entityForName(TestConstants.TEST_ENTITY_NAME)
-        val entityTx2 = entity2.createOrResumeTx(ctx2)
+        val entityTx2 = entity2.createOrResumeTx(schemaTx2)
         val cursor = entityTx2.cursor(this.entities[0].second.toTypedArray())
         for ((i, record) in cursor.withIndex()) {
             test(record[this.entities[0].second[0]], i)

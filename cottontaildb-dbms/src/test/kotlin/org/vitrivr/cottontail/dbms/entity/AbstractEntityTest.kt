@@ -10,13 +10,12 @@ import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.basic.Index
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.schema.Schema
-import org.vitrivr.cottontail.storage.serializers.tablets.Compression
 
 /**
  * An [AbstractDatabaseTest] that tests entities with toy data.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 abstract class AbstractEntityTest: AbstractDatabaseTest() {
 
@@ -60,7 +59,7 @@ abstract class AbstractEntityTest: AbstractDatabaseTest() {
     protected fun prepareSchema(): Schema {
         this.logger.info("Creating schema ${this.schemaName}.")
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
-        val ctx = DefaultQueryContext("index-test-prepare", this.catalogue, txn)
+        val ctx = DefaultQueryContext("index-test-prepare", this.instance, txn)
         val catalogueTx = this.catalogue.createOrResumeTx(ctx)
         val ret = catalogueTx.createSchema(this.schemaName)
         txn.commit()
@@ -72,13 +71,13 @@ abstract class AbstractEntityTest: AbstractDatabaseTest() {
      */
     protected fun prepareEntity() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
-        val ctx = DefaultQueryContext("index-test-prepare-entity", this.catalogue, txn)
+        val ctx = DefaultQueryContext("index-test-prepare-entity", this.instance, txn)
         for (e in this.entities) {
             this.logger.info("Creating schema ${e.first}.")
             val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = schema.newTx(ctx)
-            schemaTx.createEntity(e.first, e.second.map { it.name to ColumnMetadata(it.type, Compression.NONE, it.nullable, it.primary, it.autoIncrement) })
+            val schemaTx = schema.newTx(catalogueTx)
+            schemaTx.createEntity(e.first, e.second.map { it.name to ColumnMetadata(it.type, it.nullable, it.primary, it.autoIncrement) })
         }
         txn.commit()
     }

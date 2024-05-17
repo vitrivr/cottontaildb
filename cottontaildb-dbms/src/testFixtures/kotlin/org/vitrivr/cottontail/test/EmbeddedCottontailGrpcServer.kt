@@ -3,9 +3,8 @@ package org.vitrivr.cottontail.test
 import io.grpc.ServerBuilder
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.execution.ExecutionManager
-import org.vitrivr.cottontail.dbms.execution.services.AutoRebuilderService
 import org.vitrivr.cottontail.server.CottontailServer
+import org.vitrivr.cottontail.server.Instance
 import org.vitrivr.cottontail.server.grpc.services.DDLService
 import org.vitrivr.cottontail.server.grpc.services.DMLService
 import org.vitrivr.cottontail.server.grpc.services.DQLService
@@ -16,24 +15,21 @@ import kotlin.time.ExperimentalTime
  * Server class for the gRPC endpoint provided by Cottontail DB used in unit tests.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 @ExperimentalTime
 class EmbeddedCottontailGrpcServer(config: Config) {
-    /** The [ExecutionManager] used for handling gRPC calls and executing queries. */
-    private val executor = ExecutionManager(config)
-
-    /** The [DefaultCatalogue] instance used by this [CottontailServer]. */
-    internal val catalogue = DefaultCatalogue(config, this.executor)
+    /** The [Instance] instance used by this [EmbeddedCottontailGrpcServer]. */
+    private val instance = Instance(config)
 
 
     /** The internal gRPC server; if building that server fails then the [DefaultCatalogue] is closed again! */
     private val grpc = ServerBuilder.forPort(config.server.port)
-        .executor(this.executor.connectionWorkerPool)
-        .addService(DDLService(this.catalogue, AutoRebuilderService(this.catalogue)))
-        .addService(DMLService(this.catalogue))
-        .addService(DQLService(this.catalogue))
-        .addService(TXNService(this.catalogue))
+        .executor(this.instance.executor.connectionWorkerPool)
+        .addService(DDLService(this.instance))
+        .addService(DMLService(this.instance))
+        .addService(DQLService(this.instance))
+        .addService(TXNService(this.instance))
         .let {
             if (config.server.useTls) {
                 val certFile = config.server.certFile!!.toFile()
@@ -50,8 +46,7 @@ class EmbeddedCottontailGrpcServer(config: Config) {
         try {
             this.grpc.start()
         } catch (e: Throwable) {
-            this.executor.shutdownAndWait()
-            this.catalogue.close()
+            this.instance.close()
             throw e
         }
     }
@@ -72,10 +67,7 @@ class EmbeddedCottontailGrpcServer(config: Config) {
             this.grpc.shutdown().awaitTermination()
 
             /* Close catalogue. */
-            this.catalogue.close()
-
-            /* Shutdown thread pool executor. */
-            this.executor.shutdownAndWait()
+            this.instance.close()
 
             /* Update flag. */
             this.isRunning = false

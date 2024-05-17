@@ -1,7 +1,5 @@
 package org.vitrivr.cottontail.dbms.index.deg
 
-import jetbrains.exodus.env.Environments
-import jetbrains.exodus.env.StoreConfig
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.core.database.TupleId
@@ -11,8 +9,6 @@ import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.dbms.index.diskann.graph.deg.AbstractDynamicExplorationGraph
 import org.vitrivr.cottontail.dbms.index.diskann.graph.deg.InMemoryDynamicExplorationGraph
-import org.vitrivr.cottontail.dbms.index.diskann.graph.serializer.TupleIdNodeSerializer
-import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.utilities.formats.FVecsReader
 import org.vitrivr.cottontail.utilities.math.ranking.RankingUtilities
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
@@ -32,31 +28,6 @@ class BasicDEGTest {
 
     companion object {
         const val K = 100
-    }
-
-    /**
-     * Tests the [XodusDynamicExplorationGraph] with 10'000 SIFT vectors ([FloatVectorValue]).
-     */
-    @Test
-    fun testPersistentDEGWithSIFTVector() {
-        Environments.newInstance(TestConstants.testConfig().root.toFile()).use { environment ->
-            environment.executeInTransaction { txn ->
-                /* Create a new store. */
-                val store = environment.openStore("test", StoreConfig.WITH_DUPLICATES, txn, true)!!
-
-                /* Prepare parameters. */
-                val type = Types.FloatVector(128)
-                val distance = EuclideanDistance.FloatVector(type)
-                val list = LinkedList<FloatVectorValue>()
-                val graph = XodusDynamicExplorationGraph<TupleId, FloatVectorValue>(4, 16, 0.2f, store, txn, TupleIdNodeSerializer()) { v1, v2 -> distance.invoke(v1, v2).value.toFloat() }
-
-                /* Index vectors and build graph & ground truth. */
-                this.index(graph)
-
-                /* Perform search. */
-                this.search(graph, distance)
-            }
-        }
     }
 
     /**
@@ -110,18 +81,18 @@ class BasicDEGTest {
                 val query = FloatVectorValue(reader.next())
                 val bruteForceResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(K)
                 bruteForceDuration += measureTime {
-                    graph.vertices().use { vertices ->
-                        var index = 1L
-                        for (vertex in vertices) {
-                            bruteForceResults.offer(ComparablePair(index++, distance.invoke(query, graph.getValue(vertex))!!))
-                        }
+                    var index = 1L
+                    for (vertex in graph.vertices()) {
+                        bruteForceResults.offer(ComparablePair(index++, distance.invoke(query, graph.getValue(vertex))!!))
+
                     }
                 }
 
                 /* Fetch results through index. */
                 val indexResults = ArrayList<ComparablePair<TupleId, DoubleValue>>(K)
                 indexDuration += measureTime {
-                    graph.search(query, K, 0.2f).forEach { indexResults.add(ComparablePair(it.label, DoubleValue(it.distance))) }
+                    val seeds = graph.randomNodes(5)
+                    graph.search(query, K, 0.2f, seeds).forEach { indexResults.add(ComparablePair(it.label, DoubleValue(it.distance))) }
                 }
                 recall += RankingUtilities.recallAtK(bruteForceResults.toList().map { it.first }, indexResults.map { it.first }, K)
                 queries++

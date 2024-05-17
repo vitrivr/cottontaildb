@@ -18,7 +18,7 @@ import java.nio.file.Files
  * An abstract class for test cases that test for correctness of serialization
  *
  * @author Ralph Gasser
- * @version 1.5.1
+ * @version 1.6.0
  */
 abstract class AbstractSerializationTest: AbstractEntityTest() {
 
@@ -63,16 +63,16 @@ abstract class AbstractSerializationTest: AbstractEntityTest() {
 
         /* Start testing. */
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
-        val ctx = DefaultQueryContext("serialization", this.catalogue, txn)
+        val ctx = DefaultQueryContext("serialization", this.instance, txn)
         try {
             val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = schema.newTx(ctx)
+            val schemaTx = schema.newTx(catalogueTx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.createOrResumeTx(ctx)
+            val entityTx = entity.createOrResumeTx(schemaTx)
             repeat(TestConstants.TEST_COLLECTION_SIZE - 1) {
                 val reference = this.nextRecord(it)
-                val retrieved = entityTx.read(it.toLong(), this.columns)
+                val retrieved = entityTx.read(it.toLong())
                 for (i in 0 until retrieved.size) {
                     Assertions.assertTrue(reference[retrieved.columns[i]]!!.isEqual(retrieved[i]!!))
                 }
@@ -94,12 +94,12 @@ abstract class AbstractSerializationTest: AbstractEntityTest() {
         /* Start inserting. */
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
         try {
-            val ctx = DefaultQueryContext("serialization-populate", this.catalogue, txn)
+            val ctx = DefaultQueryContext("serialization-populate", this.instance, txn)
             val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = schema.newTx(ctx)
+            val schemaTx = schema.newTx(catalogueTx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.createOrResumeTx(ctx)
+            val entityTx = entity.createOrResumeTx(schemaTx)
 
             /* Insert data and track how many entries have been stored for the test later. */
             repeat(TestConstants.TEST_COLLECTION_SIZE) {

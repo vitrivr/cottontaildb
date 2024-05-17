@@ -67,7 +67,7 @@ class VAFFloatIndexTest : AbstractIndexTest() {
     @ExperimentalTime
     fun test(distance: Name.FunctionName) {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
-        val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
+        val ctx = DefaultQueryContext("index-test", this.instance, txn)
         try {
             val k = 1000L
             val query = FloatVectorValueGenerator.random(this.indexColumn.type.logicalSize, this.random)
@@ -79,11 +79,11 @@ class VAFFloatIndexTest : AbstractIndexTest() {
             /* Obtain necessary transactions. */
             val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = schema.newTx(ctx)
+            val schemaTx = schema.newTx(catalogueTx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.createOrResumeTx(ctx)
+            val entityTx = entity.createOrResumeTx(schemaTx)
             val index = entityTx.indexForName(this.indexName)
-            val indexTx = index.newTx(ctx)
+            val indexTx = index.newTx(entityTx)
 
             /* Fetch results through full table scan. */
             val bruteForceResults = HeapSelection(k.toInt(), RecordComparator.SingleNonNullColumnComparator(predicate.distanceColumn.column, SortOrder.ASCENDING))

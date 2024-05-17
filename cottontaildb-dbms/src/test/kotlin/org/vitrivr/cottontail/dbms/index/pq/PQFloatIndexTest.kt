@@ -89,7 +89,7 @@ class PQFloatIndexTest : AbstractIndexTest() {
     @ExperimentalTime
     fun test(distance: Name.FunctionName) {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
-        val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
+        val ctx = DefaultQueryContext("index-test", this.instance, txn)
         val k = 100
         val query = FloatVectorValue(FloatArray(this.indexColumn.type.logicalSize) {
             (this.counter % this.numberOfClusters) + this.random.nextDouble(-1.0, 1.0).toFloat() /* Pre-clustered data. */
@@ -102,11 +102,11 @@ class PQFloatIndexTest : AbstractIndexTest() {
         /* Obtain necessary transactions. */
         val catalogueTx = this.catalogue.createOrResumeTx(ctx)
         val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = schema.newTx(ctx)
+        val schemaTx = schema.newTx(catalogueTx)
         val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = entity.createOrResumeTx(ctx)
+        val entityTx = entity.createOrResumeTx(schemaTx)
         val index = entityTx.indexForName(this.indexName)
-        val indexTx = index.newTx(ctx)
+        val indexTx = index.newTx(entityTx)
 
         /* Fetch results through full table scan. */
         val bruteForceResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(k)

@@ -71,9 +71,7 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
             NNSIndexScanClass3Rule,
             FulltextIndexRule,
             CountPushdownRule,
-            LimitingSortMergeRule,
-            DeferFetchOnScanRewriteRule,
-            DeferFetchOnFetchRewriteRule
+            LimitingSortMergeRule
         ),
         this.catalogue.config.cache.planCacheSize
     )
@@ -85,12 +83,12 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
     fun testEqualsWithoutHint() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
         try {
-            val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
+            val ctx = DefaultQueryContext("index-test", this.instance, txn)
             val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = schema.newTx(ctx)
+            val schemaTx = schema.newTx(catalogueTx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.createOrResumeTx(ctx)
+            val entityTx = entity.createOrResumeTx(schemaTx)
             val bindings = this.columns.map { ctx.bindings.bind(it, it)}
 
             /* Bind EQUALS operator. */
@@ -121,12 +119,12 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
     fun testEqualsWithNoIndexHint() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
         try {
-            val ctx = DefaultQueryContext("test", this.catalogue, txn, setOf(QueryHint.IndexHint.None))
+            val ctx = DefaultQueryContext("test", this.instance, txn, setOf(QueryHint.IndexHint.None))
             val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = schema.newTx(ctx)
+            val schemaTx = schema.newTx(catalogueTx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.createOrResumeTx(ctx)
+            val entityTx = entity.createOrResumeTx(schemaTx)
             val bindings = this.columns.map { ctx.bindings.bind(it, it) }
 
             /* Bind EQUALS operator. */
@@ -156,12 +154,12 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
     fun testInWithoutHint() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
         try {
-            val ctx = DefaultQueryContext("test", this.catalogue, txn)
+            val ctx = DefaultQueryContext("test", this.instance, txn)
             val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = schema.newTx(ctx)
+            val schemaTx = schema.newTx(catalogueTx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.createOrResumeTx(ctx)
+            val entityTx = entity.createOrResumeTx(schemaTx)
             val bindings = this.columns.map { ctx.bindings.bind(it, it) }
 
             /* Bind IN operator. */
@@ -194,12 +192,12 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
     fun testInWithoutHintButWithAndCondition() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
         try {
-            val ctx = DefaultQueryContext("test", this.catalogue, txn)
+            val ctx = DefaultQueryContext("test", this.instance, txn)
             val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = schema.newTx(ctx)
+            val schemaTx = schema.newTx(catalogueTx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.createOrResumeTx(ctx)
+            val entityTx = entity.createOrResumeTx(schemaTx)
             val bindings = this.columns.map { ctx.bindings.bind(it, it)}
 
             /* Bind IN operator. */
@@ -231,12 +229,12 @@ class BTreeIndexSelectionPlannerTest : AbstractIndexTest() {
     fun testInWithNoIndexHint() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_READONLY)
         try {
-            val ctx = DefaultQueryContext("test", this.catalogue, txn, setOf(QueryHint.IndexHint.None))
+            val ctx = DefaultQueryContext("test", this.instance, txn, setOf(QueryHint.IndexHint.None))
             val catalogueTx = this.catalogue.createOrResumeTx(ctx)
             val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = schema.newTx(ctx)
+            val schemaTx = schema.newTx(catalogueTx)
             val entity = schemaTx.entityForName(this.entityName)
-            val entityTx = entity.createOrResumeTx(ctx)
+            val entityTx = entity.createOrResumeTx(schemaTx)
             val bindings = this.columns.map { ctx.bindings.bind(it, it)}
 
             /* Bind IN operator. */

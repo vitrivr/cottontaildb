@@ -7,8 +7,8 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.execution.ExecutionManager
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
+import org.vitrivr.cottontail.server.Instance
 import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.nio.file.Files
@@ -17,7 +17,7 @@ import java.nio.file.Files
  * Abstract class for unit tests that require a Cottontail DB database.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 abstract class AbstractDatabaseTest {
     companion object {
@@ -38,15 +38,16 @@ abstract class AbstractDatabaseTest {
     /** [Name.SchemaName] of the test schema. */
     protected val schemaName = Name.SchemaName.create("test")
 
-    /** The [ExecutionManager] used for tests. */
-    private val executor = ExecutionManager(this.config)
+    /** The [Instance] used by this [AbstractDatabaseTest]. */
+    protected val instance = Instance(this.config)
 
-    /** Catalogue used for testing. */
-    protected var catalogue: DefaultCatalogue = DefaultCatalogue(this.config, this.executor)
+    /** Pointer to the underlying [DefaultCatalogue], for convenience. */
+    protected val catalogue: DefaultCatalogue
+        get() = this.instance.catalogue
 
-    /** Pointer to the underlying [TransactionManager] for convenience sake. */
+    /** Pointer to the underlying [TransactionManager], for convenience. */
     protected val manager: TransactionManager
-        get() = this.catalogue.transactionManager
+        get() = this.instance.transactions
 
     /** The [Logger] instance used by this [AbstractDatabaseTest]. */
     protected val logger = LOGGER
@@ -55,9 +56,7 @@ abstract class AbstractDatabaseTest {
      * Initializes this [AbstractDatabaseTest].
      */
     @BeforeEach
-    protected open fun initialize() {
-
-    }
+    protected open fun initialize() {}
 
     /**
      * Tears down this [AbstractDatabaseTest].
@@ -65,10 +64,7 @@ abstract class AbstractDatabaseTest {
     @AfterEach
     protected open fun teardown() {
         /* Shutdown thread pool executor. */
-        this.executor.shutdownAndWait()
-
-        /* Close catalogue. */
-        this.catalogue.close()
+        this.instance.close()
 
         /* Delete unnecessary files. */
         TxFileUtilities.delete(this.config.root)

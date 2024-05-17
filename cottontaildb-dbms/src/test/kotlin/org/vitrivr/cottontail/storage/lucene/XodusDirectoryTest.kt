@@ -1,43 +1,56 @@
 package org.vitrivr.cottontail.storage.lucene
 
+import jetbrains.exodus.env.Environment
+import jetbrains.exodus.env.Environments
+import jetbrains.exodus.vfs.VirtualFileSystem
 import org.apache.commons.math3.random.JDKRandomGenerator
 import org.apache.lucene.store.ByteBuffersDirectory
 import org.apache.lucene.store.IOContext
 import org.apache.lucene.store.IndexInput
 import org.apache.lucene.store.IndexOutput
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
+import org.vitrivr.cottontail.utilities.io.TxFileUtilities
+import java.nio.file.Paths
 
 /**
  * A series of unit tests for the [XodusDirectory].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
-class XodusDirectoryTest: AbstractDatabaseTest() {
+class XodusDirectoryTest {
     /** The random number generator. */
     val random = JDKRandomGenerator()
+
+    /** The Xodus [Environment] used by this [XodusDirectoryTest]. */
+    private lateinit var environment: Environment
+
+    /** The Xodus [VirtualFileSystem] used by this [XodusDirectoryTest]. */
+    private lateinit var vfs: VirtualFileSystem
 
     /**
      * Tests ordinary reading and writing from/to [IndexInput] and [IndexOutput]
      */
     @Test
     fun testSingleTxRequestAndRenameFile() {
-        val txn = this.catalogue.transactionManager.environment.beginTransaction()
-        val directory = XodusDirectory(this.catalogue.transactionManager.vfs, "test", txn)
+        val txn = this.environment.beginTransaction()
+        val directory = XodusDirectory(this.vfs, "test", txn)
 
         /* Prepare data to write. */
         val output = directory.createOutput("test", IOContext())
         val bytes = ByteArray(4096)
         this.random.nextBytes(bytes)
 
-        /** Write to output . */
+        /* Write to output . */
         for (b in bytes) {
             output.writeByte(b)
         }
 
-        /** Close output. */
+        /* Close output. */
         output.close()
 
         /* Test file's existence. */
@@ -58,8 +71,8 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
     @Test
     fun testSingleTxWriteAndRead() {
         /* Prepare directories. */
-        val txn = this.catalogue.transactionManager.environment.beginTransaction()
-        val directory = XodusDirectory(this.catalogue.transactionManager.vfs, "test", txn)
+        val txn = this.environment.beginTransaction()
+        val directory = XodusDirectory(this.vfs, "test", txn)
         val referenceDirectory = ByteBuffersDirectory()
 
         /* Prepare data to write. */
@@ -68,20 +81,20 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
         val bytes = ByteArray(4096)
         this.random.nextBytes(bytes)
 
-        /** Write to output . */
+        /* Write to output . */
         for (b in bytes) {
             output.writeByte(b)
             outputRef.writeByte(b)
         }
 
-        /** Compare the checksums. */
+        /* Compare the checksums. */
         Assertions.assertEquals(output.checksum, outputRef.checksum)
 
-        /** Close outputs. */
+        /* Close outputs. */
         output.close()
         outputRef.close()
 
-        /** Read data. */
+        /* Read data. */
         val input = directory.openInput("test", IOContext())
         val inputRef = referenceDirectory.openInput("test", IOContext())
 
@@ -90,7 +103,7 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
             Assertions.assertEquals(input.readByte(), inputRef.readByte())
         }
 
-        /** Close inputs. */
+        /* Close inputs. */
         input.close()
         inputRef.close()
 
@@ -103,8 +116,8 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
     @Test
     fun testSingleTxBatchedWriteAndRead() {
         /* Prepare directories. */
-        val txn = this.catalogue.transactionManager.environment.beginTransaction()
-        val directory = XodusDirectory(this.catalogue.transactionManager.vfs, "test", txn)
+        val txn = this.environment.beginTransaction()
+        val directory = XodusDirectory(this.vfs, "test", txn)
         val referenceDirectory = ByteBuffersDirectory()
 
         /* Prepare data to write. */
@@ -113,24 +126,24 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
         val bytes = ByteArray(4096)
         this.random.nextBytes(bytes)
 
-        /** Write to output . */
+        /* Write to output . */
         output.writeBytes(bytes, 0, 1024)
         output.writeBytes(bytes, 1027, 1)
         output.writeBytes(bytes, 2048, 1024)
 
-        /** Write to reference output. */
+        /* Write to reference output. */
         outputRef.writeBytes(bytes, 0, 1024)
         outputRef.writeBytes(bytes, 1027, 1)
         outputRef.writeBytes(bytes, 2048, 1024)
 
-        /** Compare the checksums. */
+        /* Compare the checksums. */
         Assertions.assertEquals(output.checksum, outputRef.checksum)
 
-        /** Close outputs. */
+        /* Close outputs. */
         output.close()
         outputRef.close()
 
-        /** Read data. */
+        /* Read data. */
         val input = directory.openInput("test", IOContext())
         val inputRef = referenceDirectory.openInput("test", IOContext())
 
@@ -140,7 +153,7 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
             Assertions.assertEquals(input.filePointer, inputRef.filePointer)
         }
 
-        /** Close inputs. */
+        /* Close inputs. */
         input.close()
         inputRef.close()
 
@@ -153,8 +166,8 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
     @Test
     fun testSingleTxBatchedWriteAndSlicedRead() {
         /* Prepare directories. */
-        val txn = this.catalogue.transactionManager.environment.beginTransaction()
-        val directory = XodusDirectory(this.catalogue.transactionManager.vfs, "test", txn)
+        val txn = this.environment.beginTransaction()
+        val directory = XodusDirectory(this.vfs, "test", txn)
         val referenceDirectory = ByteBuffersDirectory()
 
         /* Prepare data to write. */
@@ -216,8 +229,8 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
     @Test
     fun testSingleTxBatchedWriteAndSeekRead() {
         /* Prepare directories. */
-        val txn = this.catalogue.transactionManager.environment.beginTransaction()
-        val directory = XodusDirectory(this.catalogue.transactionManager.vfs, "test", txn)
+        val txn = this.environment.beginTransaction()
+        val directory = XodusDirectory(this.vfs, "test", txn)
         val referenceDirectory = ByteBuffersDirectory()
 
         /* Prepare data to write. */
@@ -274,8 +287,8 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
     @Test
     fun testMultiTxBatchedWriteAndRead() {
         /* Prepare directories. */
-        val txn1 = this.catalogue.transactionManager.environment.beginTransaction()
-        val directory = XodusDirectory(this.catalogue.transactionManager.vfs, "test", txn1)
+        val txn1 = this.environment.beginTransaction()
+        val directory = XodusDirectory(this.vfs, "test", txn1)
         val referenceDirectory = ByteBuffersDirectory()
 
         /* Prepare data to write. */
@@ -305,8 +318,8 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
         txn1.commit()
 
         /* Open new Txn and XodusDirectory. */
-        val txn2 = this.catalogue.transactionManager.environment.beginTransaction()
-        val directory2 = XodusDirectory(this.catalogue.transactionManager.vfs, "test", txn2)
+        val txn2 = this.environment.beginTransaction()
+        val directory2 = XodusDirectory(this.vfs, "test", txn2)
 
         /** Read data in txn2. */
         val input = directory2.openInput("test", IOContext())
@@ -325,4 +338,24 @@ class XodusDirectoryTest: AbstractDatabaseTest() {
         txn2.abort()
     }
 
+    /**
+     * Initializes this [AbstractDatabaseTest].
+     */
+    @BeforeEach
+    fun initialize() {
+        this.environment = Environments.newInstance(Paths.get("testdb").toFile())
+        this.vfs = VirtualFileSystem(this.environment)
+    }
+
+    /**
+     * Tears down this [AbstractDatabaseTest].
+     */
+    @AfterEach
+    fun teardown() {
+        this.vfs.shutdown()
+        this.environment.close()
+
+        /* Delete unnecessary files. */
+        TxFileUtilities.delete(Paths.get(this.environment.location))
+    }
 }

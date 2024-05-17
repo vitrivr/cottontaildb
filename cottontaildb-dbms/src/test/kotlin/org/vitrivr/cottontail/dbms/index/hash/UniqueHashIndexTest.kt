@@ -50,16 +50,16 @@ class UniqueHashIndexTest : AbstractIndexTest() {
     @RepeatedTest(3)
     fun testFilterEqualPositive() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
-        val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
+        val ctx = DefaultQueryContext("index-test", this.instance, txn)
 
         /* Obtain necessary transactions. */
         val catalogueTx = this.catalogue.createOrResumeTx(ctx)
         val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = schema.newTx(ctx)
+        val schemaTx = schema.newTx(catalogueTx)
         val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = entity.createOrResumeTx(ctx)
+        val entityTx = entity.createOrResumeTx(schemaTx)
         val index = entityTx.indexForName(this.indexName)
-        val indexTx = index.newTx(ctx)
+        val indexTx = index.newTx(entityTx)
 
         /* Prepare binding context and predicate. */
         val columnBinding = ctx.bindings.bind(this.columns[0], this.columns[0])
@@ -73,7 +73,7 @@ class UniqueHashIndexTest : AbstractIndexTest() {
                     valueBinding.update(entry.key) /* Update value binding. */
                     val cursor = indexTx.filter(predicate)
                     cursor.forEach { r ->
-                        val rec = entityTx.read(r.tupleId, this@UniqueHashIndexTest.columns)
+                        val rec = entityTx.read(r.tupleId)
                         assertEquals(entry.key.value, (rec[this@UniqueHashIndexTest.columns[0]] as StringValue).value)
                         assertArrayEquals(entry.value.data, (rec[this@UniqueHashIndexTest.columns[1]] as FloatVectorValue).data)
                     }
@@ -91,16 +91,16 @@ class UniqueHashIndexTest : AbstractIndexTest() {
     @RepeatedTest(3)
     fun testFilterEqualNegative() {
         val txn = this.manager.startTransaction(TransactionType.SYSTEM_EXCLUSIVE)
-        val ctx = DefaultQueryContext("index-test", this.catalogue, txn)
+        val ctx = DefaultQueryContext("index-test", this.instance, txn)
 
         /* Obtain necessary transactions. */
         val catalogueTx = this.catalogue.createOrResumeTx(ctx)
         val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = schema.newTx(ctx)
+        val schemaTx = schema.newTx(catalogueTx)
         val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = entity.createOrResumeTx(ctx)
+        val entityTx = entity.createOrResumeTx(schemaTx)
         val index = entityTx.indexForName(this.indexName)
-        val indexTx = index.newTx(ctx)
+        val indexTx = index.newTx(entityTx)
 
         var count = 0
         val predicate = BooleanPredicate.Comparison(ComparisonOperator.Equal(ctx.bindings.bind(this.columns[0], this.columns[0]), ctx.bindings.bind(StringValue(UUID.randomUUID().toString()))))
