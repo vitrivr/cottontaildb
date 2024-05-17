@@ -197,8 +197,7 @@ class TransactionManager(val executionManager: ExecutionManager, val config: Con
         private val activeContexts = HashSet<CoroutineContext>()
 
         /** Timestamp of when this [AbstractTransaction] was created. */
-        final override val created: Long
-            get() = this.xodusTx.startTime
+        final override val created: Long = System.currentTimeMillis()
 
         /** Timestamp of when this [AbstractTransaction] was either COMMITTED or ABORTED. */
         final override var ended: Long? = null
