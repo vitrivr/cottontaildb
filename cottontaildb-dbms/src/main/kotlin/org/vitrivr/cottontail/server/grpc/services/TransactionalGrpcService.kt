@@ -63,21 +63,6 @@ internal interface TransactionalGrpcService {
             metadata.queryId
         }
 
-        /* Obtain transaction context. */
-        val transactionContext = if (metadata.transactionId <= 0L) {
-            if (readOnly) { /* Start new transaction. */
-                this.manager.startTransaction(TransactionType.USER_IMPLICIT_READONLY)
-            } else {
-                this.manager.startTransaction(TransactionType.USER_IMPLICIT_EXCLUSIVE)
-            }
-        } else { /* Reuse existing transaction. */
-            val txn = this.manager[metadata.transactionId]
-            if (txn === null || txn.type.autoCommit) {
-                throw Status.FAILED_PRECONDITION.withDescription( "Execution failed because transaction ${metadata.transactionId} could not be resumed because it doesn't exist or has the wrong type.").asException()
-            }
-            txn
-        }
-
         /* Parse all the query hints provided by the user. */
         val hints = mutableSetOf<QueryHint>()
         if (metadata.noOptimiseHint) {
@@ -106,6 +91,22 @@ internal interface TransactionalGrpcService {
             ))
         }
 
+        /* Obtain transaction context. */
+        val transactionContext = if (metadata.transactionId <= 0L) {
+            if (readOnly) { /* Start new transaction. */
+                this.manager.startTransaction(TransactionType.USER_IMPLICIT_READONLY)
+            } else {
+                this.manager.startTransaction(TransactionType.USER_IMPLICIT_EXCLUSIVE)
+            }
+        } else { /* Reuse existing transaction. */
+            val txn = this.manager[metadata.transactionId]
+            if (txn === null || txn.type.autoCommit) {
+                throw Status.FAILED_PRECONDITION.withDescription( "Execution failed because transaction ${metadata.transactionId} could not be resumed because it doesn't exist or has the wrong type.").asException()
+            }
+            txn
+        }
+
+        /* Return query context. */
         return DefaultQueryContext(queryId, this.catalogue, transactionContext, hints)
     }
 
@@ -135,6 +136,12 @@ internal interface TransactionalGrpcService {
             LOGGER.debug("[${context.txn.transactionId}, ${context.queryId}] Preparation of ${context.physical.firstOrNull()?.name} completed successfully in $d.")
             p to d
         }  catch (e: Throwable) {
+            /* Rollback transaction */
+            if (context.txn.type.autoRollback) {
+                context.txn.rollback()
+            }
+
+            /* Handle error. */
             throw context.handleError(e, false)
         }
 
