@@ -6,9 +6,8 @@ import org.apache.commons.math3.random.JDKRandomGenerator
 import org.apache.commons.math3.util.MathArrays
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.RepeatedTest
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
-import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.utilities.VectorUtility
 import org.vitrivr.cottontail.utilities.math.clustering.KMeansClusterer
 
@@ -45,7 +44,7 @@ class KMeansClustererTest {
         }
 
         /* Prepare clusterer. */
-        val clusterer = KMeansClusterer(this.k, EuclideanDistance.DoubleVector(Types.DoubleVector(this.d)), JDKRandomGenerator(seed), 500)
+        val clusterer = KMeansClusterer(this.k, Types.DoubleVector(this.d), JDKRandomGenerator(seed), 500)
         val reference = KMeansPlusPlusClusterer<Clusterable>(this.k, 500, { a, b -> MathArrays.distance(a, b) }, JDKRandomGenerator(seed))
 
         /* Perform clustering. */
