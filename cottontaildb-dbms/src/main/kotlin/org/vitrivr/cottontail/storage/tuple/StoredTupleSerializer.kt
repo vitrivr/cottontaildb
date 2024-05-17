@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.tuple.Tuple
-import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.entity.values.StoredTuple
 import org.vitrivr.cottontail.dbms.entity.values.StoredValue
@@ -30,11 +29,12 @@ class StoredTupleSerializer(val columns: Array<ColumnDef<*>>, private val writer
 
     /** The [StoredValueRefSerializer]s used by this [StoredTupleSerializer]. */
     private val serializers = this.columns.map {
-        val core = when (it.type) {
-            is Types.Vector<*,*> -> StoredValueRefSerializer.Fixed
-            is Types.String,
-            is Types.ByteString -> StoredValueRefSerializer.Variable
-            else -> StoredValueRefSerializer.Inline(SerializerFactory.value(it.type) as ValueSerializer<*>)
+        val core = if (it.type.inline) {
+            StoredValueRefSerializer.Inline(SerializerFactory.value(it.type) as ValueSerializer<*>)
+        } else if (it.type.fixedLength) {
+            StoredValueRefSerializer.Fixed
+        } else {
+            StoredValueRefSerializer.Variable
         }
         if (it.nullable) {
             StoredValueRefSerializer.Nullable(core as StoredValueRefSerializer<StoredValueRef>)

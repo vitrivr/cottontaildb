@@ -8,20 +8,17 @@ import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.storage.serializers.tablets.Compression
 import org.vitrivr.cottontail.utilities.math.BitUtil.isBitSet
 import org.vitrivr.cottontail.utilities.math.BitUtil.setBit
 import java.io.ByteArrayInputStream
 
 /**
- * A metadata about [Column]s as stored in the Cottontail DB catalogue
+ * A metadata about column as stored in the Cottontail DB catalogue
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
-data class ColumnMetadata(val type: Types<*>, val nullable: Boolean, val primary: Boolean, val autoIncrement: Boolean) {
+data class ColumnMetadata(val type: Types<*>, val nullable: Boolean, val primary: Boolean, val autoIncrement: Boolean, val inline: Boolean) {
 
     companion object {
         /** Name of the [ColumnMetadata] store in the Cottontail DB catalogue. */
@@ -45,7 +42,7 @@ data class ColumnMetadata(val type: Types<*>, val nullable: Boolean, val primary
             val iterator = ByteArrayInputStream(entry.bytesUnsafe)
             val type = Types.forOrdinal(IntegerBinding.readCompressed(iterator), IntegerBinding.readCompressed(iterator))
             val bitmap = IntegerBinding.BINDING.readObject(iterator)
-            return ColumnMetadata(type, bitmap.isBitSet(0), bitmap.isBitSet(1), bitmap.isBitSet(2))
+            return ColumnMetadata(type, bitmap.isBitSet(0), bitmap.isBitSet(1), bitmap.isBitSet(2), bitmap.isBitSet(3))
         }
 
         /**
@@ -64,6 +61,7 @@ data class ColumnMetadata(val type: Types<*>, val nullable: Boolean, val primary
             if (entry.nullable) bitmap = bitmap.setBit(0)
             if (entry.primary) bitmap = bitmap.setBit(1)
             if (entry.autoIncrement) bitmap = bitmap.setBit(2)
+            if (entry.inline) bitmap = bitmap.setBit(3)
             IntegerBinding.BINDING.writeObject(output, bitmap)
             return output.asArrayByteIterable()
         }

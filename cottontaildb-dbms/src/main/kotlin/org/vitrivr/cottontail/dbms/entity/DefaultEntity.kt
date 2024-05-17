@@ -152,7 +152,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                 columns.add(column)
 
                 /* Initialize the OOL files where necessary. */
-                if (column.inline) {
+                if (!column.inline) {
                     if (column.type.fixedLength) {
                         this@DefaultEntity.columns.computeIfAbsent(column.name) { name: Name.ColumnName -> FixedOOLFile(this@DefaultEntity.location.resolve(name.column), column.type) }
                     } else {
