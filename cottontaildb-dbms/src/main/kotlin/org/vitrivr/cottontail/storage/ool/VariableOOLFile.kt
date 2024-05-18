@@ -170,7 +170,7 @@ class VariableOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, 
 
         init {
             this@VariableOOLFile.channelForSegment(this@VariableOOLFile.appendSegmentId).use { channel ->
-                channel.read(this.writeBuffer.clear())
+                channel.read(this.writeBuffer, 0)
             }
         }
 
@@ -201,8 +201,7 @@ class VariableOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, 
         override fun flush() = this@VariableOOLFile.lock.write {
             this@VariableOOLFile.channelForSegment(this@VariableOOLFile.appendSegmentId).use { channel ->
                 val expected = this.writeBuffer.position()
-                check(channel.write(this.writeBuffer.flip(), 0) == expected) { "Segment file truncated." }
-                this.writeBuffer.limit(this.writeBuffer.capacity())
+                check(channel.write(this.writeBuffer.slice(0, expected), 0) == expected) { "Segment file truncated." }
                 if (!this.writeBuffer.hasRemaining()) {
                     this@VariableOOLFile.appendSegmentId += 1
                     this.writeBuffer.clear()

@@ -142,7 +142,9 @@ class FixedOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, Out
             private set
 
         init {
-            this@FixedOOLFile.channelForSegment(this@FixedOOLFile.appendSegmentId).use { channel -> channel.read(this.writeBuffer) }
+            this@FixedOOLFile.channelForSegment(this@FixedOOLFile.appendSegmentId).use { channel ->
+                channel.read(this.writeBuffer, 0)
+            }
             val segmentIndex = floorDiv(this.writeBuffer.position(), this@FixedOOLFile.entryPerSegment)
             this.rowId = this@FixedOOLFile.appendSegmentId * this@FixedOOLFile.entryPerSegment + floorDiv(segmentIndex, this@FixedOOLFile.type.physicalSize)
         }
@@ -155,7 +157,7 @@ class FixedOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, Out
          */
         override fun append(value: V): OutOfLineValue.Fixed = this@FixedOOLFile.lock.write {
             val serialized = this@FixedOOLFile.serializer.toBuffer(value)
-            if (serialized.capacity() > this.writeBuffer.remaining()) {
+            if (this.writeBuffer.remaining() == 0) {
                 this.flush()
             }
             this.writeBuffer.put(serialized)
@@ -166,8 +168,7 @@ class FixedOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, Out
          * Flushes the data written through this [Writer] to the underlying [OOLFile].
          */
         override fun flush() = this@FixedOOLFile.lock.write {
-            val segmentId = this@FixedOOLFile.appendSegmentId
-            this@FixedOOLFile.channelForSegment(segmentId).use { channel ->
+            this@FixedOOLFile.channelForSegment(this@FixedOOLFile.appendSegmentId).use { channel ->
                 val expected = this.writeBuffer.position()
                 check(channel.write(this.writeBuffer.flip(), 0) == expected) { "Segment file truncated." }
                 this.writeBuffer.limit(this.writeBuffer.capacity())

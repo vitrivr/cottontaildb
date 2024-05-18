@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.storage.ool
 
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectFunction
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.entity.values.OutOfLineValue
@@ -32,7 +32,7 @@ abstract class AbstractOOLFile<V: Value, D: OutOfLineValue>(final override val p
         private const val MAX_CHANNELS = 128
 
         /** An internal [TreeMap] of [FileChannel]s used to access the underlying segment file. */
-        private val OPEN_CHANNELS = Long2ObjectOpenHashMap<SharedFileChannel>()
+        private val OPEN_CHANNELS = Object2ObjectLinkedOpenHashMap<Path,SharedFileChannel>()
     }
 
     init {
@@ -82,8 +82,8 @@ abstract class AbstractOOLFile<V: Value, D: OutOfLineValue>(final override val p
      * @return [SharedFileChannel]
      */
     protected fun channelForSegment(segmentId: SegmentId): SharedFileChannel {
-        val ret = OPEN_CHANNELS.computeIfAbsent(segmentId, Object2ObjectFunction {
-            val path = this.path.resolve("$segmentId.ool")
+        val path = this.path.resolve("$segmentId.ool")
+        val ret = OPEN_CHANNELS.computeIfAbsent(path, Object2ObjectFunction {
             SharedFileChannel(if (segmentId == this.appendSegmentId) {
                 FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)
             } else {
@@ -93,7 +93,7 @@ abstract class AbstractOOLFile<V: Value, D: OutOfLineValue>(final override val p
 
         /* Clean up the cache if it gets too large. */
         if (OPEN_CHANNELS.size >= MAX_CHANNELS) {
-            OPEN_CHANNELS.long2ObjectEntrySet().removeIf {
+            OPEN_CHANNELS.object2ObjectEntrySet().removeIf {
                 it.value.referenceCount == 0 && it.value != ret
             }
         }
