@@ -163,11 +163,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             this.columns = columns.toTypedArray()
 
             /* Initialize serializer for tuple. */
-            this.serializer = StoredTupleSerializer(
-                this.columns,
-                this@DefaultEntity.columns.map { it.key to it.value.writer() }.toMap(),
-                this@DefaultEntity.columns.map { it.key to it.value.reader(AccessPattern.RANDOM) }.toMap()
-            )
+            this.serializer = StoredTupleSerializer(this.columns, this@DefaultEntity.columns, AccessPattern.RANDOM)
 
             /* Load a map of indexes. This map can be kept in memory for the duration of the transaction, because Transaction works with a fixed snapshot.  */
             if (this@DefaultEntity.indexes.isEmpty()) {
@@ -424,11 +420,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         override fun cursor(columns: Array<ColumnDef<*>>, partition: LongRange, rename: Array<Name.ColumnName>): Cursor<Tuple> {
 
             /* Initialize serializer for tuple. */
-            val serializer = StoredTupleSerializer(
-                this.columns,
-                emptyMap(),
-                this@DefaultEntity.columns.map { it.key to it.value.reader(AccessPattern.SEQUENTIAL) }.toMap()
-            )
+            val serializer = StoredTupleSerializer(this.columns, this@DefaultEntity.columns, AccessPattern.SEQUENTIAL)
             return DefaultEntityCursor(this, serializer, partition, rename)
         }
 

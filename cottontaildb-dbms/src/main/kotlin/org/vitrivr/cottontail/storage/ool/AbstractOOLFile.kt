@@ -4,7 +4,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectFunction
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.dbms.entity.values.StoredValueRef
+import org.vitrivr.cottontail.dbms.entity.values.OutOfLineValue
 import org.vitrivr.cottontail.storage.ool.interfaces.OOLFile
 import org.vitrivr.cottontail.storage.ool.interfaces.OOLWriter
 import org.vitrivr.cottontail.storage.serializers.SerializerFactory
@@ -27,7 +27,7 @@ typealias SegmentId = Long
  * @author Ralph Gasser
  * @version 1.0.0
  */
-abstract class AbstractOOLFile<V: Value, D: StoredValueRef>(final override val path: Path, final override val type: Types<V>): OOLFile<V, D> {
+abstract class AbstractOOLFile<V: Value, D: OutOfLineValue>(final override val path: Path, final override val type: Types<V>): OOLFile<V, D> {
     companion object {
         /** Maximum number of pen [SharedFileChannel]s. */
         private const val MAX_CHANNELS = 128

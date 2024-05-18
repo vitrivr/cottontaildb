@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.storage.ool
 
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.dbms.entity.values.OutOfLineValue
 import org.vitrivr.cottontail.dbms.entity.values.StoredValue
-import org.vitrivr.cottontail.dbms.entity.values.StoredValueRef
 import org.vitrivr.cottontail.storage.ool.interfaces.AccessPattern
 import org.vitrivr.cottontail.storage.ool.interfaces.OOLFile
 import org.vitrivr.cottontail.storage.ool.interfaces.OOLFile.Companion.SEGMENT_SIZE
@@ -20,14 +20,14 @@ import kotlin.math.min
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class VariableOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, StoredValueRef.OutOfLine.Variable>(path, type) {
+class VariableOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, OutOfLineValue.Variable>(path, type) {
     /**
      * Provides a [OOLReader] for this [VariableOOLFile].
      *
      * @param pattern [AccessPattern] to use for reading.
      * @return [OOLReader]
      */
-    override fun reader(pattern: AccessPattern): OOLReader<V, StoredValueRef.OutOfLine.Variable> = when(pattern) {
+    override fun reader(pattern: AccessPattern): OOLReader<V, OutOfLineValue.Variable> = when(pattern) {
         AccessPattern.SEQUENTIAL -> SequentialReader()
         AccessPattern.RANDOM -> RandomReader()
     }
@@ -44,9 +44,9 @@ class VariableOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, 
      *
      * The [SequentialReader] (pre-)fetches entries in larger segments and caches them in memory to minimize latency.
      */
-    inner class SequentialReader: OOLReader<V, StoredValueRef.OutOfLine.Variable> {
+    inner class SequentialReader: OOLReader<V, OutOfLineValue.Variable> {
         /** Reference to the [OOLFile] this [OOLReader] belongs to. */
-        override val file: OOLFile<V, StoredValueRef.OutOfLine.Variable>
+        override val file: OOLFile<V, OutOfLineValue.Variable>
             get() = this@VariableOOLFile
 
         /** The [ByteBuffer] to use for reading. */
@@ -61,11 +61,11 @@ class VariableOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, 
         /**
          * Reads a [Value] from the provided [StoredValue].
          *
-         * @param row [StoredValueRef.OutOfLine.Variable] that specifies the row to read from.
+         * @param row [OutOfLineValue.Variable] that specifies the row to read from.
          * @return [Value]
          */
         @Synchronized
-        override fun read(row: StoredValueRef.OutOfLine.Variable): V = this@VariableOOLFile.lock.read {            /* Determine start and end segment. */
+        override fun read(row: OutOfLineValue.Variable): V = this@VariableOOLFile.lock.read {            /* Determine start and end segment. */
             /* Make sure entry buffer is large enough. */
             if (this.entryBuffer.capacity() < row.size) {
                 this.entryBuffer = ByteBuffer.allocate(row.size)
@@ -101,22 +101,22 @@ class VariableOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, 
      *
      * The [RandomReader] reads entry-by entry to minimize the number of bytes processed and does neither pre-fetch nor cache.
      */
-    inner class RandomReader: OOLReader<V, StoredValueRef.OutOfLine.Variable> {
+    inner class RandomReader: OOLReader<V, OutOfLineValue.Variable> {
         /** Reference to the [OOLFile] this [OOLReader] belongs to. */
-        override val file: OOLFile<V, StoredValueRef.OutOfLine.Variable>
+        override val file: OOLFile<V, OutOfLineValue.Variable>
             get() = this@VariableOOLFile
     
         /** The [ByteBuffer] to use for reading. */
         private var entryBuffer = ByteBuffer.allocate(10)
 
         /**
-         * Reads a [Value] for the provided [StoredValueRef.OutOfLine.Variable].
+         * Reads a [Value] for the provided [OutOfLineValue.Variable].
          *
-         * @param row [StoredValueRef.OutOfLine.Variable] that specifies the row to read.
+         * @param row [OutOfLineValue.Variable] that specifies the row to read.
          * @return [Value]
          */
         @Synchronized
-        override fun read(row: StoredValueRef.OutOfLine.Variable): V = this@VariableOOLFile.lock.read {
+        override fun read(row: OutOfLineValue.Variable): V = this@VariableOOLFile.lock.read {
             if (this.entryBuffer.capacity() < row.size) {
                 this.entryBuffer = ByteBuffer.allocate(row.size)
             } else {
@@ -145,8 +145,8 @@ class VariableOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, 
     /**
      * A [Writer] for a [VariableOOLFile].
      */
-    inner class Writer: org.vitrivr.cottontail.storage.ool.interfaces.OOLWriter<V, StoredValueRef.OutOfLine.Variable> {
-        override val file: OOLFile<V, StoredValueRef.OutOfLine.Variable>
+    inner class Writer: org.vitrivr.cottontail.storage.ool.interfaces.OOLWriter<V, OutOfLineValue.Variable> {
+        override val file: OOLFile<V, OutOfLineValue.Variable>
             get() = this@VariableOOLFile
 
         /** The [ByteBuffer] to use for writing. */
@@ -162,9 +162,9 @@ class VariableOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, 
          * Appends a [Value] to this [VariableOOLFile].
          *
          * @param value The [Value] [V] to append.
-         * @return [StoredValueRef.OutOfLine.Variable] for the appended entry.
+         * @return [OutOfLineValue.Variable] for the appended entry.
          */
-        override fun append(value: V): StoredValueRef.OutOfLine.Variable = this@VariableOOLFile.lock.write {
+        override fun append(value: V): OutOfLineValue.Variable = this@VariableOOLFile.lock.write {
             /* Determine start and end segment. */
             val serialized = this@VariableOOLFile.serializer.toBuffer(value)
             val position = this@VariableOOLFile.appendSegmentId * SEGMENT_SIZE + this.writeBuffer.position()
@@ -176,7 +176,7 @@ class VariableOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, 
                     this.flush()
                 }
             } while (serialized.capacity() - serialized.position() != 0)
-            return StoredValueRef.OutOfLine.Variable(position, size)
+            return OutOfLineValue.Variable(position, size)
         }
 
         /**

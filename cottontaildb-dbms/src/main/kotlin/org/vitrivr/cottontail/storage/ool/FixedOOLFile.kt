@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.storage.ool
 
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.dbms.entity.values.OutOfLineValue
 import org.vitrivr.cottontail.dbms.entity.values.StoredValue
-import org.vitrivr.cottontail.dbms.entity.values.StoredValueRef
 import org.vitrivr.cottontail.storage.ool.interfaces.AccessPattern
 import org.vitrivr.cottontail.storage.ool.interfaces.AccessPattern.RANDOM
 import org.vitrivr.cottontail.storage.ool.interfaces.AccessPattern.SEQUENTIAL
@@ -22,7 +22,7 @@ import kotlin.concurrent.write
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class FixedOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, StoredValueRef.OutOfLine.Fixed>(path, type) {
+class FixedOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, OutOfLineValue.Fixed>(path, type) {
     /** The size of a segment in bytes. */
     private val entryPerSegment: Int = (floorDiv(SEGMENT_SIZE, this.type.physicalSize) + 1)
 
@@ -52,9 +52,9 @@ class FixedOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, Sto
      *
      * The [SequentialReader] (pre-)fetches entries in larger segments and caches them in memory to minimize latency.
      */
-    inner class SequentialReader: OOLReader<V, StoredValueRef.OutOfLine.Fixed> {
+    inner class SequentialReader: OOLReader<V, OutOfLineValue.Fixed> {
         /** Reference to the [OOLFile] this [OOLReader] belongs to. */
-        override val file: OOLFile<V, StoredValueRef.OutOfLine.Fixed>
+        override val file: OOLFile<V, OutOfLineValue.Fixed>
             get() = this@FixedOOLFile
 
         /** A [ByteBuffer] holding the currently active segment. */
@@ -64,13 +64,13 @@ class FixedOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, Sto
         private var segmentId: SegmentId = -1L
 
         /**
-         * Reads a [Value] for the provided [StoredValueRef.OutOfLine.Fixed].
+         * Reads a [Value] for the provided [OutOfLineValue.Fixed].
          *
-         * @param row [StoredValueRef.OutOfLine.Fixed] that specifies the row to read.
+         * @param row [OutOfLineValue.Fixed] that specifies the row to read.
          * @return [Value]
          */
         @Synchronized
-        override fun read(row: StoredValueRef.OutOfLine.Fixed): V = this@FixedOOLFile.lock.read {
+        override fun read(row: OutOfLineValue.Fixed): V = this@FixedOOLFile.lock.read {
             val segmentId = floorDiv(row.rowId, this@FixedOOLFile.entryPerSegment)
             if (segmentId != this.segmentId || segmentId == this@FixedOOLFile.appendSegmentId) {
                 this@FixedOOLFile.channelForSegment(segmentId).use { channel ->
@@ -89,20 +89,20 @@ class FixedOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, Sto
      *
      * The [RandomReader] reads entry-by entry to minimize the number of bytes processed and does neither pre-fetch nor cache.
      */
-    inner class RandomReader: OOLReader<V, StoredValueRef.OutOfLine.Fixed> {
-        override val file: OOLFile<V, StoredValueRef.OutOfLine.Fixed>
+    inner class RandomReader: OOLReader<V, OutOfLineValue.Fixed> {
+        override val file: OOLFile<V, OutOfLineValue.Fixed>
             get() = this@FixedOOLFile
 
         /** The [ByteBuffer] to use for reading. */
         private val entryBuffer = ByteBuffer.allocate(this@FixedOOLFile.type.physicalSize)
 
         /**
-         * Reads a [Value] for the provided [StoredValueRef.OutOfLine.Fixed].
+         * Reads a [Value] for the provided [OutOfLineValue.Fixed].
          *
-         * @param row [StoredValueRef.OutOfLine.Fixed] that specifies the row to read.
+         * @param row [OutOfLineValue.Fixed] that specifies the row to read.
          * @return [Value]
          */
-        override fun read(row: StoredValueRef.OutOfLine.Fixed): V = this@FixedOOLFile.lock.read {
+        override fun read(row: OutOfLineValue.Fixed): V = this@FixedOOLFile.lock.read {
             val segmentId = floorDiv(row.rowId, this@FixedOOLFile.entryPerSegment)
             val position = (row.rowId - segmentId * this@FixedOOLFile.entryPerSegment) * this@FixedOOLFile.type.physicalSize
             this@FixedOOLFile.channelForSegment(segmentId).use { channel ->
@@ -115,8 +115,8 @@ class FixedOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, Sto
     /**
      * A [Writer] for a [FixedOOLFile].
      */
-    inner class Writer: org.vitrivr.cottontail.storage.ool.interfaces.OOLWriter<V, StoredValueRef.OutOfLine.Fixed> {
-        override val file: OOLFile<V, StoredValueRef.OutOfLine.Fixed>
+    inner class Writer: org.vitrivr.cottontail.storage.ool.interfaces.OOLWriter<V, OutOfLineValue.Fixed> {
+        override val file: OOLFile<V, OutOfLineValue.Fixed>
             get() = this@FixedOOLFile
 
         /** The [ByteBuffer] to use for writing. */
@@ -137,13 +137,13 @@ class FixedOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, Sto
          * @param value The [Value] [V] to append.
          * @return [StoredValue] for the appended entry.
          */
-        override fun append(value: V): StoredValueRef.OutOfLine.Fixed = this@FixedOOLFile.lock.write {
+        override fun append(value: V): OutOfLineValue.Fixed = this@FixedOOLFile.lock.write {
             val serialized = this@FixedOOLFile.serializer.toBuffer(value)
             if (serialized.capacity() > this.writeBuffer.remaining()) {
                 this.flush()
             }
             this.writeBuffer.put(serialized)
-            return StoredValueRef.OutOfLine.Fixed(this.rowId++)
+            return OutOfLineValue.Fixed(this.rowId++)
         }
 
         /**

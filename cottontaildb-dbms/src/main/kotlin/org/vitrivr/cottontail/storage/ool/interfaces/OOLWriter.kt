@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.storage.ool.interfaces
 
 import org.vitrivr.cottontail.core.types.Value
+import org.vitrivr.cottontail.dbms.entity.values.OutOfLineValue
 import org.vitrivr.cottontail.dbms.entity.values.StoredValue
-import org.vitrivr.cottontail.dbms.entity.values.StoredValueRef
 
 /**
  * A [OOLReader] is used to read [Value]s from a [OOLFile].
@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.dbms.entity.values.StoredValueRef
  * @author Ralph Gasser
  * @version 1.0.0
  */
-interface OOLWriter<V: Value, D: StoredValueRef> {
+interface OOLWriter<V: Value, D: OutOfLineValue> {
     /** The [OOLFile] this [OOLReader] belongs to. */
     val file: OOLFile<V, D>
 

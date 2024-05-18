@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.storage.ool.interfaces
 
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
-import org.vitrivr.cottontail.dbms.entity.values.StoredValueRef
+import org.vitrivr.cottontail.dbms.entity.values.OutOfLineValue
 import java.nio.file.Path
 
 /**
@@ -13,7 +13,7 @@ import java.nio.file.Path
  * @author Ralph Gasser
  * @version 1.0.0
  */
-interface OOLFile<V: Value, D: StoredValueRef> {
+interface OOLFile<V: Value, D: OutOfLineValue> {
     companion object {
         const val SEGMENT_SIZE = 16_000_000 /* A segment size of 16 MB for off-line storage. */
     }
