@@ -72,12 +72,11 @@ class StoredTupleSerializer(val columns: Array<ColumnDef<*>>, private val files:
      * Flushes the content of this [StoredTupleSerializer] to disk.
      */
     fun flush() = this.serializers.forEach {
-        when (it) {
-            is StoredValueSerializer.Fixed<*> -> it.flush()
-            is StoredValueSerializer.Variable<*> -> it.flush()
-            else -> {
-                /* No-op */
-            }
+        val check = if (it is StoredValueSerializer.Nullable<*>) it.wrapped else it
+        when (check) {
+            is StoredValueSerializer.Fixed<*> -> check.flush()
+            is StoredValueSerializer.Variable<*> -> check.flush()
+            else -> { /* No-op */ }
         }
     }
 }

@@ -53,7 +53,7 @@ sealed interface StoredValueSerializer<T: Value> {
      * A [StoredValueSerializer] that can handle [OutOfLineValue]s that are nullable.
      */
     @JvmInline
-    value class Nullable<T: Value>(private val wrapped: StoredValueSerializer<T>) : StoredValueSerializer<T> {
+    value class Nullable<T: Value>(val wrapped: StoredValueSerializer<T>) : StoredValueSerializer<T> {
         override val type: Types<T>
             get() = this.wrapped.type
 
