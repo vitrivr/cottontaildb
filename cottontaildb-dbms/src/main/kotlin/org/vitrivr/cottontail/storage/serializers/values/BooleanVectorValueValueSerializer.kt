@@ -5,6 +5,7 @@ import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.BooleanVectorValue
 import java.io.ByteArrayInputStream
+import java.nio.ByteBuffer
 
 /**
  * A [ValueSerializer] for [BooleanVectorValue] serialization and deserialization.
@@ -33,6 +34,23 @@ class BooleanVectorValueValueSerializer(val size: Int): ValueSerializer<BooleanV
 
     /** Number of words that are stored for this [BooleanVectorValue]. */
     private val numberOfWords = wordIndex(this.type.logicalSize - 1) + 1
+
+    override fun fromBuffer(buffer: ByteBuffer) = BooleanVectorValue(BooleanArray(this.type.logicalSize) {
+        (buffer.getLong(wordIndex(it) * Long.SIZE_BYTES) and (1L shl it)) != 0L
+    })
+
+    override fun toBuffer(value: BooleanVectorValue): ByteBuffer {
+        val buffer = ByteBuffer.allocate(this.numberOfWords * Long.SIZE_BYTES)
+        for ((i, b) in value.data.withIndex()) {
+            val wordIndex = wordIndex(i) * Long.SIZE_BYTES
+            if (b) {
+                buffer.putLong(wordIndex, buffer.getLong(wordIndex) or (1L shl i))
+            } else {
+                buffer.putLong(wordIndex, buffer.getLong(wordIndex) and (1L shl i).inv())
+            }
+        }
+        return buffer.clear()
+    }
 
     override fun write(output: LightOutputStream, value: BooleanVectorValue) {
         val wordArray = LongArray(this.numberOfWords)

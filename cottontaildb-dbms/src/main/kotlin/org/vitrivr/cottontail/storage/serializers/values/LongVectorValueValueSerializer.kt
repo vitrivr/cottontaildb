@@ -5,12 +5,13 @@ import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.LongVectorValue
 import java.io.ByteArrayInputStream
+import java.nio.ByteBuffer
 
 /**
  * A [ValueSerializer] for [LongVectorValue] serialization and deserialization.
  *
  * @author Ralph Gasser
- * @version 3.0.0
+ * @version 4.0.0
  */
 class LongVectorValueValueSerializer(val size: Int): ValueSerializer<LongVectorValue> {
     init {
@@ -18,6 +19,14 @@ class LongVectorValueValueSerializer(val size: Int): ValueSerializer<LongVectorV
     }
 
     override val type: Types<LongVectorValue> = Types.LongVector(this.size)
+
+    override fun fromBuffer(buffer: ByteBuffer) = LongVectorValue(buffer)
+
+    override fun toBuffer(value: LongVectorValue): ByteBuffer {
+        val buffer = ByteBuffer.allocate(this.type.physicalSize)
+        for (v in value.data) buffer.putLong(v)
+        return buffer.clear()
+    }
 
     override fun write(output: LightOutputStream, value: LongVectorValue) {
         for (v in value.data) {

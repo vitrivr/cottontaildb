@@ -11,7 +11,7 @@ import java.nio.ByteBuffer
  * A [ValueSerializer] for [FloatVectorValue] serialization and deserialization.
  *
  * @author Ralph Gasser
- * @version 3.0.0
+ * @version 4.0.0
  */
 class FloatVectorValueValueSerializer(val size: Int): ValueSerializer<FloatVectorValue> {
 
@@ -21,13 +21,11 @@ class FloatVectorValueValueSerializer(val size: Int): ValueSerializer<FloatVecto
 
     override val type: Types<FloatVectorValue> = Types.FloatVector(size)
 
-    override fun fromBuffer(buffer: ByteBuffer): FloatVectorValue = FloatVectorValue(buffer)
+    override fun fromBuffer(buffer: ByteBuffer) = FloatVectorValue(buffer)
 
     override fun toBuffer(value: FloatVectorValue): ByteBuffer {
         val buffer = ByteBuffer.allocate(this.type.physicalSize)
-        for (v in value.data) {
-            buffer.putFloat(v)
-        }
+        for (v in value.data) buffer.putFloat(v)
         return buffer.clear()
     }
 
