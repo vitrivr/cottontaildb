@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.index.hash
+package org.vitrivr.cottontail.dbms.index.btree
 
 import jetbrains.exodus.bindings.LongBinding
 import org.vitrivr.cottontail.core.types.Value
@@ -9,15 +9,15 @@ import org.vitrivr.cottontail.storage.serializers.SerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
 
 /**
- * An [AbstractIndexRebuilder] for the [UQBTreeIndex].
+ * An [AbstractIndexRebuilder] for the [BTreeIndex].
  *
  * @author Ralph Gasser
  * @version 2.0.0
  */
-@Suppress("UNCHECKED_CAST")
-class UQBTreeIndexRebuilder(index: UQBTreeIndex, context: QueryContext): AbstractIndexRebuilder<UQBTreeIndex>(index, context) {
+class BTreeIndexRebuilder(index: BTreeIndex, context: QueryContext): AbstractIndexRebuilder<BTreeIndex>(index, context) {
+    @Suppress("UNCHECKED_CAST")
     override fun rebuildInternal(indexTx: AbstractIndex.Tx): Boolean {
-        require(indexTx is UQBTreeIndex.Tx) { "UQBTreeIndexRebuilder can only be accessed with a UQBTreeIndex.Tx!" }
+        require(indexTx is BTreeIndex.Tx) { "BTreeIndexRebuilder can only be accessed with a BTreeIndex.Tx!" }
 
         /* Read basic index properties. */
         val column = indexTx.columns[0]
@@ -29,11 +29,11 @@ class UQBTreeIndexRebuilder(index: UQBTreeIndex, context: QueryContext): Abstrac
         /* Iterate over entity and update index with entries. */
         indexTx.parent.cursor(indexTx.columns).use { cursor ->
             while (cursor.moveNext()) {
-                val key = cursor.value()[0]
-                if (key != null) {
-                    val keyRaw = binding.toEntry(key)
+                val value = cursor.value()[0]
+                if (value != null) {
+                    val keyRaw = binding.toEntry(value)
                     val tupleIdRaw = LongBinding.longToCompressedEntry(cursor.key())
-                    if (!dataStore.add(indexTx.xodusTx, keyRaw, tupleIdRaw)) {
+                    if (!dataStore.put(indexTx.xodusTx, keyRaw, tupleIdRaw)) {
                         return false
                     }
                 }

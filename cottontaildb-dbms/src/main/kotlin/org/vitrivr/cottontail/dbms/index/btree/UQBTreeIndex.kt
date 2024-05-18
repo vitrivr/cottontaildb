@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.index.hash
+package org.vitrivr.cottontail.dbms.index.btree
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectFunction
 import jetbrains.exodus.bindings.ComparableBinding

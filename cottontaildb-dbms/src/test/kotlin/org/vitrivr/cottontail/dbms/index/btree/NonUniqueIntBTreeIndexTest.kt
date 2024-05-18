@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.index.hash
+package org.vitrivr.cottontail.dbms.index.btree
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
@@ -23,9 +23,9 @@ import java.util.*
  * @author Ralph Gasser
  * @param 1.0.2
  */
-class NonUniqueIntHashIndexTest : AbstractIndexTest() {
+class NonUniqueIntBTreeIndexTest : AbstractIndexTest() {
 
-    /** List of columns for this [NonUniqueStringHashIndexTest]. */
+    /** List of columns for this [NonUniqueBTreeIndexTest]. */
     override val columns: Array<ColumnDef<*>> = arrayOf(
         ColumnDef(this.entityName.column("id"), Types.Int),
         ColumnDef(this.entityName.column("feature"), Types.Float)
@@ -40,7 +40,7 @@ class NonUniqueIntHashIndexTest : AbstractIndexTest() {
     override val indexType: IndexType
         get() = IndexType.BTREE
 
-    /** List of values stored in this [UniqueHashIndexTest]. */
+    /** List of values stored in this [UniqueBTreeIndexTest]. */
     private var list = HashMap<IntValue, MutableList<FloatValue>>(100)
 
     /**
@@ -67,15 +67,15 @@ class NonUniqueIntHashIndexTest : AbstractIndexTest() {
         /* Check all entries. */
         with(ctx.bindings) {
             with(MissingTuple) {
-                for (entry in this@NonUniqueIntHashIndexTest.list.entries) {
+                for (entry in this@NonUniqueIntBTreeIndexTest.list.entries) {
                     valueBinding.update(entry.key) /* Update value binding. */
                     var found = false
                     indexTx.filter(predicate).use {
                         while (it.moveNext() && !found) {
                             val rec = entityTx.read(it.key())
-                            val id = rec[this@NonUniqueIntHashIndexTest.columns[0]] as IntValue
+                            val id = rec[this@NonUniqueIntBTreeIndexTest.columns[0]] as IntValue
                             Assertions.assertEquals(entry.key, id)
-                            if (entry.value.contains(rec[this@NonUniqueIntHashIndexTest.columns[1]])) {
+                            if (entry.value.contains(rec[this@NonUniqueIntBTreeIndexTest.columns[1]])) {
                                 found = true
                             }
                         }

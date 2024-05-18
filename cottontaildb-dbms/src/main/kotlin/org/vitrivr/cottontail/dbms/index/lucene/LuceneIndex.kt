@@ -10,7 +10,10 @@ import org.apache.lucene.index.IndexWriterConfig
 import org.apache.lucene.index.SerialMergeScheduler
 import org.apache.lucene.index.Term
 import org.apache.lucene.queryparser.flexible.standard.QueryParserUtil
-import org.apache.lucene.search.*
+import org.apache.lucene.search.BooleanClause
+import org.apache.lucene.search.BooleanQuery
+import org.apache.lucene.search.Query
+import org.apache.lucene.search.TermQuery
 import org.apache.lucene.search.similarities.SimilarityBase.log2
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -40,8 +43,7 @@ import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.transactions.SubTransaction
 import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
-import org.vitrivr.cottontail.dbms.index.hash.BTreeIndex
-import org.vitrivr.cottontail.dbms.index.lsh.LSHIndex
+import org.vitrivr.cottontail.dbms.index.btree.BTreeIndex
 import org.vitrivr.cottontail.dbms.index.pq.rebuilder.AsyncPQIndexRebuilder
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.server.Instance

@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.index.hash
+package org.vitrivr.cottontail.dbms.index.btree
 
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals

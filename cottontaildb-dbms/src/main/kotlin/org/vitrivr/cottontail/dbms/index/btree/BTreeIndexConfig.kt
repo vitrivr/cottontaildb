@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.index.hash
+package org.vitrivr.cottontail.dbms.index.btree
 
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.util.LightOutputStream

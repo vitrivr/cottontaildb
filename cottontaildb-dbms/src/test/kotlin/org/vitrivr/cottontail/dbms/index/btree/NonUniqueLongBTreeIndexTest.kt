@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.index.hash
+package org.vitrivr.cottontail.dbms.index.btree
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
@@ -9,10 +9,8 @@ import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.LongValue
-import org.vitrivr.cottontail.core.values.StringValue
-import org.vitrivr.cottontail.core.values.generators.LongValueGenerator
-import org.vitrivr.cottontail.core.values.generators.StringValueGenerator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
@@ -20,30 +18,30 @@ import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import java.util.*
 
 /**
- * This is a collection of test cases to test the correct behaviour of [UQBTreeIndex] with a [StringValue].
+ * This is a collection of test cases to test the correct behaviour of [UQBTreeIndex] with a [LongValue] keys.
  *
  * @author Ralph Gasser
- * @version 1.2.3
+ * @version 1.2.2
  */
-class NonUniqueStringHashIndexTest : AbstractIndexTest() {
+class NonUniqueLongBTreeIndexTest : AbstractIndexTest() {
 
-    /** List of columns for this [NonUniqueStringHashIndexTest]. */
+    /** List of columns for this [NonUniqueBTreeIndexTest]. */
     override val columns: Array<ColumnDef<*>> = arrayOf(
-        ColumnDef(this.entityName.column("id"), Types.String, false),
-        ColumnDef(this.entityName.column("feature"), Types.Long, false)
+        ColumnDef(this.entityName.column("id"), Types.Long),
+        ColumnDef(this.entityName.column("feature"), Types.Double)
     )
 
     override val indexColumn: ColumnDef<*>
         get() = this.columns.first()
 
     override val indexName: Name.IndexName
-        get() = this.entityName.index("non_unique_string")
+        get() = this.entityName.index("non_unique_long")
 
     override val indexType: IndexType
         get() = IndexType.BTREE
 
-    /** List of values stored in this [UniqueHashIndexTest]. */
-    private var list = HashMap<StringValue, MutableList<LongValue>>(100)
+    /** List of values stored in this [UniqueBTreeIndexTest]. */
+    private var list = HashMap<LongValue, MutableList<DoubleValue>>(100)
 
     /**
      * Tests if Index#filter() returns the values that have been stored.
@@ -64,21 +62,21 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
 
             /* Prepare binding context and predicate. */
             val columnBinding = ctx.bindings.bind(this.columns[0], this.columns[0])
-            val valueBinding = ctx.bindings.bindNull(Types.String)
+            val valueBinding = ctx.bindings.bindNull(Types.Long)
             val predicate = BooleanPredicate.Comparison(ComparisonOperator.Equal(columnBinding, valueBinding))
 
             /* Check all entries. */
             with(ctx.bindings) {
                 with(MissingTuple) {
-                    for (entry in this@NonUniqueStringHashIndexTest.list.entries) {
+                    for (entry in this@NonUniqueLongBTreeIndexTest.list.entries) {
                         valueBinding.update(entry.key) /* Update value binding. */
                         var found = false
                         indexTx.filter(predicate).use {
                             while (it.moveNext() && !found) {
                                 val rec = entityTx.read(it.key())
-                                val id = rec[this@NonUniqueStringHashIndexTest.columns[0]] as StringValue
+                                val id = rec[this@NonUniqueLongBTreeIndexTest.columns[0]] as LongValue
                                 Assertions.assertEquals(entry.key, id)
-                                if (entry.value.contains(rec[this@NonUniqueStringHashIndexTest.columns[1]])) {
+                                if (entry.value.contains(rec[this@NonUniqueLongBTreeIndexTest.columns[1]])) {
                                     found = true
                                 }
                             }
@@ -109,10 +107,10 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
         val indexTx = index.newTx(entityTx)
 
         var count = 0
-        val predicate = BooleanPredicate.Comparison(ComparisonOperator.Equal(ctx.bindings.bind(this.columns[0], this.columns[0]), ctx.bindings.bind(StringValue(UUID.randomUUID().toString()))))
-        indexTx.filter(predicate).use {
-            it.forEach { count += 1 }
-        }
+        val predicate = BooleanPredicate.Comparison(ComparisonOperator.Equal(ctx.bindings.bind(this.columns[0], this.columns[0]), ctx.bindings.bind(LongValue(this.random.nextLong(100L, Long.MAX_VALUE)))))
+        val cursor = indexTx.filter(predicate)
+        cursor.forEach { count += 1 }
+        cursor.close()
         Assertions.assertEquals(0, count)
         txn.commit()
     }
@@ -121,8 +119,8 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
      * Generates and returns a new, random [StandaloneTuple] for inserting into the database.
      */
     override fun nextRecord(): StandaloneTuple {
-        val id = StringValueGenerator.random(3)
-        val value = LongValueGenerator.random(this.random)
+        val id = LongValue(this.random.nextLong(0L, 100L))
+        val value = DoubleValue(this.random.nextDouble())
         if (this.random.nextBoolean() && this.list.size <= 1000) {
             this.list.compute(id) { _, v ->
                 val list = v ?: LinkedList()

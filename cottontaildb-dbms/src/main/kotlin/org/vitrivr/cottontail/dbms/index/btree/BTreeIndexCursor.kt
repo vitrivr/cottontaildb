@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.index.hash
+package org.vitrivr.cottontail.dbms.index.btree
 
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.LongBinding
@@ -16,15 +16,14 @@ import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata.Companion.storeName
 import org.vitrivr.cottontail.storage.serializers.SerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
 import java.util.*
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * A [Cursor] for the [UQBTreeIndex]. Different variants are implemented optimised for the respective [ComparisonOperator].
+ * A [Cursor] for the [BTreeIndex]. Different variants are implemented optimised for the respective [ComparisonOperator].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
-sealed class UQBTreeIndexCursor<T: ComparisonOperator>(protected val index: UQBTreeIndex.Tx, val columns: Array<ColumnDef<*>>) : Cursor<Tuple> {
+sealed class BTreeIndexCursor<T: ComparisonOperator>(protected val index: BTreeIndex.Tx, val columns: Array<ColumnDef<*>>) : Cursor<Tuple> {
     /** Internal cursor used for navigation. */
     private val xodusTx = this.index.xodusTx.readonlySnapshot
 
@@ -50,25 +49,38 @@ sealed class UQBTreeIndexCursor<T: ComparisonOperator>(protected val index: UQBT
     /**
      * A [BTreeIndexCursor] variant to evaluate  [ComparisonOperator.Equal] operators.
      */
-    class Equals(private val value: Value, index: UQBTreeIndex.Tx, columns: Array<ColumnDef<*>>): UQBTreeIndexCursor<ComparisonOperator.Equal>(index, columns) {
-
-        private val boc = AtomicBoolean(true)
-
-        override fun moveNext(): Boolean
-            = this.boc.getAndSet(false) && this@Equals.cursor.getSearchKey(this@Equals.binding.toEntry(this.value)) != null
+    class Equals(private val value: Value, index: BTreeIndex.Tx, columns: Array<ColumnDef<*>>): BTreeIndexCursor<ComparisonOperator.Equal>(index, columns) {
+        override fun moveNext(): Boolean = try {
+            this.cursor.nextDup
+        } catch (e: IllegalStateException) {
+            this@Equals.cursor.getSearchKey(this@Equals.binding.toEntry(this.value)) != null
+        }
     }
 
     /**
      * A [BTreeIndexCursor] variant to evaluate  [ComparisonOperator.In] operators.
      */
-    class In(values: List<Value?>, index: UQBTreeIndex.Tx, columns: Array<ColumnDef<*>>): UQBTreeIndexCursor<ComparisonOperator.In>(index, columns) {
+    class In(values: List<Value?>, index: BTreeIndex.Tx, columns: Array<ColumnDef<*>>): BTreeIndexCursor<ComparisonOperator.In>(index, columns) {
 
         /** List of [ByteIterable]s to search for. */
-        private val values = LinkedList(values.filterNotNull().map { this.binding.toEntry(it) }.sorted())
+        private val values = LinkedList<ByteIterable>()
+
+        init {
+            for (v in values) {
+                if (v != null) this.values.add(this.binding.toEntry(v))
+            }
+            this.values.sort()
+        }
 
         override fun moveNext(): Boolean {
+            try {
+                if (this.cursor.nextDup) return true
+            } catch (_: IllegalStateException) {
+
+            }
+
             /* Seek next value */
-            while (this.values.isNotEmpty()) {
+            while (this.values.size > 0) {
                 if (this.cursor.getSearchKey(this.values.poll()) != null) {
                     return true
                 }
@@ -80,7 +92,7 @@ sealed class UQBTreeIndexCursor<T: ComparisonOperator>(protected val index: UQBT
     /**
      * A [BTreeIndexCursor] variant to evaluate  [ComparisonOperator.GreaterEqual] operators.
      */
-    class GreaterEqual(private val value: Value, index: UQBTreeIndex.Tx, columns: Array<ColumnDef<*>>): UQBTreeIndexCursor<ComparisonOperator.GreaterEqual>(index, columns) {
+    class GreaterEqual(private val value: Value, index: BTreeIndex.Tx, columns: Array<ColumnDef<*>>): BTreeIndexCursor<ComparisonOperator.GreaterEqual>(index, columns) {
         init {
             this.cursor.getSearchKeyRange(this.binding.toEntry(this.value))
         }
@@ -90,7 +102,7 @@ sealed class UQBTreeIndexCursor<T: ComparisonOperator>(protected val index: UQBT
     /**
      * A [BTreeIndexCursor] variant to evaluate  [ComparisonOperator.GreaterEqual] operators.
      */
-    class Greater(private val value: Value, index: UQBTreeIndex.Tx, columns: Array<ColumnDef<*>>): UQBTreeIndexCursor<ComparisonOperator.Greater>(index, columns) {
+    class Greater(private val value: Value, index: BTreeIndex.Tx, columns: Array<ColumnDef<*>>): BTreeIndexCursor<ComparisonOperator.Greater>(index, columns) {
 
         init {
             val entry = this.binding.toEntry(this.value)
@@ -106,7 +118,7 @@ sealed class UQBTreeIndexCursor<T: ComparisonOperator>(protected val index: UQBT
     /**
      * A [BTreeIndexCursor] variant to evaluate [ComparisonOperator.LessEqual] operators.
      */
-    class LessEqual(private val value: Value, index: UQBTreeIndex.Tx, columns: Array<ColumnDef<*>>): UQBTreeIndexCursor<ComparisonOperator.LessEqual>(index, columns) {
+    class LessEqual(private val value: Value, index: BTreeIndex.Tx, columns: Array<ColumnDef<*>>): BTreeIndexCursor<ComparisonOperator.LessEqual>(index, columns) {
         init {
             this.cursor.getSearchKeyRange(this.binding.toEntry(this.value))
         }
@@ -116,7 +128,7 @@ sealed class UQBTreeIndexCursor<T: ComparisonOperator>(protected val index: UQBT
     /**
      * A [BTreeIndexCursor] variant to evaluate [ComparisonOperator.LessEqual] operators.
      */
-    class Less(private val value: Value, index: UQBTreeIndex.Tx, columns: Array<ColumnDef<*>>): UQBTreeIndexCursor<ComparisonOperator.Less>(index, columns) {
+    class Less(private val value: Value, index: BTreeIndex.Tx, columns: Array<ColumnDef<*>>): BTreeIndexCursor<ComparisonOperator.Less>(index, columns) {
         init {
             val entry = this.binding.toEntry(this.value)
             if (this.cursor.getSearchKeyRange(entry) != null) {
