@@ -45,7 +45,7 @@ class SchemaTest: AbstractDatabaseTest() {
             val schema = catalogueTx1.createSchema(this.schemaName)
             val schemaTx1 = schema.newTx(catalogueTx1)
             for (name in entityNames) {
-                schemaTx1.createEntity(name, listOf(name.column("id") to ColumnMetadata(Types.String, nullable = false, primary = true, autoIncrement = false)))
+                schemaTx1.createEntity(name, listOf(name.column("id") to ColumnMetadata(Types.String, nullable = false, primary = true, autoIncrement = false, inline = false)))
             }
             txn1.commit()
         } catch (t: Throwable) {
@@ -91,7 +91,7 @@ class SchemaTest: AbstractDatabaseTest() {
             val schema = catalogueTx1.createSchema(this.schemaName)
             val schemaTx1 = schema.newTx(catalogueTx1)
             for (name in entityNames) {
-                schemaTx1.createEntity(name, listOf(name.column("id") to ColumnMetadata(Types.String, nullable = false, primary = true, autoIncrement = false)))
+                schemaTx1.createEntity(name, listOf(name.column("id") to ColumnMetadata(Types.String, nullable = false, primary = true, autoIncrement = false, inline = false)))
             }
 
             /* Drop newly created entity. */
@@ -101,8 +101,8 @@ class SchemaTest: AbstractDatabaseTest() {
             schemaTx1.createEntity(
                 entityNames[1],
                 listOf(
-                    entityNames[1].column("id1") to ColumnMetadata(Types.Long, nullable = false, primary = true, autoIncrement = false),
-                    entityNames[1].column("id2") to ColumnMetadata(Types.Int, nullable = false, primary = false, autoIncrement = false)
+                    entityNames[1].column("id1") to ColumnMetadata(Types.Long, nullable = false, primary = true, autoIncrement = false, inline = true),
+                    entityNames[1].column("id2") to ColumnMetadata(Types.Int, nullable = false, primary = false, autoIncrement = false, inline = true)
                 )
             )
             txn1.commit()
@@ -156,7 +156,7 @@ class SchemaTest: AbstractDatabaseTest() {
             val schema = catalogueTx1.schemaForName(this.schemaName)
             val schemaTx1 = schema.newTx(catalogueTx1)
             for (name in entityNames) {
-                schemaTx1.createEntity(name, listOf(name.column("id") to ColumnMetadata(Types.String, nullable = false, primary = true, autoIncrement = false)))
+                schemaTx1.createEntity(name, listOf(name.column("id") to ColumnMetadata(Types.String, nullable = false, primary = true, autoIncrement = false, inline = false)))
             }
         } finally {
             txn1.abort()
@@ -192,7 +192,7 @@ class SchemaTest: AbstractDatabaseTest() {
             val schema = catalogueTx1.createSchema(this.schemaName)
             val schemaTx1 = schema.newTx(catalogueTx1)
             for (name in this.entityNames) {
-                schemaTx1.createEntity(name, listOf(name.column("id") to ColumnMetadata(Types.String, false, primary = true, autoIncrement = false)))
+                schemaTx1.createEntity(name, listOf(name.column("id") to ColumnMetadata(Types.String, false, primary = true, autoIncrement = false, inline = false)))
             }
         } finally {
             txn1.commit()
@@ -213,8 +213,8 @@ class SchemaTest: AbstractDatabaseTest() {
                 schemaTx2.createEntity(
                     name,
                     listOf(
-                        name.column("id") to ColumnMetadata(Types.String, nullable = false, primary = true, autoIncrement = false),
-                        name.column("value") to ColumnMetadata(Types.String, nullable = false, primary = false, autoIncrement = false)
+                        name.column("id") to ColumnMetadata(Types.String, nullable = false, primary = true, autoIncrement = false, inline = false),
+                        name.column("value") to ColumnMetadata(Types.String, nullable = false, primary = false, autoIncrement = false, inline = false)
                     )
                 )
             }
