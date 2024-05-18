@@ -28,7 +28,7 @@ object DataCollectionUtilities {
         txn.cursor(arrayOf(column)).use { cursor ->
             while (cursor.hasNext()) {
                 if (random.nextDouble() <= fraction) {
-                    val value = cursor.value()[0]
+                    val value = cursor.value()[column]
                     if (value is VectorValue<*>) {
                         learningData.add(value)
                     }
