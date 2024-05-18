@@ -309,14 +309,26 @@ sealed class Types<T : Value> {
     @Serializable
     @SerialName("BOOLEAN_VECTOR")
     class BooleanVector(override val logicalSize: kotlin.Int): Vector<BooleanVectorValue, BooleanValue>() {
+
+        companion object {
+            /**
+             * Converts the given [index] into a word index.
+             *
+             * @param [index] The bit index to convert.
+             * @return Corresponding word index.
+             */
+            fun wordIndex(index: kotlin.Int) = index.shr(6)
+        }
+
         init {
             require(this.logicalSize > 0) { "Logical size of a vector must be greater than zero." }
         }
 
         override val name = "BOOLEAN_VECTOR"
         override val ordinal: kotlin.Int = 16
-        override val physicalSize = this.logicalSize * kotlin.Byte.SIZE_BYTES
+        override val physicalSize = (wordIndex(this.logicalSize - 1) + 1) * kotlin.Long.SIZE_BYTES
         override val elementType = Boolean
+        val numberOfWords = wordIndex(this.logicalSize - 1) + 1
     }
 
     @Serializable
