@@ -10,7 +10,8 @@ import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.generators.ValueGenerator.Companion.random
 import org.vitrivr.cottontail.core.values.generators.VectorValueGenerator
 import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
-import org.vitrivr.cottontail.dbms.entity.values.StoredValueRef
+import org.vitrivr.cottontail.dbms.entity.values.OutOfLineValue
+import org.vitrivr.cottontail.storage.ool.AbstractOOLFile
 import org.vitrivr.cottontail.storage.ool.FixedOOLFile
 import org.vitrivr.cottontail.storage.ool.interfaces.AccessPattern
 import org.vitrivr.cottontail.test.TestConstants
@@ -43,7 +44,7 @@ abstract class AbstractFixedOOLFileTest<V: VectorValue<*>> {
 
         /* Data structures for tests. */
         val values = mutableListOf<V>()
-        val references = mutableListOf<StoredValueRef.OutOfLine.Fixed>()
+        val references = mutableListOf<OutOfLineValue.Fixed>()
 
         /* Generate data. */
         repeat(TestConstants.TEST_COLLECTION_SIZE) {
@@ -76,7 +77,7 @@ abstract class AbstractFixedOOLFileTest<V: VectorValue<*>> {
 
         /* Data structures for tests. */
         val values = mutableListOf<V>()
-        val references = mutableListOf<StoredValueRef.OutOfLine.Fixed>()
+        val references = mutableListOf<OutOfLineValue.Fixed>()
 
         /* Generate data. */
         val mod = random.nextInt(256, 1024)
@@ -98,6 +99,26 @@ abstract class AbstractFixedOOLFileTest<V: VectorValue<*>> {
             Assertions.assertTrue(value.isEqual(readerS.read(references[it])), "Sequential read failed for value $it.")
             Assertions.assertTrue(value.isEqual(readerR.read(references[it])), "Random read failed for value $it.")
         }
+    }
+
+    @Test
+    fun testWithReopen() {
+        val random = SplittableRandom()
+        val generator = this.type.random() as VectorValueGenerator<V>
+        val writer = this.file.writer()
+
+        val references = mutableListOf<OutOfLineValue.Fixed>()
+        repeat(TestConstants.TEST_COLLECTION_SIZE / 2) {
+            val value = generator.random(type.logicalSize)
+            references.add(writer.append(value))
+        }
+
+        val file2 = FixedOOLFile(this.file.path, this.type)
+        val writer2 = file2.writer()
+
+        /* Make necessary checks. */
+        Assertions.assertEquals((file2 as AbstractOOLFile<*,*>).appendSegmentId, (this.file as AbstractOOLFile<*,*>).appendSegmentId)
+        Assertions.assertEquals((writer2 as FixedOOLFile<*>.Writer).rowId, (writer2 as FixedOOLFile<*>.Writer).rowId)
     }
 
     /**

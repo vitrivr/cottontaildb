@@ -12,9 +12,11 @@ import org.vitrivr.cottontail.storage.ool.interfaces.OOLFile.Companion.SEGMENT_S
 import org.vitrivr.cottontail.storage.ool.interfaces.OOLReader
 import java.lang.Math.floorDiv
 import java.nio.ByteBuffer
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.concurrent.read
 import kotlin.concurrent.write
+import kotlin.jvm.optionals.getOrElse
 
 /**
  * A [FixedOOLFile] only support fixed-length records.
@@ -24,10 +26,23 @@ import kotlin.concurrent.write
  */
 class FixedOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, OutOfLineValue.Fixed>(path, type) {
     /** The size of a segment in bytes. */
-    private val entryPerSegment: Int = (floorDiv(SEGMENT_SIZE, this.type.physicalSize) + 1)
+    val entryPerSegment: Int = (floorDiv(SEGMENT_SIZE, this.type.physicalSize) + 1)
 
     /** The size of a segment in bytes. */
-    private val segmentSizeBytes: Int = this.entryPerSegment  * this.type.physicalSize
+    val segmentSizeBytes: Int = this.entryPerSegment  * this.type.physicalSize
+
+    /** An internal counter of the highest segment ID. */
+    override var appendSegmentId: Long = 0L
+
+    init {
+        val maxSegment =  Files.list(this.path).map { it.fileName.toString() }.filter { it.endsWith(".ool") }.map { it.substringBefore('.').toLong() }.max { o1, o2 -> o1.compareTo(o2) }.getOrElse { 0L }
+        val maxSegmentPath = this.path.resolve("$maxSegment.ool")
+        if (!Files.exists(maxSegmentPath) || Files.size(maxSegmentPath) < this.segmentSizeBytes) {
+            this.appendSegmentId = maxSegment
+        } else {
+            this.appendSegmentId = maxSegment + 1
+        }
+    }
 
     /**
      * Provides a [OOLReader] for this [OOLFile].
@@ -123,10 +138,11 @@ class FixedOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, Out
         private val writeBuffer = ByteBuffer.allocate(this@FixedOOLFile.segmentSizeBytes)
 
         /** Internal row ID counter. */
-        private var rowId: Long
+        var rowId: Long
+            private set
 
         init {
-            this@FixedOOLFile.channelForSegment(this@FixedOOLFile.appendSegmentId).use { channel -> channel.read(this.writeBuffer.clear()) }
+            this@FixedOOLFile.channelForSegment(this@FixedOOLFile.appendSegmentId).use { channel -> channel.read(this.writeBuffer) }
             val segmentIndex = floorDiv(this.writeBuffer.position(), this@FixedOOLFile.entryPerSegment)
             this.rowId = this@FixedOOLFile.appendSegmentId * this@FixedOOLFile.entryPerSegment + floorDiv(segmentIndex, this@FixedOOLFile.type.physicalSize)
         }

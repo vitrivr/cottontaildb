@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.core.values.generators.ValueGenerator
 import org.vitrivr.cottontail.core.values.generators.ValueGenerator.Companion.random
 import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
-import org.vitrivr.cottontail.dbms.entity.values.StoredValueRef
+import org.vitrivr.cottontail.dbms.entity.values.OutOfLineValue
 import org.vitrivr.cottontail.storage.ool.FixedOOLFile
 import org.vitrivr.cottontail.storage.ool.VariableOOLFile
 import org.vitrivr.cottontail.storage.ool.interfaces.AccessPattern
@@ -43,7 +43,7 @@ abstract class AbstractVariableOOLFileTest<V: Value> {
 
         /* Data structures for tests. */
         val values = mutableListOf<V>()
-        val references = mutableListOf<StoredValueRef.OutOfLine.Variable>()
+        val references = mutableListOf<OutOfLineValue.Variable>()
 
         /* Generate data. */
         repeat(TestConstants.TEST_COLLECTION_SIZE) {
@@ -76,7 +76,7 @@ abstract class AbstractVariableOOLFileTest<V: Value> {
 
         /* Data structures for tests. */
         val values = mutableListOf<V>()
-        val references = mutableListOf<StoredValueRef.OutOfLine.Variable>()
+        val references = mutableListOf<OutOfLineValue.Variable>()
 
         /* Generate data. */
         val mod = random.nextInt(256, 1024)

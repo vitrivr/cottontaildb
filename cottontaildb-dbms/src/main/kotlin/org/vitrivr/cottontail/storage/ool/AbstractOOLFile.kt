@@ -16,7 +16,6 @@ import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
-import kotlin.jvm.optionals.getOrElse
 
 /** */
 typealias SegmentId = Long
@@ -46,22 +45,16 @@ abstract class AbstractOOLFile<V: Value, D: OutOfLineValue>(final override val p
     /** The [ValueSerializer] used to serialize and de-serialize entries. */
     protected val serializer: ValueSerializer<V> = SerializerFactory.value(this.type)
 
-    /** An internal counter of the highest segment ID. */
-    protected var appendSegmentId: Long = Files.list(this.path).map {
-        it.fileName
-    }.filter {
-        it.endsWith(".ool")
-    }.map {
-        it.toString().substringAfterLast('.').toLong()
-    }.max {
-        o1, o2 -> o1.compareTo(o2)
-    }.getOrElse { 0L }
+    /** An internal counter of the segment ID to append data to. */
+    abstract var appendSegmentId: Long
+        protected set
 
     /** A [ReentrantReadWriteLock] to mediate access to the [OOLFile]. */
     protected val lock = ReentrantReadWriteLock()
 
     /** A [WeakReference] to a common [OOLWriter] instance. */
     private var writer: WeakReference<OOLWriter<V, D>>? = null
+
 
     /**
      * Provides a [OOLWriter] for this [AbstractOOLFile].

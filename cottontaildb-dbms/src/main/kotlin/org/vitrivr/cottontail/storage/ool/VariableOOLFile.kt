@@ -10,17 +10,33 @@ import org.vitrivr.cottontail.storage.ool.interfaces.OOLFile.Companion.SEGMENT_S
 import org.vitrivr.cottontail.storage.ool.interfaces.OOLReader
 import java.lang.Math.floorDiv
 import java.nio.ByteBuffer
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.concurrent.read
 import kotlin.concurrent.write
+import kotlin.jvm.optionals.getOrElse
 import kotlin.math.min
 
 /**
+ * A [VariableOOLFile] supports variable-length records.
  *
  * @author Ralph Gasser
  * @version 1.0.0
  */
 class VariableOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, OutOfLineValue.Variable>(path, type) {
+    /** An internal counter of the highest segment ID. */
+    override var appendSegmentId: Long = 0L
+
+    init {
+        val maxSegment =  Files.list(this.path).map { it.fileName.toString() }.filter { it.endsWith(".ool") }.map { it.substringBefore('.').toLong() }.max { o1, o2 -> o1.compareTo(o2) }.getOrElse { 0L }
+        val maxSegmentPath = this.path.resolve("$maxSegment.ool")
+        if (!Files.exists(maxSegmentPath) || Files.size(maxSegmentPath) < SEGMENT_SIZE) {
+            this.appendSegmentId = maxSegment
+        } else {
+            this.appendSegmentId = maxSegment + 1
+        }
+    }
+
     /**
      * Provides a [OOLReader] for this [VariableOOLFile].
      *
