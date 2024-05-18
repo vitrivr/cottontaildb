@@ -25,9 +25,9 @@ import java.util.*
  * @author Ralph Gasser
  * @param 1.2.3
  */
-class UniqueHashIndexTest : AbstractIndexTest() {
+class UniqueBTreeIndexTest : AbstractIndexTest() {
 
-    /** List of columns for this [UniqueHashIndexTest]. */
+    /** List of columns for this [UniqueBTreeIndexTest]. */
     override val columns = arrayOf(
         ColumnDef(this.entityName.column("id"), Types.String, false) as ColumnDef<*>,
         ColumnDef(this.entityName.column("feature"), Types.FloatVector(128), false) as ColumnDef<*>
@@ -41,7 +41,7 @@ class UniqueHashIndexTest : AbstractIndexTest() {
     override val indexType: IndexType
         get() = IndexType.BTREE_UQ
 
-    /** List of values stored in this [UniqueHashIndexTest]. */
+    /** List of values stored in this [UniqueBTreeIndexTest]. */
     private var list = HashMap<StringValue, FloatVectorValue>(100)
 
     /**
@@ -69,15 +69,15 @@ class UniqueHashIndexTest : AbstractIndexTest() {
         /* Check all entries. */
         with(ctx.bindings) {
             with(MissingTuple) {
-                for (entry in this@UniqueHashIndexTest.list.entries) {
+                for (entry in this@UniqueBTreeIndexTest.list.entries) {
                     valueBinding.update(entry.key) /* Update value binding. */
-                    val cursor = indexTx.filter(predicate)
-                    cursor.forEach { r ->
-                        val rec = entityTx.read(r.tupleId)
-                        assertEquals(entry.key.value, (rec[this@UniqueHashIndexTest.columns[0]] as StringValue).value)
-                        assertArrayEquals(entry.value.data, (rec[this@UniqueHashIndexTest.columns[1]] as FloatVectorValue).data)
+                    indexTx.filter(predicate).use { cursor ->
+                        cursor.forEach { r ->
+                            val rec = entityTx.read(r.tupleId)
+                            assertEquals(entry.key.value, (rec[this@UniqueBTreeIndexTest.columns[0]] as StringValue).value)
+                            assertArrayEquals(entry.value.data, (rec[this@UniqueBTreeIndexTest.columns[1]] as FloatVectorValue).data)
+                        }
                     }
-                    cursor.close()
                 }
             }
         }

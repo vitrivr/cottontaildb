@@ -16,6 +16,7 @@ import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata.Companion.storeName
 import org.vitrivr.cottontail.storage.serializers.SerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
 import java.util.*
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A [Cursor] for the [UQBTreeIndex]. Different variants are implemented optimised for the respective [ComparisonOperator].
@@ -50,7 +51,11 @@ sealed class UQBTreeIndexCursor<T: ComparisonOperator>(protected val index: UQBT
      * A [BTreeIndexCursor] variant to evaluate  [ComparisonOperator.Equal] operators.
      */
     class Equals(private val value: Value, index: UQBTreeIndex.Tx, columns: Array<ColumnDef<*>>): UQBTreeIndexCursor<ComparisonOperator.Equal>(index, columns) {
-        override fun moveNext(): Boolean = this@Equals.cursor.getSearchKey(this@Equals.binding.toEntry(this.value)) != null
+
+        private val boc = AtomicBoolean(true)
+
+        override fun moveNext(): Boolean
+            = this.boc.getAndSet(false) && this@Equals.cursor.getSearchKey(this@Equals.binding.toEntry(this.value)) != null
     }
 
     /**
