@@ -64,11 +64,48 @@ abstract class AbstractVariableOOLFileTest<V: Value> {
     }
 
     /**
+     * Tests the basic read-write functionality of a [FixedOOLFile] with in-between flushes.
+     */
+    @Test
+    fun testWithFlush() {
+        val random = SplittableRandom()
+        val generator = this.type.random() as ValueGenerator<V>
+        val writer = this.file.writer()
+        val readerS = this.file.reader(AccessPattern.SEQUENTIAL)
+        val readerR = this.file.reader(AccessPattern.RANDOM)
+
+        /* Data structures for tests. */
+        val values = mutableListOf<V>()
+        val references = mutableListOf<StoredValueRef.OutOfLine.Variable>()
+
+        /* Generate data. */
+        val mod = random.nextInt(256, 1024)
+        repeat(TestConstants.TEST_COLLECTION_SIZE) {
+            val value = generator.random(random)
+            values.add(value)
+            references.add(writer.append(value))
+            if (it % mod == 0) {
+                writer.flush()
+            }
+        }
+        writer.flush()
+
+        /* Check generated data. */
+        repeat(TestConstants.TEST_COLLECTION_SIZE) {
+            val value = values[it]
+
+            /* Compare ground truth with read values. */
+            Assertions.assertTrue(value.isEqual(readerS.read(references[it])), "Sequential read failed for value $it.")
+            Assertions.assertTrue(value.isEqual(readerR.read(references[it])), "Random read failed for value $it.")
+        }
+    }
+
+    /**
      * Initializes this [AbstractDatabaseTest].
      */
     @BeforeEach
     fun initialize() {
-        this.file = VariableOOLFile(TestConstants.testConfig().dataFolder(UUID.randomUUID()), "test", this.type)
+        this.file = VariableOOLFile(TestConstants.testConfig().dataFolder(UUID.randomUUID()), this.type)
     }
 
     /**

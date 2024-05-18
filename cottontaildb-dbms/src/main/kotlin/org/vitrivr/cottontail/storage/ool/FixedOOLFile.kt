@@ -154,6 +154,7 @@ class FixedOOLFile<V: Value>(path: Path, type: Types<V>): AbstractOOLFile<V, Sto
             this@FixedOOLFile.channelForSegment(segmentId).use { channel ->
                 val expected = this.writeBuffer.position()
                 check(channel.write(this.writeBuffer.flip(), 0) == expected) { "Segment file truncated." }
+                this.writeBuffer.limit(this.writeBuffer.capacity())
                 if (!this.writeBuffer.hasRemaining()) {
                     this@FixedOOLFile.appendSegmentId += 1
                     this.writeBuffer.clear()
