@@ -39,9 +39,6 @@ class DefaultEntityCursor(private val entity: DefaultEntity.Tx, val serializer: 
     /** The [TupleId] this [DefaultEntityCursor] is currently pointing to. */
     private val maximum: ByteIterable = partition.last.toKey()
 
-    /** The size of the [DefaultEntity] */
-    private val totalColumns = this.entity.listColumns().size
-
     init {
         /* Fast-forward to entry at position. */
         if (partition.first > 0L) {
@@ -59,7 +56,7 @@ class DefaultEntityCursor(private val entity: DefaultEntity.Tx, val serializer: 
     /**
      * Returns the [Tuple] this [Cursor] is currently pointing to.
      */
-    override fun value(): Tuple = this.serializer.fromEntry(this.key(), this.cursor.value)
+    override fun value(): Tuple = this.serializer.fromEntry(this.key(), this.cursor.value).copy(columns = this.columns)
 
     /**
      * Tries to move this [DefaultEntityCursor]. Returns true on success and false otherwise.
