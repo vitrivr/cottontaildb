@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.index.lucene
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectFunction
 import jetbrains.exodus.bindings.ComparableBinding
-import jetbrains.exodus.vfs.VirtualFileSystem
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.document.Document
 import org.apache.lucene.index.IndexWriter
@@ -94,19 +93,17 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          */
         override fun initialize(name: Name.IndexName, parent: EntityTx): Boolean {
             require(parent is DefaultEntity.Tx) { "LuceneIndex can only be used with DefaultEntity.Tx" }
-            val vfs = VirtualFileSystem(parent.xodusTx.environment)
             return try {
-                val directory = XodusDirectory(vfs, name.toString(), parent.xodusTx)
-                val config = IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE).setMergeScheduler(SerialMergeScheduler())
-                val writer = IndexWriter(directory, config)
-                writer.close()
-                directory.close()
+                XodusDirectory(name.toString(), parent.xodusTx).use { directory ->
+                    val config = IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE).setMergeScheduler(SerialMergeScheduler())
+                    val writer = IndexWriter(directory, config)
+                    writer.close()
+                    directory.close()
+                }
                 true
             } catch (e: Throwable) {
                 LOGGER.error("Failed to initialize Lucene Index $name due to an exception: ${e.message}.")
                 false
-            } finally {
-                vfs.shutdown()
             }
         }
 
@@ -119,19 +116,16 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          */
         override fun deinitialize(name: Name.IndexName, parent: EntityTx): Boolean {
             require(parent is DefaultEntity.Tx) { "LuceneIndex can only be used with DefaultEntity.Tx" }
-            val vfs = VirtualFileSystem(parent.xodusTx.environment)
             try {
-                val directory = XodusDirectory(vfs, name.toString(), parent.xodusTx)
-                for (file in directory.listAll()) {
-                    directory.deleteFile(file)
+                XodusDirectory(name.toString(), parent.xodusTx).use { directory ->
+                    for (file in directory.listAll()) {
+                        directory.deleteFile(file)
+                    }
                 }
-                directory.close()
                 return true
             } catch (e: Throwable) {
                 LOGGER.error("Failed to de-initialize Lucene Index $name due to an exception: ${e.message}.")
                 return false
-            } finally {
-                vfs.shutdown()
             }
         }
 
@@ -196,11 +190,8 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
      */
     inner class Tx(parent: DefaultEntity.Tx): AbstractIndex.Tx(parent), SubTransaction.WithCommit {
 
-        /** A [VirtualFileSystem] that can be used with this [Tx]. */
-        private val vfs = VirtualFileSystem(this.xodusTx.environment)
-
         /** The [LuceneIndexDataStore] backing this [LuceneIndex]. */
-        private val store = LuceneIndexDataStore(XodusDirectory(this.vfs, this@LuceneIndex.name.toString(), this.xodusTx), this.columns[0].name)
+        private val store = LuceneIndexDataStore(XodusDirectory(this@LuceneIndex.name.toString(), this.xodusTx), this.columns[0].name)
 
         /**
          * Converts a [BooleanPredicate] to a [Query] supported by Apache Lucene.
@@ -415,7 +406,6 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          */
         override fun prepareCommit(): Boolean {
             this.store.close()
-            this.vfs.shutdown()
             return true
         }
     }

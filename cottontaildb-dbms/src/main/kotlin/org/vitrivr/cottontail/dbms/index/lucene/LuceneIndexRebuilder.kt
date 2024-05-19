@@ -28,28 +28,23 @@ class LuceneIndexRebuilder(index: LuceneIndex, context: QueryContext): AbstractI
 
         /* The [Directory] containing the data for this [LuceneIndex]. */
         /** A [VirtualFileSystem] that can be used with this [Tx]. */
-        val vfs = VirtualFileSystem(indexTx.parent.dbo.environment)
-        try {
-            LuceneIndexDataStore(XodusDirectory(vfs, this.index.name.toString(), indexTx.xodusTx), column.name).use { store ->
-                /* Delete all entries. */
-                store.indexWriter.deleteAll()
+        LuceneIndexDataStore(XodusDirectory(this.index.name.toString(), indexTx.xodusTx), column.name).use { store ->
+            /* Delete all entries. */
+            store.indexWriter.deleteAll()
 
-                /* Iterate over entity and update index with entries. */
-                indexTx.parent.cursor(indexTx.columns).use { cursor ->
-                    while (cursor.moveNext()) {
-                        val value = cursor.value()[0]
-                        if (value is StringValue) {
-                            store.addDocument(cursor.key(), value)
-                            if (!indexTx.xodusTx.flush()) {
-                                return false
-                            }
+            /* Iterate over entity and update index with entries. */
+            indexTx.parent.cursor(indexTx.columns).use { cursor ->
+                while (cursor.moveNext()) {
+                    val value = cursor.value()[0]
+                    if (value is StringValue) {
+                        store.addDocument(cursor.key(), value)
+                        if (!indexTx.xodusTx.flush()) {
+                            return false
                         }
                     }
                 }
-                return true
             }
-        } finally {
-            vfs.shutdown()
+            return true
         }
     }
 }

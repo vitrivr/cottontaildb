@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.storage.lucene
 
 import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.Environments
-import jetbrains.exodus.vfs.VirtualFileSystem
 import org.apache.commons.math3.random.JDKRandomGenerator
 import org.apache.lucene.store.ByteBuffersDirectory
 import org.apache.lucene.store.IOContext
@@ -29,16 +28,13 @@ class XodusDirectoryTest {
     /** The Xodus [Environment] used by this [XodusDirectoryTest]. */
     private lateinit var environment: Environment
 
-    /** The Xodus [VirtualFileSystem] used by this [XodusDirectoryTest]. */
-    private lateinit var vfs: VirtualFileSystem
-
     /**
      * Tests ordinary reading and writing from/to [IndexInput] and [IndexOutput]
      */
     @Test
     fun testSingleTxRequestAndRenameFile() {
         val txn = this.environment.beginTransaction()
-        val directory = XodusDirectory(this.vfs, "test", txn)
+        val directory = XodusDirectory("test", txn)
 
         /* Prepare data to write. */
         val output = directory.createOutput("test", IOContext())
@@ -72,7 +68,7 @@ class XodusDirectoryTest {
     fun testSingleTxWriteAndRead() {
         /* Prepare directories. */
         val txn = this.environment.beginTransaction()
-        val directory = XodusDirectory(this.vfs, "test", txn)
+        val directory = XodusDirectory("test", txn)
         val referenceDirectory = ByteBuffersDirectory()
 
         /* Prepare data to write. */
@@ -117,7 +113,7 @@ class XodusDirectoryTest {
     fun testSingleTxBatchedWriteAndRead() {
         /* Prepare directories. */
         val txn = this.environment.beginTransaction()
-        val directory = XodusDirectory(this.vfs, "test", txn)
+        val directory = XodusDirectory("test", txn)
         val referenceDirectory = ByteBuffersDirectory()
 
         /* Prepare data to write. */
@@ -167,7 +163,7 @@ class XodusDirectoryTest {
     fun testSingleTxBatchedWriteAndSlicedRead() {
         /* Prepare directories. */
         val txn = this.environment.beginTransaction()
-        val directory = XodusDirectory(this.vfs, "test", txn)
+        val directory = XodusDirectory("test", txn)
         val referenceDirectory = ByteBuffersDirectory()
 
         /* Prepare data to write. */
@@ -230,7 +226,7 @@ class XodusDirectoryTest {
     fun testSingleTxBatchedWriteAndSeekRead() {
         /* Prepare directories. */
         val txn = this.environment.beginTransaction()
-        val directory = XodusDirectory(this.vfs, "test", txn)
+        val directory = XodusDirectory("test", txn)
         val referenceDirectory = ByteBuffersDirectory()
 
         /* Prepare data to write. */
@@ -288,7 +284,7 @@ class XodusDirectoryTest {
     fun testMultiTxBatchedWriteAndRead() {
         /* Prepare directories. */
         val txn1 = this.environment.beginTransaction()
-        val directory = XodusDirectory(this.vfs, "test", txn1)
+        val directory = XodusDirectory("test", txn1)
         val referenceDirectory = ByteBuffersDirectory()
 
         /* Prepare data to write. */
@@ -319,7 +315,7 @@ class XodusDirectoryTest {
 
         /* Open new Txn and XodusDirectory. */
         val txn2 = this.environment.beginTransaction()
-        val directory2 = XodusDirectory(this.vfs, "test", txn2)
+        val directory2 = XodusDirectory("test", txn2)
 
         /** Read data in txn2. */
         val input = directory2.openInput("test", IOContext())
@@ -344,7 +340,6 @@ class XodusDirectoryTest {
     @BeforeEach
     fun initialize() {
         this.environment = Environments.newInstance(Paths.get("testdb").toFile())
-        this.vfs = VirtualFileSystem(this.environment)
     }
 
     /**
@@ -352,7 +347,6 @@ class XodusDirectoryTest {
      */
     @AfterEach
     fun teardown() {
-        this.vfs.shutdown()
         this.environment.close()
 
         /* Delete unnecessary files. */

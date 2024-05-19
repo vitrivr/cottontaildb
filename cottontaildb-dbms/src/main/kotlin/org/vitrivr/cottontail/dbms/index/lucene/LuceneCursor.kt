@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.index.lucene
 
-import jetbrains.exodus.vfs.VirtualFileSystem
 import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.search.Query
 import org.vitrivr.cottontail.core.basics.Cursor
@@ -9,7 +8,6 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.values.DoubleValue
-import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex.Tx
 import org.vitrivr.cottontail.storage.lucene.XodusDirectory
 
 /**
@@ -23,11 +21,8 @@ class LuceneCursor(index: LuceneIndex.Tx, private val query: Query, private val 
     /** The sub-transaction used by this [LuceneCursor]. */
     private val xodusTx = index.xodusTx.snapshot
 
-    /** A [VirtualFileSystem] that can be used with this [Tx]. */
-    private val vfs = VirtualFileSystem(this.xodusTx.environment)
-
     /** The [LuceneIndexDataStore] backing this [LuceneIndex]. */
-    private val store = LuceneIndexDataStore(XodusDirectory(this.vfs, index.dbo.name.toString(), this.xodusTx), this.columns[0].name)
+    private val store = LuceneIndexDataStore(XodusDirectory(index.dbo.name.toString(), this.xodusTx), this.columns[0].name)
 
     /** Number of [TupleId]s returned by this [Iterator]. */
     @Volatile
@@ -58,7 +53,6 @@ class LuceneCursor(index: LuceneIndex.Tx, private val query: Query, private val 
      */
     override fun close() {
         this.store.close()
-        this.vfs.shutdown()
         this.xodusTx.abort()
     }
 }
