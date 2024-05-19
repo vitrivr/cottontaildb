@@ -8,6 +8,7 @@ import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.StoreConfig
+import jetbrains.exodus.vfs.VirtualFileSystem
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
@@ -59,7 +60,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         get() = this.parent.catalogue
 
     /** The [Environment] backing this [DefaultEntity]. */
-    internal val environment = Environments.newInstance(
+    private val environment = Environments.newInstance(
         this.catalogue.config.dataFolder(this.entityId).toFile(),
         this.catalogue.config.xodus.toEnvironmentConfig()
     )
@@ -84,6 +85,13 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
     /** The location of this [DefaultEntity]'s data files. */
     val location: Path = Paths.get(this@DefaultEntity.environment.location)
 
+
+    init {
+        /* Initialize VirtualFileSystem once. */
+        val vfs = VirtualFileSystem(this.environment)
+        vfs.shutdown()
+    }
+
     /**
      * Creates and returns a new [DefaultEntity.Tx] for the given [QueryContext].
      *
@@ -104,14 +112,16 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
      * A [Tx] that affects this [DefaultEntity].
      */
     inner class Tx(override val parent: DefaultSchema.Tx) : EntityTx, SubTransaction.WithCommit, SubTransaction.WithFinalization {
+        /** Reference to the surrounding [DefaultEntity]. */
+        override val dbo: DefaultEntity = this@DefaultEntity
 
         /** Begins a Xodus transaction for this [Tx]. */
         internal val xodusTx = this@DefaultEntity.environment.beginTransaction()
 
-        /** Reference to the surrounding [DefaultEntity]. */
-        override val dbo: DefaultEntity = this@DefaultEntity
+        /** The high-address of this [xodusTx] at the start of this [Tx]. */
+        private val highAddress = this.xodusTx.highAddress
 
-        /** The bitmap store that backs this [DefaultEntity]. */
+        /** The store that backs this [DefaultEntity]. */
         private val store = this.xodusTx.environment.openStore(this@DefaultEntity.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.xodusTx)
 
         /**
@@ -371,12 +381,10 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         @Synchronized
         override fun truncate() {
             /* Truncate bitmap. */
-            this.xodusTx.environment.truncateStore("${this.dbo.name.storeName()}#bitmap", this.xodusTx)
+            this.xodusTx.environment.truncateStore(this.dbo.name.storeName(), this.xodusTx)
 
             /* Reset associated columns & sequences. */
             this.listColumns().forEach {
-                /* TODO: Truncate column */
-
                 /* Reset sequence. */
                 if (it.autoIncrement) {
                     this.parent.sequenceForName(it.name.autoincrement()!!).newTx(this.parent).reset()
@@ -385,9 +393,9 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
 
             /* Reset associated indexes. */
             this.listIndexes().forEach {
-                val indexTx = this.indexForName(it).newTx(this)
-                indexTx.dbo.type.descriptor.deinitialize(it, this)
-                indexTx.dbo.type.descriptor.initialize(it,this)
+                val index = this.indexForName(it)
+                index.type.descriptor.deinitialize(it, this)
+                index.type.descriptor.initialize(it,this)
             }
         }
 
@@ -559,7 +567,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             check(this.context.txn.state == TransactionStatus.PREPARE) { "Transaction ${this.context.txn.transactionId} is in wrong state and cannot be committed." }
             if (this.xodusTx.isIdempotent) return true
             return this.xodusTx.environment.computeInReadonlyTransaction {
-                it.highAddress == this.xodusTx.highAddress
+               this.highAddress == it.highAddress
             }
         }
 
