@@ -88,7 +88,7 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
             val columnMetadataStore =  ColumnMetadata.store(this.parent.parent.xodusTx)
             this.columns = indexEntry.columns.map {
                 val columnName = this@AbstractIndex.name.entity().column(it)
-                val columnEntryRaw = columnMetadataStore.get(this.parent.parent.xodusTx, NameBinding.Column.toEntry(columnName))  ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name} because catalogue entry for column could not be read ${it}.")
+                val columnEntryRaw = columnMetadataStore.get(this.parent.parent.xodusTx, NameBinding.Column.toEntry(columnName))  ?: throw DatabaseException.DataCorruptionException("Failed to initialize transaction for index ${this@AbstractIndex.name} because catalogue entry for column '$it' could not be read.")
                 val columnEntity = ColumnMetadata.fromEntry(columnEntryRaw)
                 ColumnDef(columnName, columnEntity.type, columnEntity.nullable, columnEntity.primary, columnEntity.autoIncrement)
             }.toTypedArray()

@@ -29,13 +29,15 @@ import java.util.zip.CRC32
  * [1] https://github.com/JetBrains/xodus/tree/master/lucene-directory/src/main/kotlin/jetbrains/exodus/lucene
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
-class XodusDirectory(private val vfs: VirtualFileSystem, private val name: String, private val txn: Transaction, private val directoryConfig: XodusDirectoryConfig = XodusDirectoryConfig()): Directory() {
-
+class XodusDirectory(private val name: String, private val txn: Transaction, private val directoryConfig: XodusDirectoryConfig = XodusDirectoryConfig()): Directory() {
     init {
         require(!this.name.contains('/')) { "Name of the XodusDirectory must not contain a path separator." }
     }
+
+    /** Opens a [VirtualFileSystem] for this [XodusDirectory]. */
+    private val vfs = VirtualFileSystem(this.txn.environment)
 
     /** Internal counter used to create ticks. */
     private val ticks = AtomicLong(System.currentTimeMillis())
@@ -159,9 +161,7 @@ class XodusDirectory(private val vfs: VirtualFileSystem, private val name: Strin
     }
 
 
-    override fun close() {
-        /* No op. */
-    }
+    override fun close() {}
 
     /**
      * Opens the file with the given name and throws an exception upon failure.
