@@ -48,7 +48,7 @@ import org.vitrivr.cottontail.server.Instance
  * [1] Indyk, P. and Motwani, R., 1998. Approximate Nearest Neighbors: Towards Removing the Curse of Dimensionality (p. 604–613). Proceedings of the Thirtieth Annual ACM Symposium on Theory of Computing
  *
  * @author Ralph Gasser, Manuel Hürbin, Gabriel Zihlmann
- * @version 2.0.0
+ * @version 2.0.1
  */
 class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
@@ -234,9 +234,9 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         @Synchronized
         override fun tryApply(event: DataEvent.Insert): Boolean {
             val generator = (this.config as LSHIndexConfig).generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
-            val value = event.data[this.columns[0]]
+            val value = event.tuple[this.columns[0].name]
             check(value is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.store.addMapping(this.xodusTx, generator.generate(value), event.tupleId)
+            return this.store.addMapping(this.xodusTx, generator.generate(value), event.tuple.tupleId)
         }
 
         /**
@@ -249,10 +249,11 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         @Synchronized
         override fun tryApply(event: DataEvent.Update): Boolean {
             val generator = (this.config as LSHIndexConfig).generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
-            val value = event.data[this.columns[0]]
-            check(value?.first is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            check(value?.second is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.store.removeMapping(this.xodusTx, generator.generate(value!!.first as VectorValue<*>), event.tupleId) && this.store.addMapping(this.xodusTx,generator.generate(value.second as VectorValue<*>), event.tupleId)
+            val newValue = event.newTuple[this.columns[0].name]
+            val oldValue = event.oldTuple[this.columns[0].name]
+            check(newValue is VectorValue<*>) { "Failed to add $newValue to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
+            check(oldValue is VectorValue<*>) { "Failed to add $oldValue to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
+            return this.store.removeMapping(this.xodusTx, generator.generate(oldValue), event.oldTuple.tupleId) && this.store.addMapping(this.xodusTx,generator.generate(newValue), event.newTuple.tupleId)
         }
 
         /**
@@ -265,9 +266,9 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         @Synchronized
         override fun tryApply(event: DataEvent.Delete): Boolean {
             val generator = (this.config as LSHIndexConfig).generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
-            val value = event.data[this.columns[0]]
-            check(value is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.store.removeMapping(this.xodusTx, generator.generate(value), event.tupleId)
+            val oldValue = event.oldTuple[this.columns[0].name]
+            check(oldValue is VectorValue<*>) { "Failed to add $oldValue to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
+            return this.store.removeMapping(this.xodusTx, generator.generate(oldValue), event.oldTuple.tupleId)
         }
 
         /**

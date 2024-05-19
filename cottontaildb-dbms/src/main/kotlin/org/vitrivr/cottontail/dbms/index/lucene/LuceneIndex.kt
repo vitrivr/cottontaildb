@@ -334,8 +334,8 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          */
         @Synchronized
         override fun tryApply(event: DataEvent.Insert): Boolean {
-            val newValue = event.data[this.columns[0]] ?: return true
-            this.store.addDocument(event.tupleId, newValue as StringValue)
+            val newValue = event.tuple[this.columns[0].name] ?: return true
+            this.store.addDocument(event.tuple.tupleId, newValue as StringValue)
             return true
         }
 
@@ -346,11 +346,11 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          */
         @Synchronized
         override fun tryApply(event: DataEvent.Update): Boolean {
-            val newValue = event.data[this.columns[0]]?.second
-            if (newValue == null) {
-                this.store.deleteDocument(event.tupleId) /* Null values are not indexed. */
+            val newValue = event.newTuple[this.columns[0].name]
+            if (newValue !is StringValue) {
+                this.store.deleteDocument(event.oldTuple.tupleId) /* Null values are not indexed. */
             } else {
-                this.store.updateDocument(event.tupleId, newValue as StringValue)
+                this.store.updateDocument(event.newTuple.tupleId, newValue)
             }
             return true
         }
@@ -362,7 +362,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          */
         @Synchronized
         override fun tryApply(event: DataEvent.Delete): Boolean {
-            this.store.deleteDocument(event.tupleId)
+            this.store.deleteDocument(event.oldTuple.tupleId)
             return true
         }
 

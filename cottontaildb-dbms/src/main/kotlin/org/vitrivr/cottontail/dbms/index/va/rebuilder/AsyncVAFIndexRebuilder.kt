@@ -124,18 +124,18 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, instance: Instance): AbstractAsync
     override fun processSideChannelEvent(event: DataEvent): Boolean = when(event) {
         /* Process side-channel INSERT. */
         is DataEvent.Insert -> {
-            val value = event.data[this.indexedColumn]
+            val value = event.tuple[this.indexedColumn.name]
             if (value is RealVectorValue<*>) {
-                this.log.offer(VAFIndexingEvent.Set(event.tupleId, this.newMarks.getSignature(value)))
+                this.log.offer(VAFIndexingEvent.Set(event.tuple.tupleId, this.newMarks.getSignature(value)))
             }
             true
         }
 
         /* Process side-channel DELETE. */
         is DataEvent.Delete -> {
-            val value = event.data[this.indexedColumn]
+            val value = event.oldTuple[this.indexedColumn.name]
             if (value != null) {
-                this.log.offer(VAFIndexingEvent.Unset(event.tupleId))
+                this.log.offer(VAFIndexingEvent.Unset(event.oldTuple.tupleId))
             }
             true
         }
@@ -143,14 +143,14 @@ class AsyncVAFIndexRebuilder(index: VAFIndex, instance: Instance): AbstractAsync
         /* Process side-channel UPDATE. */
         is DataEvent.Update -> {
             /* Extract value and perform sanity check. */
-            val oldValue = event.data[this.indexedColumn]?.first
-            val newValue = event.data[this.indexedColumn]?.second
+            val oldValue = event.oldTuple[this.indexedColumn.name]
+            val newValue = event.newTuple[this.indexedColumn.name]
 
             /* Obtain marks and update them. */
             if (newValue is RealVectorValue<*>) {               /* Case 1: New value is not null, i.e., update to new value. */
-                this.log.offer(VAFIndexingEvent.Set(event.tupleId, this.newMarks.getSignature(newValue)))
+                this.log.offer(VAFIndexingEvent.Set(event.newTuple.tupleId, this.newMarks.getSignature(newValue)))
             } else if (oldValue is RealVectorValue<*>) {        /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
-                this.log.offer(VAFIndexingEvent.Unset(event.tupleId))
+                this.log.offer(VAFIndexingEvent.Unset(event.oldTuple.tupleId))
             }
             true
         }

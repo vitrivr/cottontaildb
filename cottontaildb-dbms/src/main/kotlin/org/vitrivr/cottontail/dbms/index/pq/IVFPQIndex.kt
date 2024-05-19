@@ -22,6 +22,7 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.tuple.Tuple
+import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructuralMetadata
@@ -255,8 +256,8 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
         @Synchronized
         override fun tryApply(event: DataEvent.Insert): Boolean {
             /* Extract value and return true if value is NULL (since NULL values are ignored). */
-            val value = event.data[this@Tx.columns[0]] ?: return true
-            val sig = this.quantizer.quantize(event.tupleId, value as VectorValue<*>)
+            val value = event.tuple[this@Tx.columns[0].name] as? RealVectorValue<*> ?: return true
+            val sig = this.quantizer.quantize(event.tuple.tupleId, value)
             return this.dataStore.put(this.xodusTx, ShortBinding.shortToEntry(sig.first), sig.second.toEntry())
         }
 
@@ -270,12 +271,12 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
         @Synchronized
         override fun tryApply(event: DataEvent.Update): Boolean {
             /* Extract value and perform sanity check. */
-            val oldValue = event.data[this@Tx.columns[0]]?.first
-            val newValue = event.data[this@Tx.columns[0]]?.second
+            val oldValue = event.oldTuple[this@Tx.columns[0].name] as? RealVectorValue<*>
+            val newValue = event.newTuple[this@Tx.columns[0].name] as? RealVectorValue<*>
 
             /* Remove signature to tuple ID mapping. */
             if (oldValue != null) {
-                val oldSig = this.quantizer.quantize(event.tupleId, oldValue as VectorValue<*>)
+                val oldSig = this.quantizer.quantize(event.oldTuple.tupleId, oldValue)
                 val cursor = this.dataStore.openCursor(this.xodusTx)
                 if (cursor.getSearchBoth(ShortBinding.shortToEntry(oldSig.first), oldSig.second.toEntry())) {
                     cursor.deleteCurrent()
@@ -285,7 +286,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
 
             /* Generate signature and store it. */
             if (newValue != null) {
-                val newSig = this.quantizer.quantize(event.tupleId, newValue as VectorValue<*>)
+                val newSig = this.quantizer.quantize(event.newTuple.tupleId, newValue)
                 return this.dataStore.put(this.xodusTx, ShortBinding.shortToEntry(newSig.first), newSig.second.toEntry())
             }
             return true
@@ -300,8 +301,8 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
          */
         @Synchronized
         override fun tryApply(event: DataEvent.Delete): Boolean {
-            val oldValue = event.data[this.columns[0]] ?: return true
-            val sig = this.quantizer.quantize(event.tupleId, oldValue as VectorValue<*>)
+            val oldValue = event.oldTuple[this.columns[0].name] as? RealVectorValue<*> ?: return true
+            val sig = this.quantizer.quantize(event.oldTuple.tupleId, oldValue)
             val cursor = this.dataStore.openCursor(this.xodusTx)
             if (cursor.getSearchBoth(ShortBinding.shortToEntry(sig.first), sig.second.toEntry())) {
                 cursor.deleteCurrent()

@@ -256,8 +256,8 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          */
         @Synchronized
         override fun tryApply(event: DataEvent.Insert): Boolean {
-            val value = event.data[this.columns[0]] ?: return true
-            this.addMapping(value, event.tupleId)
+            val value = event.tuple[this.columns[0].name] ?: return true
+            this.addMapping(value, event.tuple.tupleId)
             return true
         }
 
@@ -268,10 +268,10 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          */
         @Synchronized
         override fun tryApply(event: DataEvent.Update): Boolean {
-            val oldValue = event.data[this.columns[0]]?.first
-            val newValue = event.data[this.columns[0]]?.second
+            val oldValue = event.oldTuple[this.columns[0].name]
+            val newValue = event.newTuple[this.columns[0].name]
             val removed = (oldValue == null || this.removeMapping(oldValue))
-            if (newValue != null) this.addMapping(newValue, event.tupleId)
+            if (newValue != null) this.addMapping(newValue, event.newTuple.tupleId)
             return removed
         }
 
@@ -282,7 +282,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          */
         @Synchronized
         override fun tryApply(event: DataEvent.Delete) : Boolean  {
-            val oldValue = event.data[this.columns[0]]
+            val oldValue = event.oldTuple[this.columns[0].name]
             return (oldValue == null) || this.removeMapping(oldValue)
         }
 

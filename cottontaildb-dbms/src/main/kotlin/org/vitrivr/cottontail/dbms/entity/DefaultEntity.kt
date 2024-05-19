@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.entity
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectFunction
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
-import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Environment
@@ -376,7 +375,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         }
 
         /**
-         *
+         * Truncates this [DefaultEntity], thus deleting all entries.
          */
         @Synchronized
         override fun truncate() {
@@ -426,8 +425,6 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          */
         @Synchronized
         override fun cursor(columns: Array<ColumnDef<*>>, partition: LongRange, rename: Array<Name.ColumnName>): Cursor<Tuple> {
-
-            /* Initialize serializer for tuple. */
             val serializer = StoredTupleSerializer(this.columns, this@DefaultEntity.columns, AccessPattern.SEQUENTIAL)
             return DefaultEntityCursor(this, serializer, partition, rename)
         }
@@ -440,11 +437,11 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          *
          * @throws DatabaseException If a general database error occurs during the insert.
          */
+        @Synchronized
         override fun insert(tuple: Tuple): Tuple {
            /* Execute INSERT on column level. */
             val tupleId = nextTupleId()
-            val inserts = Object2ObjectArrayMap<ColumnDef<*>, Value>(this.columns.size)
-            val insert = StandaloneTuple(0L, this.columns, Array(this.columns.size) {
+            val insertedTuple = StandaloneTuple(0L, this.columns, Array(this.columns.size) {
                 val column = this.columns[it]
 
                 /* Make necessary checks for value. */
@@ -465,20 +462,17 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                     else -> tuple[column] ?: throw DatabaseException.ValidationException("Cannot INSERT a NULL value into column ${column}.")
                 }
 
-                /* Record and perform insert. */
-                inserts[column] = value
-
                 /* Return stored value.*/
                 value
             })
 
             /* Store descriptor.  */
-            if (!this.store.add(this.xodusTx, tupleId.toKey(), this.serializer.toEntry(insert))) {
+            if (!this.store.add(this.xodusTx, tupleId.toKey(), this.serializer.toEntry(insertedTuple))) {
                 throw DatabaseException.DataCorruptionException("Failed to INSERT tuple with ID $tupleId because it already exists.")
             }
 
             /* Issue DataChangeEvent.InsertDataChange event and update indexes. */
-            val event = DataEvent.Insert(this@DefaultEntity.name, tupleId, inserts)
+            val event = DataEvent.Insert(this@DefaultEntity.name, insertedTuple)
             for (index in this.indexes.values) {
                 index.newTx(this).insert(event)
             }
@@ -487,7 +481,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             this.context.txn.signalEvent(event)
 
             /* Return generated record. */
-            return StandaloneTuple(tupleId, inserts.keys.toTypedArray(), inserts.values.toTypedArray())
+            return insertedTuple
         }
 
         /**
@@ -499,31 +493,32 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @throws DatabaseException If an error occurs during the insert.
          */
         @Synchronized
-        @Suppress("UNCHECKED_CAST")
         override fun update(tuple: Tuple) {
-            /* Execute UPDATE on column level.
-            val updates = Object2ObjectArrayMap<ColumnDef<*>, Pair<Value?, Value?>>(tuple.columns.size)
-            for (def in tuple.columns) {
-                val column = this.columns[def.name] ?: throw DatabaseException.ColumnDoesNotExistException(def.name)
-                val columnTx = column.newTx(this) as ColumnTx<Value>
-                val value = tuple[def]
-                val oldValue = if (value == null) {
-                    if (!def.nullable) throw DatabaseException.ValidationException("Record ${tuple.tupleId} cannot be updated with NULL value for column $def, because column is not nullable.")
-                    columnTx.delete(tuple.tupleId)
-                } else {
-                    columnTx.write(tuple.tupleId, value)
+            /* Read existing tuple from store. */
+            val oldTupleRaw = this.store.get(this.xodusTx, tuple.tupleId.toKey()) ?: throw DatabaseException.DataCorruptionException("Failed to read tuple with ID $${tuple.tupleId}.")
+            val oldTuple = this.serializer.fromEntry(tuple.tupleId, oldTupleRaw)
+
+            /* Prepare update tuple. */
+            val updatedTuple = StandaloneTuple(0L, this.columns, Array(this.columns.size) {
+                val column = this.columns[it]
+                val value = tuple[column.name] ?: oldTuple[column.name]
+                if (value == null && !column.nullable) {
+                    throw DatabaseException.ValidationException("Record ${oldTuple.tupleId} cannot be updated with NULL value for column $column, because column is not nullable.")
                 }
-                updates[def] = Pair(oldValue, value) /* Map: ColumnDef -> Pair[Old, New]. */
-            }
+                value
+            })
+
+            /* Update tuple in store. */
+            this.store.put(this.xodusTx, tuple.tupleId.toKey(), this.serializer.toEntry(updatedTuple))
 
             /* Issue DataChangeEvent.UpdateDataChangeEvent and update indexes + statistics. */
-            val event = DataEvent.Update(this@DefaultEntity.name, tuple.tupleId, updates)
+            val event = DataEvent.Update(this@DefaultEntity.name, oldTuple.materialize(), updatedTuple)
             for (index in this.indexes.values) {
                 index.newTx(this).update(event)
             }
 
             /* Signal event to transaction context. */
-            this.context.txn.signalEvent(event)*/
+            this.context.txn.signalEvent(event)
         }
 
         /**
@@ -536,20 +531,14 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         @Synchronized
         override fun delete(tupleId: TupleId) {
             /* Read descriptor from store. */
-            val tupleRaw = this.store.get(this.xodusTx, tupleId.toKey()) ?: throw DatabaseException.DataCorruptionException("Failed to read tuple with ID $tupleId.")
-            val tuple = this.serializer.fromEntry(tupleId, tupleRaw)
-
-            /* Read values from underlying columns. */
-            val deleted = (0 until tuple.size).associate {
-                val column = this.columns[it]
-                column to tuple[column.name]
-            }
+            val oldTupleRaw = this.store.get(this.xodusTx, tupleId.toKey()) ?: throw DatabaseException.DataCorruptionException("Failed to read tuple with ID $tupleId.")
+            val oldTuple = this.serializer.fromEntry(tupleId, oldTupleRaw)
 
             /* Delete entry from store. */
             this.store.delete(this.xodusTx, tupleId.toKey())
 
             /* Issue DataChangeEvent.DeleteDataChangeEvent and update indexes + statistics. */
-            val event = DataEvent.Delete(this@DefaultEntity.name, tupleId, deleted)
+            val event = DataEvent.Delete(this@DefaultEntity.name, oldTuple.materialize())
             for (index in this.indexes.values) {
                 index.newTx(this).delete(event)
             }

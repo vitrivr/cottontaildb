@@ -4,6 +4,7 @@ import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructuralMetadata
 import org.vitrivr.cottontail.dbms.catalogue.toKey
@@ -120,18 +121,18 @@ class AsyncPQIndexRebuilder(index: PQIndex, instance: Instance): AbstractAsyncIn
     override fun processSideChannelEvent(event: DataEvent): Boolean = when(event) {
         /* Process side-channel INSERT. */
         is DataEvent.Insert -> {
-            val value = event.data[this.indexedColumn]
-            if (value is VectorValue<*>) {
-                this.log.offer(PQIndexingEvent.Set(event.tupleId, this.newQuantizer.quantize(value)))
+            val value = event.tuple[this.indexedColumn.name]
+            if (value is RealVectorValue<*>) {
+                this.log.offer(PQIndexingEvent.Set(event.tuple.tupleId, this.newQuantizer.quantize(value)))
             }
             true
         }
 
         /* Process side-channel DELETE. */
         is DataEvent.Delete -> {
-            val value = event.data[this.indexedColumn]
+            val value = event.oldTuple[this.indexedColumn.name]
             if (value != null) {
-                this.log.offer(PQIndexingEvent.Unset(event.tupleId))
+                this.log.offer(PQIndexingEvent.Unset(event.oldTuple.tupleId))
             }
             true
         }
@@ -139,14 +140,14 @@ class AsyncPQIndexRebuilder(index: PQIndex, instance: Instance): AbstractAsyncIn
         /* Process side-channel UPDATE. */
         is DataEvent.Update -> {
             /* Extract value and perform sanity check. */
-            val oldValue = event.data[this.indexedColumn]?.first
-            val newValue = event.data[this.indexedColumn]?.second
+            val oldValue = event.oldTuple[this.indexedColumn.name]
+            val newValue = event.newTuple[this.indexedColumn.name]
 
             /* Obtain marks and update them. */
-            if (newValue is VectorValue<*>) {                   /* Case 1: New value is not null, i.e., update to new value. */
-                this.log.offer(PQIndexingEvent.Set(event.tupleId, this.newQuantizer.quantize(newValue)))
-            } else if (oldValue is VectorValue<*>) {        /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
-                this.log.offer(PQIndexingEvent.Unset(event.tupleId))
+            if (newValue is RealVectorValue<*>) {                   /* Case 1: New value is not null, i.e., update to new value. */
+                this.log.offer(PQIndexingEvent.Set(event.newTuple.tupleId, this.newQuantizer.quantize(newValue)))
+            } else if (oldValue is RealVectorValue<*>) {        /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
+                this.log.offer(PQIndexingEvent.Unset(event.oldTuple.tupleId))
             }
             true
         }

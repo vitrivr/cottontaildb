@@ -282,9 +282,9 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
         @Synchronized
         override fun tryApply(event: DataEvent.Insert): Boolean {
             /* Extract value and return true if value is NULL (since NULL values are ignored). */
-            val value = event.data[this@Tx.columns[0]] ?: return true
-            val sig = this.quantizer.quantize(value as RealVectorValue<*>)
-            return this.dataStore.put(this.xodusTx, event.tupleId.toKey(), sig.toEntry())
+            val value = event.tuple[this@Tx.columns[0].name] as? RealVectorValue<*> ?: return true
+            val sig = this.quantizer.quantize(value)
+            return this.dataStore.put(this.xodusTx, event.tuple.tupleId.toKey(), sig.toEntry())
         }
 
         /**
@@ -296,15 +296,15 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
          */
         @Synchronized
         override fun tryApply(event: DataEvent.Update): Boolean {
-            val oldValue = event.data[this.columns[0]]?.first
-            val newValue = event.data[this.columns[0]]?.second
+            val oldValue = event.oldTuple[this.columns[0].name] as? RealVectorValue<*>
+            val newValue = event.newTuple[this.columns[0].name] as? RealVectorValue<*>
 
             /* Obtain marks and update them. */
             return if (newValue is RealVectorValue<*>) { /* Case 1: New value is not null, i.e., update to new value. */
                 val newSig = this.quantizer.quantize(newValue as VectorValue<*>)
-                this.dataStore.put(this.xodusTx, event.tupleId.toKey(), newSig.toEntry())
+                this.dataStore.put(this.xodusTx, event.newTuple.tupleId.toKey(), newSig.toEntry())
             } else if (oldValue is RealVectorValue<*>) { /* Case 2: New value is null but old value wasn't, i.e., delete index entry. */
-                this.dataStore.delete(this.xodusTx, event.tupleId.toKey())
+                this.dataStore.delete(this.xodusTx, event.oldTuple.tupleId.toKey())
             } else { /* Case 3: There is no value, there was no value, proceed. */
                 true
             }
@@ -319,7 +319,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
          */
         @Synchronized
         override fun tryApply(event: DataEvent.Delete): Boolean {
-            return event.data[this.columns[0]] == null || this.dataStore.delete(this.xodusTx, event.tupleId.toKey())
+            return event.oldTuple[this.columns[0].name] == null || this.dataStore.delete(this.xodusTx, event.oldTuple.tupleId.toKey())
         }
 
         /**
