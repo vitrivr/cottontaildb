@@ -96,6 +96,9 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         /** Map of [Name.IndexName] to [IndexTx]. */
         private val indexes = Object2ObjectLinkedOpenHashMap<Name.IndexName, Index>()
 
+        /** Cache for [count] (since this seems to take quite some time on large bitmaps. */
+        private var countCache: Long? = null
+
         init {
             /* Cache this Tx for future use. */
             context.txn.cacheTx(this)
@@ -177,7 +180,10 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return The number of entries in this [DefaultEntity].
          */
         override fun count(): Long = this.txLatch.withLock {
-            this.bitmap.count(this.context.txn.xodusTx)
+            if (this.countCache == null) {
+                this.countCache = this.bitmap.count(this.context.txn.xodusTx)
+            }
+            return this.countCache!!
         }
 
         /**
@@ -383,6 +389,9 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /* Signal event to transaction context. */
             this.context.txn.signalEvent(event)
 
+            /* Invalidate count cache. */
+            this.countCache = null
+
             /* Return generated record. */
             return StandaloneTuple(tupleId, inserts.keys.toTypedArray(), inserts.values.toTypedArray())
         }
@@ -444,6 +453,9 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             for (index in this.indexes.values) {
                 index.newTx(this.context).delete(event)
             }
+
+            /* Invalidate count cache. */
+            this.countCache = null
 
             /* Signal event to transaction context. */
             this.context.txn.signalEvent(event)
