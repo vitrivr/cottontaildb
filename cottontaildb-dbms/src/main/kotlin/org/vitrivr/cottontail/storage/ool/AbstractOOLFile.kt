@@ -94,7 +94,12 @@ abstract class AbstractOOLFile<V: Value, D: OutOfLineValue>(final override val p
         /* Clean up the cache if it gets too large. */
         if (OPEN_CHANNELS.size >= MAX_CHANNELS) {
             OPEN_CHANNELS.object2ObjectEntrySet().removeIf {
-                it.value.referenceCount == 0 && it.value != ret
+                if (it.value.referenceCount == 0 && it.value != ret) {
+                    it.value.close()
+                    true
+                } else {
+                    false
+                }
             }
         }
 
