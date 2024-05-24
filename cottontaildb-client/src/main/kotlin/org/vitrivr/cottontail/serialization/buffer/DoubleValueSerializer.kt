@@ -12,6 +12,6 @@ import java.nio.ByteBuffer
  */
 data object DoubleValueSerializer: ValueSerializer<DoubleValue> {
     override val type = Types.Double
-    override fun fromBuffer(buffer: ByteBuffer) = DoubleValue(buffer.float)
+    override fun fromBuffer(buffer: ByteBuffer) = DoubleValue(buffer.double)
     override fun toBuffer(value: DoubleValue): ByteBuffer = ByteBuffer.allocate(this.type.physicalSize).putDouble(0, value.value)
 }
