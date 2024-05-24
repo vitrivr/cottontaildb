@@ -79,19 +79,15 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(protected val index: BTreeI
         }
 
         override fun moveNext(): Boolean {
-            try {
-                if (this.cursor.nextDup) return true
-            } catch (_: IllegalStateException) {
-
-            }
-
-            /* Seek next value */
-            while (this.values.size > 0) {
-                if (this.cursor.getSearchKey(this.values.poll()) != null) {
-                    return true
+            if (this.boc.getAndSet(false) || !this.cursor.nextDup) {
+                while (this.values.size > 0) {
+                    if (this.cursor.getSearchKey(this.values.poll()) != null) {
+                        return true
+                    }
                 }
+                return false
             }
-            return false
+            return true
         }
     }
 

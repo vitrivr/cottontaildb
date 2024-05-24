@@ -90,7 +90,8 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
                     is ProximityPredicate.ENN -> Selectivity.DEFAULT(this@IndexScanPhysicalOperatorNode.tx.count())
                     is BooleanPredicate -> {
                         val entityTx = this@IndexScanPhysicalOperatorNode.tx.parent
-                        NaiveSelectivityCalculator.estimate(predicate, this@IndexScanPhysicalOperatorNode.statistics)(entityTx.count())
+                        val selectivity = NaiveSelectivityCalculator.estimate(predicate, this@IndexScanPhysicalOperatorNode.statistics)
+                        selectivity(entityTx.count())
                     }
                 }
             }
@@ -111,7 +112,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
 
                 /* Populate statistics. */
                 if (!this.statistics.containsKey(binding.physical) && entityProduces.contains(binding.physical)) {
-                    this.statistics[binding.column] = entityTx.statistics(binding.physical!!) as ValueStatistics<Value>
+                    this.statistics[binding.physical] = entityTx.statistics(binding.physical!!) as ValueStatistics<Value>
                 }
             } else {
                 require(indexProduces.contains(binding.column)) {

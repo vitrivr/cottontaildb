@@ -83,7 +83,7 @@ sealed class AbstractValueStatistics<T : Value>(override val type: Types<T>) : V
         is ComparisonOperator.Between -> 1f / 6f
 
         /* IN: Assumption is, that all elements IN are matches (worst-case). */
-        is ComparisonOperator.In -> (operator.right.size() / this.numberOfDistinctEntries.toFloat())
+        is ComparisonOperator.In -> operator.right.size() / this.numberOfDistinctEntries.toFloat()
 
         // Default case:
         else -> 1f / 3f
