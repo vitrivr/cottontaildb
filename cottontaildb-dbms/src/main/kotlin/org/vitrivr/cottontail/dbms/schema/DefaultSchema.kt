@@ -19,6 +19,7 @@ import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.events.SequenceEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.SubTransaction
+import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.sequence.DefaultSequence
 import org.vitrivr.cottontail.dbms.sequence.Sequence
@@ -245,10 +246,9 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
                 throw DatabaseException.EntityDoesNotExistException(name)
             }
 
-            /* Drop all columns from entity. */
+            /* Remove all columns metadata entries. */
             val columnMetadata = ColumnMetadata.store(this.xodusTx)
-            val columnDefs = mutableListOf<ColumnDef<*>>()
-            entityTx.listColumns().map {
+            val columnDefs = entityTx.listColumns().map {
                 if (!columnMetadata.delete(this.xodusTx, NameBinding.Column.toEntry(it.name))) {
                     throw DatabaseException.DataCorruptionException("DROP entity $name failed: Failed to delete column entry for column $it.")
                 }
@@ -257,7 +257,15 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
                 if (it.autoIncrement) {
                     this.dropSequence(this@DefaultSchema.name.sequence("${it.name.entity}_${it.name.column}_auto"))
                 }
-                columnDefs.add(it)
+                it
+            }
+
+            /* Remove all index entries. */
+            val indexMetadata = IndexMetadata.store(this.xodusTx)
+            entityTx.listIndexes().forEach {
+                if (!indexMetadata.delete(this.xodusTx, NameBinding.Index.toEntry(it))) {
+                    throw DatabaseException.DataCorruptionException("DROP index $name failed: Failed remove metadata entry.")
+                }
             }
 
             /* Create Event and notify observers */
