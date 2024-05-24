@@ -29,7 +29,7 @@ class BTreeIndexRebuilder(index: BTreeIndex, context: QueryContext): AbstractInd
         /* Iterate over entity and update index with entries. */
         indexTx.parent.cursor(indexTx.columns).use { cursor ->
             while (cursor.moveNext()) {
-                val value = cursor.value()[0]
+                val value = cursor.value()[column]
                 if (value != null) {
                     val keyRaw = binding.toEntry(value)
                     val tupleIdRaw = LongBinding.longToCompressedEntry(cursor.key())

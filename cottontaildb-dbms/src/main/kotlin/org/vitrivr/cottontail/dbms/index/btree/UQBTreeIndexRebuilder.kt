@@ -29,7 +29,7 @@ class UQBTreeIndexRebuilder(index: UQBTreeIndex, context: QueryContext): Abstrac
         /* Iterate over entity and update index with entries. */
         indexTx.parent.cursor(indexTx.columns).use { cursor ->
             while (cursor.moveNext()) {
-                val key = cursor.value()[0]
+                val key = cursor.value()[column]
                 if (key != null) {
                     val keyRaw = binding.toEntry(key)
                     val tupleIdRaw = LongBinding.longToCompressedEntry(cursor.key())

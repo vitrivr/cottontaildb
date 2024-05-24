@@ -8,7 +8,6 @@ import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
@@ -16,12 +15,13 @@ import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata.Companion.storeName
 import org.vitrivr.cottontail.storage.serializers.SerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
 import java.util.*
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A [Cursor] for the [BTreeIndex]. Different variants are implemented optimised for the respective [ComparisonOperator].
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 sealed class BTreeIndexCursor<T: ComparisonOperator>(protected val index: BTreeIndex.Tx, val columns: Array<ColumnDef<*>>) : Cursor<Tuple> {
     /** Internal cursor used for navigation. */
@@ -38,8 +38,12 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(protected val index: BTreeI
     /** Internal cursor used for navigation. */
     protected val cursor: jetbrains.exodus.env.Cursor = this.store.openCursor(this.xodusTx)
 
+    /** A beginning of cursor flag. */
+    protected val boc = AtomicBoolean(true)
+
     override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.value)
-    override fun value(): Tuple = StandaloneTuple(this.key(), this.index.columns, arrayOf(this.binding.fromEntry(this.cursor.key)))
+
+    override fun value(): Tuple = this.index.parent.read(this.key())
 
     override fun close() {
         this.cursor.close()
@@ -50,10 +54,12 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(protected val index: BTreeI
      * A [BTreeIndexCursor] variant to evaluate  [ComparisonOperator.Equal] operators.
      */
     class Equals(private val value: Value, index: BTreeIndex.Tx, columns: Array<ColumnDef<*>>): BTreeIndexCursor<ComparisonOperator.Equal>(index, columns) {
-        override fun moveNext(): Boolean = try {
-            this.cursor.nextDup
-        } catch (e: IllegalStateException) {
-            this@Equals.cursor.getSearchKey(this@Equals.binding.toEntry(this.value)) != null
+        override fun moveNext(): Boolean {
+            return if (this.boc.getAndSet(false)) {
+                return this.cursor.getSearchKey(this.binding.toEntry(this.value)) != null
+            } else {
+                this.cursor.nextDup
+            }
         }
     }
 

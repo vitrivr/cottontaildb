@@ -78,7 +78,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          */
         override fun initialize(name: Name.IndexName, parent: EntityTx): Boolean = try {
             require(parent is DefaultEntity.Tx) { "A UQBTreeIndex can only be used with a DefaultEntity.Tx!" }
-            parent.xodusTx.environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, parent.xodusTx, true) != null
+            parent.xodusTx.environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES, parent.xodusTx, true) != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize BTREE index $name due to an exception: ${e.message}.")
             false

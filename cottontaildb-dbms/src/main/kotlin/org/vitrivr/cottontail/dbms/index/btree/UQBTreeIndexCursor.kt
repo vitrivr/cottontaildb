@@ -8,7 +8,6 @@ import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
@@ -39,8 +38,11 @@ sealed class UQBTreeIndexCursor<T: ComparisonOperator>(protected val index: UQBT
     /** Internal cursor used for navigation. */
     protected val cursor: jetbrains.exodus.env.Cursor = this.store.openCursor(this.xodusTx)
 
+    /** A beginning of cursor flag. */
+    protected val boc = AtomicBoolean(true)
+
     override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.value)
-    override fun value(): Tuple = StandaloneTuple(this.key(), this.index.columns, arrayOf(this.binding.fromEntry(this.cursor.key)))
+    override fun value(): Tuple = this.index.parent.read(this.key())
 
     override fun close() {
         this.cursor.close()
@@ -51,11 +53,7 @@ sealed class UQBTreeIndexCursor<T: ComparisonOperator>(protected val index: UQBT
      * A [BTreeIndexCursor] variant to evaluate  [ComparisonOperator.Equal] operators.
      */
     class Equals(private val value: Value, index: UQBTreeIndex.Tx, columns: Array<ColumnDef<*>>): UQBTreeIndexCursor<ComparisonOperator.Equal>(index, columns) {
-
-        private val boc = AtomicBoolean(true)
-
-        override fun moveNext(): Boolean
-            = this.boc.getAndSet(false) && this@Equals.cursor.getSearchKey(this@Equals.binding.toEntry(this.value)) != null
+        override fun moveNext(): Boolean = this.boc.getAndSet(false) && this@Equals.cursor.getSearchKey(this@Equals.binding.toEntry(this.value)) != null
     }
 
     /**
