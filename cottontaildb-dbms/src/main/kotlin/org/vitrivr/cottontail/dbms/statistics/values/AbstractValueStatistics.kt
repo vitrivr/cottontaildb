@@ -27,18 +27,9 @@ sealed class AbstractValueStatistics<T : Value>(override val type: Types<T>) : V
         const val DISTINCT_ENTRIES = "distinct_entries"
     }
 
-    /** Number of null entries known to this [AbstractValueStatistics]. */
-    override var numberOfNullEntries: Long = 0L
-
-    /** Number of non-null entries known to this [AbstractValueStatistics]. */
-    override var numberOfNonNullEntries: Long = 0L
-
     /** Total number of entries known to this [AbstractValueStatistics]. */
     override val numberOfEntries
         get() = this.numberOfNullEntries + this.numberOfNonNullEntries
-
-    /** Total number of distinct entries known to this [AbstractScalarStatistics]. */
-    override var numberOfDistinctEntries: Long = 0L
 
     /** Smallest [Value] seen in terms of space requirement (logical size) known to this [AbstractValueStatistics]. */
     override val minWidth: Int
@@ -75,28 +66,26 @@ sealed class AbstractValueStatistics<T : Value>(override val type: Types<T>) : V
      * @return [Selectivity] estimate.
      */
     context(BindingContext, Tuple)
-    override fun estimateSelectivity(predicate: BooleanPredicate.Comparison): Selectivity = when(val operator = predicate.operator){
-        /* =: Textbook definition using estimate for  number if distinct entries. */
-        is ComparisonOperator.Equal -> Selectivity(this.numberOfEntries.toFloat() / this.numberOfDistinctEntries.toFloat()) // Case Equality =
+    override fun estimateSelectivity(predicate: BooleanPredicate.Comparison) = Selectivity(when(val operator = predicate.operator){
+        /* =: Textbook definition using estimate for number of distinct entries. */
+        is ComparisonOperator.Equal ->  1.0f / this.numberOfDistinctEntries
 
         /* !=: Textbook definition using estimate for number if distinct entries. */
-        is ComparisonOperator.NotEqual -> Selectivity(this.numberOfEntries.toFloat() * (this.numberOfDistinctEntries.toFloat() - 1f) / this.numberOfDistinctEntries.toFloat()) //Case Not-equals (like A != 10)
+        is ComparisonOperator.NotEqual -> (this.numberOfDistinctEntries - 1.0f) / this.numberOfDistinctEntries //Case Not-equals (like A != 10)
 
         /* <, >, <=, >=: Textbook definition. Assumption is, that 1/3 of the collection is selected (see [1]) */
         is ComparisonOperator.Greater,
         is ComparisonOperator.Less,
         is ComparisonOperator.GreaterEqual,
-        is ComparisonOperator.LessEqual -> Selectivity(this.numberOfEntries.toFloat() / 3f)
+        is ComparisonOperator.LessEqual -> 1f / 3f
 
         /* BETWEEN: Assumption is, that it returns fewer tuples than a less/greater operator (since it's a composition of both using AND). */
-        is ComparisonOperator.Between ->  Selectivity(this.numberOfEntries.toFloat() / 6f) //
+        is ComparisonOperator.Between -> 1f / 6f
 
-        /* IN: Assumption is, that all elements in IN are matches (worst-case). */
-        is ComparisonOperator.In -> Selectivity(operator.right.size() * this.numberOfEntries.toFloat() / this.numberOfDistinctEntries.toFloat())
+        /* IN: Assumption is, that all elements IN are matches (worst-case). */
+        is ComparisonOperator.In -> (operator.right.size() / this.numberOfDistinctEntries.toFloat())
 
         // Default case:
-        else -> Selectivity.DEFAULT
-    }
-
-
+        else -> 1f / 3f
+    })
 }
