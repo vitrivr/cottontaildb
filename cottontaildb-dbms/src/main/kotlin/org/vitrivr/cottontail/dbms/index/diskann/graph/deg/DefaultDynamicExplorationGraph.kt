@@ -46,12 +46,15 @@ class DefaultDynamicExplorationGraph<V: VectorValue<*>>(config: DEGIndexConfig, 
     private val store = this.index.xodusTx.environment.openStore(index.dbo.name.storeName(), StoreConfig.WITH_DUPLICATES, index.xodusTx, false)
         ?: throw DatabaseException.DataCorruptionException("Data store for index ${index.dbo.name} is missing.")
 
+    /** Flag indicating, that changes were made to this [DefaultDynamicExplorationGraph]. */
+    private var dirty: Boolean = false
+
     /** The [WeightedUndirectedInMemoryGraph] backing this [DefaultDynamicExplorationGraph]. */
     override val graph = WeightedUndirectedInMemoryGraph<Node<TupleId>>()
 
     /** An internal [LoadingCache]*/
     private val vectorCache: LoadingCache<Node<TupleId>,V> = Caffeine.newBuilder()
-        .maximumWeight(1_000_000_000)
+        .maximumWeight(500_000_000)
         .weigher { _: Node<TupleId>, value: V -> value.type.physicalSize }
         .build { node: Node<TupleId> ->
             (this.index.parent.read(node.label)[this.index.columns[0]] as? V) ?: throw DatabaseException.DataCorruptionException("Could not find value for node $node.")
@@ -61,7 +64,25 @@ class DefaultDynamicExplorationGraph<V: VectorValue<*>>(config: DEGIndexConfig, 
         this.graph.readFromStore(store, this.xodusTx, TupleIdNodeSerializer())
     }
 
+    /**
+     * Updates the [dirty] flag of this [DefaultDynamicExplorationGraph] and indexes the value.
+     */
+    override fun index(identifier: TupleId, value: V) {
+        this.dirty = true
+        super.index(identifier, value)
+    }
+
     override fun storeValue(node: Node<TupleId>, value: V) = this.vectorCache.put(node, value)
     override fun getValue(node: Node<TupleId>): V = this.vectorCache[node]
     override fun distance(a: V, b: V): Float =  this.distanceFunction.invoke(a, b)!!.value.toFloat()
+
+    /**
+     * Saves this [DefaultDynamicExplorationGraph] and writes the changes to the underlying [Store].
+     */
+    fun save() {
+        if (this.dirty) {
+            this.graph.writeToStore(this.store, this.xodusTx, TupleIdNodeSerializer())
+            this.dirty = false
+        }
+    }
 }

@@ -11,17 +11,15 @@ interface MutableGraph<V>: Graph<V> {
      * Adds a new vertex of type [V] to this [MutableGraph].
      *
      * @param v The vertex [V] to add.
-     * @return True on success, false otherwise.
      */
-    fun addVertex(v: V): Boolean
+    fun addVertex(v: V)
 
     /**
      * Removes a vertex of type [V] from this [MutableGraph].
      *
      * @param v The vertex [V] to remove.
-     * @return True on success, false otherwise.
      */
-    fun removeVertex(v: V): Boolean
+    fun removeVertex(v: V)
 
     /**
      * Adds an edge between two vertices to this [MutableGraph]

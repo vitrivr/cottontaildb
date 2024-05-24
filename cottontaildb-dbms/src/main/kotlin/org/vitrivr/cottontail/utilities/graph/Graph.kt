@@ -25,9 +25,9 @@ interface Graph<V> {
      * Returns all edges of a vertex [V] in this [MutableGraph].
      *
      * @param from The vertex [V] for which to return the edges.
-     * @return [Map] of edges and their weights.
+     * @return [Edge] of edges and their weights.
      */
-    fun edges(from: V): Map<V,Float>
+    fun edges(from: V): List<Edge<V>>
 
     /**
      * Creates and returns a [CloseableIterator] for this [MutableGraph].

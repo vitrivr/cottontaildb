@@ -61,19 +61,19 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
                 for ((candidateLabel, candidateWeight) in results) {
                     val candidateNode = Node(candidateLabel)
                     if (newNeighbours.size >= this.degree) break
-                    if (newNeighbours.containsKey(candidateNode)) continue
+                    if (newNeighbours.any { it.to == candidateNode}) continue
                     if (phase <= 1 && checkMrng(candidateNode, newNode, candidateWeight)) continue
 
                     /* Find new neighbour. */
-                    val newNeighbour = this.graph.edges(candidateNode).filter { it.key !in newNeighbours }.maxByOrNull { it.value }?.key ?: continue
-                    val newNeighbourDistance = this.distance(this.getValue(newNode), this.getValue(newNeighbour))
+                    val newNeighbour = this.graph.edges(candidateNode).filter { i1 -> newNeighbours.none { i2 -> i1.to == i2  } }.maxByOrNull { it.weight } ?: continue
+                    val newNeighbourDistance = this.distance(this.getValue(newNode), this.getValue(newNeighbour.to))
 
                     /* Remove edge from candidate node to candidate neighbour. */
-                    this.graph.removeEdge(candidateNode, newNeighbour)
+                    this.graph.removeEdge(candidateNode, newNeighbour.to)
 
                     /* Add edges to new nodes. */
                     this.graph.addEdge(newNode, candidateNode, candidateWeight)
-                    this.graph.addEdge(newNode, newNeighbour, newNeighbourDistance)
+                    this.graph.addEdge(newNode, newNeighbour.to, newNeighbourDistance)
                 }
                 phase += 1
             }
@@ -180,7 +180,7 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
      * @param from The [Node] to return edges for.
      * @return [Map] of edges from the given [Node]
      */
-    override fun edges(from: Node<I>): Map<Node<I>, Float> = this.graph.edges(from)
+    override fun edges(from: Node<I>) = this.graph.edges(from)
 
     /**
      * Returns the weight from one vertex [V] to another vertex [V] in this [AbstractDynamicExplorationGraph].
