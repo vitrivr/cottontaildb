@@ -5,10 +5,9 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.entity.values.OutOfLineValue
+import org.vitrivr.cottontail.serialization.buffer.ValueSerializer
 import org.vitrivr.cottontail.storage.ool.interfaces.OOLFile
 import org.vitrivr.cottontail.storage.ool.interfaces.OOLWriter
-import org.vitrivr.cottontail.storage.serializers.SerializerFactory
-import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
 import java.lang.ref.WeakReference
 import java.nio.channels.FileChannel
 import java.nio.file.Files
@@ -43,7 +42,8 @@ abstract class AbstractOOLFile<V: Value, D: OutOfLineValue>(final override val p
     }
 
     /** The [ValueSerializer] used to serialize and de-serialize entries. */
-    protected val serializer: ValueSerializer<V> = SerializerFactory.value(this.type)
+    @Suppress("UNCHECKED_CAST")
+    protected val serializer = ValueSerializer.serializer(this.type) as ValueSerializer<V>
 
     /** An internal counter of the segment ID to append data to. */
     abstract var appendSegmentId: Long
@@ -54,7 +54,6 @@ abstract class AbstractOOLFile<V: Value, D: OutOfLineValue>(final override val p
 
     /** A [WeakReference] to a common [OOLWriter] instance. */
     private var writer: WeakReference<OOLWriter<V, D>>? = null
-
 
     /**
      * Provides a [OOLWriter] for this [AbstractOOLFile].

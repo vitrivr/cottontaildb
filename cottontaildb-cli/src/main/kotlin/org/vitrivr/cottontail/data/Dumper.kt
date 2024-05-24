@@ -22,7 +22,7 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.data.Manifest.Companion.MANIFEST_FILE_NAME
-import org.vitrivr.cottontail.serialization.listSerializer
+import org.vitrivr.cottontail.serialization.kotlinx.listSerializer
 import java.io.Closeable
 import java.io.OutputStream
 import java.nio.charset.Charset

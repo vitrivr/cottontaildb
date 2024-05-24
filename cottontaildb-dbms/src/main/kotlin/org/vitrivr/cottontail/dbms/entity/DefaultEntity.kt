@@ -224,7 +224,6 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          */
         @Synchronized
         override fun read(tupleId: TupleId): Tuple {
-            /* Read descriptor from store. */
             val descriptorRaw = this.store.get(this.xodusTx, tupleId.toKey()) ?: throw DatabaseException.DataCorruptionException("Failed to read tuple with ID $tupleId.")
             return this.serializer.fromEntry(tupleId, descriptorRaw)
         }

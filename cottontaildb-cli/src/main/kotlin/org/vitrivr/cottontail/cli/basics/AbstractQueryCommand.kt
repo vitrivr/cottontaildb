@@ -13,7 +13,7 @@ import kotlinx.serialization.json.encodeToStream
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.data.Format
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.serialization.serializer
+import org.vitrivr.cottontail.serialization.kotlinx.serializer
 import org.vitrivr.cottontail.utilities.TabulationUtilities
 import java.nio.file.Files
 import java.nio.file.Path

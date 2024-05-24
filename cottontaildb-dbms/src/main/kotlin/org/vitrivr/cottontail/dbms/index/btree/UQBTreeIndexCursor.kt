@@ -12,8 +12,8 @@ import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata.Companion.storeName
-import org.vitrivr.cottontail.storage.serializers.SerializerFactory
-import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
+import org.vitrivr.cottontail.serialization.buffer.ValueSerializer
+import org.vitrivr.cottontail.storage.serializers.ValueBinding
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -33,7 +33,7 @@ sealed class UQBTreeIndexCursor<T: ComparisonOperator>(protected val index: UQBT
 
     /** The internal [ValueSerializer] reference used for de-/serialization. */
     @Suppress("UNCHECKED_CAST")
-    protected val binding: ValueSerializer<Value> = SerializerFactory.value(this.columns[0].type) as ValueSerializer<Value>
+    protected val binding: ValueBinding<Value> = ValueBinding(ValueSerializer.serializer(this.columns[0].type)) as ValueBinding<Value>
 
     /** Internal cursor used for navigation. */
     protected val cursor: jetbrains.exodus.env.Cursor = this.store.openCursor(this.xodusTx)

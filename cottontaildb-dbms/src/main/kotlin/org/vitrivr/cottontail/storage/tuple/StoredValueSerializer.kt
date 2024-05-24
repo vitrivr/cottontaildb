@@ -1,9 +1,5 @@
 package org.vitrivr.cottontail.storage.tuple
 
-import jetbrains.exodus.bindings.ByteBinding
-import jetbrains.exodus.bindings.IntegerBinding
-import jetbrains.exodus.bindings.LongBinding
-import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.entity.values.OutOfLineValue
@@ -12,8 +8,9 @@ import org.vitrivr.cottontail.storage.ool.interfaces.AccessPattern
 import org.vitrivr.cottontail.storage.ool.interfaces.OOLFile
 import org.vitrivr.cottontail.storage.ool.interfaces.OOLReader
 import org.vitrivr.cottontail.storage.ool.interfaces.OOLWriter
-import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
-import java.io.ByteArrayInputStream
+import org.vitrivr.cottontail.storage.serializers.ValueBinding
+import java.io.DataOutputStream
+import java.nio.ByteBuffer
 
 /**
  * A serializer for [Value]s and deserializer for [StoredValue]s.
@@ -33,21 +30,20 @@ sealed interface StoredValueSerializer<T: Value> {
     val type: Types<T>
 
     /**
-     * Reads a [StoredValue] from the provided [ByteArrayInputStream].
+     * Reads a [StoredValue] from the provided [ByteBuffer].
      *
-     * @param input The [ByteArrayInputStream] to read from.
+     * @param input The [ByteBuffer] to read from.
      * @return The resulting [StoredValue].
      */
-    fun read(input: ByteArrayInputStream): StoredValue<T>?
+    fun read(input: ByteBuffer): StoredValue<T>?
 
     /**
-     * Writes a [StoredValue] to the provided [LightOutputStream].
+     * Writes a [StoredValue] to the provided [DataOutputStream].
      *
-     * @param output The [LightOutputStream] to write from.
+     * @param output The [DataOutputStream] to write to.
      * @param value The [StoredValue] to write.
-     * @return The resulting [StoredValue].
      */
-    fun write(output: LightOutputStream, value: T?)
+    fun write(output: DataOutputStream, value: T?)
 
     /**
      * A [StoredValueSerializer] that can handle [OutOfLineValue]s that are nullable.
@@ -57,9 +53,8 @@ sealed interface StoredValueSerializer<T: Value> {
         override val type: Types<T>
             get() = this.wrapped.type
 
-        override fun read(input: ByteArrayInputStream): StoredValue<T>? {
-            input.mark(1)
-            if (ByteBinding.BINDING.readObject(input) == NULL) {
+        override fun read(input: ByteBuffer): StoredValue<T>? {
+            if (input.get() == NULL) {
                 return null
             } else {
                 input.reset()
@@ -67,9 +62,9 @@ sealed interface StoredValueSerializer<T: Value> {
             }
         }
 
-        override fun write(output: LightOutputStream, value: T?) {
+        override fun write(output: DataOutputStream, value: T?) {
             if (value == null) {
-                ByteBinding.BINDING.writeObject(output, NULL)
+                output.writeByte(NULL.toInt())
             } else {
                 this.wrapped.write(output, value)
             }
@@ -79,19 +74,18 @@ sealed interface StoredValueSerializer<T: Value> {
     /**
      * A [StoredValueSerializer] that can handle [StoredValue.Inline]s.
      */
-    class Inline<T: Value>(private val serializer: ValueSerializer<T>): StoredValueSerializer<T> {
-
+    class Inline<T: Value>(private val binding: ValueBinding<T>): StoredValueSerializer<T> {
         override val type: Types<T>
-            get() = this.serializer.type
+            get() = this.binding.serializer.type
 
-        override fun read(input: ByteArrayInputStream): StoredValue.Inline<T> {
-            require(ByteBinding.BINDING.readObject(input) == INLINE) { "Wrong stored value flag: Expected INLINE flag."  }
-            return StoredValue.Inline(this.serializer.read(input))
+        override fun read(input: ByteBuffer): StoredValue.Inline<T> {
+            require(input.get() == INLINE) { "Wrong stored value flag: Expected INLINE flag."  }
+            return StoredValue.Inline(this.binding.read(input))
         }
 
-        override fun write(output: LightOutputStream, value: T?) {
-            ByteBinding.BINDING.writeObject(output, INLINE)
-            this.serializer.write(output, value!!)
+        override fun write(output: DataOutputStream, value: T?) {
+            output.writeByte(INLINE.toInt())
+            this.binding.write(output, value!!)
         }
     }
 
@@ -110,15 +104,15 @@ sealed interface StoredValueSerializer<T: Value> {
         override val type: Types<T>
             get() = this.file.type
 
-        override fun read(input: ByteArrayInputStream): StoredValue.OutOfLine.Fixed<T> {
-            require(ByteBinding.BINDING.readObject(input) == VARIABLE) { "Wrong stored value flag: Expected VARIABLE flag." }
-            return StoredValue.OutOfLine.Fixed(OutOfLineValue.Fixed(LongBinding.readCompressed(input)), this.reader)
+        override fun read(input: ByteBuffer): StoredValue.OutOfLine.Fixed<T> {
+            require(input.get() == VARIABLE) { "Wrong stored value flag: Expected VARIABLE flag." }
+            return StoredValue.OutOfLine.Fixed(OutOfLineValue.Fixed(input.getLong()), this.reader)
         }
 
-        override fun write(output: LightOutputStream, value: T?) {
+        override fun write(output: DataOutputStream, value: T?) {
             val ref = this.writer.append(value!!)
-            ByteBinding.BINDING.writeObject(output, VARIABLE)
-            LongBinding.writeCompressed(output, ref.rowId)
+            output.writeByte(VARIABLE.toInt())
+            output.writeLong(ref.rowId)
         }
 
         fun flush() = this.writer.flush()
@@ -139,16 +133,16 @@ sealed interface StoredValueSerializer<T: Value> {
         override val type: Types<T>
             get() = this.file.type
 
-        override fun read(input: ByteArrayInputStream): StoredValue.OutOfLine.Variable<T> {
-            require(ByteBinding.BINDING.readObject(input) == FIXED) { "Wrong stored value flag: Expected FIXED flag." }
-            return StoredValue.OutOfLine.Variable(OutOfLineValue.Variable(LongBinding.readCompressed(input), IntegerBinding.readCompressed(input)), this.reader)
+        override fun read(input: ByteBuffer): StoredValue.OutOfLine.Variable<T> {
+            require(input.get() == FIXED) { "Wrong stored value flag: Expected FIXED flag." }
+            return StoredValue.OutOfLine.Variable(OutOfLineValue.Variable(input.getLong(), input.getInt()), this.reader)
         }
 
-        override fun write(output: LightOutputStream, value: T?) {
+        override fun write(output: DataOutputStream, value: T?) {
             val ref = this.writer.append(value!!)
-            ByteBinding.BINDING.writeObject(output, FIXED)
-            LongBinding.writeCompressed(output, ref.position)
-            IntegerBinding.writeCompressed(output, ref.size)
+            output.writeByte(FIXED.toInt())
+            output.writeLong(ref.position)
+            output.writeInt(ref.size)
         }
 
         fun flush() = this.writer.flush()

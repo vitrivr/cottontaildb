@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.core.tuple
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.types.Value
 
@@ -41,30 +40,6 @@ class StandaloneTuple(override var tupleId: TupleId, override val columns: Array
      * @return Copy of this [StandaloneTuple]
      */
     override fun copy(): Tuple = StandaloneTuple(this.tupleId, this.columns, this.values.copyOf())
-
-    /**
-     * Returns true, if this [StandaloneTuple] contains the specified [ColumnDef] and false otherwise.
-     *
-     * @param column The [ColumnDef] specifying the column
-     * @return True if record contains the [ColumnDef], false otherwise.
-     */
-    override fun has(column: ColumnDef<*>): Boolean = this.columns.contains(column)
-
-    /**
-     * Returns column index of the given [ColumnDef] within this [Tuple]. Returns -1 if [ColumnDef] is not contained
-     *
-     * @param column The [ColumnDef] to check.
-     * @return The column index or -1. of [ColumnDef] is not part of this [Tuple].
-     */
-    override fun indexOf(column: ColumnDef<*>): Int = this.columns.indexOf(column)
-
-    /**
-     * Returns column index of the given [Name.ColumnName] within this [Tuple]. Returns -1 if [Name.ColumnName] is not contained
-     *
-     * @param column The [Name.ColumnName] to check.
-     * @return The column index or -1. of [Name.ColumnName] is not part of this [Tuple].
-     */
-    override fun indexOf(column: Name.ColumnName): Int = this.columns.indexOfFirst { it.name == column }
 
     /**
      * Retrieves the value for the specified column index from this [StandaloneTuple].

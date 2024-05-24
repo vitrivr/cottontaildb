@@ -34,9 +34,9 @@ import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.dbms.index.pq.rebuilder.AsyncPQIndexRebuilder
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
+import org.vitrivr.cottontail.serialization.buffer.ValueSerializer
 import org.vitrivr.cottontail.server.Instance
-import org.vitrivr.cottontail.storage.serializers.SerializerFactory
-import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
+import org.vitrivr.cottontail.storage.serializers.ValueBinding
 import kotlin.math.log10
 
 /**
@@ -155,9 +155,9 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
      */
     inner class Tx(context: DefaultEntity.Tx) : AbstractIndex.Tx(context) {
 
-        /** The internal [ValueSerializer] reference used for de-/serialization. */
+        /** The internal [ValueBinding] reference used for de-/serialization. */
         @Suppress("UNCHECKED_CAST")
-        private val binding: ValueSerializer<Value> = SerializerFactory.value(this.columns[0].type) as ValueSerializer<Value>
+        private val binding: ValueBinding<Value> = ValueBinding(ValueSerializer.serializer(this.columns[0].type)) as ValueBinding<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
         private val store: Store = this.xodusTx.environment.openStore(this@BTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.xodusTx, false)

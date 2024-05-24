@@ -148,7 +148,10 @@ dependencies {
     api group: 'io.grpc', name: 'grpc-kotlin-stub', version: version_grpc_kotlin
     compileOnly group: 'org.apache.tomcat', name: 'tomcat-annotations-api', version: version_annotations
 
-    /////// Kotlin references
+    /* Snappy */
+    implementation group: 'org.xerial.snappy', name: 'snappy-java', version: version_snappy
+
+    /* Kotlin references */
     api group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
     api group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-core-jvm', version: version_kotlinx_serialization
     api group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: version_kotlinx_coroutines

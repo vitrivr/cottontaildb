@@ -7,7 +7,7 @@ import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc.Uuid
-import org.vitrivr.cottontail.serialization.UUIDSerializer
+import org.vitrivr.cottontail.serialization.kotlinx.UUIDSerializer
 import java.util.*
 
 /**

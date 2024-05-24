@@ -13,8 +13,8 @@ import org.vitrivr.cottontail.client.language.dml.BatchInsert
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.values.PublicValue
-import org.vitrivr.cottontail.serialization.TupleListSerializer
-import org.vitrivr.cottontail.serialization.listSerializer
+import org.vitrivr.cottontail.serialization.kotlinx.TupleListSerializer
+import org.vitrivr.cottontail.serialization.kotlinx.listSerializer
 import java.io.Closeable
 import java.io.InputStream
 import java.nio.charset.Charset

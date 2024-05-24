@@ -34,7 +34,7 @@ class DefaultEntityCursor(private val entity: DefaultEntity.Tx, val serializer: 
     private val snapshot = this.entity.xodusTx.readonlySnapshot
 
     /** The [LongIterator] backing this [DefaultEntityCursor]. */
-    private val cursor = this.snapshot.environment.openStore(entity.dbo.name.storeName(), StoreConfig.USE_EXISTING, this.snapshot).openCursor(this.snapshot)
+    private val cursor = this.snapshot.environment.openStore(this.entity.dbo.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.snapshot).openCursor(this.snapshot)
 
     /** The [TupleId] this [DefaultEntityCursor] is currently pointing to. */
     private val maximum: ByteIterable = partition.last.toKey()

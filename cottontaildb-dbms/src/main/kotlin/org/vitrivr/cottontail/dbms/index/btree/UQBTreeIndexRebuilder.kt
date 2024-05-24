@@ -5,8 +5,8 @@ import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.index.basic.AbstractIndex
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
-import org.vitrivr.cottontail.storage.serializers.SerializerFactory
-import org.vitrivr.cottontail.storage.serializers.values.ValueSerializer
+import org.vitrivr.cottontail.serialization.buffer.ValueSerializer
+import org.vitrivr.cottontail.storage.serializers.ValueBinding
 
 /**
  * An [AbstractIndexRebuilder] for the [UQBTreeIndex].
@@ -23,7 +23,7 @@ class UQBTreeIndexRebuilder(index: UQBTreeIndex, context: QueryContext): Abstrac
         val column = indexTx.columns[0]
 
         /* Tx objects required for index rebuilding. */
-        val binding: ValueSerializer<Value> = SerializerFactory.value(column.type) as ValueSerializer<Value>
+        val binding: ValueBinding<Value> = ValueBinding(ValueSerializer.serializer(column.type)) as ValueBinding<Value>
         val dataStore = this.tryClearAndOpenStore(indexTx) ?: return false
 
         /* Iterate over entity and update index with entries. */

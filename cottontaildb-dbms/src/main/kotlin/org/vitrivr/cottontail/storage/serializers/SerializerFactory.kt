@@ -3,15 +3,14 @@ package org.vitrivr.cottontail.storage.serializers
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.statistics.values.*
+import org.vitrivr.cottontail.serialization.buffer.ValueSerializer
 import org.vitrivr.cottontail.storage.serializers.statistics.MetricsXodusBinding
-import org.vitrivr.cottontail.storage.serializers.tablets.*
-import org.vitrivr.cottontail.storage.serializers.values.*
 
 /**
  * A [SerializerFactory] as used by Cottontail DB to create serializer implementations for its different storage engines.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 3.0.0
  */
 object SerializerFactory {
 
@@ -46,49 +45,4 @@ object SerializerFactory {
         is Types.LongVector -> LongVectorValueStatistics.Binding(type.logicalSize)
         is Types.ShortVector -> ShortVectorValueStatistics.Binding(type.logicalSize)
     } as MetricsXodusBinding<ValueStatistics<T>>
-
-    /**
-     * Returns the [ValueSerializer] for the given [Types].
-     *
-     * @param type The [Types] to lookup a [ValueSerializer] for.
-     * @return [ValueSerializer]
-     */
-    @Suppress("UNCHECKED_CAST")
-    fun <T : Value> value(type: Types<T>): ValueSerializer<T> = when(type) {
-        Types.Boolean -> BooleanValueValueSerializer
-        Types.Date -> DateValueValueSerializer
-        Types.Byte -> ByteValueValueSerializer
-        Types.Complex32 -> Complex32ValueValueSerializer
-        Types.Complex64 -> Complex64ValueValueSerializer
-        Types.Double -> DoubleValueValueSerializer
-        Types.Float -> FloatValueValueSerializer
-        Types.Int -> IntValueValueSerializer
-        Types.Long -> LongValueValueSerializer
-        Types.Short -> ShortValueValueSerializer
-        Types.String -> StringValueValueSerializer
-        Types.Uuid -> UuidValueSerializer
-        is Types.BooleanVector -> BooleanVectorValueValueSerializer(type.logicalSize)
-        is Types.Complex32Vector -> Complex32VectorValueValueSerializer(type.logicalSize)
-        is Types.Complex64Vector -> Complex64VectorValueValueSerializer(type.logicalSize)
-        is Types.DoubleVector -> DoubleVectorValueValueSerializer(type.logicalSize)
-        is Types.FloatVector -> FloatVectorValueValueSerializer(type.logicalSize)
-        is Types.IntVector -> IntVectorValueValueSerializer(type.logicalSize)
-        is Types.LongVector -> LongVectorValueValueSerializer(type.logicalSize)
-        is Types.ByteString -> ByteStringValueValueSerializer
-        is Types.ShortVector -> ShortVectorValueValueSerializer(type.logicalSize)
-        is Types.HalfVector -> HalfVectorValueValueSerializer(type.logicalSize)
-    } as ValueSerializer<T>
-
-    /**
-     * Returns the [ValueSerializer] for the given [Types].
-     *
-     * @param type The [Types] to lookup a [ValueSerializer] for.
-     * @return [ValueSerializer]
-     */
-    @Suppress("UNCHECKED_CAST")
-    fun <T : Value> tablet(type: Types<T>, size: Int, compression: Compression = Compression.LZ4): TabletSerializer<T> = when(compression) {
-        Compression.NONE -> NoneTabletSerializer(type, size)
-        Compression.LZ4 -> LZ4TabletSerializer(type, size)
-        Compression.SNAPPY -> SnappyTabletSerializer(type, size)
-    }
 }

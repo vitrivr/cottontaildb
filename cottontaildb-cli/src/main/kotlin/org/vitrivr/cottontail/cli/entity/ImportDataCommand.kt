@@ -17,8 +17,8 @@ import org.vitrivr.cottontail.client.language.dml.BatchInsert
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.values.PublicValue
 import org.vitrivr.cottontail.data.Format
-import org.vitrivr.cottontail.serialization.descriptionSerializer
-import org.vitrivr.cottontail.serialization.serializer
+import org.vitrivr.cottontail.serialization.kotlinx.descriptionSerializer
+import org.vitrivr.cottontail.serialization.kotlinx.serializer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths

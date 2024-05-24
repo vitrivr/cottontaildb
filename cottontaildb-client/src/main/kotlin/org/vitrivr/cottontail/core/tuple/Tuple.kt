@@ -44,7 +44,7 @@ interface Tuple {
      * @param column The [ColumnDef] specifying the column
      * @return True if record contains the [ColumnDef], false otherwise.
      */
-    fun has(column: ColumnDef<*>): Boolean = this.columns.contains(column)
+    fun has(column: ColumnDef<*>): Boolean = this.columns.any { it.name == column.name }
 
     /**
      * Returns column index of the given [ColumnDef] within this [Tuple]. Returns -1 if [ColumnDef] is not contained
@@ -52,7 +52,7 @@ interface Tuple {
      * @param column The [ColumnDef] to check.
      * @return The column index or -1. of [ColumnDef] is not part of this [Tuple].
      */
-    fun indexOf(column: ColumnDef<*>): Int = this.columns.indexOf(column)
+    fun indexOf(column: ColumnDef<*>): Int = this.indexOf(column.name)
 
     /**
      * Returns column index of the given [Name.ColumnName] within this [Tuple]. Returns -1 if [Name.ColumnName] is not contained
@@ -60,7 +60,7 @@ interface Tuple {
      * @param column The [Name.ColumnName] to check.
      * @return The column index or -1. of [Name.ColumnName] is not part of this [Tuple].
      */
-    fun indexOf(column: Name.ColumnName): Int = this.columns.indexOfFirst { it.name == column }
+    fun indexOf(column: Name.ColumnName): Int = this.columns.indexOfFirst { column.matches(it.name) }
 
     /**
      * Returns column index of the column with the given simple name within this [Tuple]. Returns -1 if [Name.ColumnName] is not contained
@@ -84,7 +84,7 @@ interface Tuple {
      * @param column The [ColumnDef] for which to retrieve the value.
      * @return The value for the [ColumnDef]
      */
-    operator fun get(column: ColumnDef<*>): Value? = this[this.indexOf(column)]
+    operator fun get(column: ColumnDef<*>): Value? = this[column.name]
 
     /**
      * Retrieves the [Value] for the specified [Name.ColumnName] from this [Tuple].
@@ -92,7 +92,11 @@ interface Tuple {
      * @param column The [Name.ColumnName] for which to retrieve the value.
      * @return The value for the [Name.ColumnName]
      */
-    operator fun get(column: Name.ColumnName): Value? = this[this.indexOf(column)]
+    operator fun get(column: Name.ColumnName): Value? {
+        val index = this.indexOf(column)
+        require(index >= 0) { "Column '$column' not found in this tuple!" }
+        return this[index]
+    }
 
     /**
      * Retrieves the [Value] for the specified simple name from this [Tuple].

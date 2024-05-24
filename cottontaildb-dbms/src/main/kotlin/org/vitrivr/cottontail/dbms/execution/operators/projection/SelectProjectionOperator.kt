@@ -31,6 +31,8 @@ class SelectProjectionOperator(parent: Operator, fields: List<Binding.Column>, o
      */
     override fun toFlow(): Flow<Tuple> {
         val columns = this@SelectProjectionOperator.columns.toTypedArray()
-        return this@SelectProjectionOperator.parent.toFlow().map { r -> StandaloneTuple(r.tupleId, columns, Array(columns.size) { r[columns[it]] }) }
+        return this@SelectProjectionOperator.parent.toFlow().map { r ->
+            StandaloneTuple(r.tupleId, columns, Array(columns.size) { r[columns[it]] })
+        }
     }
 }
