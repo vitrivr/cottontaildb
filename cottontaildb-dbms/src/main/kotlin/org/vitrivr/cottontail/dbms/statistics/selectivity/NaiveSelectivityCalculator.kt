@@ -30,7 +30,11 @@ object NaiveSelectivityCalculator {
         is BooleanPredicate.IsNull -> this.estimateIsNull(predicate, statistics)
         is BooleanPredicate.Comparison -> this.estimateComparison(predicate, statistics)
         is BooleanPredicate.Not -> Selectivity(1.0f - this.estimate(predicate.p, statistics).value)
-        is BooleanPredicate.And -> this.estimate(predicate.p1, statistics) * this.estimate(predicate.p2, statistics)
+        is BooleanPredicate.And -> {
+            val pp1 = this.estimate(predicate.p1, statistics)
+            val pp2 =  this.estimate(predicate.p2, statistics)
+            pp1 * pp2
+        }
         is BooleanPredicate.Or -> {
             val pp1 = this.estimate(predicate.p1, statistics)
             val pp2 = this.estimate(predicate.p2, statistics)
@@ -69,8 +73,9 @@ object NaiveSelectivityCalculator {
         val right = predicate.operator.right
         return when {
             left is Binding.Literal && right is Binding.Literal -> if (left.getValue() == right.getValue()) Selectivity.ALL else Selectivity.NOTHING
-            left is Binding.Literal && right is Binding.Column -> statistics[right.column]?.estimateSelectivity(predicate) ?: Selectivity.DEFAULT
-            left is Binding.Column && right is Binding.Literal -> statistics[left.column]?.estimateSelectivity(predicate) ?: Selectivity.DEFAULT
+            left is Binding.Literal && right is Binding.Column -> statistics[right.physical]?.estimateSelectivity(predicate) ?: Selectivity.DEFAULT
+            left is Binding.Column && right is Binding.Literal -> statistics[left.physical]?.estimateSelectivity(predicate) ?: Selectivity.DEFAULT
+            left is Binding.Column && right is Binding.LiteralList -> statistics[left.physical]?.estimateSelectivity(predicate) ?: Selectivity.DEFAULT
             else -> Selectivity.DEFAULT
         }
     }
