@@ -73,9 +73,8 @@ object NaiveSelectivityCalculator {
         val right = predicate.operator.right
         return when {
             left is Binding.Literal && right is Binding.Literal -> if (left.getValue() == right.getValue()) Selectivity.ALL else Selectivity.NOTHING
-            left is Binding.Literal && right is Binding.Column -> statistics[right.physical]?.estimateSelectivity(predicate) ?: Selectivity.DEFAULT
-            left is Binding.Column && right is Binding.Literal -> statistics[left.physical]?.estimateSelectivity(predicate) ?: Selectivity.DEFAULT
-            left is Binding.Column && right is Binding.LiteralList -> statistics[left.physical]?.estimateSelectivity(predicate) ?: Selectivity.DEFAULT
+            left !is Binding.Column && right is Binding.Column -> statistics[right.physical]?.estimateSelectivity(predicate) ?: Selectivity.DEFAULT
+            left is Binding.Column && right !is Binding.Column -> statistics[left.physical]?.estimateSelectivity(predicate) ?: Selectivity.DEFAULT
             else -> Selectivity.DEFAULT
         }
     }

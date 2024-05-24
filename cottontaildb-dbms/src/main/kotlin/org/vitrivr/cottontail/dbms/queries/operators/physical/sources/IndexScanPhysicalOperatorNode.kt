@@ -111,7 +111,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
 
                 /* Populate statistics. */
                 if (!this.statistics.containsKey(binding.physical) && entityProduces.contains(binding.physical)) {
-                    this.statistics[binding.column] = entityTx.columnForName(binding.physical!!.name).newTx(this.index.context).statistics() as ValueStatistics<Value>
+                    this.statistics[binding.physical] = entityTx.columnForName(binding.physical!!.name).newTx(this.index.context).statistics() as ValueStatistics<Value>
                 }
             } else {
                 require(indexProduces.contains(binding.column)) {
