@@ -7,9 +7,7 @@ import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.nodes.traits.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -25,8 +23,6 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysica
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.ExternalSortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.LimitPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.estimateTupleSize
-import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
-import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
 import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
 import java.lang.Math.floorDiv
 
@@ -81,21 +77,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
 
     /** The estimated output size of this [IndexScanPhysicalOperatorNode]. */
     override val outputSize: Long by lazy {
-        with(MissingTuple) {
-            with(this@IndexScanPhysicalOperatorNode.tx.context.bindings) {
-                when (val predicate = this@IndexScanPhysicalOperatorNode.predicate) {
-                    is ProximityPredicate.Scan -> this@IndexScanPhysicalOperatorNode.tx.count()
-                    is ProximityPredicate.NNS -> predicate.k
-                    is ProximityPredicate.FNS -> predicate.k
-                    is ProximityPredicate.ENN -> Selectivity.DEFAULT(this@IndexScanPhysicalOperatorNode.tx.count())
-                    is BooleanPredicate -> {
-                        val entityTx = this@IndexScanPhysicalOperatorNode.tx.parent
-                        val selectivity = NaiveSelectivityCalculator.estimate(predicate, this@IndexScanPhysicalOperatorNode.statistics)
-                        selectivity(entityTx.count())
-                    }
-                }
-            }
-        }
+        this@IndexScanPhysicalOperatorNode.tx.countFor(this@IndexScanPhysicalOperatorNode.predicate)
     }
 
     init {

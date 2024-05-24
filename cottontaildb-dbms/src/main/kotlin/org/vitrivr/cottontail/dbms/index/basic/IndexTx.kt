@@ -107,6 +107,14 @@ interface IndexTx: SubTransaction, Filterable, Countable {
     fun delete(event: DataEvent.Delete)
 
     /**
+     * Estimates the number of results produced by this [IndexTx] for the given [Predicate].
+     *
+     * @param predicate The [Predicate] to perform the lookup.
+     * @return Estimated number of results.
+     */
+    fun countFor(predicate: Predicate): Long
+
+    /**
      * Performs a lookup through this [IndexTx] and returns a [Cursor] of all the [Tuple]s that match the [Predicate].
      *
      * @param predicate The [Predicate] to perform the lookup.

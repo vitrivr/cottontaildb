@@ -217,6 +217,22 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
         }
 
         /**
+         * Calculates the count estimate of this [PQIndex.Tx] processing the provided [Predicate].
+         *
+         * @param predicate [Predicate] to check.
+         * @return [Cost] estimate for the [Predicate]
+         */
+        @Synchronized
+        override fun countFor(predicate: Predicate): Long {
+            if (predicate !is ProximityPredicate.Scan) return 0L
+            if (predicate.column.physical != this.columns[0]) return 0L
+            if (predicate.distance.name != (this.config as IVFPQIndexConfig).distance) return 0L
+            val numberOfCoarseCentroids = this.config.numCoarseCentroids
+            val nProbe = numberOfCoarseCentroids / 32
+            return Math.floorDiv(this.count(), numberOfCoarseCentroids) * nProbe
+        }
+
+        /**
          * Calculates the cost estimate of this [PQIndex.Tx] processing the provided [Predicate].
          *
          * @param predicate [Predicate] to check.
@@ -227,9 +243,7 @@ class IVFPQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(nam
             if (predicate !is ProximityPredicate.Scan) return Cost.INVALID
             if (predicate.column.physical != this.columns[0]) return Cost.INVALID
             if (predicate.distance.name != (this.config as IVFPQIndexConfig).distance) return Cost.INVALID
-            val numberOfCoarseCentroids = this.config.numCoarseCentroids
-            val nprobe = numberOfCoarseCentroids / 32
-            val count = Math.floorDiv(this.count(), numberOfCoarseCentroids) * nprobe
+            val count = this.countFor(predicate)
             return Cost(
                 io = Cost.DISK_ACCESS_READ_SEQUENTIAL.io * Short.SIZE_BYTES,
                 cpu = 4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu,

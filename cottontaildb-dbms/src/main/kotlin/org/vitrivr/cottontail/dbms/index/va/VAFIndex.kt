@@ -219,15 +219,42 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         }
 
         /**
+         * Checks if this [VAFIndex] can process the provided [Predicate] and returns true if so and false otherwise.
+         *
+         * @param predicate [Predicate] to check.
+         * @return True if [Predicate] can be processed, false otherwise.
+         */
+        @Synchronized
+        override fun canProcess(predicate: Predicate): Boolean {
+            if (predicate !is ProximityPredicate) return false
+            if (predicate.column.physical != this.columns[0]) return false
+            if (predicate.distance !is MinkowskiDistance) return false
+            return (predicate is ProximityPredicate.KLimitedSearch || predicate is ProximityPredicate.ENN)
+        }
+
+        /**
+         * Calculates the count estimate of this [VAFIndex.Tx] processing the provided [Predicate].
+         *
+         * @param predicate [Predicate] to check.
+         * @return Count estimate for the [Predicate]
+         */
+        @Synchronized
+        override fun countFor(predicate: Predicate): Long = when (predicate) {
+            is ProximityPredicate.ENN -> this.count()
+            is ProximityPredicate.NNS -> predicate.k
+            is ProximityPredicate.FNS -> predicate.k
+            else -> 0L
+        }
+
+        /**
          * Calculates the cost estimate of this [VAFIndex.Tx] processing the provided [Predicate].
          *
          * @param predicate [Predicate] to check.
          * @return Cost estimate for the [Predicate]
          */
+        @Synchronized
         override fun costFor(predicate: Predicate): Cost {
-            if (predicate !is ProximityPredicate) return Cost.INVALID
-            if (predicate.column.physical != this.columns[0]) return Cost.INVALID
-            if (predicate.distance !is MinkowskiDistance<*>) return Cost.INVALID
+            if (!this.canProcess(predicate)) return Cost.INVALID
             val efficiency = this.getEfficiency()
             val signatureRead = this.count()
             val fullRead = (1.0f - efficiency) * signatureRead /* Assumption: Efficiency determines how many entries must be read. */
@@ -242,6 +269,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
                     (Cost.MEMORY_ACCESS.memory * 2.0f + Cost.FLOP.cpu) * this.columns[0].type.logicalSize * signatureRead + predicate.cost.cpu * fullRead,
                     (Long.SIZE_BYTES + Double.SIZE_BYTES + this.columns[0].type.physicalSize).toFloat() * predicate.k
                 )
+                else -> Cost.INVALID
             }
         }
 
@@ -250,22 +278,10 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          *
          * @return [List] of [ColumnDef].
          */
+        @Synchronized
         override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> {
             require(predicate is ProximityPredicate) { "VAFIndex can only process proximity predicates." }
-            return listOf(predicate.distanceColumn.column, this.columns[0])
-        }
-
-        /**
-         * Checks if this [VAFIndex] can process the provided [Predicate] and returns true if so and false otherwise.
-         *
-         * @param predicate [Predicate] to check.
-         * @return True if [Predicate] can be processed, false otherwise.
-         */
-        override fun canProcess(predicate: Predicate): Boolean {
-            if (predicate !is ProximityPredicate) return false
-            if (predicate.column.physical != this.columns[0]) return false
-            if (predicate.distance !is MinkowskiDistance) return false
-            return (predicate is ProximityPredicate.KLimitedSearch || predicate is ProximityPredicate.ENN)
+            return this.parent.listColumns() + predicate.distanceColumn.column
         }
 
         /**
@@ -274,6 +290,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @param predicate [Predicate] to check.
          * @return Map of [Trait]s for this [VAFIndex]
          */
+        @Synchronized
         override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> = when (predicate) {
             is ProximityPredicate.ENN -> emptyMap()
             is ProximityPredicate.NNS -> mutableMapOf(

@@ -215,34 +215,30 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@PQIndex.name} is missing.")
 
         /**
-         * Returns a [List] of the [ColumnDef] produced by this [PQIndex].
-         *
-         * @return [List] of [ColumnDef].
-         */
-        override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> {
-            require(predicate is ProximityPredicate.Scan) { "PQIndex can only process proximity search." }
-            return listOf(predicate.distanceColumn.column)
-        }
-
-        /**
          * Checks if this [PQIndex] can process the provided [Predicate] and returns true if so and false otherwise.
          *
          * @param predicate [Predicate] to check.
          * @return True if [Predicate] can be processed, false otherwise.
          */
-        override fun canProcess(predicate: Predicate): Boolean = predicate is ProximityPredicate.Scan
-            && predicate.column.physical == this.columns[0]
-            && predicate.distance::class == this.distanceFunction::class
+        @Synchronized
+        override fun canProcess(predicate: Predicate): Boolean {
+            if (predicate !is ProximityPredicate.Scan) return false
+            if (predicate.column.physical != this.columns[0]) return false
+            if (predicate.distance::class != this.distanceFunction::class) return false
+            return true
+        }
 
         /**
-         * Returns the map of [Trait]s this [PQIndex] implements for the given [Predicate]s.
+         * Calculates the count estimate of this [PQIndex.Tx] processing the provided [Predicate].
          *
          * @param predicate [Predicate] to check.
-         * @return Map of [Trait]s for this [PQIndex]
+         * @return Count estimate for the [Predicate]
          */
-        override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> = when (predicate) {
-            is ProximityPredicate.Scan -> mutableMapOf()
-            else -> throw IllegalArgumentException("Unsupported predicate for high-dimensional index. This is a programmer's error!")
+
+        @Synchronized
+        override fun countFor(predicate: Predicate): Long = when (predicate) {
+            is ProximityPredicate.Scan -> this.count()
+            else -> 0L
         }
 
         /**
@@ -253,15 +249,36 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity): AbstractIndex(name, 
          */
         @Synchronized
         override fun costFor(predicate: Predicate): Cost {
-            if (predicate !is ProximityPredicate.Scan) return Cost.INVALID
-            if (predicate.column.physical != this.columns[0]) return Cost.INVALID
-            if (predicate.distance.name != (this.config as PQIndexConfig).distance) return Cost.INVALID
+            if (!this.canProcess(predicate)) return Cost.INVALID
             val count = this.count()
             return Cost(
                 io = Cost.DISK_ACCESS_READ_SEQUENTIAL.io * Short.SIZE_BYTES,
                 cpu = 4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu,
                 accuracy = 0.2f
             ) * this.quantizer.codebooks.size * count
+        }
+
+        /**
+         * Returns a [List] of the [ColumnDef] produced by this [PQIndex].
+         *
+         * @return [List] of [ColumnDef].
+         */
+        @Synchronized
+        override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> {
+            require(predicate is ProximityPredicate.Scan) { "PQIndex can only process proximity search." }
+            return this.parent.listColumns() + predicate.distanceColumn.column
+        }
+
+        /**
+         * Returns the map of [Trait]s this [PQIndex] implements for the given [Predicate]s.
+         *
+         * @param predicate [Predicate] to check.
+         * @return Map of [Trait]s for this [PQIndex]
+         */
+        @Synchronized
+        override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> = when (predicate) {
+            is ProximityPredicate.Scan -> mutableMapOf()
+            else -> throw IllegalArgumentException("Unsupported predicate for high-dimensional index. This is a programmer's error!")
         }
 
         /**

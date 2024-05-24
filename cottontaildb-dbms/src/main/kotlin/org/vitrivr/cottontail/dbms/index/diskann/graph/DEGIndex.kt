@@ -157,6 +157,33 @@ class DEGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         /** Constructs a [DefaultDynamicExplorationGraph] for this [DEGIndex]. */
         private val graph = DefaultDynamicExplorationGraph<VectorValue<*>>(this.config as DEGIndexConfig, this)
 
+
+        /**
+         * Checks if this [DEGIndex] can process the provided [Predicate] and returns true if so and false otherwise.
+         *
+         * @param predicate [Predicate] to check.
+         * @return True if [Predicate] can be processed, false otherwise.
+         */
+        @Synchronized
+        override fun canProcess(predicate: Predicate): Boolean {
+            if (predicate !is ProximityPredicate.NNS) return false
+            if (predicate.column.physical == this.columns[0]) return false
+            if (predicate.distance.name == this.graph.distanceFunction.name) return false
+            return true
+        }
+
+        /**
+         * Calculates the count estimate of this [DEGIndex.Tx] processing the provided [Predicate].
+         *
+         * @param predicate [Predicate] to check.
+         * @return Count estimate for the [Predicate]
+         */
+        @Synchronized
+        override fun countFor(predicate: Predicate): Long {
+            if (!canProcess(predicate)) return 0L
+            return (predicate as ProximityPredicate.NNS).k
+        }
+
         /**
          * Calculates the cost estimate of this [DEGIndex.Tx] processing the provided [Predicate].
          *
@@ -165,10 +192,7 @@ class DEGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          */
         @Synchronized
         override fun costFor(predicate: Predicate): Cost {
-            if (predicate !is ProximityPredicate.NNS) return Cost.INVALID
-            if (predicate.column.physical != this.columns[0]) return Cost.INVALID
-            if (predicate.distance.name != (this.config as DEGIndexConfig).distance) return Cost.INVALID
-            val count = this.count()
+            if (!canProcess(predicate)) return Cost.INVALID
             return Cost(
                 io = Cost.DISK_ACCESS_READ_SEQUENTIAL.io * Short.SIZE_BYTES,
                 cpu = 4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu,
@@ -181,9 +205,10 @@ class DEGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          *
          * @return [List] of [ColumnDef].
          */
+        @Synchronized
         override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> {
             require(predicate is ProximityPredicate.NNS) { "PQIndex can only process proximity search." }
-            return listOf(predicate.distanceColumn.column)
+            return this.parent.listColumns() + predicate.distanceColumn.column
         }
 
         /**
@@ -192,19 +217,11 @@ class DEGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
          * @param predicate [Predicate] to check.
          * @return Map of [Trait]s for this [DEGIndex]
          */
+        @Synchronized
         override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> = when (predicate) {
             is ProximityPredicate.NNS -> mutableMapOf()
             else -> throw IllegalArgumentException("Unsupported predicate for high-dimensional index. This is a programmer's error!")
         }
-
-        /**
-         * Checks if this [DEGIndex] can process the provided [Predicate] and returns true if so and false otherwise.
-         *
-         * @param predicate [Predicate] to check.
-         * @return True if [Predicate] can be processed, false otherwise.
-         */
-        override fun canProcess(predicate: Predicate): Boolean
-            = predicate is ProximityPredicate.NNS && predicate.column.physical == this.columns[0] && predicate.distance.name == this.graph.distanceFunction.name
 
         /**
          * Performs a lookup through this [DEGIndex.Tx] and returns a [Cursor] of all [Tuple]s that match the [Predicate].

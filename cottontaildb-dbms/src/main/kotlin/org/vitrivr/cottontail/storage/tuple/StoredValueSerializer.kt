@@ -54,6 +54,7 @@ sealed interface StoredValueSerializer<T: Value> {
             get() = this.wrapped.type
 
         override fun read(input: ByteBuffer): StoredValue<T>? {
+            input.mark()
             if (input.get() == NULL) {
                 return null
             } else {

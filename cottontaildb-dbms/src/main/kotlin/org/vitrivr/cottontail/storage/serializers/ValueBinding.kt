@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.serialization.buffer.ValueSerializer
 import java.io.DataOutput
 import java.nio.ByteBuffer
+import kotlin.math.min
 
 /**
  * A [ValueBinding] is convert [Value]s into [ByteIterable]s and vice-versa.
@@ -17,7 +18,7 @@ import java.nio.ByteBuffer
  */
 class ValueBinding<T: Value>(val serializer: ValueSerializer<T>) {
     /** Internal buffer used for deserialization. */
-    private var buffer = ByteBuffer.allocate(this.serializer.type.physicalSize)
+    private var buffer = ByteBuffer.allocate(min(this.serializer.type.physicalSize, 1))
 
     /**
      * Converts a [ByteIterable] to a [Value].

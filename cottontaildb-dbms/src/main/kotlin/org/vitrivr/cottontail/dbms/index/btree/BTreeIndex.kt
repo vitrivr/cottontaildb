@@ -31,6 +31,7 @@ import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata.Companion.storeName
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
+import org.vitrivr.cottontail.dbms.index.pq.PQIndex
 import org.vitrivr.cottontail.dbms.index.pq.rebuilder.AsyncPQIndexRebuilder
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
@@ -82,7 +83,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          */
         override fun initialize(name: Name.IndexName, parent: EntityTx): Boolean = try {
             require(parent is DefaultEntity.Tx) { "A BTreeIndex can only be used with a DefaultEntity.Tx!" }
-            parent.xodusTx.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, parent.xodusTx, true) != null
+            parent.xodusTx.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES, parent.xodusTx, true) != null
         } catch (e:Throwable) {
             LOGGER.error("Failed to initialize BTREE index $name due to an exception: ${e.message}.")
             false
@@ -201,31 +202,39 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @param predicate The [Predicate] to check.
          * @return True if [Predicate] can be processed, false otherwise.
          */
-        override fun canProcess(predicate: Predicate) = predicate is BooleanPredicate.Comparison
-            && predicate.columns.all { it.physical == this.columns[0] }
-            && (predicate.operator is ComparisonOperator.In || predicate.operator is ComparisonOperator.Equal || predicate.operator is ComparisonOperator.Like)
-
-        /**
-         * Returns a [List] of the [ColumnDef] produced by this [BTreeIndex.Tx].
-         *
-         * @return [List] of [ColumnDef].
-         */
-        @Synchronized
-        override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> {
-            require(predicate is BooleanPredicate) { "BTree index can only process boolean predicates." }
-            return this.columns.toList()
+        override fun canProcess(predicate: Predicate): Boolean {
+            if (predicate !is BooleanPredicate.Comparison) return false
+            if (predicate.columns.any { it.physical != this.columns[0] }) return false
+            return when (predicate.operator) {
+                is ComparisonOperator.Equal,
+                is ComparisonOperator.NotEqual,
+                is ComparisonOperator.Greater,
+                is ComparisonOperator.Less,
+                is ComparisonOperator.GreaterEqual,
+                is ComparisonOperator.LessEqual,
+                is ComparisonOperator.In -> true
+                else -> false
+            }
         }
 
         /**
-         * The [BTreeIndex] does not return results in a particular order.
+         * Calculates the count estimate of this [PQIndex.Tx] processing the provided [Predicate].
          *
          * @param predicate [Predicate] to check.
-         * @return List that describes the sort order of the values returned by the [BTreeIndex]
+         * @return Count estimate for the [Predicate]
          */
         @Synchronized
-        override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> {
-            require(predicate is BooleanPredicate) { "BTree index can only process boolean predicates." }
-            return mapOf(NotPartitionableTrait to NotPartitionableTrait)
+        override fun countFor(predicate: Predicate): Long {
+            if (!canProcess(predicate)) return 0L
+            val entityTx = this.parent
+            val statistics = this.columns.associateWith { entityTx.statistics(it) }
+            val selectivity = with(this@Tx.context.bindings) {
+                with(MissingTuple) {
+                    NaiveSelectivityCalculator.estimate(predicate as BooleanPredicate.Comparison, statistics)
+                }
+            }
+            val count = this.count()
+            return selectivity(count)
         }
 
         /**
@@ -236,27 +245,43 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          */
         @Synchronized
         override fun costFor(predicate: Predicate): Cost {
-            if (predicate !is BooleanPredicate.Comparison || predicate.columns.any { it.physical != this.columns[0] }) return Cost.INVALID
-            val entityTx = this.parent
-            val statistics = this.columns.associateWith { entityTx.statistics(it) }
-            val selectivity = with(this@Tx.context.bindings) {
-                with(MissingTuple) {
-                    NaiveSelectivityCalculator.estimate(predicate, statistics)
-                }
-            }
-            val count = this.count()                /* Number of entries. */
-            val countOut = selectivity(count)       /* Number of entries actually selected (comparison still required). */
-            val search = log10(count.toFloat())     /* Overhead for search into the index. */
-            return when (predicate.operator) {
+            if (!canProcess(predicate)) return Cost.INVALID
+            val count = this.countFor(predicate)              /* Number of entries. */
+            val search = log10(count.toFloat())                    /* Overhead for search into the index. */
+            return when ((predicate as BooleanPredicate.Comparison).operator) {
                 is ComparisonOperator.Equal,
                 is ComparisonOperator.NotEqual,
                 is ComparisonOperator.Greater,
                 is ComparisonOperator.Less,
                 is ComparisonOperator.GreaterEqual,
                 is ComparisonOperator.LessEqual,
-                is ComparisonOperator.In -> Cost.DISK_ACCESS_READ_SEQUENTIAL * (search + countOut) + predicate.cost * countOut
+                is ComparisonOperator.In -> Cost.DISK_ACCESS_READ_SEQUENTIAL * (search + count) + predicate.cost * count
                 else -> Cost.INVALID
             }
+        }
+
+
+        /**
+         * Returns a [List] of the [ColumnDef] produced by this [BTreeIndex.Tx].
+         *
+         * @return [List] of [ColumnDef].
+         */
+        @Synchronized
+        override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> {
+            require(predicate is BooleanPredicate.Comparison) { "BTreeIndex can only process BooleanPredicate.Comparison." }
+            return this.parent.listColumns()
+        }
+
+        /**
+         * The [BTreeIndex] does not return results in a particular order.
+         *
+         * @param predicate [Predicate] to check.
+         * @return List that describes the sort order of the values returned by the [BTreeIndex]
+         */
+        @Synchronized
+        override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> {
+            require(predicate is BooleanPredicate.Comparison) { "BTreeIndex can only process BooleanPredicate.Comparison." }
+            return mapOf(NotPartitionableTrait to NotPartitionableTrait)
         }
 
         /**

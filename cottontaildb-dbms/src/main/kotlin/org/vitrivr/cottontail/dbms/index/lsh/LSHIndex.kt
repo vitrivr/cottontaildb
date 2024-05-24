@@ -214,11 +214,23 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
         }
 
         /**
+         * Calculates the count estimate of this [PQIndex.Tx] processing the provided [Predicate].
+         *
+         * @param predicate [Predicate] to check.
+         * @return Count estimate for the [Predicate]
+         */
+        @Synchronized
+        override fun countFor(predicate: Predicate): Long {
+            TODO("Not yet implemented")
+        }
+
+        /**
          * Estimates the [Cost] for using this [LSHIndex] to evaluate the given [Predicate]
          *
          * @param predicate [Predicate] to check.
          * @return [Cost] estimation.
          */
+        @Synchronized
         override fun costFor(predicate: Predicate): Cost {
             TODO("Not yet implemented")
         }

@@ -30,6 +30,7 @@ import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata.Companion.storeName
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
+import org.vitrivr.cottontail.dbms.index.pq.PQIndex
 import org.vitrivr.cottontail.dbms.index.pq.rebuilder.AsyncPQIndexRebuilder
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
@@ -43,7 +44,7 @@ import kotlin.math.log10
  * unique [Value] to a [TupleId]. Well suited for equality based lookups of [Value]s.
  *
  * @author Ralph Gasser
- * @version 3.1.0
+ * @version 4.0.0
  */
 class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
@@ -194,29 +195,38 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @param predicate The [Predicate] to check.
          * @return True if [Predicate] can be processed, false otherwise.
          */
-        override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate.Comparison
-            && predicate.columns.all { it.physical == this.columns[0] }
-            && (predicate.operator is ComparisonOperator.In || predicate.operator is ComparisonOperator.Equal)
-
-        /**
-         * Returns a [List] of the [ColumnDef] produced by this [UQBTreeIndex].
-         *
-         * @return [List] of [ColumnDef].
-         */
-        override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> {
-            require(predicate is BooleanPredicate) { "Unique BTree index can only process boolean predicates." }
-            return this.columns.toList()
+        override fun canProcess(predicate: Predicate): Boolean {
+            if (predicate !is BooleanPredicate.Comparison) return false
+            if (predicate.columns.any { it.physical != this.columns[0] }) return false
+            return when (predicate.operator) {
+                is ComparisonOperator.Equal,
+                is ComparisonOperator.NotEqual,
+                is ComparisonOperator.Greater,
+                is ComparisonOperator.Less,
+                is ComparisonOperator.GreaterEqual,
+                is ComparisonOperator.LessEqual,
+                is ComparisonOperator.In -> true
+                else -> false
+            }
         }
 
         /**
-         * The [UQBTreeIndex] does not return results in a particular order.
+         * Calculates the count estimate of this [PQIndex.Tx] processing the provided [Predicate].
          *
          * @param predicate [Predicate] to check.
-         * @return List that describes the sort order of the values returned by the [BTreeIndex]
+         * @return Count estimate for the [Predicate]
          */
-        override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> {
-            require(predicate is BooleanPredicate) { "Unique BTree index can only process boolean predicates." }
-            return mapOf(NotPartitionableTrait to NotPartitionableTrait)
+        @Synchronized
+        override fun countFor(predicate: Predicate): Long {
+            if (!canProcess(predicate)) return 0L
+            val statistics = this.columns.associateWith { this.parent.statistics(it) }
+            val selectivity = with(this@Tx.context.bindings) {
+                with(MissingTuple) {
+                    NaiveSelectivityCalculator.estimate(predicate as BooleanPredicate.Comparison, statistics)
+                }
+            }
+            val count = this.count()
+            return selectivity(count)
         }
 
         /**
@@ -227,26 +237,43 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          */
         @Synchronized
         override fun costFor(predicate: Predicate): Cost {
-            if (predicate !is BooleanPredicate.Comparison || predicate.columns.any { it.physical != this.columns[0] }) return Cost.INVALID
-            val statistics = this.columns.associateWith { this.parent.statistics(it) }
-            val selectivity = with(this@Tx.context.bindings) {
-                with(MissingTuple) {
-                    NaiveSelectivityCalculator.estimate(predicate, statistics)
-                }
-            }
-            val count = this.count()                /* Number of entries. */
-            val countOut = selectivity(count)       /* Number of entries actually selected (comparison still required). */
+            if (!canProcess(predicate)) return Cost.INVALID
+            val count = this.countFor(predicate)                /* Number of entries. */
             val search = log10(count.toFloat())     /* Overhead for search into the index. */
-            return when (predicate.operator) {
+            return when ((predicate as BooleanPredicate.Comparison).operator) {
                 is ComparisonOperator.Equal,
                 is ComparisonOperator.NotEqual,
                 is ComparisonOperator.Greater,
                 is ComparisonOperator.Less,
                 is ComparisonOperator.GreaterEqual,
                 is ComparisonOperator.LessEqual,
-                is ComparisonOperator.In -> Cost.DISK_ACCESS_READ_SEQUENTIAL * (search + countOut) + predicate.cost * countOut
+                is ComparisonOperator.In -> Cost.DISK_ACCESS_READ_SEQUENTIAL * (search + count) + predicate.cost * count
                 else -> Cost.INVALID
             }
+        }
+
+
+        /**
+         * Returns a [List] of the [ColumnDef] produced by this [UQBTreeIndex].
+         *
+         * @return [List] of [ColumnDef].
+         */
+        @Synchronized
+        override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> {
+            require(predicate is BooleanPredicate.Comparison) { "UQBTreeIndex can only process BooleanPredicate.Comparison." }
+            return this.parent.listColumns()
+        }
+
+        /**
+         * The [UQBTreeIndex] does not return results in a particular order.
+         *
+         * @param predicate [Predicate] to check.
+         * @return List that describes the sort order of the values returned by the [BTreeIndex]
+         */
+        @Synchronized
+        override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> {
+            require(predicate is BooleanPredicate.Comparison) { "UQBTreeIndex can only process boolean predicates." }
+            return mapOf(NotPartitionableTrait to NotPartitionableTrait)
         }
 
         /**

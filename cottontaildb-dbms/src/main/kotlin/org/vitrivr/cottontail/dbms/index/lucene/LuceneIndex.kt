@@ -29,6 +29,7 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
+import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
@@ -43,6 +44,8 @@ import org.vitrivr.cottontail.dbms.execution.transactions.SubTransaction
 import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.btree.BTreeIndex
+import org.vitrivr.cottontail.dbms.index.diskann.graph.DEGIndex
+import org.vitrivr.cottontail.dbms.index.diskann.graph.DEGIndexConfig
 import org.vitrivr.cottontail.dbms.index.pq.rebuilder.AsyncPQIndexRebuilder
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.server.Instance
@@ -296,9 +299,22 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
         override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> {
             require(predicate is BooleanPredicate) { "Lucene Index can only process Boolean predicates." }
             return mapOf(
-                NotPartitionableTrait to NotPartitionableTrait,
-                //OrderTrait to OrderTrait(listOf(ColumnDef(this@LuceneIndex.parent.name.column("score"), Types.Double) to SortOrder.DESCENDING))
+                NotPartitionableTrait to NotPartitionableTrait
             )
+        }
+
+        /**
+         * Calculates the count estimate of this [DEGIndex.Tx] processing the provided [Predicate].
+         *
+         * @param predicate [Predicate] to check.
+         * @return Count estimate for the [Predicate]
+         */
+        @Synchronized
+        override fun countFor(predicate: Predicate): Long {
+            if (predicate !is ProximityPredicate.NNS) return 0L
+            if (predicate.column.physical != this.columns[0]) return 0L
+            if (predicate.distance.name != (this.config as DEGIndexConfig).distance) return 0L
+            return predicate.k
         }
 
         /**
