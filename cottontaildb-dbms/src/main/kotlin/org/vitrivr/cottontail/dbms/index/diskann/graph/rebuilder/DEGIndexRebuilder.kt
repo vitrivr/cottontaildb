@@ -30,27 +30,30 @@ class DEGIndexRebuilder(index: DEGIndex, context: QueryContext): AbstractIndexRe
 
         /* Open data store. */
         this.tryClearAndOpenStore(indexTx) ?: return false
-        val count = indexTx.parent.count()
         val column = indexTx.columns[0]
 
         /* Generate Graph structure. */
         val graph = DefaultDynamicExplorationGraph<VectorValue<*>>(config, indexTx)
 
         /* Iterate over column and update index with entries. */
-        var counter = 0
-        indexTx.parent.cursor(indexTx.columns).use { cursor ->
-            while (cursor.moveNext()) {
-                val value = cursor.value()[column]
-                if (value is VectorValue<*>) {
-                    graph.index(cursor.key(), value)
-
-                    /* Data is flushed every once in a while. */
-                    if ((++counter) % 1_000_000 == 0) {
-                        LOGGER.debug("Rebuilding index {} ({}) still running ({} / {})...", this.index.name, this.index.type, counter, count)
+        try {
+            indexTx.parent.cursor(indexTx.columns).use { cursor ->
+                while (cursor.moveNext()) {
+                    val value = cursor.value()[column]
+                    if (value is VectorValue<*>) {
+                        graph.index(cursor.key(), value)
                     }
                 }
             }
+
+            /* Saves the graph. */
+            graph.save()
+        } catch (e: Throwable) {
+            return false
         }
+
+
+        /* Update stored ProductQuantizer. */
         return true
     }
 }
