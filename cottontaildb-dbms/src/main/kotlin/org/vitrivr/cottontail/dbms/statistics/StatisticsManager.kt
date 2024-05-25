@@ -65,7 +65,7 @@ class StatisticsManager(private val instance: Instance): TransactionObserver, Cl
     }
 
     /**
-     * The [StatisticsManager] is interested in all [ColumnEvent]'s.
+     * The [StatisticsManager] is interested in all [DataEvent]'s.
      *
      * @param event The [Event] to check.
      * @return True
