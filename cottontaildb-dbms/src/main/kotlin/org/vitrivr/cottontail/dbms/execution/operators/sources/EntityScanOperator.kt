@@ -6,7 +6,6 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
@@ -17,9 +16,9 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * An [Operator.SourceOperator] that scans an [Entity] and streams all [Tuple]s found within.
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 1.7.0
  */
-class EntityScanOperator(groupId: GroupId, private val entity: EntityTx, private val fetch: List<Binding.Column>, private val partitionIndex: Int, private val partitions: Int, override val context: QueryContext) : Operator.SourceOperator(groupId) {
+class EntityScanOperator(groupId: GroupId, private val entity: EntityTx, private val partitionIndex: Int, private val partitions: Int, override val context: QueryContext) : Operator.SourceOperator(groupId) {
 
     companion object {
         /** [Logger] instance used by [EntityScanOperator]. */
@@ -27,7 +26,7 @@ class EntityScanOperator(groupId: GroupId, private val entity: EntityTx, private
     }
 
     /** The [ColumnDef] fetched by this [EntityScanOperator]. */
-    override val columns: List<ColumnDef<*>> = this.fetch.map { it.column }
+    override val columns: List<ColumnDef<*>> by lazy { this.entity.listColumns() }
 
     /**
      * Converts this [EntityScanOperator] to a [Flow] and returns it.
@@ -35,13 +34,9 @@ class EntityScanOperator(groupId: GroupId, private val entity: EntityTx, private
      * @return [Flow] representing this [EntityScanOperator]
      */
     override fun toFlow(): Flow<Tuple> = flow {
-        val fetch = this@EntityScanOperator.fetch.map {
-            it.physical ?: throw IllegalStateException("Cannot execute EntityScanOperator with a non-physical column.")
-        }.toTypedArray()
-        val rename = this@EntityScanOperator.fetch.map { it.column.name }.toTypedArray()
         val partition = this@EntityScanOperator.entity.partitionFor(this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)
         var read = 0
-        this@EntityScanOperator.entity.cursor(fetch, partition, rename).use { cursor ->
+        this@EntityScanOperator.entity.cursor(partition).use { cursor ->
         while (cursor.moveNext()) {
                 emit(cursor.value())
                 read += 1

@@ -56,13 +56,14 @@ class AsyncPQIndexRebuilder(index: PQIndex, instance: Instance): AbstractAsyncIn
 
         /* Tx objects required for index rebuilding. */
         val count = indexTx.parent.count()
+        val column = indexTx.columns[0]
 
         /* Iterate over entity and update index with entries. */
         var counter = 0
-        indexTx.parent.cursor(indexTx.columns).use { cursor ->
+        indexTx.parent.cursor().use { cursor ->
             while (cursor.hasNext()) {
                 if (this.state != IndexRebuilderState.REBUILDING) return false
-                val value = cursor.value()[0]
+                val value = cursor.value()[column]
                 if (value is VectorValue<*>) {
                     if (!this.tmpDataStore.add(this.tmpTx, cursor.key().toKey(), this.newQuantizer.quantize(value).toEntry())) {
                         return false

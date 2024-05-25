@@ -20,7 +20,7 @@ import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
  * A [NullaryPhysicalOperatorNode] that formalizes the random sampling of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.8.0
+ * @version 2.8.1
  */
 @Suppress("UNCHECKED_CAST")
 class EntitySamplePhysicalOperatorNode(override val groupId: Int, val tx: EntityTx, override val columns: List<Binding.Column>, val p: Float, val seed: Long = System.currentTimeMillis()) : NullaryPhysicalOperatorNode() {
@@ -76,7 +76,7 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val tx: Entity
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): EntitySampleOperator = EntitySampleOperator(this.groupId, this.tx, this.columns, this.p, this.seed, ctx)
+    override fun toOperator(ctx: QueryContext): EntitySampleOperator = EntitySampleOperator(this.groupId, this.tx, this.p, this.seed, ctx)
 
     /** Generates and returns a [String] representation of this [EntitySamplePhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.physical!!.name.toString() }}]"

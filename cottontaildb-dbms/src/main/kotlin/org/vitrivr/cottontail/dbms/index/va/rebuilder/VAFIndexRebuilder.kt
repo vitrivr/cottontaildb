@@ -40,15 +40,16 @@ class VAFIndexRebuilder(index: VAFIndex, context: QueryContext): AbstractIndexRe
         /* Tx objects required for index rebuilding. */
         val dataStore = this.tryClearAndOpenStore(indexTx) ?: return false
         val count = indexTx.parent.count()
+        val column = indexTx.columns[0]
 
         /* Obtain new marks. */
         val marks = EquidistantVAFMarks(indexTx.parent.statistics(indexTx.columns[0]) as RealVectorValueStatistics<*>, config.marksPerDimension)
 
         /* Iterate over entity and update index with entries. */
         var counter = 1
-        indexTx.parent.cursor(indexTx.columns).use { cursor ->
+        indexTx.parent.cursor().use { cursor ->
             while (cursor.hasNext()) {
-                val value = cursor.value()[0]
+                val value = cursor.value()[column]
                 if (value is RealVectorValue<*>) {
                     if (!dataStore.put(indexTx.xodusTx, cursor.key().toKey(), marks.getSignature(value).toEntry())) {
                         return false

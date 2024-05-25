@@ -20,6 +20,7 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.basic.IndexType
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
+import org.vitrivr.cottontail.utilities.math.ranking.RankingUtilities
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
 import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
 import java.util.stream.Stream
@@ -111,7 +112,7 @@ class PQFloatIndexTest : AbstractIndexTest() {
         /* Fetch results through full table scan. */
         val bruteForceResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(k)
         val bruteForceDuration = measureTime {
-            entityTx.cursor(arrayOf(this.indexColumn)).use { cursor ->
+            entityTx.cursor().use { cursor ->
                 cursor.forEach {
                     val vector = it[this.indexColumn]
                     if (vector is FloatVectorValue) {
@@ -125,24 +126,17 @@ class PQFloatIndexTest : AbstractIndexTest() {
         val indexResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(k)
         val indexDuration = measureTime {
             indexTx.filter(predicate).use { cursor ->
-                cursor.forEach {  indexResults.offer(ComparablePair(it.tupleId, it[0] as DoubleValue)) }
+                cursor.forEach {  indexResults.offer(ComparablePair(it.tupleId, it[distCol.column] as DoubleValue)) }
             }
         }
         txn.commit()
 
         /* Calculate an accuracy score for results (since this is an inexact index). */
-        var recall = 0.0f
-        val bruteForceResultsList = bruteForceResults.toList()
-        val indexResultsList = indexResults.toList()
-        for (i in 0 until k) {
-            if (bruteForceResultsList.any { it.first ==  indexResultsList[i].first }) {
-                recall += 1.0f / k
-            }
-        }
+        val recall = RankingUtilities.recallAtK(bruteForceResults.toList().map { it.first }, indexResults.toList().map { it.first }, k)
 
         /* Since the data comes pre-clustered, accuracy should always be greater than 90%. */
-        Assertions.assertTrue(k == bruteForceResultsList.size) { "Number of items retrieved by brute-force search is not equal to k." }
-        Assertions.assertTrue(k == indexResultsList.size) { "Number of items retrieved by indexed search is not equal to k." }
+        Assertions.assertTrue(k == indexResults.size) { "Number of items retrieved by brute-force search is not equal to k." }
+        Assertions.assertTrue(k == bruteForceResults.size) { "Number of items retrieved by indexed search is not equal to k." }
         Assertions.assertTrue(recall >= 0.9f) { "Recall attained by indexed search is smaller than 90%." }
         Assertions.assertTrue(bruteForceDuration > indexDuration) { "Brute-force search was faster than indexed search." }
 

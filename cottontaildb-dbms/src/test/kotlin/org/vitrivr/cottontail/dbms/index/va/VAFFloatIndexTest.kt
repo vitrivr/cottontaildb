@@ -88,7 +88,7 @@ class VAFFloatIndexTest : AbstractIndexTest() {
             /* Fetch results through full table scan. */
             val bruteForceResults = HeapSelection(k.toInt(), RecordComparator.SingleNonNullColumnComparator(predicate.distanceColumn.column, SortOrder.ASCENDING))
             val bruteForceDuration = measureTime {
-                entityTx.cursor(arrayOf(this.indexColumn)).use { cursor ->
+                entityTx.cursor().use { cursor ->
                     cursor.forEach {
                         bruteForceResults.offer(StandaloneTuple(it.tupleId, arrayOf(idxCol.column, predicate.distanceColumn.column), arrayOf(it[idxCol.column], function(query, it[this.indexColumn]))))
                     }

@@ -24,12 +24,15 @@ import java.util.*
  * Only produces a single [Tuple].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 class SelectDistinctProjectionOperator(parent: Operator, fields: List<Binding.Column>, override val context: QueryContext) : Operator.PipelineOperator(parent) {
 
     /** Columns produced by [SelectDistinctProjectionOperator]. */
     override val columns: List<ColumnDef<*>> = fields.map { it.column }
+
+    /** Columns produced by [SelectDistinctProjectionOperator]. */
+    private val incoming: List<ColumnDef<*>> = fields.map { it.physical ?: it.column }
 
     /** The name of the temporary [Store] used to execute this [SelectDistinctProjectionOperator] operation. */
     private val tmpPath = this.context.catalogue.config.temporaryDataFolder().resolve("${UUID.randomUUID()}")
@@ -53,10 +56,11 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Binding.Co
      */
     override fun toFlow(): Flow<Tuple> = flow {
         val columns = this@SelectDistinctProjectionOperator.columns.toTypedArray()
+        val incoming = this@SelectDistinctProjectionOperator.incoming.toTypedArray()
+
         val hasher = RecordHasher(this@SelectDistinctProjectionOperator.columns)
-        val incoming = this@SelectDistinctProjectionOperator.parent.toFlow()
-        incoming.collect { r ->
-            val projected = StandaloneTuple(r.tupleId, columns, Array(columns.size) { r[columns[it]]})
+        this@SelectDistinctProjectionOperator.parent.toFlow().collect { r ->
+            val projected = StandaloneTuple(r.tupleId, columns, Array(columns.size) { r[incoming[it]]})
 
             /* Generates hash from record. */
             val hash = ArrayByteIterable(hasher.hash(projected))

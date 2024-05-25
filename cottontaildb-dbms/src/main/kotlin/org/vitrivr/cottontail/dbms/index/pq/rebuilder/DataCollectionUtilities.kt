@@ -10,7 +10,7 @@ import java.util.*
  * A collection of utility classes used for data collection.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 object DataCollectionUtilities {
     /**
@@ -25,7 +25,7 @@ object DataCollectionUtilities {
     fun acquireLearningData(txn: EntityTx, column: ColumnDef<*>, fraction: Float, seed: Long): List<VectorValue<*>> {
         val random = SplittableRandom(seed)
         val learningData = LinkedList<VectorValue<*>>()
-        txn.cursor(arrayOf(column)).use { cursor ->
+        txn.cursor().use { cursor ->
             while (cursor.hasNext()) {
                 if (random.nextDouble() <= fraction) {
                     val value = cursor.value()[column]

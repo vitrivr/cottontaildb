@@ -46,7 +46,7 @@ abstract class AbstractSequenceTest: AbstractEntityTest() {
         val schemaTx2 = schema2.newTx(catalogueTx2)
         val entity2 = schemaTx2.entityForName(TestConstants.TEST_ENTITY_NAME)
         val entityTx2 = entity2.createOrResumeTx(schemaTx2)
-        val cursor = entityTx2.cursor(this.entities[0].second.toTypedArray())
+        val cursor = entityTx2.cursor()
         for ((i, record) in cursor.withIndex()) {
             test(record[this.entities[0].second[0]], i)
         }

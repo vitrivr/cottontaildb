@@ -55,7 +55,7 @@ class IVFPQIndexRebuilder(index: IVFPQIndex, context: QueryContext): AbstractInd
 
         /* Iterate over column and update index with entries. */
         var counter = 0
-        indexTx.parent.cursor(indexTx.columns).use { cursor ->
+        indexTx.parent.cursor().use { cursor ->
             while (cursor.moveNext()) {
                 val value = cursor.value()[0]
                 if (value is VectorValue<*>) {

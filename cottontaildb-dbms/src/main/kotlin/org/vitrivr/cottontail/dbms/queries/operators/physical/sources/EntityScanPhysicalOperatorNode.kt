@@ -118,7 +118,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val tx: EntityTx
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      * @return [EntityScanOperator]
      */
-    override fun toOperator(ctx: QueryContext): EntityScanOperator = EntityScanOperator(this.groupId, this.tx, this.columns, this.partitionIndex, this.partitions, ctx)
+    override fun toOperator(ctx: QueryContext): EntityScanOperator = EntityScanOperator(this.groupId, this.tx,  this.partitionIndex, this.partitions, ctx)
 
     /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.physical!!.name.toString() }}]"

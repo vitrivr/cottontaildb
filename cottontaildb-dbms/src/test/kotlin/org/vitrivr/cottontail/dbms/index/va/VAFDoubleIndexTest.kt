@@ -99,14 +99,14 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
             /* Fetch results through full table scan. */
             val bruteForceResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(k.toInt())
             val bruteForceDuration = measureTime {
-                val cursor = entityTx.cursor(arrayOf(this.indexColumn))
-                cursor.forEach {
-                    val vector = it[this.indexColumn]
-                    if (vector is DoubleVectorValue) {
-                        bruteForceResults.offer(ComparablePair(it.tupleId, function(query, vector)!!))
+                entityTx.cursor().use { cursor ->
+                    cursor.forEach {
+                        val vector = it[this.indexColumn]
+                        if (vector is DoubleVectorValue) {
+                            bruteForceResults.offer(ComparablePair(it.tupleId, function(query, vector)!!))
+                        }
                     }
                 }
-                cursor.close()
             }
 
             /* Compare results. */

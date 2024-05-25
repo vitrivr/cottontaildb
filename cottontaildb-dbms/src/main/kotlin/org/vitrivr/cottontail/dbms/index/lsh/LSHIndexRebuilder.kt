@@ -29,7 +29,7 @@ class LSHIndexRebuilder(index: LSHIndex, context: QueryContext): AbstractIndexRe
 
         /* Generate a new LSHSignature for each entry in the entity and adds it to the index. */
         val generator = config.generator(column.type.logicalSize)
-        indexTx.parent.cursor(indexTx.columns).use { cursor ->
+        indexTx.parent.cursor().use { cursor ->
             val wrappedStore = LSHDataStore(dataStore)
             while (cursor.moveNext()) {
                 val tupleId = cursor.key()

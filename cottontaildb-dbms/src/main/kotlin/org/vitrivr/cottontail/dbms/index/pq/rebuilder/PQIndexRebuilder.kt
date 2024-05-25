@@ -29,14 +29,17 @@ class PQIndexRebuilder(index: PQIndex, context: QueryContext): AbstractIndexRebu
         val dataStore = this.tryClearAndOpenStore(indexTx) ?: return false
         val count = indexTx.parent.count()
 
+        /* Read basic index properties. */
+        val column = indexTx.columns[0]
+
         /* Train new quantizer. */
         val quantizer = PQIndex.trainQuantizer(indexTx)
 
         /* Iterate over column and update index with entries. */
         var counter = 0
-        indexTx.parent.cursor(indexTx.columns).use { cursor ->
+        indexTx.parent.cursor().use { cursor ->
             while (cursor.moveNext()) {
-                val value = cursor.value()[0]
+                val value = cursor.value()[column]
                 if (value is VectorValue<*>) {
                     if (!dataStore.put(indexTx.parent.xodusTx, cursor.key().toKey(), quantizer.quantize(value).toEntry())) {
                         return false

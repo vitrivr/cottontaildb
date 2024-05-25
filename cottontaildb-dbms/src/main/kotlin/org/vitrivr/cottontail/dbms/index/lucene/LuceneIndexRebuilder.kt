@@ -33,9 +33,9 @@ class LuceneIndexRebuilder(index: LuceneIndex, context: QueryContext): AbstractI
             store.indexWriter.deleteAll()
 
             /* Iterate over entity and update index with entries. */
-            indexTx.parent.cursor(indexTx.columns).use { cursor ->
+            indexTx.parent.cursor().use { cursor ->
                 while (cursor.moveNext()) {
-                    val value = cursor.value()[0]
+                    val value = cursor.value()[column]
                     if (value is StringValue) {
                         store.addDocument(cursor.key(), value)
                         if (!indexTx.xodusTx.flush()) {

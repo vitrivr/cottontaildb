@@ -5,11 +5,12 @@ import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.dbms.catalogue.toKey
+import org.vitrivr.cottontail.dbms.entity.values.StoredTuple
+import org.vitrivr.cottontail.dbms.entity.values.StoredValue
 import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata.Companion.storeName
 import org.vitrivr.cottontail.dbms.index.pq.quantizer.SingleStageQuantizer
 import org.vitrivr.cottontail.dbms.index.pq.signature.PQLookupTable
@@ -20,9 +21,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  * A [Cursor] implementation for the [PQIndex].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
-class PQIndexCursor(partition: LongRange, query: VectorValue<*>, quantizer: SingleStageQuantizer, private val columns: Array<ColumnDef<*>>, index: PQIndex.Tx): Cursor<Tuple> {
+class PQIndexCursor(partition: LongRange, query: VectorValue<*>, quantizer: SingleStageQuantizer, private val columns: Array<ColumnDef<*>>, private val index: PQIndex.Tx): Cursor<Tuple> {
     /** Prepares [PQLookupTable]s for the given query vector(s). */
     private val lookupTable: PQLookupTable = quantizer.createLookupTable(query)
 
@@ -41,7 +42,7 @@ class PQIndexCursor(partition: LongRange, query: VectorValue<*>, quantizer: Sing
     /* The end key. */
     private val endKey = partition.last.toKey()
 
-    /** A begin of cursor flag. */
+    /** A beginning of cursor flag. */
     private val boc = AtomicBoolean(true)
 
     init {
@@ -71,7 +72,9 @@ class PQIndexCursor(partition: LongRange, query: VectorValue<*>, quantizer: Sing
     override fun value(): Tuple {
         val signature = SPQSignature.fromEntry(this.cursor.value)
         val approximation = DoubleValue(this.lookupTable.approximateDistance(signature))
-        return StandaloneTuple(LongBinding.compressedEntryToLong(cursor.key), this.columns, arrayOf(approximation))
+        val tupleId = LongBinding.compressedEntryToLong(cursor.key)
+        val tuple = this@PQIndexCursor.index.parent.read(tupleId) as StoredTuple
+        return StoredTuple(tupleId, this.columns, arrayOf(*tuple.values, StoredValue.Inline(approximation)))
     }
 
     /**

@@ -211,9 +211,11 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
         val iterator = this.graph.vertices()
         val nodeIndexes = this.random.ints(0, this.size).distinct().limit(sampleSize.toLong()).sorted()
         val results = mutableListOf<Node<I>>()
+        var current = 0
         for (index in nodeIndexes) {
-            for (i in 0 until index) {
+            for (i in current until index) {
                 iterator.next()
+                current++
             }
             results.add(iterator.next())
         }

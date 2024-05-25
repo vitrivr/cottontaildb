@@ -6,7 +6,6 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
@@ -18,9 +17,9 @@ import java.util.*
  * An [Operator.SourceOperator] that samples an [Entity] and streams all [Tuple]s found within.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
-class EntitySampleOperator(groupId: GroupId, private val entity: EntityTx, private val fetch: List<Binding.Column>, private val p: Float, private val seed: Long, override val context: QueryContext) : Operator.SourceOperator(groupId) {
+class EntitySampleOperator(groupId: GroupId, private val entity: EntityTx, private val p: Float, private val seed: Long, override val context: QueryContext) : Operator.SourceOperator(groupId) {
 
     companion object {
         /** [Logger] instance used by [EntitySampleOperator]. */
@@ -28,7 +27,7 @@ class EntitySampleOperator(groupId: GroupId, private val entity: EntityTx, priva
     }
 
     /** The [ColumnDef] fetched by this [EntitySampleOperator]. */
-    override val columns: List<ColumnDef<*>> = this.fetch.map { it.column }
+    override val columns: List<ColumnDef<*>> by lazy { this.entity.listColumns() }
 
     /**
      * Converts this [EntitySampleOperator] to a [Flow] and returns it.
@@ -36,11 +35,9 @@ class EntitySampleOperator(groupId: GroupId, private val entity: EntityTx, priva
      * @return [Flow] representing this [EntitySampleOperator].
      */
     override fun toFlow(): Flow<Tuple> = flow {
-        val fetch = this@EntitySampleOperator.fetch.map { it.physical!! }.toTypedArray()
-        val rename = this@EntitySampleOperator.fetch.map { it.column.name }.toTypedArray()
         val random = SplittableRandom(this@EntitySampleOperator.seed)
         var read = 0
-        this@EntitySampleOperator.entity.cursor(fetch, rename).use { cursor ->
+        this@EntitySampleOperator.entity.cursor().use { cursor ->
             while (cursor.moveNext()) {
                 if (random.nextDouble(0.0, 1.0) <= this@EntitySampleOperator.p) {
                     emit(cursor.value())

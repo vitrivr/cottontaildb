@@ -13,13 +13,12 @@ import org.vitrivr.cottontail.utilities.formats.FVecsReader
 import org.vitrivr.cottontail.utilities.math.ranking.RankingUtilities
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
 import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
-import java.util.*
 import kotlin.time.Duration
 import kotlin.time.measureTime
 
 
 /**
- * This is a basic test case that makes sure that the [XodusDynamicExplorationGraph] and the [InMemoryDynamicExplorationGraph] work as expected.
+ * This is a basic test case that makes sure that the [InMemoryDynamicExplorationGraph] work as expected.
  *
  * @author Ralph Gasser
  * @version 1.0.0
@@ -38,7 +37,7 @@ class BasicDEGTest {
         /* Prepare parameters. */
         val type = Types.FloatVector(128)
         val distance = EuclideanDistance.FloatVector(type)
-        val graph = InMemoryDynamicExplorationGraph<TupleId, FloatVectorValue>(4, 16, 0.2f) { v1, v2 -> distance.invoke(v1, v2).value.toFloat() }
+        val graph = InMemoryDynamicExplorationGraph<TupleId, FloatVectorValue>(8, 16, 0.2f) { v1, v2 -> distance.invoke(v1, v2).value.toFloat() }
 
         /* Index vectors and build graph & ground truth. */
         this.index(graph)
@@ -84,7 +83,6 @@ class BasicDEGTest {
                     var index = 1L
                     for (vertex in graph.vertices()) {
                         bruteForceResults.offer(ComparablePair(index++, distance.invoke(query, graph.getValue(vertex))!!))
-
                     }
                 }
 

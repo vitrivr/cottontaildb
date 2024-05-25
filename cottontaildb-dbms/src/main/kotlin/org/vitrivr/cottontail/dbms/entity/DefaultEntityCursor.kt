@@ -6,7 +6,6 @@ import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.tree.LongIterator
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.catalogue.toKey
@@ -19,16 +18,10 @@ import org.vitrivr.cottontail.storage.tuple.StoredTupleSerializer
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class DefaultEntityCursor(private val entity: DefaultEntity.Tx, val serializer: StoredTupleSerializer, partition: LongRange, rename: Array<Name.ColumnName> = emptyArray<Name.ColumnName>()) : Cursor<Tuple> {
-
-    init {
-        require(rename.isEmpty() || this.serializer.columns.size == rename.size) { "The size of the rename column array does not match the number of scanned columns."}
-    }
+class DefaultEntityCursor(private val entity: DefaultEntity.Tx, val serializer: StoredTupleSerializer, partition: LongRange) : Cursor<Tuple> {
 
     /** The array of output [ColumnDef] produced by this [DefaultEntityCursor]. */
-    private val columns = this.serializer.columns.mapIndexed { index, def ->
-        def.copy(name = rename.getOrNull(index) ?: def.name)
-    }.toTypedArray()
+    private val columns = this.serializer.columns
 
     /** The transaction snapshot used for the cursor. */
     private val snapshot = this.entity.xodusTx.readonlySnapshot

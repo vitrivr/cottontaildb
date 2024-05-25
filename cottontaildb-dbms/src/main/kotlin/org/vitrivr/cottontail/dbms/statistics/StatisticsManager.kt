@@ -214,7 +214,7 @@ class StatisticsManager(private val instance: Instance): TransactionObserver, Cl
 
             /* Scans the data and passes it to the collector */
             val duration = measureTime {
-                entityTx.cursor(columns).use { cursor ->
+                entityTx.cursor().use { cursor ->
                     if (expectedEntries <= this@StatisticsManager.instance.config.statistics.minimumSampleSize) {
                         while (cursor.moveNext()) {
                             val record = cursor.value()

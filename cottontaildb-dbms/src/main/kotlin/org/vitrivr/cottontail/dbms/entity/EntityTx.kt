@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.dbms.entity
 
 import org.vitrivr.cottontail.core.basics.Countable
+import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Modifiable
-import org.vitrivr.cottontail.core.basics.Scanable
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
@@ -23,7 +23,7 @@ import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
  * @author Ralph Gasser
  * @version 4.0.0
  */
-interface EntityTx : SubTransaction, Scanable, Countable, Modifiable {
+interface EntityTx : SubTransaction, Countable, Modifiable {
     /** The parent [SchemaTx] this [EntityTx] belongs to. */
     val parent: SchemaTx
 
@@ -129,4 +129,19 @@ interface EntityTx : SubTransaction, Scanable, Countable, Modifiable {
      * Truncates the [Entity] backed by this [EntityTx]. This operation will remove all data from the [Entity
      */
     fun truncate()
+
+    /**
+     * Returns a [Cursor] for all the entries in the [Entity] backed by this [EntityTx].
+     *
+     * @return [Cursor]
+     */
+    fun cursor(): Cursor<Tuple>
+
+    /**
+     * Returns a [Cursor] for all the entries contained in the specified partition of the [Entity] backed by this [EntityTx].
+     *
+     * @param partition The [LongRange] specifying the [TupleId]s that should be scanned.
+     * @return [Cursor]
+     */
+    fun cursor(partition: LongRange): Cursor<Tuple>
 }

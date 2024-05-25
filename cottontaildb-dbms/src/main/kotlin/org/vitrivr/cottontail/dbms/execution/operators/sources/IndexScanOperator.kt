@@ -6,7 +6,6 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
@@ -18,13 +17,12 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * An [Operator.SourceOperator] that scans an [Index] and streams all [Tuple]s found within.
  *
  * @author Ralph Gasser
- * @version 1.9.0
+ * @version 1.10.0
  */
 class IndexScanOperator(
     groupId: GroupId,
     private val index: IndexTx,
     private val predicate: Predicate,
-    private val fetch: List<Binding.Column>,
     private val partitionIndex: Int = 0,
     private val partitions: Int = 1,
     override val context: QueryContext
@@ -36,9 +34,7 @@ class IndexScanOperator(
     }
 
     /** The [ColumnDef] produced by this [IndexScanOperator]. */
-    override val columns: List<ColumnDef<*>> = this.fetch.map {
-        it.column
-    }
+    override val columns: List<ColumnDef<*>> by lazy { this@IndexScanOperator.index.columnsFor(this@IndexScanOperator.predicate)  }
 
     /**
      * Converts this [IndexScanOperator] to a [Flow] and returns it.

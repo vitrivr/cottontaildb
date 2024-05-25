@@ -27,7 +27,7 @@ class UQBTreeIndexRebuilder(index: UQBTreeIndex, context: QueryContext): Abstrac
         val dataStore = this.tryClearAndOpenStore(indexTx) ?: return false
 
         /* Iterate over entity and update index with entries. */
-        indexTx.parent.cursor(indexTx.columns).use { cursor ->
+        indexTx.parent.cursor().use { cursor ->
             while (cursor.moveNext()) {
                 val key = cursor.value()[column]
                 if (key != null) {

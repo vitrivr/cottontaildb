@@ -185,7 +185,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
      */
     override fun toOperator(ctx: QueryContext): Operator {
         /** Generate and return IndexScanOperator. */
-        return IndexScanOperator(this.groupId, this.tx, this.predicate, this.columns, this.partitionIndex, this.partitions, ctx)
+        return IndexScanOperator(this.groupId, this.tx, this.predicate, this.partitionIndex, this.partitions, ctx)
     }
 
     /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */
