@@ -213,7 +213,7 @@ sealed class VAFIndexCursor<T: ProximityPredicate>(protected val partition: Long
                 } while (localSelection.size < localSelection.k && this.cursor.next && this.cursor.key <= this.endKey)
 
                 /* Second phase: Use lower-bound to decide whether entry should be added. */
-                threshold = (localSelection.peek()!![0] as DoubleValue).value
+                threshold = (localSelection.peek()!![this.predicate.distanceColumn.column] as DoubleValue).value
                 while (this.cursor.next && this.cursor.key <= this.endKey) {
                     val signature = VAFSignature.fromEntry(cursor.value)
                     if (this.bounds.lb(signature, threshold) < threshold) {
@@ -255,7 +255,7 @@ sealed class VAFIndexCursor<T: ProximityPredicate>(protected val partition: Long
                 } while (localSelection.size < localSelection.k && this.cursor.next && this.cursor.key <= this.endKey)
 
                 /* Second phase: Use lower-bound to decide whether entry should be added. */
-                threshold = (localSelection.peek()!![0] as DoubleValue).value
+                threshold = (localSelection.peek()!![this.predicate.distanceColumn.column] as DoubleValue).value
                 while (this.cursor.next && this.cursor.key <= this.endKey) {
                     val signature = VAFSignature.fromEntry(cursor.value)
                     if (this.bounds.ub(signature, threshold) < threshold) {
