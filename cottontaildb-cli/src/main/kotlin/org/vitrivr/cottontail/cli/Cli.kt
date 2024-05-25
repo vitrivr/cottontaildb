@@ -57,7 +57,6 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
 
     /** The [ManagedChannel] used to connect to Cottontail DB. */
     private val channel: ManagedChannel = ManagedChannelBuilder.forAddress(this@Cli.host, this@Cli.port)
-        .enableFullStreamDecompression()
         .usePlaintext()
         .build()
 

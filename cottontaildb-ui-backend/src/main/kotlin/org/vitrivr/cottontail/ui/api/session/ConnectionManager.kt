@@ -34,7 +34,7 @@ object ConnectionManager {
     fun connect(session: Session, connection: Connection): Boolean = this.lock.write {
         val sessionStore = this.connections.computeIfAbsent(session.id) { LinkedHashMap() }
         return if (!sessionStore.contains(connection)) {
-            sessionStore[connection] = ManagedChannelBuilder.forAddress(connection.host, connection.port).enableFullStreamDecompression().usePlaintext().build()
+            sessionStore[connection] = ManagedChannelBuilder.forAddress(connection.host, connection.port).usePlaintext().build()
             true
         } else {
             false
