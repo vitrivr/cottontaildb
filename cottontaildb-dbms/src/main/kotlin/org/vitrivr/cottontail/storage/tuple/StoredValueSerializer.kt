@@ -19,13 +19,6 @@ import java.nio.ByteBuffer
  * @version 1.0.0
  */
 sealed interface StoredValueSerializer<T: Value> {
-    companion object {
-        private const val NULL = 0.toByte()
-        private const val INLINE = 1.toByte()
-        private const val FIXED = 2.toByte()
-        private const val VARIABLE = 3.toByte()
-    }
-
     /** The [Types] of [OutOfLineValue]. */
     val type: Types<T>
 
@@ -46,47 +39,14 @@ sealed interface StoredValueSerializer<T: Value> {
     fun write(output: DataOutputStream, value: T?)
 
     /**
-     * A [StoredValueSerializer] that can handle [OutOfLineValue]s that are nullable.
-     */
-    @JvmInline
-    value class Nullable<T: Value>(val wrapped: StoredValueSerializer<T>) : StoredValueSerializer<T> {
-        override val type: Types<T>
-            get() = this.wrapped.type
-
-        override fun read(input: ByteBuffer): StoredValue<T>? {
-            val pos = input.position()
-            return if (input.get() == NULL) {
-                null
-            } else {
-                this.wrapped.read(input.position(pos))
-            }
-        }
-
-        override fun write(output: DataOutputStream, value: T?) {
-            if (value == null) {
-                output.writeByte(NULL.toInt())
-            } else {
-                this.wrapped.write(output, value)
-            }
-        }
-    }
-
-    /**
      * A [StoredValueSerializer] that can handle [StoredValue.Inline]s.
      */
     class Inline<T: Value>(private val binding: ValueBinding<T>): StoredValueSerializer<T> {
         override val type: Types<T>
             get() = this.binding.serializer.type
 
-        override fun read(input: ByteBuffer): StoredValue.Inline<T> {
-            require(input.get() == INLINE) { "Wrong stored value flag: Expected INLINE flag."  }
-            return StoredValue.Inline(this.binding.read(input))
-        }
-
-        override fun write(output: DataOutputStream, value: T?) {
-            output.writeByte(INLINE.toInt())
-            this.binding.write(output, value!!)
-        }
+        override fun read(input: ByteBuffer): StoredValue.Inline<T> = StoredValue.Inline(this.binding.read(input))
+        override fun write(output: DataOutputStream, value: T?) = this.binding.write(output, value!!)
     }
 
 
@@ -104,14 +64,10 @@ sealed interface StoredValueSerializer<T: Value> {
         override val type: Types<T>
             get() = this.file.type
 
-        override fun read(input: ByteBuffer): StoredValue.OutOfLine.Fixed<T> {
-            require(input.get() == VARIABLE) { "Wrong stored value flag: Expected VARIABLE flag." }
-            return StoredValue.OutOfLine.Fixed(OutOfLineValue.Fixed(input.getLong()), this.reader)
-        }
+        override fun read(input: ByteBuffer): StoredValue.OutOfLine.Fixed<T> = StoredValue.OutOfLine.Fixed(OutOfLineValue.Fixed(input.getLong()), this.reader)
 
         override fun write(output: DataOutputStream, value: T?) {
             val ref = this.writer.append(value!!)
-            output.writeByte(VARIABLE.toInt())
             output.writeLong(ref.rowId)
         }
 
@@ -133,14 +89,10 @@ sealed interface StoredValueSerializer<T: Value> {
         override val type: Types<T>
             get() = this.file.type
 
-        override fun read(input: ByteBuffer): StoredValue.OutOfLine.Variable<T> {
-            require(input.get() == FIXED) { "Wrong stored value flag: Expected FIXED flag." }
-            return StoredValue.OutOfLine.Variable(OutOfLineValue.Variable(input.getLong(), input.getInt()), this.reader)
-        }
+        override fun read(input: ByteBuffer): StoredValue.OutOfLine.Variable<T> = StoredValue.OutOfLine.Variable(OutOfLineValue.Variable(input.getLong(), input.getInt()), this.reader)
 
         override fun write(output: DataOutputStream, value: T?) {
             val ref = this.writer.append(value!!)
-            output.writeByte(FIXED.toInt())
             output.writeLong(ref.position)
             output.writeInt(ref.size)
         }
