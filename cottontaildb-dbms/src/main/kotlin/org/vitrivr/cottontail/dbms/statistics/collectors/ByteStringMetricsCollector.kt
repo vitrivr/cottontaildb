@@ -12,30 +12,35 @@ import org.vitrivr.cottontail.dbms.statistics.values.ByteStringValueStatistics
  */
 class ByteStringMetricsCollector(config: MetricsConfig) : AbstractScalarMetricsCollector<ByteStringValue>(Types.ByteString, config) {
 
+    /** Minimum width of the [ByteStringValue]s. */
     var minWidth : Int = Int.MAX_VALUE
+        private set
+
+    /** Minimum width of the [ByteStringValue]s. */
     var maxWidth : Int = Int.MIN_VALUE
+        private set
+
     /**
      * Receives the values for which to compute the statistics
      */
     override fun receive(value: ByteStringValue?) {
         super.receive(value)
         if (value != null) {
-            minWidth = Integer.min(value.logicalSize, minWidth)
-            maxWidth = Integer.max(value.logicalSize, maxWidth)
+            this.minWidth = Integer.min(value.logicalSize, this.minWidth)
+            this.maxWidth = Integer.max(value.logicalSize, this.maxWidth)
         }
     }
 
-    override fun calculate(probability: Float): ByteStringValueStatistics {
-        val sampleMetrics = ByteStringValueStatistics(
-            numberOfNullEntries,
-            numberOfNonNullEntries,
-            numberOfDistinctEntries,
-            minWidth,
-            maxWidth
-        )
-
-        return ByteStringValueStatistics(1/probability, sampleMetrics)
-    }
-
-
+    /**
+     * Generates and returns the [ByteStringValueStatistics] based on the current state of the [ByteStringMetricsCollector].
+     *
+     * @return Generated [ByteStringValueStatistics]
+     */
+    override fun calculate() = ByteStringValueStatistics(
+        (this.numberOfNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfNonNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfDistinctEntries / this.config.sampleProbability).toLong(),
+        this.minWidth,
+        this.maxWidth
+    )
 }

@@ -8,19 +8,19 @@ import org.vitrivr.cottontail.dbms.statistics.values.Complex64ValueStatistics
 /**
  * A [MetricsCollector] implementation for [Complex64Value]s.
  *
+ * @author Florian Burkhardt
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 class Complex64MetricsCollector(config: MetricsConfig): AbstractScalarMetricsCollector<Complex64Value>(Types.Complex64, config) {
-
-    override fun calculate(probability: Float): Complex64ValueStatistics {
-        val sampleMetrics = Complex64ValueStatistics(
-            numberOfNullEntries,
-            numberOfNonNullEntries,
-            numberOfDistinctEntries,
-        )
-
-        return Complex64ValueStatistics(1/probability, sampleMetrics)
-    }
-
+    /**
+     * Generates and returns the [Complex64ValueStatistics] based on the current state of the [Complex64MetricsCollector].
+     *
+     * @return Generated [Complex64ValueStatistics]
+     */
+    override fun calculate() = Complex64ValueStatistics(
+        (this.numberOfNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfNonNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfDistinctEntries / this.config.sampleProbability).toLong()
+    )
 }

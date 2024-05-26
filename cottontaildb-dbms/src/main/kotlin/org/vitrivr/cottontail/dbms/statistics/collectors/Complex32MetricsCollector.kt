@@ -7,18 +7,19 @@ import org.vitrivr.cottontail.dbms.statistics.values.Complex32ValueStatistics
 /**
  * A [MetricsCollector] implementation for [Complex32Value]s.
  *
- * @author Ralph Gasser, Florian Burkhardt
- * @version 1.0.0
+ * @author Florian Burkhardt
+ * @author Ralph Gasser
+ * @version 1.1.0
  */
 class Complex32MetricsCollector(config: MetricsConfig): AbstractScalarMetricsCollector<Complex32Value>(Types.Complex32, config) {
-    override fun calculate(probability: Float): Complex32ValueStatistics {
-        val sampleMetrics = Complex32ValueStatistics(
-            numberOfNullEntries,
-            numberOfNonNullEntries,
-            numberOfDistinctEntries,
-        )
-
-        return Complex32ValueStatistics(1/probability, sampleMetrics)
-    }
-
+    /**
+     * Generates and returns the [Complex32MetricsCollector] based on the current state of the [Complex32MetricsCollector].
+     *
+     * @return Generated [Complex32MetricsCollector]
+     */
+    override fun calculate() = Complex32ValueStatistics(
+        (this.numberOfNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfNonNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfDistinctEntries / this.config.sampleProbability).toLong()
+    )
 }

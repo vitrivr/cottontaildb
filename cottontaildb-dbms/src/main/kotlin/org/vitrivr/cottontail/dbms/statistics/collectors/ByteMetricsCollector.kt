@@ -8,25 +8,26 @@ import org.vitrivr.cottontail.dbms.statistics.values.ByteValueStatistics
 /**
  * A [MetricsCollector] implementation for [ByteValue]s.
  *
- * @author Ralph Gasser, Florian Burkhardt
- * @version 1.3.0
+ * @author Florian Burkhardt
+ * @author Ralph Gasser
+ * @version 1.4.0
  */
-class ByteMetricsCollector (config: MetricsConfig) : RealMetricsCollector<ByteValue>(Types.Byte, config) {
-
-    override fun calculate(probability: Float): ByteValueStatistics {
-        val sampleMetrics =  ByteValueStatistics(
-            this.numberOfNullEntries,
-            this.numberOfNonNullEntries,
-            this.numberOfDistinctEntries,
-            ByteValue(this.min),
-            ByteValue(this.max),
-            DoubleValue(this.sum),
-            DoubleValue(this.mean),
-            DoubleValue(this.variance),
-            DoubleValue(this.skewness),
-            DoubleValue(this.kurtosis)
-        )
-
-        return ByteValueStatistics(1/probability, sampleMetrics)
-    }
+class ByteMetricsCollector(config: MetricsConfig) : AbstractRealMetricsCollector<ByteValue>(Types.Byte, config) {
+    /**
+     * Generates and returns the [ByteValueStatistics] based on the current state of the [ByteMetricsCollector].
+     *
+     * @return Generated [ByteValueStatistics]
+     */
+    override fun calculate() = ByteValueStatistics(
+        (this.numberOfNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfNonNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfDistinctEntries / this.config.sampleProbability).toLong(),
+        ByteValue(this.min),
+        ByteValue(this.max),
+        DoubleValue(this.sum),
+        DoubleValue(this.mean),
+        DoubleValue(this.variance),
+        DoubleValue(this.skewness),
+        DoubleValue(this.kurtosis)
+    )
 }

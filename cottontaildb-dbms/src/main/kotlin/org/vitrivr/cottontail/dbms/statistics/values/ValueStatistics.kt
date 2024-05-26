@@ -29,7 +29,7 @@ sealed interface ValueStatistics<T : Value> {
     val numberOfEntries: Long
 
     /** Total number of distinct entries known to this [ValueStatistics]. */
-    var numberOfDistinctEntries: Long
+    val numberOfDistinctEntries: Long
 
     /** Smallest [Value] seen in terms of space requirement (logical size) known to this [ValueStatistics]. */
     val minWidth: Int

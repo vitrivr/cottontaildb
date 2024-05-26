@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
  *
  * @author Florian Burkhardt
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.4.0
  */
 sealed class AbstractValueStatistics<T : Value>(override val type: Types<T>) : ValueStatistics<T> {
     companion object {
@@ -85,7 +85,7 @@ sealed class AbstractValueStatistics<T : Value>(override val type: Types<T>) : V
         /* IN: Assumption is, that all elements IN are matches (worst-case). */
         is ComparisonOperator.In -> operator.right.size() / this.numberOfDistinctEntries.toFloat()
 
-        // Default case:
+        /* Default case: */
         else -> 1f / 3f
     })
 }

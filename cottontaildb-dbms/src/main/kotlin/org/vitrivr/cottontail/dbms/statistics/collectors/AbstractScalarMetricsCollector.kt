@@ -13,7 +13,4 @@ import org.vitrivr.cottontail.core.types.Types
  * @author Florian Burkhardt
  * @version 1.0.0
  */
-sealed class AbstractScalarMetricsCollector<T: ScalarValue<*>>(type: Types<T>, config: MetricsConfig) : AbstractMetricsCollector<T>(type, config) {
-
-}
-
+sealed class AbstractScalarMetricsCollector<T: ScalarValue<*>>(type: Types<T>, config: MetricsConfig) : AbstractMetricsCollector<T>(type, config)

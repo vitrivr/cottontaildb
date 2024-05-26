@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.core.values.DoubleValue
  * A [ValueStatistics] implementation for [RealValue]s.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 sealed class RealValueStatistics<T: RealValue<*>>(type: Types<T>): AbstractScalarStatistics<T>(type) {
     companion object {
@@ -22,25 +22,25 @@ sealed class RealValueStatistics<T: RealValue<*>>(type: Types<T>): AbstractScala
     }
 
     /** Minimum value seen by this [RealValueStatistics]. */
-    abstract var min: T
+    abstract val min: T
 
     /** Minimum value seen by this [RealValueStatistics]. */
-    abstract var max: T
+    abstract val max: T
 
     /** Sum of all values seen by this [RealValueStatistics]. */
-    abstract var sum: DoubleValue
+    abstract val sum: DoubleValue
 
     /** The arithmetic mean for the values seen by this [RealValueStatistics]*/
-    abstract var mean : DoubleValue
+    abstract val mean : DoubleValue
 
     /** The variance for the values seen by this [RealValueStatistics]*/
-    abstract var variance : DoubleValue
+    abstract val variance : DoubleValue
 
     /** The skewness for the values seen by this [RealValueStatistics]*/
-    abstract var skewness : DoubleValue
+    abstract val skewness : DoubleValue
 
     /** The kurtosis for the values seen by this [RealValueStatistics]*/
-    abstract var kurtosis : DoubleValue
+    abstract val kurtosis : DoubleValue
 
     /**
      * Creates a descriptive map of this [RealValueStatistics].
@@ -56,5 +56,4 @@ sealed class RealValueStatistics<T: RealValue<*>>(type: Types<T>): AbstractScala
         SKEWNESS_KEY to this.skewness.value.toString(),
         KURTOSIS_KEY to this.kurtosis.value.toString()
     )
-
 }

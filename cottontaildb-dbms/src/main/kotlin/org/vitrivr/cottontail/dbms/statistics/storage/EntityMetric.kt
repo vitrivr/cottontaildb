@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.statistics.metrics
+package org.vitrivr.cottontail.dbms.statistics.storage
 
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable

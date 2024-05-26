@@ -13,19 +13,34 @@ import kotlin.math.pow
  * the paper "Formulas for robust, one-pass parallel computation of covariances and arbitrary-order statistical moments."
  * (https://doi.org/10.2172/1028931). Others approaches might be numerically unstable
  *
- * @author Ralph Gasser, Florian Burkhardt
+ * @author Florian Burkhardt
+ * @author Ralph Gasser
  * @version 1.1.0
  */
-sealed class RealMetricsCollector<T: RealValue<*>>(type: Types<T>, config: MetricsConfig): AbstractScalarMetricsCollector<T>(type, config) {
+sealed class AbstractRealMetricsCollector<T: RealValue<*>>(type: Types<T>, config: MetricsConfig): AbstractScalarMetricsCollector<T>(type, config) {
 
-    /** General metrics for Real Values*/
+    /** The minimum value encountered by this [AbstractRealMetricsCollector]. */
     var min : Double = Double.MAX_VALUE
-    var max : Double = Double.MIN_VALUE
-    var sum : Double = 0.0
+        private set
 
+    /** The maximum value encountered by this [AbstractRealMetricsCollector]. */
+    var max : Double = Double.MIN_VALUE
+        private set
+
+    /** The sum of all values encountered by this [AbstractRealMetricsCollector]. */
+    var sum : Double = 0.0
+        private set
+
+    /** The mean of all values encountered by this [AbstractRealMetricsCollector]. */
     var mean : Double = 0.0
+
+    /** The variance of all values encountered by this [AbstractRealMetricsCollector]. */
     var variance : Double = 0.0
+
+    /** The skewness of all values encountered by this [AbstractRealMetricsCollector]. */
     var skewness : Double = 0.0
+
+    /** The kurtosis of all values encountered by this [AbstractRealMetricsCollector]. */
     var kurtosis : Double = 0.0
 
     /** Temporary Values for computation of statistical moments */
@@ -95,5 +110,4 @@ sealed class RealMetricsCollector<T: RealValue<*>>(type: Types<T>, config: Metri
             this.kurtosis = 0.0
         }
     }
-
 }

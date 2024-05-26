@@ -9,14 +9,19 @@ import java.lang.Long.min
 /**
  * A [MetricsCollector] implementation for [DateValue]s.
  *
- * @author Ralph Gasser, Florian Burkhardt
- * @version 1.3.0
+ * @author Florian Burkhardt
+ * @author Ralph Gasser
+ * @version 1.4.0
  */
 class DateMetricsCollector(config: MetricsConfig) : AbstractScalarMetricsCollector<DateValue>(Types.Date, config) {
 
-    /** Local Metrics */
+    /** Smallest [DateValue] encountered by this [DateMetricsCollector]. */
     var min : Long = Long.MAX_VALUE
+        private set
+
+    /** LArgest [DateValue] encountered by this [DateMetricsCollector]. */
     var max : Long = Long.MIN_VALUE
+        private set
 
     /**
      * Receives the values for which to compute the statistics
@@ -24,21 +29,21 @@ class DateMetricsCollector(config: MetricsConfig) : AbstractScalarMetricsCollect
     override fun receive(value: DateValue?) {
         super.receive(value)
         if (value != null) {
-            // set new min and max
-            min = min(value.value, min)
-            max = max(value.value, max)
+            this.min = min(value.value, this.min)
+            this.max = max(value.value, this.max)
         }
     }
 
-    override fun calculate(probability: Float): DateValueStatistics {
-        val sampleMetrics = DateValueStatistics(
-            numberOfNullEntries,
-            numberOfNonNullEntries,
-            numberOfDistinctEntries,
-            DateValue(min),
-            DateValue(max),
-        )
-
-        return DateValueStatistics(1/probability, sampleMetrics)
-    }
+    /**
+     * Generates and returns the [DateValueStatistics] based on the current state of the [DateMetricsCollector].
+     *
+     * @return Generated [DateValueStatistics]
+     */
+    override fun calculate() = DateValueStatistics(
+        (this.numberOfNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfNonNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfDistinctEntries / this.config.sampleProbability).toLong(),
+        DateValue(this.min),
+        DateValue(this.max),
+    )
 }

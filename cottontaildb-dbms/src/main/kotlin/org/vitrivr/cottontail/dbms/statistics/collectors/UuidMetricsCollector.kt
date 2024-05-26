@@ -9,11 +9,18 @@ import org.vitrivr.cottontail.dbms.statistics.values.UuidValueStatistics
  *
  * @author Ralph Gasser
  * @author Florian Burkhardt
- * @version 1.0.0
+ * @version 1.1.0
  */
 class UuidMetricsCollector(config: MetricsConfig) : AbstractScalarMetricsCollector<UuidValue>(Types.Uuid, config) {
-    override fun calculate(probability: Float): UuidValueStatistics {
-        val sampleMetrics = UuidValueStatistics(this.numberOfNullEntries, this.numberOfNonNullEntries, this.numberOfDistinctEntries)
-        return  UuidValueStatistics(1/probability, sampleMetrics)
-    }
+
+    /**
+     * Generates and returns the [UuidValueStatistics] based on the current state of the [UuidMetricsCollector].
+     *
+     * @return Generated [UuidValueStatistics]
+     */
+    override fun calculate()= UuidValueStatistics(
+        (this.numberOfNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfNonNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfDistinctEntries / this.config.sampleProbability).toLong()
+    )
 }

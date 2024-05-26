@@ -13,7 +13,4 @@ import org.vitrivr.cottontail.core.types.VectorValue
  * @author Florian Burkhardt
  * @version 1.0.0
  */
-sealed class AbstractVectorMetricsCollector<T: VectorValue<*>>(type: Types<T>, config: MetricsConfig) : AbstractMetricsCollector<T>(type, config) {
-
-}
-
+sealed class AbstractVectorMetricsCollector<T: VectorValue<*>>(type: Types<T>, config: MetricsConfig) : AbstractMetricsCollector<T>(type, config)

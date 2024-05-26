@@ -9,14 +9,14 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.statistics.values.*
-import org.vitrivr.cottontail.storage.serializers.SerializerFactory
-import org.vitrivr.cottontail.storage.serializers.statistics.MetricsXodusBinding
+import org.vitrivr.cottontail.storage.serializers.statistics.StatisticsBinding
 
 /**
  * A [ColumnStatistic] in the Cottontail DB [Catalogue]. Used to store metrics about [Column]s.
  *
- * @author Ralph Gasser, Florian Burkhardt
- * @version 1.1.0
+ * @author Florian Burkhardt
+ * @author Ralph Gasser
+ * @version 1.2.0
  */
 data class ColumnStatistic(val type: Types<*>, val statistics: ValueStatistics<*>) {
 
@@ -29,7 +29,7 @@ data class ColumnStatistic(val type: Types<*>, val statistics: ValueStatistics<*
         fun entryToObject(entry: ByteIterable): ColumnStatistic{
             val stream = ByteArraySizedInputStream(entry.bytesUnsafe, 0, entry.length)
             val type = Types.forOrdinal(IntegerBinding.readCompressed(stream), IntegerBinding.readCompressed(stream))
-            val serializer = SerializerFactory.metrics(type)
+            val serializer = StatisticsBinding.metrics(type)
             return ColumnStatistic(type, serializer.read(stream))
         }
 
@@ -44,7 +44,7 @@ data class ColumnStatistic(val type: Types<*>, val statistics: ValueStatistics<*
             val output = LightOutputStream()
             IntegerBinding.writeCompressed(output, `object`.type.ordinal)
             IntegerBinding.writeCompressed(output, `object`.type.logicalSize)
-            val serializer = SerializerFactory.metrics(`object`.type) as MetricsXodusBinding<ValueStatistics<*>>
+            val serializer = StatisticsBinding.metrics(`object`.type) as StatisticsBinding<ValueStatistics<*>>
             serializer.write(output, `object`.statistics)
             return output.asArrayByteIterable()
         }
@@ -56,28 +56,27 @@ data class ColumnStatistic(val type: Types<*>, val statistics: ValueStatistics<*
      * @param def The [ColumnDef] to convert.
      */
     constructor(def: ColumnDef<*>) : this(def.type, when (def.type) {
-            Types.Boolean -> BooleanValueStatistics()
-            Types.Byte -> ByteValueStatistics()
-            Types.Short -> ShortValueStatistics()
-            Types.Date -> DateValueStatistics()
-            Types.Double -> DoubleValueStatistics()
-            Types.Float -> FloatValueStatistics()
-            Types.Int -> IntValueStatistics()
-            Types.Long -> LongValueStatistics()
-            Types.String -> StringValueStatistics()
-            Types.ByteString -> ByteStringValueStatistics()
-            Types.Complex32 -> Complex32ValueStatistics()
-            Types.Complex64 -> Complex64ValueStatistics()
-            Types.Uuid -> UuidValueStatistics()
-            is Types.BooleanVector -> BooleanVectorValueStatistics(def.type.logicalSize)
-            is Types.DoubleVector -> DoubleVectorValueStatistics(def.type.logicalSize)
-            is Types.HalfVector,
-            is Types.FloatVector -> FloatVectorValueStatistics(def.type.logicalSize)
-            is Types.IntVector -> IntVectorValueStatistics(def.type.logicalSize)
-            is Types.LongVector -> LongVectorValueStatistics(def.type.logicalSize)
-            is Types.Complex32Vector -> Complex32VectorValueStatistics(def.type.logicalSize)
-            is Types.Complex64Vector -> Complex64VectorValueStatistics(def.type.logicalSize)
-            is Types.ShortVector -> ShortVectorValueStatistics(def.type.logicalSize)
-        }
-    )
+        Types.Boolean -> BooleanValueStatistics()
+        Types.Byte -> ByteValueStatistics()
+        Types.Short -> ShortValueStatistics()
+        Types.Date -> DateValueStatistics()
+        Types.Double -> DoubleValueStatistics()
+        Types.Float -> FloatValueStatistics()
+        Types.Int -> IntValueStatistics()
+        Types.Long -> LongValueStatistics()
+        Types.String -> StringValueStatistics()
+        Types.ByteString -> ByteStringValueStatistics()
+        Types.Complex32 -> Complex32ValueStatistics()
+        Types.Complex64 -> Complex64ValueStatistics()
+        Types.Uuid -> UuidValueStatistics()
+        is Types.BooleanVector -> BooleanVectorValueStatistics(def.type.logicalSize)
+        is Types.DoubleVector -> DoubleVectorValueStatistics(def.type.logicalSize)
+        is Types.HalfVector,
+        is Types.FloatVector -> FloatVectorValueStatistics(def.type.logicalSize)
+        is Types.IntVector -> IntVectorValueStatistics(def.type.logicalSize)
+        is Types.LongVector -> LongVectorValueStatistics(def.type.logicalSize)
+        is Types.Complex32Vector -> Complex32VectorValueStatistics(def.type.logicalSize)
+        is Types.Complex64Vector -> Complex64VectorValueStatistics(def.type.logicalSize)
+        is Types.ShortVector -> ShortVectorValueStatistics(def.type.logicalSize)
+    })
 }

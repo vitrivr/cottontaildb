@@ -1,19 +1,11 @@
-package org.vitrivr.cottontail.dbms.statistics.index
+package org.vitrivr.cottontail.dbms.statistics.storage
 
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.bindings.ComparableBinding
-import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.LightOutputStream
-import org.vitrivr.cottontail.core.types.Types
-import org.vitrivr.cottontail.dbms.statistics.storage.ColumnStatistic
-import org.vitrivr.cottontail.dbms.statistics.values.ValueStatistics
-import org.vitrivr.cottontail.storage.serializers.SerializerFactory
-import org.vitrivr.cottontail.storage.serializers.statistics.MetricsXodusBinding
-import java.io.ByteArrayInputStream
 
 /**
  * A statistics item for an index.

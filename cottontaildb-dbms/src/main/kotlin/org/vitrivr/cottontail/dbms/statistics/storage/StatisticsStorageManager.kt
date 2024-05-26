@@ -7,8 +7,6 @@ import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.entries.NameBinding
-import org.vitrivr.cottontail.dbms.statistics.index.IndexStatistic
-import org.vitrivr.cottontail.dbms.statistics.metrics.EntityMetric
 import java.io.Closeable
 
 /**

@@ -8,25 +8,26 @@ import org.vitrivr.cottontail.dbms.statistics.values.ShortValueStatistics
 /**
  * A [MetricsCollector] implementation for [ShortValue]s.
  *
- * @author Ralph Gasser, Florian Burkhardt
- * @version 1.3.0
+ * @author Florian Burkhardt
+ * @author Ralph Gasser
+ * @version 1.4.0
  */
-class ShortMetricsCollector (config: MetricsConfig) : RealMetricsCollector<ShortValue>(Types.Short, config) {
-
-    override fun calculate(probability: Float): ShortValueStatistics {
-        val sampleMetrics = ShortValueStatistics(
-            this.numberOfNullEntries,
-            this.numberOfNonNullEntries,
-            this.numberOfDistinctEntries,
-            ShortValue(this.min),
-            ShortValue(this.max),
-            DoubleValue(this.sum),
-            DoubleValue(this.mean),
-            DoubleValue(this.variance),
-            DoubleValue(this.skewness),
-            DoubleValue(this.kurtosis)
-        )
-        return ShortValueStatistics(1/probability, sampleMetrics)
-    }
-
+class ShortMetricsCollector (config: MetricsConfig) : AbstractRealMetricsCollector<ShortValue>(Types.Short, config) {
+    /**
+     * Generates and returns the [ShortValueStatistics] based on the current state of the [ShortMetricsCollector].
+     *
+     * @return Generated [ShortValueStatistics]
+     */
+    override fun calculate() = ShortValueStatistics(
+        (this.numberOfNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfNonNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfDistinctEntries / this.config.sampleProbability).toLong(),
+        ShortValue(this.min),
+        ShortValue(this.max),
+        DoubleValue(this.sum),
+        DoubleValue(this.mean),
+        DoubleValue(this.variance),
+        DoubleValue(this.skewness),
+        DoubleValue(this.kurtosis)
+    )
 }
