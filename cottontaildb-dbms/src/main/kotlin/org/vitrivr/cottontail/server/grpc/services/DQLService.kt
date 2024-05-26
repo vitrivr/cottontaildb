@@ -8,10 +8,7 @@ import org.vitrivr.cottontail.dbms.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.LeftConjunctionRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.RightConjunctionRewriteRule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.BooleanIndexScanRule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.FulltextIndexRule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanClass1Rule
-import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanClass3Rule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.*
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.CountPushdownRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.simd.FunctionVectorisationRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.sort.ExternalSortRule
@@ -42,6 +39,7 @@ class DQLService(override val instance: Instance) : DQLGrpcKt.DQLCoroutineImplBa
         )
         val physical =  mutableListOf(
             BooleanIndexScanRule,
+            BooleanIntersectionScanRule,
             NNSIndexScanClass1Rule,
             NNSIndexScanClass3Rule,
             FulltextIndexRule,

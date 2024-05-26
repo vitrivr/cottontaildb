@@ -24,7 +24,7 @@ import org.vitrivr.cottontail.dbms.queries.context.QueryContext
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class IndexIntersectionScanOperator(groupId: GroupId, private val indexes: List<Pair<IndexTx, Predicate>>, override val context: QueryContext, override val columns: List<ColumnDef<*>>): Operator.SourceOperator(groupId) {
+class IndexIntersectionScanOperator(groupId: GroupId, private val indexes: List<Pair<IndexTx, Predicate>>, override val context: QueryContext): Operator.SourceOperator(groupId) {
 
     init {
         require(indexes.asSequence().map { it.first.dbo.parent }.distinct().count() == 1) {
@@ -32,10 +32,12 @@ class IndexIntersectionScanOperator(groupId: GroupId, private val indexes: List<
         }
     }
 
+    override val columns: List<ColumnDef<*>> = this.indexes.first().first.parent.listColumns()
+
     /**
-     * Converts this [EntityScanOperator] to a [Flow] and returns it.
+     * Converts this [IndexIntersectionScanOperator] to a [Flow] and returns it.
      *
-     * @return [Flow] representing this [EntityScanOperator]
+     * @return [Flow] representing this [IndexIntersectionScanOperator]
      */
     override fun toFlow(): Flow<Tuple> = channelFlow {
         /* Prepare jobs to scan indexes. */
