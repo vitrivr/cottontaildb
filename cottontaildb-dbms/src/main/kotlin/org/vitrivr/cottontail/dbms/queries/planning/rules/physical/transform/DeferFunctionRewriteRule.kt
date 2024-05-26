@@ -12,30 +12,19 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * A [RewriteRule] that defers execution of a [FunctionPhysicalOperatorNode]. This can be beneficial in presence of, e.g., s,k-selections.
  *
  * @author Ralph Gasser
- * @version 1.2.1
+ * @version 2.0.0
  */
-object DeferFunctionRewriteRule: RewriteRule {
-    /**
-     * The [DeferFunctionRewriteRule] can be applied to all [FunctionPhysicalOperatorNode]s.
-     *
-     * @param node The [OperatorNode] to check.
-     * @param ctx The [QueryContext]
-     * @return True if [DeferFunctionRewriteRule] can be applied to [node], false otherwise.
-     */
-    override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean = node is FunctionPhysicalOperatorNode
-
+object DeferFunctionRewriteRule: RewriteRule<OperatorNode.Physical> {
     /**
      * Apples this [DeferFunctionRewriteRule] to the provided [OperatorNode].
      *
-     * @param node The [OperatorNode] to check.
+     * @param node The [OperatorNode.Physical] to check.
      * @param ctx The [QueryContext]
-     * @return [OperatorNode] or null, if rewrite was not possible.
+     * @return [OperatorNode.Physical] or null, if rewrite was not possible.
      */
-    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
-        /* Make sure, that node is a FetchLogicalOperatorNode. */
-        require(node is FunctionPhysicalOperatorNode) { "Called DeferFetchOnFetchRewriteRule.rewrite() with node of type ${node.javaClass.simpleName}. This is a programmer's error!"}
-
+    override fun tryApply(node: OperatorNode.Physical, ctx: QueryContext): OperatorNode.Physical? {
         /* Check for early abort; if next node requires all candidates. */
+        if (node !is FunctionPhysicalOperatorNode) return null
         val originalGroupId = node.groupId
         var next: OperatorNode.Physical? = node.output
         var copy: OperatorNode.Physical = node.input.copyWithExistingInput()

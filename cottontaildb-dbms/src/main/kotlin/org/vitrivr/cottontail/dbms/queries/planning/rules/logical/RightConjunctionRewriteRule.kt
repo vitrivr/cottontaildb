@@ -11,36 +11,28 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * into a sequence of two [FilterLogicalOperatorNode]s.
  *
  * @author Ralph Gasser
- * @version 1.2.1
+ * @version 2.0.0
  */
-object RightConjunctionRewriteRule : RewriteRule {
-
-    /**
-     * Checks if this [RightConjunctionRewriteRule] can be applied to the given [OperatorNode].
-     *
-     * @param node The input [OperatorNode] to check.
-     * @return True if [RewriteRule] can be applied, false otherwise.
-     */
-    override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean =
-        node is FilterLogicalOperatorNode && node.predicate is BooleanPredicate.And
-
+object RightConjunctionRewriteRule : RewriteRule<OperatorNode.Logical> {
     /**
      * Decomposes the provided [FilterLogicalOperatorNode] with a conjunction (AND) into two
      * consecutive [FilterLogicalOperatorNode]s, where each resulting [FilterLogicalOperatorNode]
      * covers one part of the conjunction. Gives precedence to the right part of the conjunction.
      *
-     * @param node The input [OperatorNode].
+     * @param node The input [OperatorNode.Logical].
      * @param ctx The [QueryContext] in which query planning takes place.
-     *
-     * @return The output [OperatorNode] or null, if no rewrite was done.
+     * @return The output [OperatorNode.Logical] or null, if no rewrite was done.
      */
-    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode {
-        /* Make sure, that node is a LeftConjunctionRewriteRule. */
-        require(node is FilterLogicalOperatorNode) { "Called RightConjunctionRewriteRule.apply() with node of type ${node.javaClass.simpleName} that is not a FilterLogicalOperatorNode. This is a programmer's error!"}
-        require(node.predicate is BooleanPredicate.And) { "Called RightConjunctionRewriteRule.apply() with node a predicate that is not a conjunction. This is a programmer's error!" }
+    override fun tryApply(node: OperatorNode.Logical, ctx: QueryContext): OperatorNode.Logical? {
+        /* Make sure, that node is a FilterLogicalOperatorNode. */
+        if (node !is FilterLogicalOperatorNode) return null
 
+        /* Extract necessary components. */
+        val predicate = node.predicate as? BooleanPredicate.And ?: return null
         val parent = node.input.copyWithExistingInput()
-        val ret = FilterLogicalOperatorNode(FilterLogicalOperatorNode(parent, node.predicate.p2), node.predicate.p1)
+
+        /* Return transformed node. */
+        val ret = FilterLogicalOperatorNode(FilterLogicalOperatorNode(parent, predicate.p2), predicate.p1)
         return node.output?.copyWithOutput(ret) ?: ret
     }
 }

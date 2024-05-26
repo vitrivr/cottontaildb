@@ -26,38 +26,23 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * - Function: Executed function must be the [FulltextScore] function.
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 2.0.0
  */
-object FulltextIndexRule : RewriteRule {
-
-    /**
-     * Checks if this [FulltextIndexRule] can be applied to the given [OperatorNode].
-     *
-     * @param node [OperatorNode] to check.
-     * @return True if [FulltextIndexRule] can be applied, false otherwise.
-     */
-    override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean = node is FunctionPhysicalOperatorNode
-        && node.function.function is FulltextScore
-        && node.input is EntityScanPhysicalOperatorNode
-
+object FulltextIndexRule : RewriteRule<OperatorNode.Physical> {
     /**
      * Applies this [FulltextIndexRule], transforming the execution of a [FulltextScore] function by an index scan.
      *
-     * @param node The [OperatorNode] that should be processed.
+     * @param node The [OperatorNode.Physical] that should be processed.
      * @param ctx The [QueryContext] in which this rule is applied.
-     * @return Transformed [OperatorNode] or null, if transformation was not possible.
+     * @return Transformed [OperatorNode.Physical] or null, if transformation was not possible.
      */
-    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
-        /* Make sure, that node is a FetchLogicalOperatorNode. */
-        require(node is FunctionPhysicalOperatorNode) { "Called FulltextIndexRule.apply() with node of type ${node.javaClass.simpleName} that is not a FunctionPhysicalOperatorNode. This is a programmer's error!"}
+    override fun tryApply(node: OperatorNode.Physical, ctx: QueryContext): OperatorNode.Physical? {
+        /* Extract necessary components. */
+        if (node !is FunctionPhysicalOperatorNode) return null
+        if (node.function.function != FulltextScore) return null
+        val scan = node.input as? EntityScanPhysicalOperatorNode ?: return null
 
-        /* Parse function and different parameters. */
-        require(node.function.function == FulltextScore) { "Called FulltextIndexRule.apply() with node that does not hold a FulltextScore function. This is a programmer's error!"}
-
-        /* Parse entity scan. */
-        val scan = node.input
-        require(scan is EntityScanPhysicalOperatorNode) { "Called FulltextIndexRule.apply() with node that does not follow and EntityScanPhysicalOperatorNode. This is a programmer's error!"}
-
+        /* Extract function arguments. */
         val probingArgument = node.function.arguments.filterIsInstance<Binding.Column>().singleOrNull() ?: return null
         val queryString = node.function.arguments.filterIsInstance<Binding.Literal>().singleOrNull() ?: return null
         val predicate = BooleanPredicate.Comparison(ComparisonOperator.Match(probingArgument, queryString))

@@ -21,50 +21,25 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * The function must be a VectorDistance operating on a column (vector) and a literal (query)
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 2.0.0
  */
-object NNSIndexScanClass1Rule : RewriteRule {
-    /**
-     * The [NNSIndexScanClass1Rule] can be applied to all [FunctionPhysicalOperatorNode]s that involve the execution of a [VectorDistance] if the
-     * [QueryHint.IndexHint.None] has not been set in the [QueryContext].
-     *
-     * @param node The [OperatorNode] to check.
-     * @param ctx The [QueryContext]
-     * @return True if [NNSIndexScanClass1Rule] can be applied to [node], false otherwise.
-     */
-    override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean = node is FunctionPhysicalOperatorNode
-            && node.function.function is VectorDistance<*>
-            && node.input is EntityScanPhysicalOperatorNode
-            && !ctx.hints.contains(QueryHint.IndexHint.None)
-
+object NNSIndexScanClass1Rule : RewriteRule<OperatorNode.Physical> {
     /**
      * Applies this [NNSIndexScanClass3Rule] to the provided [OperatorNode].
      *
-     * @param node The [OperatorNode] to check.
+     * @param node The [OperatorNode.Physical] to check.
      * @param ctx The [QueryContext]
-     * @return [OperatorNode] or null, if rewrite was not possible.
+     * @return [OperatorNode.Physical] or null, if rewrite was not possible.
      */
-    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
-        /* Make sure, that node is a FetchLogicalOperatorNode. */
-        require(node is FunctionPhysicalOperatorNode) {
-            "Called NNSIndexScanRule.apply() with node of type ${node.javaClass.simpleName} that is not a FunctionPhysicalOperatorNode. This is a programmer's error!"
-        }
-
-        /* Parse function and different parameters. */
-        val function = node.function.function
-        require(function is VectorDistance<*>) {
-            "Called NNSIndexScanClass1Rule.apply() with node that does not hold a vector distance. This is a programmer's error!"
-        }
+    override fun tryApply(node: OperatorNode.Physical, ctx: QueryContext): OperatorNode.Physical? {
+        /* Extract necessary components. */
+        if (node !is FunctionPhysicalOperatorNode) return null
+        val function = node.function.function as? VectorDistance<*> ?: return null
+        val scan = node.input as? EntityScanPhysicalOperatorNode ?: return null
 
         /* Parse query column and vector literal. */
         val queryColumn = node.function.arguments.filterIsInstance<Binding.Column>().singleOrNull() ?: return null
         val vectorLiteral = node.function.arguments.filterIsInstance<Binding.Literal>().singleOrNull() ?: return null
-
-        /* Parse entity scan and physical column. */
-        val scan = node.input
-        require(scan is EntityScanPhysicalOperatorNode) {
-            "Called NNSIndexScanClass1Rule.apply() with node that does not follow an EntityScanPhysicalOperatorNode. This is a programmer's error!"
-        }
         val physicalQueryColumn = scan.columns.singleOrNull { it == queryColumn } ?: return null
 
         /* Extract index hint and search for candidate. */

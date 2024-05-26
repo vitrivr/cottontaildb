@@ -8,19 +8,9 @@ import org.vitrivr.cottontail.dbms.queries.operators.basics.OperatorNode
  * or a combination of [OperatorNode]s through another, more optimal combination.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
-interface RewriteRule {
-    /**
-     * Checks if this [RewriteRule] can be applied to the given [OperatorNode]
-     *
-     * @param node The input [OperatorNode] to check.
-     * @param ctx The [QueryContext] used for planning.
-     *
-     * @return True if [RewriteRule] can be applied, false otherwise.
-     */
-    fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean
-
+interface RewriteRule<T: OperatorNode> {
     /**
      * Transforms the given [OperatorNode] (and potentially its parents and children) to a new
      * [OperatorNode] that produces the equivalent output.
@@ -30,5 +20,5 @@ interface RewriteRule {
      *
      * @return The output [OperatorNode] or null, if no rewrite was done.
      */
-    fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode?
+    fun tryApply(node: T, ctx: QueryContext): T?
 }

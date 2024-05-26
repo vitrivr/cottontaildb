@@ -23,7 +23,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * @author Ralph Gasser
  * @version 2.4.0
  */
-class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, private val physicalRules: Collection<RewriteRule>, planCacheSize: Int = 100) {
+class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule<OperatorNode.Logical>>, private val physicalRules: Collection<RewriteRule<OperatorNode.Physical>>, planCacheSize: Int = 100) {
 
     /** Internal cache used to store query plans for known queries. */
     private val planCache = CottontailPlanCache(planCacheSize)
@@ -157,13 +157,9 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         while (pointer != null) {
             /* Apply rules to node and add results to list for exploration. */
             for (rule in this.logicalRules) {
-                if (rule.canBeApplied(pointer, this@QueryContext)) {
-                    val result = rule.apply(pointer, this@QueryContext)
-                    if (result is OperatorNode.Logical) {
-                        explore.enqueue(result.root)
-                        candidates.enqueue(result.root)
-                    }
-                }
+                val result = rule.tryApply(pointer, this@QueryContext) ?: continue
+                explore.enqueue(result.root)
+                candidates.enqueue(result.root)
             }
 
             /* Add all inputs to operators that need further exploration. */
@@ -201,14 +197,10 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         while (pointer != null) {
             /* Apply rules to node and add results to list for exploration. */
             for (rule in this.physicalRules) {
-                if (rule.canBeApplied(pointer, this@QueryContext)) {
-                    val result = rule.apply(pointer, this@QueryContext)
-                    if (result is OperatorNode.Physical) {
-                        explore.enqueue(result.root)
-                        if (result.root.canBeExecuted(this@QueryContext)) {
-                            candidates.enqueue(result.root)
-                        }
-                    }
+                val result = rule.tryApply(pointer, this@QueryContext) ?: continue
+                explore.enqueue(result.root)
+                if (result.root.canBeExecuted(this@QueryContext)) {
+                    candidates.enqueue(result.root)
                 }
             }
 

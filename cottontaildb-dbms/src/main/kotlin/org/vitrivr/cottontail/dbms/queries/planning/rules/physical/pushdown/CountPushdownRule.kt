@@ -12,32 +12,21 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * Pushes the simple counting of entries in an [Entity] down.
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 2.0.0
  */
-object CountPushdownRule : RewriteRule {
-    /**
-     * The [CountPushdownRule] can be applied to all [CountProjectionPhysicalOperatorNode]s that directly follow an [EntityScanPhysicalOperatorNode].
-     *
-     * @param node The [OperatorNode] to check.
-     * @param ctx The [QueryContext]
-     * @return True if [CountPushdownRule] can be applied to [node], false otherwise.
-     */
-    override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean
-        = node is CountProjectionPhysicalOperatorNode && node.input is EntityScanPhysicalOperatorNode
-
+object CountPushdownRule : RewriteRule<OperatorNode.Physical> {
     /**
      * Applies this [CountPushdownRule] to the provided [OperatorNode].
      *
-     * @param node The [OperatorNode] to check.
+     * @param node The [OperatorNode.Physical] to check.
      * @param ctx The [QueryContext]
-     * @return [OperatorNode] or null, if rewrite was not possible.
+     * @return [OperatorNode.Physical] or null, if rewrite was not possible.
      */
-    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode {
-        require(node is CountProjectionPhysicalOperatorNode) { "Called CountPushdownRule.apply() with node of type ${node.javaClass.simpleName}. This is a programmer's error!"}
+    override fun tryApply(node: OperatorNode.Physical, ctx: QueryContext): OperatorNode.Physical? {
+        if (node !is CountProjectionPhysicalOperatorNode) return null
 
         /* Parse input. */
-        val input = node.input
-        require(input is EntityScanPhysicalOperatorNode) { "Called CountPushdownRule.apply() on a node that does not directly follow an entity scan. This is a programmer's error!" }
+        val input = node.input as? EntityScanPhysicalOperatorNode ?: return null
 
         /* Preform rewrite. */
         val p = EntityCountPhysicalOperatorNode(input.groupId, input.tx, node.out)
