@@ -33,7 +33,7 @@ sealed class BTreeIndexCursor<T: ComparisonOperator>(protected val index: BTreeI
 
     /** The internal [ValueBinding] reference used for de-/serialization. */
     @Suppress("UNCHECKED_CAST")
-    protected val binding: ValueBinding<Value> = ValueBinding(ValueSerializer.serializer(this.columns[0].type)) as ValueBinding<Value>
+    protected val binding: ValueBinding<Value> = ValueBinding(ValueSerializer.serializer(this.index.columns[0].type)) as ValueBinding<Value>
 
     /** Internal cursor used for navigation. */
     protected val cursor: jetbrains.exodus.env.Cursor = this.store.openCursor(this.xodusTx)

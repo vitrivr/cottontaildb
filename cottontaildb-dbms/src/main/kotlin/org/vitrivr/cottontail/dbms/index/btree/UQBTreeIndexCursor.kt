@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * A [Cursor] for the [UQBTreeIndex]. Different variants are implemented optimised for the respective [ComparisonOperator].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 sealed class UQBTreeIndexCursor<T: ComparisonOperator>(protected val index: UQBTreeIndex.Tx, val columns: Array<ColumnDef<*>>) : Cursor<Tuple> {
     /** Internal cursor used for navigation. */
@@ -33,7 +33,7 @@ sealed class UQBTreeIndexCursor<T: ComparisonOperator>(protected val index: UQBT
 
     /** The internal [ValueSerializer] reference used for de-/serialization. */
     @Suppress("UNCHECKED_CAST")
-    protected val binding: ValueBinding<Value> = ValueBinding(ValueSerializer.serializer(this.columns[0].type)) as ValueBinding<Value>
+    protected val binding: ValueBinding<Value> = ValueBinding(ValueSerializer.serializer(this.index.columns[0].type)) as ValueBinding<Value>
 
     /** Internal cursor used for navigation. */
     protected val cursor: jetbrains.exodus.env.Cursor = this.store.openCursor(this.xodusTx)
