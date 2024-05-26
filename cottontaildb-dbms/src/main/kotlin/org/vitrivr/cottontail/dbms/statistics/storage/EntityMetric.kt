@@ -13,6 +13,11 @@ import jetbrains.exodus.util.LightOutputStream
  * @version 1.0.0
  */
 data class EntityMetric(var inserts: Long = 0L, var updates: Long = 0L, var deletes: Long = 0L, var deltaSinceAnalysis: Long = 0L, var lastAnalysis: Long = 0L) {
+
+    /** The estimated number of entries in the entity backed by this [EntityMetric]. */
+    val total: Long
+        get() = this.inserts - this.deletes
+
     companion object {
         fun entryToObject(entry: ByteIterable): EntityMetric {
             val stream = ByteArraySizedInputStream(entry.bytesUnsafe, 0, entry.length)

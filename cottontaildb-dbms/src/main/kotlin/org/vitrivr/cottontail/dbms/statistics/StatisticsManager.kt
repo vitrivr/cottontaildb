@@ -25,6 +25,7 @@ import java.lang.ref.SoftReference
 import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.math.abs
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
@@ -59,7 +60,7 @@ class StatisticsManager(private val instance: Instance): TransactionObserver, Cl
     private val queue = Collections.synchronizedSet(LinkedHashSet<Name.EntityName>())
 
     init {
-        this.instance.executor.serviceWorkerPool.scheduleAtFixedRate(Collector(), 10, 3, TimeUnit.SECONDS)
+        this.instance.executor.serviceWorkerPool.scheduleAtFixedRate(Collector(), 10, 10, TimeUnit.SECONDS)
     }
 
     /**
@@ -94,7 +95,7 @@ class StatisticsManager(private val instance: Instance): TransactionObserver, Cl
 
                 /* Resets all the column statistics and the entity metrics entry, whenever an entity is truncated. */
                 is EntityEvent.Truncate -> {
-                    event.columns.forEach { this.store[it.name] =  ColumnStatistic(it) }
+                    event.columns.forEach { this.store[it.name] = ColumnStatistic(it) }
                     this.store.setMetric(event.entity.name, EntityMetric())
                 }
 
@@ -128,7 +129,7 @@ class StatisticsManager(private val instance: Instance): TransactionObserver, Cl
         /* Store updated metric and schedule analyser task if accumulated changes exceed configured threshold.  */
         for ((entity, metric) in updated) {
             this.store.setMetric(entity, metric)
-            if (metric.deltaSinceAnalysis >= this@StatisticsManager.instance.config.statistics.threshold) {
+            if (metric.lastAnalysis == 0L || abs(metric.deltaSinceAnalysis.toFloat() / metric.total.toFloat()) >= this@StatisticsManager.instance.config.statistics.threshold) {
                 this.queue.add(entity)
             }
         }

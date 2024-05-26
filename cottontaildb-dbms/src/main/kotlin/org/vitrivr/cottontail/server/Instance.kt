@@ -36,8 +36,13 @@ class Instance(val config: Config): Closeable {
     /** The [StatisticsManager] used by this [Instance]. */
     val statistics = StatisticsManager(this)
 
-    /* Register the different service tasks. */
+    /** Register the different service tasks. */
     val rebuilderService = AutoRebuilderService(this)
+
+    init {
+        /* Register the statistics manager with the transaction manager. */
+        this.transactions.register(this.statistics)
+    }
 
     /**
      * Closes the [Instance] and all objects contained within.
