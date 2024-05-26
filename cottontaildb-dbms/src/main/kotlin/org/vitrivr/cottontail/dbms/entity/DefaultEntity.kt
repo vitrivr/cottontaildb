@@ -492,9 +492,13 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             val oldTuple = this.serializer.fromEntry(tuple.tupleId, oldTupleRaw)
 
             /* Prepare update tuple. */
-            val updatedTuple = StandaloneTuple(0L, this.columns, Array(this.columns.size) {
+            val updatedTuple = StandaloneTuple(oldTuple.tupleId, this.columns, Array(this.columns.size) {
                 val column = this.columns[it]
-                val value = tuple[column.name] ?: oldTuple[column.name]
+                val value = if (tuple.has(column)) {
+                    tuple[column]
+                } else {
+                    oldTuple[column.name]
+                }
                 if (value == null && !column.nullable) {
                     throw DatabaseException.ValidationException("Record ${oldTuple.tupleId} cannot be updated with NULL value for column $column, because column is not nullable.")
                 }
