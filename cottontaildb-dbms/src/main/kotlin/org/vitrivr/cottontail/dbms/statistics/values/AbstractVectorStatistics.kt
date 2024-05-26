@@ -9,6 +9,4 @@ import org.vitrivr.cottontail.core.types.VectorValue
  * @author Florian Burkhardt
  * @version 1.0.0
  */
-sealed class AbstractVectorStatistics<T: VectorValue<*>>(type: Types<T>): AbstractValueStatistics<T>(type) {
-
-}
+sealed class AbstractVectorStatistics<T: VectorValue<*>>(type: Types<T>): AbstractValueStatistics<T>(type)

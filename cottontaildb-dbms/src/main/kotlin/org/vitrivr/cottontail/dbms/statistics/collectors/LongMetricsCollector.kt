@@ -8,26 +8,27 @@ import org.vitrivr.cottontail.dbms.statistics.values.LongValueStatistics
 /**
  * A [MetricsCollector] implementation for [LongValue]s.
  *
- * @author Ralph Gasser, Florian Burkhardt
- * @version 1.3.0
+ * @author Florian Burkhardt
+ * @author Ralph Gasser
+ * @version 1.4.0
  */
-class LongMetricsCollector(config: MetricsConfig) : RealMetricsCollector<LongValue>(Types.Long, config) {
+class LongMetricsCollector(config: MetricsConfig) : AbstractRealMetricsCollector<LongValue>(Types.Long, config) {
 
-    override fun calculate(probability: Float): LongValueStatistics {
-        val sampleMetrics = LongValueStatistics(
-            this.numberOfNullEntries,
-            this.numberOfNonNullEntries,
-            this.numberOfDistinctEntries,
-            LongValue(this.min),
-            LongValue(this.max),
-            DoubleValue(this.sum),
-            DoubleValue(this.mean),
-            DoubleValue(this.variance),
-            DoubleValue(this.skewness),
-            DoubleValue(this.kurtosis)
-        )
-
-        return LongValueStatistics(1/probability, sampleMetrics)
-    }
-
+    /**
+     * Generates and returns the [LongValueStatistics] based on the current state of the [LongMetricsCollector].
+     *
+     * @return Generated [LongValueStatistics]
+     */
+    override fun calculate() = LongValueStatistics(
+        (this.numberOfNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfNonNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfDistinctEntries / this.config.sampleProbability).toLong(),
+        LongValue(this.min),
+        LongValue(this.max),
+        DoubleValue(this.sum),
+        DoubleValue(this.mean),
+        DoubleValue(this.variance),
+        DoubleValue(this.skewness),
+        DoubleValue(this.kurtosis)
+    )
 }

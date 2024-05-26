@@ -8,26 +8,27 @@ import org.vitrivr.cottontail.dbms.statistics.values.FloatValueStatistics
 /**
  * A [MetricsCollector] implementation for [FloatValue]s.
  *
- * @author Ralph Gasser, Florian Burkhardt
- * @version 1.3.0
+ * @author Florian Burkhardt
+ * @author Ralph Gasser
+ * @version 1.4.0
  */
-class FloatMetricsCollector(config: MetricsConfig) : RealMetricsCollector<FloatValue>(Types.Float, config) {
+class FloatMetricsCollector(config: MetricsConfig) : AbstractRealMetricsCollector<FloatValue>(Types.Float, config) {
 
-    override fun calculate(probability: Float): FloatValueStatistics {
-        val sampleMetrics = FloatValueStatistics(
-            this.numberOfNullEntries,
-            this.numberOfNonNullEntries,
-            this.numberOfDistinctEntries,
-            FloatValue(this.min),
-            FloatValue(this.max),
-            DoubleValue(this.sum),
-            DoubleValue(this.mean),
-            DoubleValue(this.variance),
-            DoubleValue(this.skewness),
-            DoubleValue(this.kurtosis)
-        )
-
-        return FloatValueStatistics(1/probability, sampleMetrics)
-    }
-
+    /**
+     * Generates and returns the [FloatValueStatistics] based on the current state of the [FloatMetricsCollector].
+     *
+     * @return Generated [FloatValueStatistics]
+     */
+    override fun calculate()=  FloatValueStatistics(
+        (this.numberOfNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfNonNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfDistinctEntries / this.config.sampleProbability).toLong(),
+        FloatValue(this.min),
+        FloatValue(this.max),
+        DoubleValue(this.sum),
+        DoubleValue(this.mean),
+        DoubleValue(this.variance),
+        DoubleValue(this.skewness),
+        DoubleValue(this.kurtosis)
+    )
 }

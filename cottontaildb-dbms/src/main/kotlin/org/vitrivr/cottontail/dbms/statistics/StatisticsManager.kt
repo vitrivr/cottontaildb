@@ -3,11 +3,8 @@ package org.vitrivr.cottontail.dbms.statistics
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import jetbrains.exodus.env.Environment
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.config.StatisticsConfig
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
-import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.events.EntityEvent
@@ -16,10 +13,11 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
-import org.vitrivr.cottontail.dbms.statistics.collectors.*
-import org.vitrivr.cottontail.dbms.statistics.index.IndexStatistic
-import org.vitrivr.cottontail.dbms.statistics.metrics.EntityMetric
+import org.vitrivr.cottontail.dbms.statistics.collectors.MetricsCollector
+import org.vitrivr.cottontail.dbms.statistics.collectors.MetricsConfig
 import org.vitrivr.cottontail.dbms.statistics.storage.ColumnStatistic
+import org.vitrivr.cottontail.dbms.statistics.storage.EntityMetric
+import org.vitrivr.cottontail.dbms.statistics.storage.IndexStatistic
 import org.vitrivr.cottontail.dbms.statistics.storage.StatisticsStorageManager
 import org.vitrivr.cottontail.server.Instance
 import java.io.Closeable
@@ -79,7 +77,7 @@ class StatisticsManager(private val instance: Instance): TransactionObserver, Cl
      * @param events The list of [Event]s in order at which they were applied.
      */
     override fun onCommit(txId: TransactionId, events: List<Event>) {
-        val updated = HashMap<Name.EntityName,EntityMetric>()
+        val updated = HashMap<Name.EntityName, EntityMetric>()
         for (event in events) {
             when (event) {
                 /* Creates all the column statistics and the entity metrics entry. */
@@ -204,18 +202,25 @@ class StatisticsManager(private val instance: Instance): TransactionObserver, Cl
             val columns = entityTx.listColumns().toTypedArray()
 
             /* Determines the number of entries that must be scanned. */
+            val count = entityTx.count()
             val sampleProbability = this@StatisticsManager.instance.config.statistics.sampleProbability
-            val expectedEntries = (entityTx.count() * sampleProbability).toLong()
+            val sampledEntries = (count * sampleProbability).toLong()
+            val config = if (sampledEntries <= this@StatisticsManager.instance.config.statistics.minimumSampleSize) {
+                MetricsConfig(this@StatisticsManager.instance.config.statistics, count, 1.0f)
+            } else {
+                MetricsConfig(this@StatisticsManager.instance.config.statistics, sampledEntries, sampleProbability)
+            }
+
 
             /* Prepares array of column data collectors. */
             val collectors = Array(columns.size) {
-                getCollector(columns[it], this@StatisticsManager.instance.catalogue.config.statistics, expectedEntries) as MetricsCollector<Value>
+                MetricsCollector.collectorForType(columns[it].type, config) as MetricsCollector<Value>
             }
 
             /* Scans the data and passes it to the collector */
             val duration = measureTime {
                 entityTx.cursor().use { cursor ->
-                    if (expectedEntries <= this@StatisticsManager.instance.config.statistics.minimumSampleSize) {
+                    if (sampledEntries <= this@StatisticsManager.instance.config.statistics.minimumSampleSize) {
                         while (cursor.moveNext()) {
                             val record = cursor.value()
                             collectors.forEachIndexed { index, collect -> collect.receive(record[index]) }
@@ -223,7 +228,7 @@ class StatisticsManager(private val instance: Instance): TransactionObserver, Cl
                     } else {
                         val generator = this@StatisticsManager.instance.config.statistics.randomGenerator()
                         while (cursor.moveNext()) {
-                            if (generator.nextDouble(0.0, 1.0) <= sampleProbability) {
+                            if (generator.nextFloat(0.0f, 1.0f) <= sampleProbability) {
                                 val record = cursor.value()
                                 collectors.forEachIndexed { index, collect -> collect.receive(record[index]) }
                             }
@@ -233,7 +238,7 @@ class StatisticsManager(private val instance: Instance): TransactionObserver, Cl
 
                 /* Now obtain the statistics and store them persistently. */
                 for ((column, collector) in columns.zip(collectors)) {
-                    this@StatisticsManager.store[column.name] = ColumnStatistic(column.type, collector.calculate(sampleProbability))
+                    this@StatisticsManager.store[column.name] = ColumnStatistic(column.type, collector.calculate())
                     this@StatisticsManager.columnCache.remove(column.name) /* Invalidates entry in cache. */
                 }
 
@@ -254,37 +259,6 @@ class StatisticsManager(private val instance: Instance): TransactionObserver, Cl
         } finally {
             transaction.abort()
         }
-    }
-
-    /**
-     * Function that, based on the [ColumnDef]'s [Types] returns the corresponding [MetricsCollector]
-     */
-    private fun getCollector(def: ColumnDef<*>, statisticsConfig: StatisticsConfig, numberOfEntries: Long) : MetricsCollector<*> {
-        val config = MetricsConfig(statisticsConfig, numberOfEntries)
-        val collector = when (def.type) {
-            Types.Boolean -> BooleanMetricsCollector(config)
-            Types.Byte -> ByteMetricsCollector(config)
-            Types.Short -> ShortMetricsCollector(config)
-            Types.Date -> DateMetricsCollector(config)
-            Types.Double -> DoubleMetricsCollector(config)
-            Types.Float -> FloatMetricsCollector(config)
-            Types.Int -> IntMetricsCollector(config)
-            Types.Long -> LongMetricsCollector(config)
-            Types.String -> StringMetricsCollector(config)
-            Types.Uuid -> UuidMetricsCollector(config)
-            Types.ByteString -> ByteStringMetricsCollector(config)
-            Types.Complex32 -> Complex32MetricsCollector(config)
-            Types.Complex64 -> Complex64MetricsCollector(config)
-            is Types.BooleanVector -> BooleanVectorMetricsCollector(def.type.logicalSize, config)
-            is Types.DoubleVector -> DoubleVectorMetricsCollector(def.type.logicalSize, config)
-            is Types.FloatVector -> FloatVectorMetricsCollector(def.type.logicalSize, config)
-            is Types.IntVector -> IntVectorMetricsCollector(def.type.logicalSize, config)
-            is Types.LongVector -> LongVectorMetricsCollector(def.type.logicalSize, config)
-            is Types.Complex32Vector -> Complex32VectorMetricsCollector(def.type.logicalSize, config)
-            is Types.Complex64Vector -> Complex64VectorMetricsCollector(def.type.logicalSize, config)
-            else -> throw IllegalArgumentException("Invalid column type")
-        }
-        return collector
     }
 
     /**

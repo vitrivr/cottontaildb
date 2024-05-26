@@ -7,45 +7,45 @@ import org.vitrivr.cottontail.dbms.statistics.values.LongVectorValueStatistics
 /**
  * A [MetricsCollector] implementation for [LongVectorValue]s.
  *
- * @author Ralph Gasser, Florian Burkhardt
- * @version 1.3.0
+ * @author Florian Burkhard
+ * @author Ralph Gasser
+ * @version 1.4.0
  */
-class LongVectorMetricsCollector(val logicalSize: Int, config: MetricsConfig): RealVectorMetricsCollector<LongVectorValue>(Types.LongVector(logicalSize), config) {
-
-    /** Local Metrics */
+class LongVectorMetricsCollector(logicalSize: Int, config: MetricsConfig): AbstractRealVectorMetricsCollector<LongVectorValue>(Types.LongVector(logicalSize), config) {
+    /** The component-wise minimum. */
     val min: LongVectorValue = LongVectorValue(LongArray(logicalSize) { Long.MAX_VALUE })
+
+    /** The component-wise maximum. */
     val max: LongVectorValue = LongVectorValue(LongArray(logicalSize) { Long.MIN_VALUE })
-    val sum: LongVectorValue = LongVectorValue(LongArray(logicalSize))
 
     /**
-     * Receives the values for which to compute the statistics
+     * Receives a [LongVectorValue] that should be considered for analysis.
+     *
+     * @param value The [LongVectorValue] received.
      */
     override fun receive(value: LongVectorValue?) {
         super.receive(value)
         if (value != null) {
             for ((i, d) in value.data.withIndex()) {
-                // update min, max,
-                min.data[i] = java.lang.Long.min(d, min.data[i])
-                max.data[i] = java.lang.Long.min(d, max.data[i])
-                sum.data[i] += d
+                this.min.data[i] = kotlin.math.min(d, this.min.data[i])
+                this.max.data[i] = kotlin.math.min(d, this.max.data[i])
+                this.sum.data[i] += d.toDouble()
             }
         }
     }
 
-    override fun calculate(probability: Float): LongVectorValueStatistics {
-
-        val sampleMetrics = LongVectorValueStatistics(
-            logicalSize,
-            numberOfNullEntries,
-            numberOfNonNullEntries,
-            numberOfDistinctEntries,
-            min,
-            max,
-            sum
-        )
-
-        return LongVectorValueStatistics(1/probability,  sampleMetrics)
-
-    }
-
+    /**
+     * Generates and returns the [LongVectorValueStatistics] based on the current state of the [LongVectorMetricsCollector].
+     *
+     * @return Generated [LongVectorValueStatistics]
+     */
+    override fun calculate() = LongVectorValueStatistics(
+        this.type.logicalSize,
+        (this.numberOfNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfNonNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfDistinctEntries / this.config.sampleProbability).toLong(),
+        this.min,
+        this.max,
+        this.sum
+    )
 }

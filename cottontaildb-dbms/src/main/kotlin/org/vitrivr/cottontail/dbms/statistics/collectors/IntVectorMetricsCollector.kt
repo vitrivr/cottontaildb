@@ -7,15 +7,17 @@ import org.vitrivr.cottontail.dbms.statistics.values.IntVectorValueStatistics
 /**
  * A [MetricsCollector] implementation for [IntVectorValue]s.
  *
- * @author Ralph Gasser, Florian Burkhardt
- * @version 1.3.0
+ * @author Florian Burkhardt
+ * @author Ralph Gasser
+ * @version 1.4.0
  */
-class IntVectorMetricsCollector(val logicalSize: Int, config: MetricsConfig): RealVectorMetricsCollector<IntVectorValue>(Types.IntVector(logicalSize), config) {
+class IntVectorMetricsCollector(logicalSize: Int, config: MetricsConfig): AbstractRealVectorMetricsCollector<IntVectorValue>(Types.IntVector(logicalSize), config) {
 
-    /** Local Metrics */
+    /** The component-wise minimum. */
     val min: IntVectorValue = IntVectorValue(IntArray(logicalSize) { Int.MAX_VALUE })
+
+    /** The component-wise maximum. */
     val max: IntVectorValue = IntVectorValue(IntArray(logicalSize) { Int.MIN_VALUE })
-    val sum: IntVectorValue = IntVectorValue(IntArray(logicalSize))
 
     /**
      * Receives the values for which to compute the statistics
@@ -25,27 +27,25 @@ class IntVectorMetricsCollector(val logicalSize: Int, config: MetricsConfig): Re
         if (value != null) {
             for ((i, d) in value.data.withIndex()) {
                 // update min, max, sum
-                min.data[i] = Integer.min(d, min.data[i])
-                max.data[i] = Integer.max(d, max.data[i])
-                sum.data[i] += d
+                this.min.data[i] = kotlin.math.min(d, this.min.data[i])
+                this.max.data[i] = kotlin.math.min(d, this.max.data[i])
+                this.sum.data[i] += d.toDouble()
             }
         }
     }
 
-    override fun calculate(probability: Float): IntVectorValueStatistics {
-        val sampleMetrics = IntVectorValueStatistics(
-            logicalSize,
-            numberOfNullEntries,
-            numberOfNonNullEntries,
-            numberOfDistinctEntries,
-            min,
-            max,
-            sum
-        )
-
-        return IntVectorValueStatistics(1/probability,  sampleMetrics)
-
-    }
-
-
+    /**
+     * Generates and returns the [IntVectorValueStatistics] based on the current state of the [IntVectorMetricsCollector].
+     *
+     * @return Generated [IntVectorValueStatistics]
+     */
+    override fun calculate() = IntVectorValueStatistics(
+        this.type.logicalSize,
+        (this.numberOfNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfNonNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfDistinctEntries / this.config.sampleProbability).toLong(),
+        this.min,
+        this.max,
+        this.sum
+    )
 }

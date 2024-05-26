@@ -7,27 +7,27 @@ import org.vitrivr.cottontail.dbms.statistics.values.DoubleValueStatistics
 /**
  * A [MetricsCollector] implementation for [DoubleValue]s.
  *
- * @author Ralph Gasser, Florian Burkhardt
- * @version 1.3.0
+ * @author Florian Burkhardt
+ * @author Ralph Gasser
+ * @version 1.4.0
  */
-class DoubleMetricsCollector(config: MetricsConfig) : RealMetricsCollector<DoubleValue>(Types.Double, config) {
+class DoubleMetricsCollector(config: MetricsConfig) : AbstractRealMetricsCollector<DoubleValue>(Types.Double, config) {
 
-    override fun calculate(probability: Float): DoubleValueStatistics {
-
-        val sampleMetrics = DoubleValueStatistics(
-            this.numberOfNullEntries,
-            this.numberOfNonNullEntries,
-            this.numberOfDistinctEntries,
-            DoubleValue(this.min),
-            DoubleValue(this.max),
-            DoubleValue(this.sum),
-            DoubleValue(this.mean),
-            DoubleValue(this.variance),
-            DoubleValue(this.skewness),
-            DoubleValue(this.kurtosis)
-        )
-
-        return DoubleValueStatistics(1/probability, sampleMetrics)
-    }
-
+    /**
+     * Generates and returns the [DoubleValueStatistics] based on the current state of the [DoubleMetricsCollector].
+     *
+     * @return Generated [DoubleValueStatistics]
+     */
+    override fun calculate() =  DoubleValueStatistics(
+        (this.numberOfNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfNonNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfDistinctEntries / this.config.sampleProbability).toLong(),
+        DoubleValue(this.min),
+        DoubleValue(this.max),
+        DoubleValue(this.sum),
+        DoubleValue(this.mean),
+        DoubleValue(this.variance),
+        DoubleValue(this.skewness),
+        DoubleValue(this.kurtosis)
+    )
 }

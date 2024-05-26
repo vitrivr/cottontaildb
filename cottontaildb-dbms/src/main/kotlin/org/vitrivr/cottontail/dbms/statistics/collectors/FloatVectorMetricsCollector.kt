@@ -3,19 +3,22 @@ package org.vitrivr.cottontail.dbms.statistics.collectors
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.dbms.statistics.values.FloatVectorValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.values.LongVectorValueStatistics
 
 /**
  * A [MetricsCollector] implementation for [FloatVectorValue]s.
  *
- * @author Ralph Gasser, Florian Burkhardt
- * @version 1.3.0
+ * @author Florian Burkhardt
+ * @author Ralph Gasser
+ * @version 1.4.0
  */
-class FloatVectorMetricsCollector(val logicalSize: Int, config: MetricsConfig) : RealVectorMetricsCollector<FloatVectorValue>(Types.FloatVector(logicalSize), config) {
+class FloatVectorMetricsCollector(logicalSize: Int, config: MetricsConfig) : AbstractRealVectorMetricsCollector<FloatVectorValue>(Types.FloatVector(logicalSize), config) {
 
-    /** Local Metrics */
+    /** The component-wise minimum. */
     val min: FloatVectorValue = FloatVectorValue(FloatArray(logicalSize) { Float.MAX_VALUE })
+
+    /** The component-wise maximum. */
     val max: FloatVectorValue = FloatVectorValue(FloatArray(logicalSize) { Float.MIN_VALUE })
-    val sum: FloatVectorValue = FloatVectorValue(FloatArray(logicalSize))
 
     /**
      * Receives the values for which to compute the statistics
@@ -24,26 +27,25 @@ class FloatVectorMetricsCollector(val logicalSize: Int, config: MetricsConfig) :
         super.receive(value)
         if (value != null) {
             for ((i, d) in value.data.withIndex()) {
-                // update min, max, sum
-                min.data[i] = java.lang.Float.min(d, min.data[i])
-                max.data[i] = java.lang.Float.max(d, max.data[i])
-                sum.data[i] += d
+                this.min.data[i] = kotlin.math.min(d, this.min.data[i])
+                this.max.data[i] = kotlin.math.min(d, this.max.data[i])
+                this.sum.data[i] += d.toDouble()
             }
         }
     }
 
-    override fun calculate(probability: Float): FloatVectorValueStatistics {
-        val sampleMetrics = FloatVectorValueStatistics(
-            logicalSize,
-            numberOfNullEntries,
-            numberOfNonNullEntries,
-            numberOfDistinctEntries,
-            min,
-            max,
-            sum
-        )
-
-        return FloatVectorValueStatistics(1/probability, sampleMetrics)
-    }
-
+    /**
+     * Generates and returns the [LongVectorValueStatistics] based on the current state of the [LongVectorMetricsCollector].
+     *
+     * @return Generated [LongVectorValueStatistics]
+     */
+    override fun calculate() = FloatVectorValueStatistics(
+        this.type.logicalSize,
+        (this.numberOfNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfNonNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfDistinctEntries / this.config.sampleProbability).toLong(),
+        this.min,
+        this.max,
+        this.sum
+    )
 }

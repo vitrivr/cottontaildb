@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.config.StatisticsConfig
  * This is done so that when additional values are desired we can add these here directly instead of passing an additional value in all 10+ collectors.
  *
  *  @author Florian Burkhardt
- *  @version 1.0.0
+ *  @author Ralph Gasser
+ *  @version 1.1.0
  */
-data class MetricsConfig(val statisticsConfig: StatisticsConfig, val expectedNumElements: Long)
+data class MetricsConfig(val statisticsConfig: StatisticsConfig, val numberOfElements: Long, val sampleProbability: Float)

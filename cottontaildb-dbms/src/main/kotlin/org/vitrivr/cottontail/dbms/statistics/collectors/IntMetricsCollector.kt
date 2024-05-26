@@ -8,27 +8,26 @@ import org.vitrivr.cottontail.dbms.statistics.values.IntValueStatistics
 /**
  * A [MetricsCollector] implementation for [IntValue]s.
  *
- * @author Ralph Gasser, Florian Burkhardt
+ * @author Florian Burkhardt
+ * @author Ralph Gasser
  * @version 1.3.0
  */
-class IntMetricsCollector(config: MetricsConfig) : RealMetricsCollector<IntValue>(Types.Int, config) {
-
-    override fun calculate(probability: Float): IntValueStatistics {
-        val sampleMetrics = IntValueStatistics(
-            this.numberOfNullEntries,
-            this.numberOfNonNullEntries,
-            this.numberOfDistinctEntries,
-            IntValue(this.min),
-            IntValue(this.max),
-            DoubleValue(this.sum),
-            DoubleValue(this.mean),
-            DoubleValue(this.variance),
-            DoubleValue(this.skewness),
-            DoubleValue(this.kurtosis)
-        )
-
-        return IntValueStatistics(1/probability, sampleMetrics)
-    }
-
-
+class IntMetricsCollector(config: MetricsConfig) : AbstractRealMetricsCollector<IntValue>(Types.Int, config) {
+    /**
+     * Generates and returns the [IntValueStatistics] based on the current state of the [IntMetricsCollector].
+     *
+     * @return Generated [IntValueStatistics]
+     */
+    override fun calculate() = IntValueStatistics(
+        (this.numberOfNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfNonNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfDistinctEntries / this.config.sampleProbability).toLong(),
+        IntValue(this.min),
+        IntValue(this.max),
+        DoubleValue(this.sum),
+        DoubleValue(this.mean),
+        DoubleValue(this.variance),
+        DoubleValue(this.skewness),
+        DoubleValue(this.kurtosis)
+    )
 }

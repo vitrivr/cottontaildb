@@ -2,9 +2,10 @@ package org.vitrivr.cottontail.dbms.statistics.values
 
 import org.vitrivr.cottontail.core.types.RealVectorValue
 import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.values.DoubleVectorValue
 
 /**
- * A [ValueStatistics] for [VectorValue]s
+ * A [ValueStatistics] for [RealVectorValue]s
  *
  * @author Ralph Gasser
  * @version 1.1.0
@@ -17,17 +18,21 @@ sealed class RealVectorValueStatistics<T: RealVectorValue<*>>(type: Types<T>): A
         const val MEAN_KEY = "cmean"
     }
 
-    /** The element-wise, minimum value seen by this [RealVectorValueStatistics]. */
+    /** The component-wise, minimum value seen by this [RealVectorValueStatistics]. */
     abstract val min: T
 
-    /** The element-wise, maximum value seen by this [RealVectorValueStatistics]. */
+    /** The component-wise, maximum value seen by this [RealVectorValueStatistics]. */
     abstract val max: T
 
-    /** The element-wise, arithmetic mean for the values seen by this [RealVectorValueStatistics]. */
-    abstract val mean: T
+    /** The component-wise, sum of all values in this [RealVectorValueStatistics]. */
+    abstract val sum: DoubleVectorValue
 
-    /** The element-wise, sum of all values in this [RealVectorValueStatistics]. */
-    abstract val sum: T
+    /** The arithmetic for the values seen by this [RealVectorValueStatistics]. */
+    val mean: DoubleVectorValue by lazy {
+        DoubleVectorValue(DoubleArray(this.type.logicalSize) {
+            this.sum[it].value / this.numberOfNonNullEntries
+        })
+    }
 
     /**
      * Creates a descriptive map of this [RealVectorValueStatistics].

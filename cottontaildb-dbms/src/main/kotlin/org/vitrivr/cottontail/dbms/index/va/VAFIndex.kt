@@ -38,7 +38,7 @@ import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.StatisticsManager
-import org.vitrivr.cottontail.dbms.statistics.index.IndexStatistic
+import org.vitrivr.cottontail.dbms.statistics.storage.IndexStatistic
 import org.vitrivr.cottontail.dbms.statistics.values.RealVectorValueStatistics
 import org.vitrivr.cottontail.server.Instance
 

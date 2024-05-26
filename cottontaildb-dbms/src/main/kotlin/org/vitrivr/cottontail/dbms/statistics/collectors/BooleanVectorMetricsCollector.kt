@@ -6,11 +6,13 @@ import org.vitrivr.cottontail.dbms.statistics.values.BooleanVectorValueStatistic
 /**
  * A [MetricsCollector] implementation for [BooleanVectorValue]s.
  *
- * @author Ralph Gasser, Florian Burkhardt
- * @version 1.3.0
+ * @author Florian Burkhardt
+ * @author Ralph Gasser
+ * @version 1.4.0
  */
-class BooleanVectorMetricsCollector(val logicalSize: Int, config: MetricsConfig) : AbstractVectorMetricsCollector<BooleanVectorValue>(Types.BooleanVector(logicalSize), config) {
+class BooleanVectorMetricsCollector(logicalSize: Int, config: MetricsConfig) : AbstractVectorMetricsCollector<BooleanVectorValue>(Types.BooleanVector(logicalSize), config) {
 
+    /** The number of true entries per component. */
     private var numberOfTrueEntries: LongArray = LongArray(logicalSize)
 
     /**
@@ -20,25 +22,21 @@ class BooleanVectorMetricsCollector(val logicalSize: Int, config: MetricsConfig)
         super.receive(value)
         if (value != null) {
             for ((i, d) in value.data.withIndex()) {
-                if (d) {
-                    numberOfTrueEntries[i] = numberOfTrueEntries[i] + 1
-                } // numberOfFalseEntries is computed using numberOfNonNullEntries and numberOfTrueEntries
+                if (d) this.numberOfTrueEntries[i] += 1L
             }
         }
     }
 
-    override fun calculate(probability: Float): BooleanVectorValueStatistics {
-
-        val sampleMetrics = BooleanVectorValueStatistics(
-            logicalSize,
-            numberOfNullEntries,
-            numberOfNonNullEntries,
-            numberOfDistinctEntries,
-            numberOfTrueEntries
-        )
-
-        return BooleanVectorValueStatistics(1/probability, sampleMetrics)
-    }
-
-
+    /**
+     * Generates and returns the [BooleanVectorValueStatistics] based on the current state of the [BooleanVectorMetricsCollector].
+     *
+     * @return Generated [BooleanVectorValueStatistics]
+     */
+    override fun calculate() = BooleanVectorValueStatistics(
+        this.type.logicalSize,
+        (this.numberOfNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfNonNullEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfDistinctEntries / this.config.sampleProbability).toLong(),
+        (this.numberOfTrueEntries.map { (it / this.config.sampleProbability).toLong() }.toLongArray())
+    )
 }

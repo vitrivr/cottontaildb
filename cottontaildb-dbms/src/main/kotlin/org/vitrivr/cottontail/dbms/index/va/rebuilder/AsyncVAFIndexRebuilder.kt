@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.dbms.index.basic.rebuilder.IndexRebuilderState
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.index.va.signature.EquidistantVAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
-import org.vitrivr.cottontail.dbms.statistics.index.IndexStatistic
+import org.vitrivr.cottontail.dbms.statistics.storage.IndexStatistic
 import org.vitrivr.cottontail.server.Instance
 import java.util.concurrent.ConcurrentLinkedQueue
 
