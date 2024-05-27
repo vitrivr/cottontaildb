@@ -1,14 +1,8 @@
 package org.vitrivr.cottontail.utilities.graph.undirected
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
-import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.bindings.FloatBinding
-import jetbrains.exodus.env.Store
-import jetbrains.exodus.env.StoreConfig
-import jetbrains.exodus.env.Transaction
 import org.vitrivr.cottontail.utilities.graph.Edge
 import org.vitrivr.cottontail.utilities.graph.MutableGraph
-import java.io.ByteArrayInputStream
 
 /**
  * An undirected, in-memory implementation of the [MutableGraph] interface.
@@ -130,7 +124,16 @@ class WeightedUndirectedInMemoryGraph<V>(private val maxDegree: Int, private val
     }
 
     /**
+     * Creates an [Iterator] over the vertices [V] in this [WeightedUndirectedInMemoryGraph].
      *
+     * @return [Iterator] of [V]
      */
     override fun vertices(): Iterator<V> = this@WeightedUndirectedInMemoryGraph.adjacencyList.keys.iterator()
+
+    /**
+     * Clears this [WeightedUndirectedInMemoryGraph].
+     */
+    override fun clear() {
+        this.adjacencyList.clear()
+    }
 }

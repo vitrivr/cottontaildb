@@ -31,7 +31,7 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class DefaultDynamicExplorationGraph<V: VectorValue<*>>(config: DEGIndexConfig, val index: DEGIndex.Tx): AbstractDynamicExplorationGraph<TupleId, V>(config.degree, config.kExt, config.epsilonExt) {
+class DefaultDynamicExplorationGraph<V: VectorValue<*>>(config: DEGIndexConfig, val index: DEGIndex.Tx): AbstractDynamicExplorationGraph<TupleId, V>(DEGConfig(config.degree, config.kExt, config.epsilonExt)) {
     /** The [VectorDistance] function employed by this [PQIndex]. */
     val distanceFunction: VectorDistance<*> by lazy {
         val signature = Signature.Closed(config.distance, arrayOf(index.columns[0].type, index.columns[0].type), Types.Double)
@@ -42,9 +42,6 @@ class DefaultDynamicExplorationGraph<V: VectorValue<*>>(config: DEGIndexConfig, 
             dist
         }
     }
-
-    /** The Xodus transaction used by this [DefaultDynamicExplorationGraph]. */
-    private val xodusTx = this.index.xodusTx
 
     /** Flag indicating, that changes were made to this [DefaultDynamicExplorationGraph]. */
     private var dirty: Boolean = false
@@ -101,6 +98,18 @@ class DefaultDynamicExplorationGraph<V: VectorValue<*>>(config: DEGIndexConfig, 
     override fun distance(a: V, b: V): Float =  this.distanceFunction.invoke(a, b)!!.value.toFloat()
 
     /**
+     * Clears this [DefaultDynamicExplorationGraph].
+     */
+    override fun clear() {
+        super.clear()
+
+        /* Obtain environment and store name and truncate store. */
+        val storeName = this.index.dbo.name.storeName()
+        val environment = this.index.xodusTx.environment
+        environment.truncateStore(storeName, this.index.xodusTx)
+    }
+
+    /**
      * Loads this [DefaultDynamicExplorationGraph] from the [Store] backing the [DEGIndex].
      *
      * @return [WeightedUndirectedInMemoryGraph]
@@ -111,29 +120,34 @@ class DefaultDynamicExplorationGraph<V: VectorValue<*>>(config: DEGIndexConfig, 
         val environment = this.index.xodusTx.environment
 
         /* Open store and prepare empty adjacency list. */
-        val store = environment.openStore(storeName, StoreConfig.WITH_DUPLICATES, this.xodusTx)
+        val store = environment.openStore(storeName, StoreConfig.WITH_DUPLICATES, this.index.xodusTx)
         val adjacencyList = Object2ObjectOpenHashMap<Node<TupleId>,MutableList<Edge<Node<TupleId>>>>()
 
         /* Prepare serializer and read from store. */
         val serializer = TupleIdNodeSerializer()
-        store.openCursor(this.xodusTx).use {
-            while (it.nextNoDup) {
-                val key = serializer.deserialize(it.key)
-                val edges = ArrayList<Edge<Node<TupleId>>>(this@DefaultDynamicExplorationGraph.degree)
-                do {
-                    val value = it.value
-                    if (value != ByteIterable.EMPTY) {
-                        val input = ByteArrayInputStream(value.bytesUnsafe, 0, value.length)
-                        val to = serializer.read(input)
-                        val weight = FloatBinding.BINDING.readObject(input)
-                        edges.add(Edge(to, weight))
-                    }
-                } while (it.nextDup)
-                adjacencyList[key] = edges
+        val snapshot = this.index.xodusTx.readonlySnapshot
+        try {
+            store.openCursor(snapshot).use {
+                while (it.nextNoDup) {
+                    val key = serializer.deserialize(it.key)
+                    val edges = ArrayList<Edge<Node<TupleId>>>(this@DefaultDynamicExplorationGraph.config.degree)
+                    do {
+                        val value = it.value
+                        if (value != ByteIterable.EMPTY) {
+                            val input = ByteArrayInputStream(value.bytesUnsafe, 0, value.length)
+                            val to = serializer.read(input)
+                            val weight = FloatBinding.BINDING.readObject(input)
+                            edges.add(Edge(to, weight))
+                        }
+                    } while (it.nextDup)
+                    adjacencyList[key] = edges
+                }
             }
+        } finally {
+            snapshot.abort()
         }
 
-        return WeightedUndirectedInMemoryGraph(this.degree, adjacencyList)
+        return WeightedUndirectedInMemoryGraph(this.config.degree, adjacencyList)
     }
 
     /**
@@ -148,8 +162,8 @@ class DefaultDynamicExplorationGraph<V: VectorValue<*>>(config: DEGIndexConfig, 
             val environment = this.index.xodusTx.environment
 
             /* Truncate and re-open store. */
-            environment.truncateStore(storeName, this.xodusTx)
-            val store = environment.openStore(storeName, StoreConfig.WITH_DUPLICATES, this.xodusTx)
+            environment.truncateStore(storeName, this.index.xodusTx)
+            val store = environment.openStore(storeName, StoreConfig.WITH_DUPLICATES, this.index.xodusTx)
 
             /* Prepare serializer and write to store. */
             val serializer = TupleIdNodeSerializer()

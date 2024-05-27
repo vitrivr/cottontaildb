@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.dbms.index.deg
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectFunction
-import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.slf4j.Logger
@@ -9,7 +8,6 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.binding.MissingTuple
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.euclidean.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
@@ -17,20 +15,17 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
-import org.vitrivr.cottontail.core.tuple.StandaloneTuple
 import org.vitrivr.cottontail.core.tuple.Tuple
 import org.vitrivr.cottontail.core.types.VectorValue
-import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.entity.values.StoredTuple
-import org.vitrivr.cottontail.dbms.entity.values.StoredValue
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata.Companion.storeName
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.deg.deg.DefaultDynamicExplorationGraph
+import org.vitrivr.cottontail.dbms.index.deg.deg.DynamicExplorationGraph
 import org.vitrivr.cottontail.dbms.index.deg.rebuilder.DEGIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.dbms.index.pq.rebuilder.AsyncPQIndexRebuilder
@@ -157,8 +152,9 @@ class DEGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
      * A [IndexTx] that affects this [AbstractIndex].
      */
     inner class Tx(parent: DefaultEntity.Tx) : AbstractIndex.Tx(parent) {
+
         /** Constructs a [DefaultDynamicExplorationGraph] for this [DEGIndex]. */
-        internal val graph = DefaultDynamicExplorationGraph<VectorValue<*>>(this.config as DEGIndexConfig, this)
+        private val graph = DefaultDynamicExplorationGraph<VectorValue<*>>(this.config as DEGIndexConfig, this)
 
         /**
          * Checks if this [DEGIndex] can process the provided [Predicate] and returns true if so and false otherwise.

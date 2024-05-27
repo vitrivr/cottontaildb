@@ -48,4 +48,9 @@ interface MutableGraph<V>: Graph<V> {
      * @return True on success, false otherwise.
      */
     fun removeEdge(from: V, to: V): Boolean
+
+    /**
+     * Clears this [MutableGraph].
+     */
+    fun clear()
 }

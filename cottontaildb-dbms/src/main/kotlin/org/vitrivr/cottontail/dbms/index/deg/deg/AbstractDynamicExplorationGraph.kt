@@ -16,9 +16,9 @@ import kotlin.math.max
  * @author Ralph Gasser
  * @version 1.0.0
  */
-abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val degree: Int, val kExt: Int, val epsilonExt: Float): DynamicExplorationGraph<I, V> {
+abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val config: DEGConfig): DynamicExplorationGraph<I, V> {
 
-    /** */
+    /** [SplittableRandom] used with [randomNodes] method. */
     private val random = SplittableRandom()
 
     /** The [MutableGraph] backing this [AbstractDynamicExplorationGraph]. */
@@ -39,7 +39,7 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
         val newNode = Node(identifier)
         this.storeValue(newNode, value)
 
-        if (this.size <= this.degree) { /* Case 1: Graph does not satisfy regularity condition since it is too small; make all existing nodes connect to the new node. */
+        if (this.size <= this.config.degree) { /* Case 1: Graph does not satisfy regularity condition since it is too small; make all existing nodes connect to the new node. */
             this.graph.addVertex(newNode)
             for (node in this.graph.vertices()) {
                 if (node == newNode) continue
@@ -47,7 +47,7 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
                 this.graph.addEdge(node, newNode, distance)
             }
         } else { /* Case 2: Graph satisfies satisfy regularity condition; extend graph by new node. */
-            val results = this.search(value, this.kExt, this.epsilonExt, this.randomNodes(1))
+            val results = this.search(value, this.config.kExt, this.config.epsilonExt, this.randomNodes(1))
             var phase = 1
 
             /* Add new vertex. */
@@ -55,9 +55,9 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
 
             /* Start insert procedure. */
             val newNeighbours = this.graph.edges(newNode)
-            while (newNeighbours.size < this.degree) {
+            while (newNeighbours.size < this.config.degree) {
                 for ((candidateLabel, candidateWeight) in results) {
-                    if (newNeighbours.size >= this.degree) break
+                    if (newNeighbours.size >= this.config.degree) break
 
                     /* Skip if candidate is already a neighbour. */
                     val candidateNode = Node(candidateLabel)
@@ -230,6 +230,14 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
      * @return [Float] distance between the two values.
      */
     protected abstract fun distance(a: V, b: V): Float
+
+    /**
+     * Clears this [AbstractDynamicExplorationGraph].
+     */
+    override fun clear() {
+        this.graph.clear()
+    }
+
 
     /**
      * Tries to identify if the MRNG (Monotonic Relative Neighborhood Graph) condition is satisfied between two [Node]s.

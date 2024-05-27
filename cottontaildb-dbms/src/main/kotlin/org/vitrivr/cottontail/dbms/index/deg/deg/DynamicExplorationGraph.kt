@@ -16,8 +16,8 @@ import org.vitrivr.cottontail.utilities.graph.Graph
  * @version 1.0.0
  */
 interface DynamicExplorationGraph<I:Comparable<I>,V>: Graph<Node<I>> {
-    /** The maximum degree of [Node]s* in this [DynamicExplorationGraph]. */
-    val degree: Int
+    /** The [DEGConfig] used by this [DynamicExplorationGraph]. */
+    val config: DEGConfig
 
     /**
      * This method indexes a new entry consisting of an identifier [I] and a value [V] into this [DynamicExplorationGraph].
@@ -58,4 +58,9 @@ interface DynamicExplorationGraph<I:Comparable<I>,V>: Graph<Node<I>> {
      * @return The value [V]
      */
     fun storeValue(node: Node<I>, value: V)
+
+    /**
+     * Clears this [DynamicExplorationGraph].
+     */
+    fun clear()
 }

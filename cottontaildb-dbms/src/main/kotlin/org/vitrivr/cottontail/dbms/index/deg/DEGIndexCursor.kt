@@ -8,12 +8,22 @@ import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.dbms.entity.values.StoredTuple
 import org.vitrivr.cottontail.dbms.entity.values.StoredValue
+import org.vitrivr.cottontail.dbms.index.deg.deg.DefaultDynamicExplorationGraph
 
+/**
+ * A [Cursor] implementation for the [DEGIndex].
+ *
+ * @author Ralph Gasser
+ * @version 1.0.0
+ */
 class DEGIndexCursor(query: VectorValue<*>, k: Int, private val columns: Array<ColumnDef<*>>, private val index: DEGIndex.Tx): Cursor<Tuple> {
+
+    /** The [DefaultDynamicExplorationGraph] version used by this [DEGIndexCursor]. */
+    private val graph = DefaultDynamicExplorationGraph<VectorValue<*>>(this.index.config as DEGIndexConfig, this.index)
 
     /** List of results; this is obtained lazily. */
     private val list by lazy {
-        this.index.graph.search(query, k, 0.8f, this.index.graph.randomNodes(4))
+        this.graph.search(query, k, 0.8f, this.graph.randomNodes(4))
     }
 
     /** The current position of this [DEGIndexCursor]. */
