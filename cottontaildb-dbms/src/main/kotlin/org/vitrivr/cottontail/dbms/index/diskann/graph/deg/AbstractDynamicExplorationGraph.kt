@@ -8,7 +8,6 @@ import org.vitrivr.cottontail.dbms.index.diskann.graph.primitives.Node
 import org.vitrivr.cottontail.utilities.graph.MutableGraph
 import java.util.*
 import kotlin.math.max
-import kotlin.math.min
 
 
 /**
@@ -49,8 +48,7 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
             }
         } else { /* Case 2: Graph satisfies satisfy regularity condition; extend graph by new node. */
             val results = this.search(value, this.kExt, this.epsilonExt, this.randomNodes(1))
-            check(results.size == min(this.graph.size, this.kExt)) { "Search for new node failed." }
-            var phase = 0
+            var phase = 1
 
             /* Add new vertex. */
             this.graph.addVertex(newNode)
@@ -59,21 +57,22 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
             val newNeighbours = this.graph.edges(newNode)
             while (newNeighbours.size < this.degree) {
                 for ((candidateLabel, candidateWeight) in results) {
-                    val candidateNode = Node(candidateLabel)
                     if (newNeighbours.size >= this.degree) break
+
+                    /* Skip if candidate is already a neighbour. */
+                    val candidateNode = Node(candidateLabel)
                     if (newNeighbours.any { it.to == candidateNode}) continue
-                    if (phase <= 1 && checkMrng(candidateNode, newNode, candidateWeight)) continue
+                    if (phase <= 1 && !checkMrng(candidateNode, newNode, candidateWeight)) continue
 
                     /* Find new neighbour. */
-                    val newNeighbour = this.graph.edges(candidateNode).filter { i1 -> newNeighbours.none { i2 -> i1.to == i2  } }.maxByOrNull { it.weight } ?: continue
+                    val newNeighbour = this.graph.edges(candidateNode).filter { i1 -> newNeighbours.none { i2 -> i1.to == i2.to  }  }.maxByOrNull { it.weight } ?: continue
                     val newNeighbourDistance = this.distance(this.getValue(newNode), this.getValue(newNeighbour.to))
 
                     /* Remove edge from candidate node to candidate neighbour. */
-                    this.graph.removeEdge(candidateNode, newNeighbour.to)
-
-                    /* Add edges to new nodes. */
-                    this.graph.addEdge(newNode, candidateNode, candidateWeight)
-                    this.graph.addEdge(newNode, newNeighbour.to, newNeighbourDistance)
+                    if (this.graph.removeEdge(candidateNode, newNeighbour.to)) {
+                        this.graph.addEdge(newNode, candidateNode, candidateWeight)
+                        this.graph.addEdge(newNode, newNeighbour.to, newNeighbourDistance)
+                    }
                 }
                 phase += 1
             }
@@ -209,15 +208,16 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
     fun randomNodes(sampleSize: Int): List<Node<I>> {
         require(sampleSize <= this.size) { "The sample size $sampleSize exceeds graph size of graph (s = $sampleSize, g = ${this.size})." }
         val iterator = this.graph.vertices()
-        val nodeIndexes = this.random.ints(0, this.size).distinct().limit(sampleSize.toLong()).sorted()
+        val nodeIndexes = this.random.ints(0, this.size).distinct().limit(sampleSize.toLong()).sorted().toArray()
         val results = mutableListOf<Node<I>>()
-        var current = 0
-        for (index in nodeIndexes) {
-            for (i in current until index) {
-                iterator.next()
-                current++
+        var index = 0
+        for (i in 0 until this.graph.size) {
+            if (i == nodeIndexes[index]) {
+                results.add(iterator.next())
+                if ((++index) == sampleSize) {
+                    break
+                }
             }
-            results.add(iterator.next())
         }
         return results
     }

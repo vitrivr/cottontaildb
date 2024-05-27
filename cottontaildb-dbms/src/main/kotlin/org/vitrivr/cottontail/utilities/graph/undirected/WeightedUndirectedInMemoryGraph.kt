@@ -79,9 +79,13 @@ class WeightedUndirectedInMemoryGraph<V>(val maxDegree: Int = 10): MutableGraph<
         check(e2.size < this.maxDegree) { "Failed to add edge: TO vertex $from has reached maximum degree." }
 
         /* Add edge if it does not exist. */
-        e1.add(Edge(to, weight))
-        e2.add(Edge(from, weight))
-        return false
+        if (e1.any { it.to == to } || e2.any { it.to == from }) {
+            return false
+        } else {
+            e1.add(Edge(to, weight))
+            e2.add(Edge(from, weight))
+            return false
+        }
     }
 
     /**
@@ -98,10 +102,7 @@ class WeightedUndirectedInMemoryGraph<V>(val maxDegree: Int = 10): MutableGraph<
         val e2 = this.adjacencyList[to] ?: throw NoSuchElementException("Failed to add edge: TO vertex $to does not exist in the graph." )
 
         /* Remove edge if it exists. */
-        e1.removeIf { it.to == to }
-        e2.removeIf { it.to == from }
-
-        return false
+        return e1.removeIf { it.to == to } && e2.removeIf { it.to == from }
     }
 
     /**
