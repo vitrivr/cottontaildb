@@ -23,7 +23,7 @@ import kotlin.time.measureTime
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class BasicDEGTest {
+class DEGTest {
 
     companion object {
         const val K = 100
@@ -80,16 +80,15 @@ class BasicDEGTest {
                 val query = FloatVectorValue(reader.next())
                 val bruteForceResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(K)
                 bruteForceDuration += measureTime {
-                    var index = 1L
                     for (vertex in graph.vertices()) {
-                        bruteForceResults.offer(ComparablePair(index++, distance.invoke(query, graph.getValue(vertex))!!))
+                        bruteForceResults.offer(ComparablePair(vertex.label, distance.invoke(query, graph.getValue(vertex))!!))
                     }
                 }
 
                 /* Fetch results through index. */
                 val indexResults = ArrayList<ComparablePair<TupleId, DoubleValue>>(K)
                 indexDuration += measureTime {
-                    val seeds = graph.randomNodes(5)
+                    val seeds = graph.randomNodes(4)
                     graph.search(query, K, 0.2f, seeds).forEach { indexResults.add(ComparablePair(it.label, DoubleValue(it.distance))) }
                 }
                 recall += RankingUtilities.recallAtK(bruteForceResults.toList().map { it.first }, indexResults.map { it.first }, K)
