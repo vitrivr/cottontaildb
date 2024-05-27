@@ -1,9 +1,9 @@
-package org.vitrivr.cottontail.dbms.index.diskann.graph.deg
+package org.vitrivr.cottontail.dbms.index.deg.deg
 
 import org.vitrivr.cottontail.core.basics.CloseableIterator
 import org.vitrivr.cottontail.core.types.VectorValue
-import org.vitrivr.cottontail.dbms.index.diskann.graph.primitives.Distance
-import org.vitrivr.cottontail.dbms.index.diskann.graph.primitives.Node
+import org.vitrivr.cottontail.dbms.index.deg.primitives.Distance
+import org.vitrivr.cottontail.dbms.index.deg.primitives.Node
 import org.vitrivr.cottontail.utilities.graph.Graph
 
 /**

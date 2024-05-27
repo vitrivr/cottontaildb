@@ -163,7 +163,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         try {
             this.environment.close()
         } catch (e: Throwable) {
-            LOGGER.error("Failed to close catal.", e)
+            LOGGER.error("Failed to close catalogue environment. Some transaction may be lost now.", e)
         }
     }
 

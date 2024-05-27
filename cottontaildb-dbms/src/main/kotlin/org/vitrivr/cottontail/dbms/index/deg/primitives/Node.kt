@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.index.diskann.graph.primitives
+package org.vitrivr.cottontail.dbms.index.deg.primitives
 
 /**
  * A [Node] in an [AbstractDynamicExplorationGraph].

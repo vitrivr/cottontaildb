@@ -1,13 +1,11 @@
 package org.vitrivr.cottontail.utilities.graph.undirected
 
-import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.FloatBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.env.Transaction
-import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.utilities.graph.Edge
 import org.vitrivr.cottontail.utilities.graph.MutableGraph
 import java.io.ByteArrayInputStream
@@ -18,10 +16,12 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class WeightedUndirectedInMemoryGraph<V>(val maxDegree: Int = 10): MutableGraph<V> {
+class WeightedUndirectedInMemoryGraph<V>(private val maxDegree: Int, private val adjacencyList: MutableMap<V, MutableList<Edge<V>>>): MutableGraph<V> {
 
-    /** An [Object2ObjectLinkedOpenHashMap] used as adjacency list for this [WeightedUndirectedInMemoryGraph]. */
-    private val adjacencyList = Object2ObjectOpenHashMap<V, ArrayList<Edge<V>>>()
+    /**
+     * Simple constructor for an empty [WeightedUndirectedInMemoryGraph].
+     */
+    constructor(maxDegree: Int): this(maxDegree, Object2ObjectOpenHashMap<V,MutableList<Edge<V>>>())
 
     /** The number of vertices in this [WeightedUndirectedInMemoryGraph]. */
     override val size: Int
@@ -133,57 +133,4 @@ class WeightedUndirectedInMemoryGraph<V>(val maxDegree: Int = 10): MutableGraph<
      *
      */
     override fun vertices(): Iterator<V> = this@WeightedUndirectedInMemoryGraph.adjacencyList.keys.iterator()
-
-    /**
-     * Writes the contents of this [WeightedUndirectedInMemoryGraph] to the provided [Store] using the provided [Transaction].
-     *
-     * @param store The [Store] to read [WeightedUndirectedInMemoryGraph] from.
-     * @param txn The [Transaction] to use.
-     * @param serializer The [VertexSerializer]
-     */
-    fun writeToStore(store: Store, txn: Transaction, serializer: VertexSerializer<V>) {
-        require(store.config == StoreConfig.WITH_DUPLICATES) { "A weighted undirected in-memory graph can only be written to a store with duplicates enabled."}
-        val out = LightOutputStream()
-        for ((vertex, edges) in this.adjacencyList) {
-            out.clear()
-            val key = serializer.serialize(vertex)
-            store.delete(txn, key)
-            if (edges.isEmpty()) {
-                store.add(txn, key, ByteIterable.EMPTY)
-            } else {
-                for ((edge, weight) in edges) {
-                    serializer.write(edge, out)
-                    FloatBinding.BINDING.writeObject(out, weight)
-                    store.put(txn, key, out.asArrayByteIterable())
-                }
-            }
-        }
-    }
-
-    /**
-     * Reads a [WeightedUndirectedInMemoryGraph] to the provided [Store] using the provided [Transaction].
-     *
-     * @param store The [Store] to read [WeightedUndirectedInMemoryGraph] from.
-     * @param txn The [Transaction] to use.
-     * @param serializer The [VertexSerializer]
-     */
-    fun readFromStore(store: Store, txn: Transaction, serializer: VertexSerializer<V>) {
-        require(store.config == StoreConfig.WITH_DUPLICATES) { "A weighted undirected in-memory graph can only be written to a store with duplicates enabled." }
-        this.adjacencyList.clear()
-        store.openCursor(txn).use {
-            while (it.nextNoDup) {
-                val key = serializer.deserialize(it.key)
-                val edges = ArrayList<Edge<V>>(this.maxDegree)
-                if (it.value != ByteIterable.EMPTY) {
-                    do {
-                        val input = ByteArrayInputStream(it.value.bytesUnsafe)
-                        val to = serializer.read(input)
-                        val weight = FloatBinding.BINDING.readObject(input).toFloat()
-                        edges.add(Edge(to, weight))
-                    } while (it.nextDup)
-                    this.adjacencyList[key] = edges
-                }
-            }
-        }
-    }
 }

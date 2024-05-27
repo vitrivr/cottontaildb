@@ -1,6 +1,6 @@
-package org.vitrivr.cottontail.dbms.index.diskann.graph.primitives
+package org.vitrivr.cottontail.dbms.index.deg.primitives
 
-import org.vitrivr.cottontail.dbms.index.diskann.graph.deg.AbstractDynamicExplorationGraph
+import org.vitrivr.cottontail.dbms.index.deg.deg.AbstractDynamicExplorationGraph
 
 /**
  * A [Distance] element produced by this [AbstractDynamicExplorationGraph].

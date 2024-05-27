@@ -78,7 +78,7 @@ subprojects {
     /** Increase heap size for all unit tests. */
     test {
         minHeapSize = "256M"
-        maxHeapSize = "2G"
+        maxHeapSize = "4G"
     }
 
     javadoc {

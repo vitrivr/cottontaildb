@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.dbms.index.basic
 
 import org.vitrivr.cottontail.dbms.index.btree.BTreeIndex
 import org.vitrivr.cottontail.dbms.index.btree.UQBTreeIndex
-import org.vitrivr.cottontail.dbms.index.diskann.graph.DEGIndex
+import org.vitrivr.cottontail.dbms.index.deg.DEGIndex
 import org.vitrivr.cottontail.dbms.index.lsh.LSHIndex
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.dbms.index.pq.IVFPQIndex

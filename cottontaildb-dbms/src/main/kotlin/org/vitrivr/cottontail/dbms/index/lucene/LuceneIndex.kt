@@ -44,8 +44,8 @@ import org.vitrivr.cottontail.dbms.execution.transactions.SubTransaction
 import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.btree.BTreeIndex
-import org.vitrivr.cottontail.dbms.index.diskann.graph.DEGIndex
-import org.vitrivr.cottontail.dbms.index.diskann.graph.DEGIndexConfig
+import org.vitrivr.cottontail.dbms.index.deg.DEGIndex
+import org.vitrivr.cottontail.dbms.index.deg.DEGIndexConfig
 import org.vitrivr.cottontail.dbms.index.pq.rebuilder.AsyncPQIndexRebuilder
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.server.Instance

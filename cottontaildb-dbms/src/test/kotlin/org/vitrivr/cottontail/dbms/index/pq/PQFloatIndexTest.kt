@@ -43,7 +43,6 @@ class PQFloatIndexTest : AbstractIndexTest() {
         fun kernels(): Stream<Name.FunctionName> = Stream.of(EuclideanDistance.FUNCTION_NAME)
     }
 
-
     /** The dimensionality of the test vector. Determined randomly.  */
     private val dimension = this.random.nextInt(128, 2048)
 

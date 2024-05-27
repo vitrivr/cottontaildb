@@ -1,6 +1,7 @@
-package org.vitrivr.cottontail.dbms.index.diskann.graph
+package org.vitrivr.cottontail.dbms.index.deg
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectFunction
+import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.slf4j.Logger
@@ -23,12 +24,14 @@ import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.entity.values.StoredTuple
+import org.vitrivr.cottontail.dbms.entity.values.StoredValue
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.index.basic.*
 import org.vitrivr.cottontail.dbms.index.basic.IndexMetadata.Companion.storeName
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AsyncIndexRebuilder
-import org.vitrivr.cottontail.dbms.index.diskann.graph.deg.DefaultDynamicExplorationGraph
-import org.vitrivr.cottontail.dbms.index.diskann.graph.rebuilder.DEGIndexRebuilder
+import org.vitrivr.cottontail.dbms.index.deg.deg.DefaultDynamicExplorationGraph
+import org.vitrivr.cottontail.dbms.index.deg.rebuilder.DEGIndexRebuilder
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.dbms.index.pq.rebuilder.AsyncPQIndexRebuilder
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
@@ -155,8 +158,7 @@ class DEGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
      */
     inner class Tx(parent: DefaultEntity.Tx) : AbstractIndex.Tx(parent) {
         /** Constructs a [DefaultDynamicExplorationGraph] for this [DEGIndex]. */
-        private val graph = DefaultDynamicExplorationGraph<VectorValue<*>>(this.config as DEGIndexConfig, this)
-
+        internal val graph = DefaultDynamicExplorationGraph<VectorValue<*>>(this.config as DEGIndexConfig, this)
 
         /**
          * Checks if this [DEGIndex] can process the provided [Predicate] and returns true if so and false otherwise.
@@ -241,23 +243,7 @@ class DEGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name
                     predicate.query.getValue() as VectorValue<*>
                 }
             }
-            return object : Cursor<Tuple> {
-                private val columns = this@Tx.columnsFor(predicate).toTypedArray()
-                private val list = this@Tx.graph.search(query, 250, 0.01f, this@Tx.graph.randomNodes(10))
-                private var index: Int = 0
-                override fun hasNext(): Boolean = this.index <= this.list.size
-                override fun moveNext(): Boolean = (this.index++) < this.list.size
-                override fun key(): TupleId = this.list[this.index].label
-                override fun value(): Tuple {
-                    val entry = this.list[this.index++]
-                    return StandaloneTuple(entry.label, this.columns, arrayOf(DoubleValue(entry.distance)))
-                }
-                override fun next(): Tuple {
-                    if (!this.moveNext()) throw NoSuchElementException("No more elements in cursor.")
-                    return this.value()
-                }
-                override fun close() {}
-            }
+            return DEGIndexCursor(query, predicate.k.toInt(), this.columnsFor(predicate).toTypedArray(), this)
         }
 
         /**

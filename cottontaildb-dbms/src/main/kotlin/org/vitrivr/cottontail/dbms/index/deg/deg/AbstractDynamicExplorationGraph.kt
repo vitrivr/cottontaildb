@@ -1,10 +1,10 @@
-package org.vitrivr.cottontail.dbms.index.diskann.graph.deg
+package org.vitrivr.cottontail.dbms.index.deg.deg
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.types.VectorValue
-import org.vitrivr.cottontail.dbms.index.diskann.graph.primitives.Distance
-import org.vitrivr.cottontail.dbms.index.diskann.graph.primitives.Node
+import org.vitrivr.cottontail.dbms.index.deg.primitives.Distance
+import org.vitrivr.cottontail.dbms.index.deg.primitives.Node
 import org.vitrivr.cottontail.utilities.graph.MutableGraph
 import java.util.*
 import kotlin.math.max
@@ -16,7 +16,7 @@ import kotlin.math.max
  * @author Ralph Gasser
  * @version 1.0.0
  */
-abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val degree: Int, val kExt: Int, val epsilonExt: Float): DynamicExplorationGraph<I,V> {
+abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val degree: Int, val kExt: Int, val epsilonExt: Float): DynamicExplorationGraph<I, V> {
 
     /** */
     private val random = SplittableRandom()
@@ -134,7 +134,7 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
             val next = nextNodes.poll()
 
             /* Abort condition. */
-            if (next.distance > radius * (1 + eps)) {
+            if (results.size < k && next.distance > radius * (1 + eps)) {
                 break
             }
 
@@ -147,7 +147,7 @@ abstract class AbstractDynamicExplorationGraph<I:Comparable<I>,V>(override val d
                     /* Calculate distance and add to queue. */
                     val distance = Distance(node.label, this.distance(query, this.getValue(node)))
                     distanceComputationCount++
-                    if (distance.distance <= radius * (1 + eps)) {
+                    if (results.size < k || distance.distance <= radius * (1 + eps)) {
                         /* Add node ID to set of checked nodes. */
                         nextNodes.add(distance)
 

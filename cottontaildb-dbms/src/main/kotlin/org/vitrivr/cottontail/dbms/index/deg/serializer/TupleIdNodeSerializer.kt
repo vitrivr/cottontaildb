@@ -1,9 +1,9 @@
-package org.vitrivr.cottontail.dbms.index.diskann.graph.serializer
+package org.vitrivr.cottontail.dbms.index.deg.serializer
 
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.dbms.index.diskann.graph.primitives.Node
+import org.vitrivr.cottontail.dbms.index.deg.primitives.Node
 import org.vitrivr.cottontail.utilities.graph.undirected.VertexSerializer
 import java.io.ByteArrayInputStream
 

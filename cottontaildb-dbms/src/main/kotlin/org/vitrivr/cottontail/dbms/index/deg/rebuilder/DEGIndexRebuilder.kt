@@ -1,11 +1,11 @@
-package org.vitrivr.cottontail.dbms.index.diskann.graph.rebuilder
+package org.vitrivr.cottontail.dbms.index.deg.rebuilder
 
 import org.vitrivr.cottontail.core.types.VectorValue
 import org.vitrivr.cottontail.dbms.index.basic.AbstractIndex
 import org.vitrivr.cottontail.dbms.index.basic.rebuilder.AbstractIndexRebuilder
-import org.vitrivr.cottontail.dbms.index.diskann.graph.DEGIndex
-import org.vitrivr.cottontail.dbms.index.diskann.graph.DEGIndexConfig
-import org.vitrivr.cottontail.dbms.index.diskann.graph.deg.DefaultDynamicExplorationGraph
+import org.vitrivr.cottontail.dbms.index.deg.DEGIndex
+import org.vitrivr.cottontail.dbms.index.deg.DEGIndexConfig
+import org.vitrivr.cottontail.dbms.index.deg.deg.DefaultDynamicExplorationGraph
 import org.vitrivr.cottontail.dbms.index.pq.rebuilder.PQIndexRebuilder
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 
@@ -39,9 +39,10 @@ class DEGIndexRebuilder(index: DEGIndex, context: QueryContext): AbstractIndexRe
         try {
             indexTx.parent.cursor().use { cursor ->
                 while (cursor.moveNext()) {
+                    val tupleId = cursor.key()
                     val value = cursor.value()[column]
                     if (value is VectorValue<*>) {
-                        graph.index(cursor.key(), value)
+                        graph.index(tupleId, value)
                     }
                 }
             }
@@ -52,8 +53,6 @@ class DEGIndexRebuilder(index: DEGIndex, context: QueryContext): AbstractIndexRe
             return false
         }
 
-
-        /* Update stored ProductQuantizer. */
         return true
     }
 }

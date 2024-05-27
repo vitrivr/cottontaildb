@@ -12,11 +12,14 @@ import java.util.*
  * Some constants used during execution of unit tests.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 object TestConstants {
     /** General size of collections used for testing. */
     const val TEST_COLLECTION_SIZE: Int = 50_000
+
+    /** Collection size of the SIFT test collection. */
+    const val SIFT_TEST_COLLECTION_SIZE: Int = 9_999
 
     /** Maximum dimension used for vector generation. */
     const val SMALL_VECTOR_MAX_DIMENSION: Int = 128

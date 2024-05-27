@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.index.diskann.graph
+package org.vitrivr.cottontail.dbms.index.deg
 
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.FloatBinding

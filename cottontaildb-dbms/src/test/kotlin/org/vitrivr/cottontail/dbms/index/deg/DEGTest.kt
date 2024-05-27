@@ -7,8 +7,8 @@ import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.euclid
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
-import org.vitrivr.cottontail.dbms.index.diskann.graph.deg.AbstractDynamicExplorationGraph
-import org.vitrivr.cottontail.dbms.index.diskann.graph.deg.InMemoryDynamicExplorationGraph
+import org.vitrivr.cottontail.dbms.index.deg.deg.AbstractDynamicExplorationGraph
+import org.vitrivr.cottontail.dbms.index.deg.deg.InMemoryDynamicExplorationGraph
 import org.vitrivr.cottontail.utilities.formats.FVecsReader
 import org.vitrivr.cottontail.utilities.math.ranking.RankingUtilities
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
@@ -37,7 +37,7 @@ class DEGTest {
         /* Prepare parameters. */
         val type = Types.FloatVector(128)
         val distance = EuclideanDistance.FloatVector(type)
-        val graph = InMemoryDynamicExplorationGraph<TupleId, FloatVectorValue>(8, 16, 0.2f) { v1, v2 -> distance.invoke(v1, v2).value.toFloat() }
+        val graph = InMemoryDynamicExplorationGraph<TupleId, FloatVectorValue>(8, 60, 0.2f) { v1, v2 -> distance.invoke(v1, v2).value.toFloat() }
 
         /* Index vectors and build graph & ground truth. */
         this.index(graph)
