@@ -7,7 +7,6 @@ import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.StoreConfig
-import jetbrains.exodus.vfs.VirtualFileSystem
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
@@ -83,13 +82,6 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
 
     /** The location of this [DefaultEntity]'s data files. */
     val location: Path = Paths.get(this@DefaultEntity.environment.location)
-
-
-    init {
-        /* Initialize VirtualFileSystem once. */
-        val vfs = VirtualFileSystem(this.environment)
-        vfs.shutdown()
-    }
 
     /**
      * Creates and returns a new [DefaultEntity.Tx] for the given [QueryContext].

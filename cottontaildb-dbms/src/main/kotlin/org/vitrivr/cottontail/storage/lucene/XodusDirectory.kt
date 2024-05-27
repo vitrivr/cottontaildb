@@ -4,6 +4,7 @@ import jetbrains.exodus.env.ContextualEnvironment
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.vfs.File
+import jetbrains.exodus.vfs.VfsConfig
 import jetbrains.exodus.vfs.VfsInputStream
 import jetbrains.exodus.vfs.VirtualFileSystem
 import org.apache.lucene.index.IndexFileNames
@@ -37,7 +38,7 @@ class XodusDirectory(private val name: String, private val txn: Transaction, pri
     }
 
     /** Opens a [VirtualFileSystem] for this [XodusDirectory]. */
-    private val vfs = VirtualFileSystem(this.txn.environment)
+    private val vfs = VirtualFileSystem(this.txn.environment, VfsConfig(), this.txn)
 
     /** Internal counter used to create ticks. */
     private val ticks = AtomicLong(System.currentTimeMillis())
