@@ -46,7 +46,7 @@ class DumpSchemaCommand(client: SimpleClient) : AbstractSchemaCommand(
     private val batchSize: Int by option(
         "-b",
         "--batch",
-        help = "Export format. Defaults to CBOR."
+        help = "Batch size. Defaults to 100000"
     ).convert { it.toInt() }.default(100000)
 
     /** Flag indicating whether output should be compressed. */
@@ -54,7 +54,7 @@ class DumpSchemaCommand(client: SimpleClient) : AbstractSchemaCommand(
         "-c",
         "--compress",
         help = "Whether export should be compressed)"
-    ).flag(default = true)
+    ).flag(default = false)
 
     override fun exec() {
         val dumper = if (this.compress) {
