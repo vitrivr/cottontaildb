@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.storage.ool
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectFunction
-import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.types.Value
 import org.vitrivr.cottontail.dbms.entity.values.OutOfLineValue
@@ -14,6 +13,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
 /** */
@@ -31,7 +31,7 @@ abstract class AbstractOOLFile<V: Value, D: OutOfLineValue>(final override val p
         private const val MAX_CHANNELS = 128
 
         /** An internal [TreeMap] of [FileChannel]s used to access the underlying segment file. */
-        private val OPEN_CHANNELS = Object2ObjectLinkedOpenHashMap<Path,SharedFileChannel>()
+        private val OPEN_CHANNELS = ConcurrentHashMap<Path,SharedFileChannel>()
     }
 
     init {
@@ -92,8 +92,8 @@ abstract class AbstractOOLFile<V: Value, D: OutOfLineValue>(final override val p
 
         /* Clean up the cache if it gets too large. */
         if (OPEN_CHANNELS.size >= MAX_CHANNELS) {
-            OPEN_CHANNELS.object2ObjectEntrySet().removeIf {
-                if (it.value.referenceCount == 0 && it.value != ret) {
+            OPEN_CHANNELS.entries.removeIf {
+                if (it.value.referenceCount == 0) {
                     it.value.close()
                     true
                 } else {
