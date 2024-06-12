@@ -13,7 +13,7 @@ configurations {
 }
 
 node {
-  version = '18.16.0'
+  version = '18.19.0'
   download = true
   workDir.set(file("${project.projectDir}/.gradle/nodejs"))
   nodeProjectDir.set(file("${project.projectDir}"))
