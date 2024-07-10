@@ -39,13 +39,13 @@ class VariableLengthCursor<T: Value>(column: VariableLengthColumn<T>.Tx): Cursor
     /** */
     private var valueRaw: ByteIterable? = null
 
-    override fun moveNext(): Boolean = this.moveTo(this.tupleId + 1)
-    override fun movePrevious(): Boolean  = this.moveTo(this.tupleId - 1)
+    override fun moveNext(): Boolean = this.moveTo(this.tupleId + 1L)
+    override fun movePrevious(): Boolean  = this.moveTo(this.tupleId - 1L)
     override fun moveTo(tupleId: TupleId): Boolean {
-        if (tupleId < 0) return false
+        if (tupleId < 0L) return false
         return when (tupleId) {
             this.tupleId -> true
-            this.tupleId + 1 -> {
+            this.tupleId + 1L -> {
                 if (this.cursor.next) {
                     this.tupleId = tupleId
                     this.valueRaw = this.cursor.value
@@ -54,7 +54,7 @@ class VariableLengthCursor<T: Value>(column: VariableLengthColumn<T>.Tx): Cursor
                     false
                 }
             }
-            this.tupleId - 1 -> {
+            this.tupleId - 1L -> {
                 if (this.cursor.prev) {
                     this.tupleId = tupleId
                     this.valueRaw = this.cursor.value
@@ -65,7 +65,12 @@ class VariableLengthCursor<T: Value>(column: VariableLengthColumn<T>.Tx): Cursor
             }
             else -> {
                 this.valueRaw = this.cursor.getSearchKey(LongBinding.longToCompressedEntry(tupleId))
-                return this.valueRaw != null
+                if (this.valueRaw != null) {
+                    this.tupleId = tupleId
+                    return true
+                } else {
+                    return false
+                }
             }
         }
     }
