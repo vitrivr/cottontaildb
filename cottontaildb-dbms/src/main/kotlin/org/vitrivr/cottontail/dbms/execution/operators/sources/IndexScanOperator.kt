@@ -48,7 +48,8 @@ class IndexScanOperator(
      */
     override fun toFlow(): Flow<Tuple> = flow {
         val columns = this@IndexScanOperator.fetch.map { it.column }.toTypedArray()
-        var read = 0
+        val physical = this@IndexScanOperator.fetch.mapNotNull { it.physical }.toTypedArray()
+        var read = 0L
         if (this@IndexScanOperator.partitions == 1) {
             this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate)
         } else {
@@ -56,9 +57,9 @@ class IndexScanOperator(
             this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate, entityTx.partitionFor(this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions))
         }.use { cursor ->
             while (cursor.moveNext()) {
-                val record = cursor.value() as StandaloneTuple
-                emit(StandaloneTuple(record.tupleId, columns, record.values))
-                read += 1
+                val record = cursor.value()
+                emit(StandaloneTuple(record.tupleId, columns, physical.map { record[it] }.toTypedArray()))
+                read += 1L
             }
         }
         LOGGER.debug("Read {} entries from {}.", read, this@IndexScanOperator.index.dbo.name)
