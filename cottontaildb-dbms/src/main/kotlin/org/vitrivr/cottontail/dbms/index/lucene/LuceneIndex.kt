@@ -252,12 +252,20 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * @param predicate [Predicate] to test.
          * @return True if [Predicate] can be processed, false otherwise.
          */
-        override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate &&
-            predicate.columns.all { it.physical in this.columns } &&
-            predicate.atomics.all {
-                it is BooleanPredicate.Comparison &&
-                (it.operator is ComparisonOperator.Like || it.operator is ComparisonOperator.Equal || it.operator is ComparisonOperator.Match)
+        override fun canProcess(predicate: Predicate): Boolean {
+            if (predicate !is BooleanPredicate.Comparison) return false
+            if (predicate.columns.any {  it.physical !in this.columns }) return false
+            if (predicate.operator is ComparisonOperator.Equal) return true
+            if (predicate.operator is ComparisonOperator.Match) return true
+            if (predicate.operator is ComparisonOperator.Like) {
+                with (MissingTuple) {
+                    with(this@Tx.context.bindings) {
+                        if (predicate.operator.right.getValue() is LikePatternValue.StartsWith) return true
+                    }
+                }
             }
+            return false
+        }
 
         /**
          * Returns a [List] of the [ColumnDef] produced by this [LuceneIndex].
