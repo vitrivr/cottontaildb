@@ -2,7 +2,7 @@ import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
 
 plugins {
   id 'base'
-  id 'com.github.node-gradle.node' version '4.0.0'
+  id 'com.github.node-gradle.node' version '7.0.2'
 }
 
 configurations {
@@ -13,7 +13,7 @@ configurations {
 }
 
 node {
-  version = '18.19.0'
+  version = '20.15.1'
   download = true
   workDir.set(file("${project.projectDir}/.gradle/nodejs"))
   nodeProjectDir.set(file("${project.projectDir}"))
