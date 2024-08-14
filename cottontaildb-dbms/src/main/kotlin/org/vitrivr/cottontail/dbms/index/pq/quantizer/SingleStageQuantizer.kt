@@ -41,7 +41,7 @@ data class SingleStageQuantizer constructor(val codebooks: Array<PQCodebook>) {
 
             /* Prepare k-means clusterer. */
             val reshape = distance.copy(dimensionsPerSubspace)
-            val random = SplittableRandom(System.currentTimeMillis())
+            val random = SplittableRandom(config.seed.toLong())
             val clusterer = KMeansClusterer(config.numCentroids, reshape.type, random)
 
             /* Prepare codebooks. */

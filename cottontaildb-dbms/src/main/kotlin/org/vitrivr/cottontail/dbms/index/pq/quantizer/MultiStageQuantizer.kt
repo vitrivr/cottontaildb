@@ -41,7 +41,7 @@ data class MultiStageQuantizer(val coarse: PQCodebook, val fine: Array<PQCodeboo
 
             /* Prepare k-means clusterer. */
             val reshape = distance.copy(dimensionsPerSubspace)
-            val random = SplittableRandom(System.currentTimeMillis())
+            val random = SplittableRandom(config.seed.toLong())
             val coarseClusterer = KMeansClusterer(config.numCoarseCentroids, distance.type, random)
             val fineClusterer = KMeansClusterer(config.numCentroids, distance.type, random)
 

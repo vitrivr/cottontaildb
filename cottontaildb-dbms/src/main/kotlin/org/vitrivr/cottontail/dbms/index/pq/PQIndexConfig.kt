@@ -12,14 +12,13 @@ import java.io.ByteArrayInputStream
 /**
  * Configuration class for [PQIndex].
  *
- * @author Gabriel Zihlmann & Ralph Gasser
+ * @author Gabriel Zihlmann
+ * @author Ralph Gasser
  * @version 1.3.0
  */
 data class PQIndexConfig(val distance: Name.FunctionName, val numCentroids: Int, val subspaces: Int, val seed: Int = System.currentTimeMillis().toInt()) : IndexConfig<PQIndex> {
 
     companion object {
-
-
         /** The maximum number of subspaces. We cap this at 32 to limit the code length.  */
         private const val MAXIMUM_NUMBER_OF_SUBSPACES = 32
 
