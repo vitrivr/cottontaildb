@@ -48,7 +48,7 @@ class IndexScanOperator(
      */
     override fun toFlow(): Flow<Tuple> = flow {
         val columns = this@IndexScanOperator.fetch.map { it.column }.toTypedArray()
-        val physical = this@IndexScanOperator.fetch.mapNotNull { it.physical }.toTypedArray()
+        val physical = this@IndexScanOperator.fetch.map { it.physical ?: it.column }.toTypedArray()
         var read = 0L
         if (this@IndexScanOperator.partitions == 1) {
             this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate)

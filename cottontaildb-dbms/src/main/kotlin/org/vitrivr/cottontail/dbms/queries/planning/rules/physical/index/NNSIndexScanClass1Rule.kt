@@ -80,7 +80,6 @@ object NNSIndexScanClass1Rule : RewriteRule {
         /* If candidate has been found, execute replacement. */
         if (candidate != null) {
             val produces = candidate.columnsFor(predicate)
-            val distanceColumn = predicate.distanceColumn
             if (produces.contains(predicate.distanceColumn.column)) {
                 var replacement: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, listOf(node.out.copy()), candidate, predicate)
                 val newFetch = scan.columns.filter { !produces.contains(it.physical) && it != predicate.column }
