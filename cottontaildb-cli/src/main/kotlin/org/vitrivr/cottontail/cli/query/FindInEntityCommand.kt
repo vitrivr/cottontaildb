@@ -40,7 +40,7 @@ class FindInEntityCommand(client: SimpleClient): AbstractCottontailCommand.Query
     private val value: String by option("-v", "--value", help = "The query value.").required()
 
     /** Flag indicating, that the query value should be interpreted as pattern. */
-    private val pattern: Boolean by option("-p", "--pattern", "The ").flag("--no-pattern", default = false)
+    private val pattern: Boolean by option("-p", "--pattern", help = "If set, the query value will be interpreted as a pattern for matching.").flag("--no-pattern", default = false)
 
     override fun exec() {
 
